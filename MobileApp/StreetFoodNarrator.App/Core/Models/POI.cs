@@ -1,0 +1,200 @@
+namespace StreetFoodNarrator.App.Core.Models;
+
+/// <summary>
+/// Point of Interest - Điểm thuyết minh (Enhanced with multi-language support)
+/// </summary>
+public class POI
+{
+    public int Id { get; set; }
+    
+    /// <summary>
+    /// Vĩ độ (Latitude)
+    /// </summary>
+    public double Latitude { get; set; }
+    
+    /// <summary>
+    /// Kinh độ (Longitude)
+    /// </summary>
+    public double Longitude { get; set; }
+    
+    /// <summary>
+    /// Bán kính kích hoạt (mét)
+    /// </summary>
+    public int Radius { get; set; } = 50;
+    
+    /// <summary>
+    /// Loại vùng: Area (Khu vực lớn), District (Khu trung), Spot (Điểm cụ thể)
+    /// </summary>
+    public string ZoneType { get; set; } = "Spot";
+    
+    /// <summary>
+    /// Cấp độ vùng (computed): Area=1, District=2, Spot=3
+    /// </summary>
+    public int ZoneLevel { get; set; } = 3;
+    
+    /// <summary>
+    /// Độ ưu tiên (1-10) - Dùng khi nhiều vùng chồng lấn
+    /// </summary>
+    public int Priority { get; set; } = 5;
+    
+    /// <summary>
+    /// Thời gian chờ (phút) trước khi trigger lại
+    /// </summary>
+    public int CooldownMinutes { get; set; } = 30;
+    
+    /// <summary>
+    /// ID của vùng cha (nested zones)
+    /// </summary>
+    public int? ParentZoneId { get; set; }
+    
+    /// <summary>
+    /// Số lần phát tối đa trong 1 session
+    /// </summary>
+    public int MaxPlaysPerSession { get; set; } = 1;
+    
+    // ============================================
+    // MULTI-LANGUAGE NAME FIELDS
+    // ============================================
+    
+    public string Name_Vi { get; set; } = string.Empty;
+    public string Name_En { get; set; } = string.Empty;
+    public string? Name_Ja { get; set; }
+    public string? Name_Fr { get; set; }
+    public string? Name_Ko { get; set; }
+    public string? Name_Zh { get; set; }
+    
+    // ============================================
+    // MULTI-LANGUAGE DESCRIPTION FIELDS (for TTS)
+    // ============================================
+    
+    public string? Description_Vi { get; set; }
+    public string? Description_En { get; set; }
+    public string? Description_Ja { get; set; }
+    public string? Description_Fr { get; set; }
+    public string? Description_Ko { get; set; }
+    public string? Description_Zh { get; set; }
+    
+    // ============================================
+    // MULTI-LANGUAGE AUDIO URLs
+    // ============================================
+    
+    public string? AudioUrl_Vi { get; set; }
+    public string? AudioUrl_En { get; set; }
+    public string? AudioUrl_Ja { get; set; }
+    public string? AudioUrl_Fr { get; set; }
+    public string? AudioUrl_Ko { get; set; }
+    public string? AudioUrl_Zh { get; set; }
+    
+    // ============================================
+    // MEDIA & METADATA
+    // ============================================
+    
+    public string? ImageUrl { get; set; }
+    
+    /// <summary>
+    /// Món ăn đặc trưng
+    /// </summary>
+    public string? SignatureDish { get; set; }
+    
+    /// <summary>
+    /// Điều thú vị về địa điểm
+    /// </summary>
+    public string? FunFact { get; set; }
+    
+    /// <summary>
+    /// Giờ hoạt động (ví dụ: "15:00-23:00")
+    /// </summary>
+    public string? EstimatedHours { get; set; }
+    
+    // ============================================
+    // COMPUTED PROPERTIES (not stored in DB)
+    // ============================================
+    
+    /// <summary>
+    /// Khoảng cách từ user đến POI (meters) - calculated at runtime
+    /// </summary>
+    public double DistanceFromUser { get; set; }
+    
+    // ============================================
+    // LEGACY FIELDS (for backward compatibility)
+    // ============================================
+    
+    /// <summary>
+    /// Loại POI (Restaurant, Stall, LandMark, etc.)
+    /// </summary>
+    public string Type { get; set; } = string.Empty;
+    
+    public bool IsActive { get; set; } = true;
+    
+    // ============================================
+    // TIMESTAMPS
+    // ============================================
+    
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+    public DateTime? DeletedAt { get; set; }
+    
+    // ============================================
+    // NAVIGATION PROPERTIES
+    // ============================================
+    
+    /// <summary>
+    /// Danh sách audio liên quan (legacy)
+    /// </summary>
+    public ICollection<AudioContent> AudioContents { get; set; } = new List<AudioContent>();
+    
+    // ============================================
+    // HELPER METHODS
+    // ============================================
+    
+    /// <summary>
+    /// Lấy tên theo ngôn ngữ
+    /// </summary>
+    public string GetName(string language = "vi")
+    {
+        return language.ToLower() switch
+        {
+            "vi" => Name_Vi,
+            "en" => Name_En,
+            "ja" => Name_Ja ?? Name_En,
+            "fr" => Name_Fr ?? Name_En,
+            "ko" => Name_Ko ?? Name_En,
+            "zh" => Name_Zh ?? Name_En,
+            _ => Name_Vi
+        };
+    }
+    
+    /// <summary>
+    /// Lấy mô tả theo ngôn ngữ
+    /// </summary>
+    public string? GetDescription(string language = "vi")
+    {
+        return language.ToLower() switch
+        {
+            "vi" => Description_Vi,
+            "en" => Description_En,
+            "ja" => Description_Ja ?? Description_En,
+            "fr" => Description_Fr ?? Description_En,
+            "ko" => Description_Ko ?? Description_En,
+            "zh" => Description_Zh ?? Description_En,
+            _ => Description_Vi
+        };
+    }
+    
+    /// <summary>
+    /// Lấy audio URL theo ngôn ngữ
+    /// </summary>
+    public string? GetAudioUrl(string language = "vi")
+    {
+        return language.ToLower() switch
+        {
+            "vi" => AudioUrl_Vi,
+            "en" => AudioUrl_En,
+            "ja" => AudioUrl_Ja ?? AudioUrl_En,
+            "fr" => AudioUrl_Fr ?? AudioUrl_En,
+            "ko" => AudioUrl_Ko ?? AudioUrl_En,
+            "zh" => AudioUrl_Zh ?? AudioUrl_En,
+            _ => AudioUrl_Vi
+        };
+    }
+}

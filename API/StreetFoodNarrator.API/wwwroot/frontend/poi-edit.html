@@ -1,0 +1,1942 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chỉnh sửa POI - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #05C494 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(6, 214, 160, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #D63D5F 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 71, 111, 0.3);
+        }
+
+        /* Form Layout */
+        .form-layout {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 2rem;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out backwards;
+        }
+
+        .form-section:nth-child(1) { animation-delay: 0.1s; }
+        .form-section:nth-child(2) { animation-delay: 0.2s; }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title i {
+            color: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.95rem;
+        }
+
+        .form-label .required {
+            color: var(--danger);
+            margin-left: 0.25rem;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            padding: 0.875rem 1.1rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-help {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .form-help i {
+            font-size: 0.75rem;
+        }
+
+        /* Opening Hours Redesign */
+        .hours-card {
+            background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .hours-main-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 2px dashed var(--border);
+        }
+
+        .hours-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .hours-field-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .hours-field-label i {
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .day-range-inputs {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .day-range-inputs select {
+            flex: 1;
+            padding: 0.7rem 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        .day-range-inputs span {
+            color: #888;
+            font-weight: 500;
+        }
+
+        .time-input {
+            padding: 0.7rem 0.8rem;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .hours-override-section {
+            margin-top: 1.25rem;
+        }
+
+        .override-hint {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            background: #fffbf0;
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .override-hint i {
+            color: var(--accent);
+        }
+
+        .hours-days {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .day-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 0.875rem;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .day-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .day-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 0.65rem;
+            color: var(--dark);
+            text-align: center;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .day-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .day-controls label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 0.25rem 0;
+            transition: color 0.2s;
+        }
+
+        .day-controls label:hover {
+            color: var(--primary);
+        }
+
+        .day-controls input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .day-controls input[type="time"] {
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            border-radius: 8px;
+        }
+
+        /* Coordinate Inputs */
+        .coordinate-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .geofence-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .audio-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        /* Language Tabs */
+        .lang-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .lang-tab {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 8px 8px 0 0;
+            position: relative;
+        }
+
+        .lang-tab:hover {
+            color: var(--primary);
+            background: rgba(255, 107, 53, 0.05);
+        }
+
+        .lang-tab.active {
+            color: var(--primary);
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .lang-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -0.6rem;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .lang-content {
+            display: none;
+        }
+
+        .lang-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Image Upload */
+        .image-upload {
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+        }
+
+        .image-upload:hover {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.1);
+        }
+
+        .image-upload i {
+            font-size: 3.5rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .image-preview {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Map Preview */
+        .map-preview {
+            width: 100%;
+            height: 350px;
+            background: #F0F4F8;
+            border-radius: 16px;
+            margin-top: 1rem;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .map-search {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .map-search .form-input {
+            flex: 1;
+        }
+
+        .map-search .btn {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9rem;
+        }
+
+        .map-hint {
+            font-size: 0.8rem;
+            color: #777;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .map-hint i {
+            color: var(--primary);
+        }
+
+        .map-preview .map-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #bbb;
+            font-size: 1rem;
+            gap: 0.75rem;
+        }
+
+        /* Status Toggle */
+        .status-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .status-option {
+            padding: 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .status-option:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .status-option i {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-option.active {
+            border-color: var(--success);
+            background: rgba(6, 214, 160, 0.1);
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .status-option.inactive {
+            border-color: var(--danger);
+            background: rgba(239, 71, 111, 0.1);
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        /* Info Card */
+        .info-card {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 107, 53, 0.02) 100%);
+            border-radius: 14px;
+            border: 2px solid rgba(255, 107, 53, 0.15);
+            margin-bottom: 1.5rem;
+        }
+
+        .info-card-title {
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .info-card-title i {
+            color: var(--primary);
+        }
+
+        .info-card-content {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-box {
+            padding: 1.25rem;
+            background: linear-gradient(135deg, var(--light) 0%, white 100%);
+            border-radius: 14px;
+            text-align: center;
+            border: 2px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .stat-box:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        /* System Info */
+        .system-info-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .system-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--light);
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        .system-info-item strong {
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .system-info-item span {
+            color: #666;
+        }
+
+        /* Form Actions */
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--border);
+        }
+
+        .role-hidden {
+            display: none !important;
+        }
+
+        .role-locked {
+            opacity: 0.6;
+            pointer-events: none;
+            background: #f5f5f5 !important;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .form-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .hours-days {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .coordinate-group {
+                grid-template-columns: 1fr;
+            }
+
+            .geofence-grid,
+            .audio-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hours-main-row {
+                grid-template-columns: 1fr;
+            }
+
+            .hours-days {
+                grid-template-columns: 1fr;
+            }
+
+            .status-toggle {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Chỉnh sửa POI</h1>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="window.location.href='poi-list.html'">
+                    <i class="fas fa-times"></i>
+                    <span>Hủy</span>
+                </button>
+                <button class="btn btn-success" onclick="savePOI()">
+                    <i class="fas fa-save"></i>
+                    <span>Lưu thay đổi</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Form Layout -->
+        <form id="editPOIForm" class="form-layout">
+            <!-- Left Column - Main Info -->
+            <div>
+                <!-- Basic Information -->
+                <div class="form-section" id="statusSection">
+                    <h2 class="section-title">
+                        <i class="fas fa-info-circle"></i>
+                        Thông tin cơ bản
+                    </h2>
+
+                    <!-- Language Tabs -->
+                    <div class="lang-tabs">
+                        <button type="button" class="lang-tab active" onclick="switchLang('vi')">
+                            🇻🇳 Tiếng Việt
+                        </button>
+                        <button type="button" class="lang-tab" onclick="switchLang('en')">
+                            🇬🇧 English
+                        </button>
+                        <button type="button" class="lang-tab" onclick="switchLang('ja')">
+                            🇯🇵 日本語
+                        </button>
+                        <button type="button" class="lang-tab" onclick="switchLang('fr')">
+                            🇫🇷 Français
+                        </button>
+                        <button type="button" class="lang-tab" onclick="switchLang('ko')">
+                            🇰🇷 한국어
+                        </button>
+                        <button type="button" class="lang-tab" onclick="switchLang('zh')">
+                            🇨🇳 中文
+                        </button>
+                    </div>
+
+                    <!-- Vietnamese -->
+                    <div id="lang-vi" class="lang-content active">
+                        <div class="form-group">
+                            <label class="form-label">
+                                Tên POI (Tiếng Việt)
+                                <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" placeholder="VD: Phở Hà Nội 99" required id="poiName" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mô tả (Tiếng Việt)</label>
+                            <textarea class="form-textarea" placeholder="Mô tả về gian hàng..." id="poiDescription"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- English -->
+                    <div id="lang-en" class="lang-content">
+                        <div class="form-group">
+                            <label class="form-label">Name (English)</label>
+                            <input type="text" class="form-input" placeholder="e.g., Pho Ha Noi 99" id="poiNameEn" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description (English)</label>
+                            <textarea class="form-textarea" placeholder="Description..." id="poiDescriptionEn"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Japanese -->
+                    <div id="lang-ja" class="lang-content">
+                        <div class="form-group">
+                            <label class="form-label">名前 (日本語)</label>
+                            <input type="text" class="form-input" placeholder="例: フォー・ハノイ99" id="poiNameJa" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">説明 (日本語)</label>
+                            <textarea class="form-textarea" placeholder="説明..." id="poiDescriptionJa"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- French -->
+                    <div id="lang-fr" class="lang-content">
+                        <div class="form-group">
+                            <label class="form-label">Nom (Français)</label>
+                            <input type="text" class="form-input" placeholder="par ex., Pho Ha Noi 99" id="poiNameFr" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description (Français)</label>
+                            <textarea class="form-textarea" placeholder="Description..." id="poiDescriptionFr"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Korean -->
+                    <div id="lang-ko" class="lang-content">
+                        <div class="form-group">
+                            <label class="form-label">이름 (한국어)</label>
+                            <input type="text" class="form-input" placeholder="예: 포하노이99" id="poiNameKo" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">설명 (한국어)</label>
+                            <textarea class="form-textarea" placeholder="설명..." id="poiDescriptionKo"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Chinese -->
+                    <div id="lang-zh" class="lang-content">
+                        <div class="form-group">
+                            <label class="form-label">名称 (中文)</label>
+                            <input type="text" class="form-input" placeholder="例如：河内粉99" id="poiNameZh" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">描述 (中文)</label>
+                            <textarea class="form-textarea" placeholder="描述..." id="poiDescriptionZh"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Danh mục
+                            <span class="required">*</span>
+                        </label>
+                        <select class="form-select" required id="poiCategory">
+                            <option value="">Chọn danh mục</option>
+                            <option value="pho" selected>Phở</option>
+                            <option value="banh-mi">Bánh Mì</option>
+                            <option value="com-tam">Cơm Tấm</option>
+                            <option value="bun">Bún</option>
+                            <option value="che">Chè</option>
+                            <option value="seafood">Hải sản</option>
+                            <option value="breakfast">Ăn sáng</option>
+                            <option value="snack">Đồ ăn vặt</option>
+                            <option value="hotpot">Lẩu</option>
+                            <option value="other">Khác</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Địa chỉ
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" class="form-input" placeholder="VD: 123 Vĩnh Khánh, Quận 4" required id="poiAddress" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Tọa độ GPS
+                            <span class="required">*</span>
+                        </label>
+                        <div class="map-search">
+                            <input type="text" class="form-input" id="mapSearchInput" placeholder="Nhập địa chỉ để tìm">
+                            <button type="button" class="btn btn-primary" id="mapSearchBtn">
+                                <i class="fas fa-search"></i>
+                                <span>Tìm</span>
+                            </button>
+                            <button type="button" class="btn btn-outline" id="mapMyLocationBtn">
+                                <i class="fas fa-location-crosshairs"></i>
+                                <span>Vị trí của tôi</span>
+                            </button>
+                        </div>
+                        <div class="map-hint">
+                            <i class="fas fa-map-marker-alt"></i>
+                            Ưu tiên tìm theo địa chỉ, hoặc click/kéo marker trên bản đồ.
+                        </div>
+                        <div class="coordinate-group" id="coordinateGroup">
+                            <div>
+                                <input type="text" class="form-input" placeholder="Latitude (VD: 10.8231)" required id="latitude" value="">
+                                <div class="form-help">
+                                    <i class="fas fa-globe"></i>
+                                    Vĩ độ
+                                </div>
+                            </div>
+                            <div>
+                                <input type="text" class="form-input" placeholder="Longitude (VD: 106.6297)" required id="longitude" value="">
+                                <div class="form-help">
+                                    <i class="fas fa-globe"></i>
+                                    Kinh độ
+                                </div>
+                            </div>
+                        </div>
+                        <div id="mapPreview" class="map-preview">
+                            <div class="map-placeholder">
+                                <i class="fas fa-map-marked-alt" style="font-size: 3rem; color: #ccc;"></i>
+                                <span>Bản đồ xem trước</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Bán kính Geofence (mét)</label>
+                        <input type="number" class="form-input" placeholder="50" min="10" max="500" id="geofenceRadius" value="">
+                        <div class="form-help">
+                            <i class="fas fa-circle-notch"></i>
+                            Khoảng cách kích hoạt thuyết minh tự động (10-500m)
+                        </div>
+                    </div>
+
+                    <div class="geofence-grid">
+                        <div class="form-group">
+                            <label class="form-label">Zone type</label>
+                            <select class="form-select" id="zoneType">
+                                <option value="Spot">Spot (specific)</option>
+                                <option value="District">District</option>
+                                <option value="Area">Area</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Priority (1-10)</label>
+                            <input type="number" class="form-input" id="priority" min="1" max="10" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cooldown (minutes)</label>
+                            <input type="number" class="form-input" id="cooldownMinutes" min="0" max="240" value="">
+                        </div>
+                    </div>
+
+                    <div class="geofence-grid">
+                        <div class="form-group">
+                            <label class="form-label">Max plays per session</label>
+                            <input type="number" class="form-input" id="maxPlaysPerSession" min="1" max="10" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Parent zone ID</label>
+                            <input type="number" class="form-input" id="parentZoneId" placeholder="Optional">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fun fact</label>
+                            <input type="text" class="form-input" id="funFact" placeholder="Optional short fact">
+                        </div>
+                    </div>
+
+                    <div class="audio-grid">
+                        <div class="form-group">
+                            <label class="form-label">Audio URL (VI)</label>
+                            <input type="text" class="form-input" id="audioUrlVi" placeholder="https://...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Audio URL (EN)</label>
+                            <input type="text" class="form-input" id="audioUrlEn" placeholder="https://...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Audio URL (JA)</label>
+                            <input type="text" class="form-input" id="audioUrlJa" placeholder="https://...">
+                        </div>
+                    </div>
+
+                    <div class="audio-grid">
+                        <div class="form-group">
+                            <label class="form-label">Audio URL (FR)</label>
+                            <input type="text" class="form-input" id="audioUrlFr" placeholder="https://...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Audio URL (KO)</label>
+                            <input type="text" class="form-input" id="audioUrlKo" placeholder="https://...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Audio URL (ZH)</label>
+                            <input type="text" class="form-input" id="audioUrlZh" placeholder="https://...">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Info -->
+                <div class="form-section" style="margin-top: 2rem;" id="systemInfoSection">
+                    <h2 class="section-title">
+                        <i class="fas fa-clock"></i>
+                        Thông tin bổ sung
+                    </h2>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Giờ mở cửa</label>
+                        <div class="hours-card" id="openingHoursEditor">
+                            <!-- Main Hours Row -->
+                            <div class="hours-main-row">
+                                <div class="hours-field">
+                                    <div class="hours-field-label">
+                                        <i class="fas fa-calendar-week"></i>
+                                        Ngày hoạt động
+                                    </div>
+                                    <div class="day-range-inputs">
+                                        <select class="form-input" id="openFromDay">
+                                            <option value="T2">Thứ 2</option>
+                                            <option value="T3">Thứ 3</option>
+                                            <option value="T4">Thứ 4</option>
+                                            <option value="T5">Thứ 5</option>
+                                            <option value="T6">Thứ 6</option>
+                                            <option value="T7">Thứ 7</option>
+                                            <option value="CN">Chủ nhật</option>
+                                        </select>
+                                        <span>→</span>
+                                        <select class="form-input" id="openToDay">
+                                            <option value="T2">Thứ 2</option>
+                                            <option value="T3">Thứ 3</option>
+                                            <option value="T4">Thứ 4</option>
+                                            <option value="T5">Thứ 5</option>
+                                            <option value="T6">Thứ 6</option>
+                                            <option value="T7" selected>Thứ 7</option>
+                                            <option value="CN">Chủ nhật</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="hours-field">
+                                    <div class="hours-field-label">
+                                        <i class="fas fa-clock"></i>
+                                        Từ giờ
+                                    </div>
+                                    <input type="time" class="form-input time-input" id="openStart" value="15:00">
+                                </div>
+                                
+                                <div class="hours-field">
+                                    <div class="hours-field-label">
+                                        <i class="fas fa-clock"></i>
+                                        Đến giờ
+                                    </div>
+                                    <input type="time" class="form-input time-input" id="openEnd" value="23:00">
+                                </div>
+                            </div>
+
+                            <!-- Override Section -->
+                            <div class="hours-override-section">
+                                <div class="override-hint">
+                                    <i class="fas fa-info-circle"></i>
+                                    Nếu một số ngày có giờ khác hoặc nghỉ, chỉnh ở mục bên dưới.
+                                </div>
+
+                                <div class="hours-days" id="openDayOverrides">
+                                    <div class="day-card" data-day="T2">
+                                        <div class="day-title">Thứ 2</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T3">
+                                        <div class="day-title">Thứ 3</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T4">
+                                        <div class="day-title">Thứ 4</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T5">
+                                        <div class="day-title">Thứ 5</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T6">
+                                        <div class="day-title">Thứ 6</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T7">
+                                        <div class="day-title">Thứ 7</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="CN">
+                                        <div class="day-title">Chủ nhật</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Số điện thoại</label>
+                        <input type="tel" class="form-input" placeholder="0901234567" id="phone" value="">
+                        <div class="form-help">
+                            <i class="fas fa-phone"></i>
+                            Số liên hệ của gian hàng
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Giá trung bình (VNĐ)</label>
+                        <input type="number" class="form-input" placeholder="50000" id="avgPrice" value="">
+                        <div class="form-help">
+                            <i class="fas fa-money-bill-wave"></i>
+                            Giá tiền một suất ăn trung bình
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Đặc sản nổi bật</label>
+                        <input type="text" class="form-input" placeholder="VD: Phở bò, Phở gà" id="specialty" value="">
+                        <div class="form-help">
+                            <i class="fas fa-utensils"></i>
+                            Món ăn đặc trưng của gian hàng
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Tags (phân cách bằng dấu phẩy)</label>
+                        <input type="text" class="form-input" placeholder="VD: halal, vegan, truyền thống" id="tags" value="">
+                        <div class="form-help">
+                            <i class="fas fa-tags"></i>
+                            Thẻ để phân loại và tìm kiếm
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Hình ảnh POI</label>
+                        <div class="image-upload" onclick="document.getElementById('imageInput').click()">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p style="margin-top: 1rem; color: #666; font-weight: 500;">Click để tải ảnh lên</p>
+                            <p style="font-size: 0.85rem; color: #999;">JPG, PNG hoặc WebP (tối đa 5MB)</p>
+                        </div>
+                        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                        <div class="image-preview" id="imagePreview">
+                            <img src="" alt="Preview" id="previewImg">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Status & Stats -->
+            <div>
+                <!-- Status -->
+                <div class="form-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-toggle-on"></i>
+                        Trạng thái
+                    </h2>
+
+                    <div class="form-group">
+                        <label class="form-label">Trạng thái POI</label>
+                        <div class="status-toggle">
+                            <div class="status-option active" onclick="setStatus('active')">
+                                <i class="fas fa-check-circle"></i>
+                                <div style="margin-top: 0.5rem;">Hoạt động</div>
+                            </div>
+                            <div class="status-option" onclick="setStatus('inactive')">
+                                <i class="fas fa-times-circle"></i>
+                                <div style="margin-top: 0.5rem;">Tắt</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Vendor</label>
+                        <select class="form-select" id="vendorSelect"></select>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div class="form-section" style="margin-top: 2rem;">
+                    <h2 class="section-title">
+                        <i class="fas fa-chart-line"></i>
+                        Thống kê
+                    </h2>
+
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-value" id="viewsStat">0</div>
+                            <div class="stat-label">Lượt xem</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="playsStat">0</div>
+                            <div class="stat-label">Lượt phát</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="ratingStat">N/A</div>
+                            <div class="stat-label">Đánh giá</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="commentsStat">0</div>
+                            <div class="stat-label">Bình luận</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Card -->
+                <div class="form-section" style="margin-top: 2rem;">
+                    <h2 class="section-title">
+                        <i class="fas fa-info-circle"></i>
+                        Thông tin hệ thống
+                    </h2>
+
+                    <div class="info-card">
+                        <div class="info-card-title">
+                            <i class="fas fa-lightbulb"></i>
+                            Lưu ý quan trọng
+                        </div>
+                        <div class="info-card-content">
+                            • Tọa độ GPS phải chính xác để Geofencing hoạt động đúng<br>
+                            • Bán kính Geofence nên từ 20-100m<br>
+                            • Hình ảnh nên có kích thước 800x600px
+                        </div>
+                    </div>
+
+                    <div class="system-info-list">
+                        <div class="system-info-item">
+                            <strong>POI ID:</strong>
+                            <span id="poiIdInfo">-</span>
+                        </div>
+                        <div class="system-info-item">
+                            <strong>Ngày tạo:</strong>
+                            <span id="createdAtInfo">-</span>
+                        </div>
+                        <div class="system-info-item">
+                            <strong>Cập nhật:</strong>
+                            <span id="updatedAtInfo">-</span>
+                        </div>
+                        <div class="system-info-item">
+                            <strong>Người tạo:</strong>
+                            <span id="createdByInfo">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="form-section" style="margin-top: 2rem; border: 2px solid var(--danger);" id="dangerZone">
+                    <h2 class="section-title" style="color: var(--danger);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Vùng nguy hiểm
+                    </h2>
+                    <p style="margin-bottom: 1rem; color: #666;">Các hành động không thể hoàn tác</p>
+                    <button type="button" class="btn btn-danger" onclick="deletePOI()" style="width: 100%;">
+                        <i class="fas fa-trash"></i>
+                        <span>Xóa POI này</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Form Actions (Bottom) -->
+        <div class="form-actions" style="margin-top: 2rem;">
+            <button class="btn btn-outline" onclick="window.location.href='poi-list.html'">
+                <i class="fas fa-times"></i>
+                <span>Hủy bỏ</span>
+            </button>
+            <button class="btn btn-success" onclick="savePOI()">
+                <i class="fas fa-save"></i>
+                <span>Lưu thay đổi</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="api.js"></script>
+<script>
+    const user = TokenManager.getUser();
+    if (!user) {
+        window.location.href = 'login.html';
+    }
+
+    const isAdmin = user?.roles?.includes('Admin');
+    const isVendor = user?.roles?.includes('Vendor');
+
+    let currentStatus = true;
+    let currentPoiId = null;
+    let currentImageUrl = null;
+    let poiMap = null;
+    let poiMarker = null;
+    let poiCircle = null;
+
+    function getQueryId() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('id');
+    }
+
+    function setStatus(status) {
+        currentStatus = status === 'active';
+        const options = document.querySelectorAll('.status-option');
+        options.forEach(opt => opt.classList.remove('active', 'inactive'));
+        if (currentStatus) {
+            options[0].classList.add('active');
+        } else {
+            options[1].classList.add('inactive');
+        }
+    }
+
+    function switchLang(langCode) {
+        // Update tabs
+        document.querySelectorAll('.lang-tab').forEach(tab => tab.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        // Update content
+        document.querySelectorAll('.lang-content').forEach(content => content.classList.remove('active'));
+        const targetContent = document.getElementById(`lang-${langCode}`);
+        if (targetContent) targetContent.classList.add('active');
+    }
+
+    function initMap(lat, lng) {
+        const mapEl = document.getElementById('mapPreview');
+        if (!mapEl) return;
+        const placeholder = mapEl.querySelector('.map-placeholder');
+        if (placeholder) placeholder.style.display = 'none';
+        if (typeof L === 'undefined') {
+            mapEl.textContent = 'Không tải được bản đồ.';
+            return;
+        }
+        const safeLat = lat ?? 10.762622;
+        const safeLng = lng ?? 106.702438;
+        if (!poiMap) {
+            poiMap = L.map('mapPreview').setView([safeLat, safeLng], 16);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(poiMap);
+            poiMarker = L.marker([safeLat, safeLng], { draggable: isAdmin }).addTo(poiMap);
+            if (isAdmin) {
+                poiMarker.on('dragend', () => {
+                    const { lat, lng } = poiMarker.getLatLng();
+                    updateLatLngInputs(lat, lng);
+                    updateCircle(lat, lng);
+                });
+                poiMap.on('click', (e) => {
+                    setMarker(e.latlng.lat, e.latlng.lng);
+                });
+            }
+        } else {
+            poiMap.setView([safeLat, safeLng], 16);
+            if (poiMarker) poiMarker.setLatLng([safeLat, safeLng]);
+        }
+        updateCircle(safeLat, safeLng);
+        setTimeout(() => { poiMap.invalidateSize(); }, 100);
+    }
+
+    function refreshMapFromInputs() {
+        const lat = parseFloat(document.getElementById('latitude').value);
+        const lng = parseFloat(document.getElementById('longitude').value);
+        if (!isNaN(lat) && !isNaN(lng)) {
+            initMap(lat, lng);
+        }
+    }
+
+    function updateLatLngInputs(lat, lng) {
+        document.getElementById('latitude').value = lat.toFixed(6);
+        document.getElementById('longitude').value = lng.toFixed(6);
+    }
+
+    function updateCircle(lat, lng) {
+        const radiusInput = document.getElementById('geofenceRadius');
+        const radius = parseFloat(radiusInput?.value || '50');
+        if (!poiMap || isNaN(radius)) return;
+        if (!poiCircle) {
+            poiCircle = L.circle([lat, lng], {
+                radius: radius,
+                color: '#FF6B35',
+                fillColor: '#FF6B35',
+                fillOpacity: 0.15
+            }).addTo(poiMap);
+        } else {
+            poiCircle.setLatLng([lat, lng]);
+            poiCircle.setRadius(radius);
+        }
+    }
+
+    function buildSearchQuery(input) {
+        const base = (input || '').trim();
+        if (!base) return '';
+        const hasCity = /quận|q\./i.test(base) || /tp\.?hcm|hồ chí minh|ho chi minh/i.test(base);
+        return hasCity ? base : `${base}, Quận 4, TP.HCM`;
+    }
+
+    async function geocodeAddress(address) {
+        const query = buildSearchQuery(address);
+        const data = await api.geocode(query, 3);
+        if (data && data.length > 0) {
+            const pick = data.find(d => (d.address?.city || d.address?.state || '').toLowerCase().includes('ho chi minh'))
+                || data.find(d => (d.address?.city_district || d.address?.county || '').toLowerCase().includes('4'))
+                || data[0];
+            return { lat: parseFloat(pick.lat), lng: parseFloat(pick.lon) };
+        }
+        return null;
+    }
+
+    async function searchAddress() {
+        const input = document.getElementById('mapSearchInput');
+        if (!input) return;
+        const address = input.value.trim() || document.getElementById('poiAddress').value.trim();
+        if (!address) {
+            alert('Vui lòng nhập địa chỉ để tìm.');
+            return;
+        }
+        try {
+            const coords = await geocodeAddress(address);
+            if (!coords) {
+                alert('Không tìm thấy địa chỉ. Hãy thử nhập chi tiết hơn.');
+                return;
+            }
+            setMarker(coords.lat, coords.lng);
+            initMap(coords.lat, coords.lng);
+        } catch (error) {
+            alert('Lỗi khi tìm địa chỉ: ' + error.message);
+        }
+    }
+
+    function setMarker(lat, lng) {
+        if (!poiMap) initMap(lat, lng);
+        if (poiMarker) {
+            poiMarker.setLatLng([lat, lng]);
+        }
+        updateLatLngInputs(lat, lng);
+        updateCircle(lat, lng);
+    }
+
+    function useMyLocation() {
+        if (!navigator.geolocation) {
+            alert('Trình duyệt không hỗ trợ định vị.');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            setMarker(lat, lng);
+            initMap(lat, lng);
+        }, (err) => {
+            alert('Không thể lấy vị trí: ' + err.message);
+        });
+    }
+
+    function getDayOrder() {
+        return ['T2','T3','T4','T5','T6','T7','CN'];
+    }
+
+    function syncDayCard(card) {
+        const closed = card.querySelector('.day-closed');
+        const diff = card.querySelector('.day-diff');
+        const start = card.querySelector('.day-start');
+        const end = card.querySelector('.day-end');
+        if (!closed || !diff || !start || !end) return;
+        if (closed.checked) {
+            diff.checked = false;
+            start.disabled = true;
+            end.disabled = true;
+            return;
+        }
+        if (diff.checked) {
+            start.disabled = false;
+            end.disabled = false;
+        } else {
+            start.disabled = true;
+            end.disabled = true;
+        }
+    }
+
+    function initOpeningHoursEditor() {
+        document.querySelectorAll('#openDayOverrides .day-card').forEach(card => {
+            const closed = card.querySelector('.day-closed');
+            const diff = card.querySelector('.day-diff');
+            if (closed) closed.addEventListener('change', () => syncDayCard(card));
+            if (diff) diff.addEventListener('change', () => syncDayCard(card));
+            syncDayCard(card);
+        });
+    }
+
+    function buildOpeningHours() {
+        const fromDay = document.getElementById('openFromDay')?.value || 'T2';
+        const toDay = document.getElementById('openToDay')?.value || 'T7';
+        const start = document.getElementById('openStart')?.value || '';
+        const end = document.getElementById('openEnd')?.value || '';
+
+        const days = getDayOrder();
+        const fromIdx = days.indexOf(fromDay);
+        const toIdx = days.indexOf(toDay);
+        const activeRange = new Set();
+        if (fromIdx !== -1 && toIdx !== -1) {
+            if (fromIdx <= toIdx) {
+                days.slice(fromIdx, toIdx + 1).forEach(d => activeRange.add(d));
+            } else {
+                days.slice(fromIdx).forEach(d => activeRange.add(d));
+                days.slice(0, toIdx + 1).forEach(d => activeRange.add(d));
+            }
+        }
+
+        const overrides = Array.from(document.querySelectorAll('#openDayOverrides .day-card'))
+            .map(card => {
+                const day = card.getAttribute('data-day');
+                const closed = card.querySelector('.day-closed')?.checked;
+                const diff = card.querySelector('.day-diff')?.checked;
+                const dStart = card.querySelector('.day-start')?.value || '';
+                const dEnd = card.querySelector('.day-end')?.value || '';
+                return { day, closed, diff, dStart, dEnd };
+            });
+
+        const labels = { T2: 'Thứ 2', T3: 'Thứ 3', T4: 'Thứ 4', T5: 'Thứ 5', T6: 'Thứ 6', T7: 'Thứ 7', CN: 'Chủ nhật' };
+        const openingHours = [];
+
+        days.forEach(day => {
+            const label = labels[day] || day;
+            const o = overrides.find(x => x.day === day) || { closed: false, diff: false };
+            if (o.closed || !activeRange.has(day)) {
+                openingHours.push(`${label}: Nghỉ`);
+                return;
+            }
+            const timeStart = (o.diff ? o.dStart : start) || start;
+            const timeEnd = (o.diff ? o.dEnd : end) || end;
+            if (timeStart && timeEnd) {
+                openingHours.push(`${label}: ${timeStart} - ${timeEnd}`);
+            } else {
+                openingHours.push(`${label}: Nghỉ`);
+            }
+        });
+
+        return {
+            openingHours,
+            openingHoursText: openingHours.join('; ')
+        };
+    }
+
+    function applyOpeningHours(poi) {
+        const entries = Array.isArray(poi.openingHours)
+            ? poi.openingHours
+            : (poi.openingHoursText || '').split(';').map(s => s.trim()).filter(Boolean);
+        const days = getDayOrder();
+        const map = {};
+
+        const parseDay = (str) => {
+            const s = (str || '').toUpperCase();
+            if (s.includes('CN') || s.includes('CHU NHAT')) return 'CN';
+            const m = s.match(/T\s*([2-7])/i) || s.match(/THU\s*([2-7])/i) || s.match(/TH\s*([2-7])/i);
+            if (m) return `T${m[1]}`;
+            return null;
+        };
+
+        entries.forEach(entry => {
+            const day = parseDay(entry);
+            if (!day) return;
+            const isClosed = /NGH\w?/i.test(entry);
+            const timeMatch = entry.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+            map[day] = {
+                closed: isClosed,
+                start: timeMatch ? timeMatch[1] : '',
+                end: timeMatch ? timeMatch[2] : ''
+            };
+        });
+
+        const activeDays = days.filter(d => map[d] && !map[d].closed && map[d].start && map[d].end);
+        const baseDay = activeDays[0];
+        const baseStart = baseDay ? map[baseDay].start : (document.getElementById('openStart')?.value || '');
+        const baseEnd = baseDay ? map[baseDay].end : (document.getElementById('openEnd')?.value || '');
+
+        const fromDay = activeDays[0] || 'T2';
+        const toDay = activeDays[activeDays.length - 1] || 'T7';
+        const fromEl = document.getElementById('openFromDay');
+        const toEl = document.getElementById('openToDay');
+        if (fromEl) fromEl.value = fromDay;
+        if (toEl) toEl.value = toDay;
+
+        const startEl = document.getElementById('openStart');
+        const endEl = document.getElementById('openEnd');
+        if (startEl) startEl.value = baseStart || startEl.value;
+        if (endEl) endEl.value = baseEnd || endEl.value;
+
+        document.querySelectorAll('#openDayOverrides .day-card').forEach(card => {
+            const day = card.getAttribute('data-day');
+            const closedEl = card.querySelector('.day-closed');
+            const diffEl = card.querySelector('.day-diff');
+            const startInput = card.querySelector('.day-start');
+            const endInput = card.querySelector('.day-end');
+            const info = map[day];
+            if (closedEl) closedEl.checked = (info && info.closed) || false;
+            if (startInput) startInput.value = (info && info.start) || baseStart || startInput.value;
+            if (endInput) endInput.value = (info && info.end) || baseEnd || endInput.value;
+            const isDiff = info && !info.closed && (info.start !== baseStart || info.end !== baseEnd);
+            if (diffEl) diffEl.checked = !!isDiff;
+            syncDayCard(card);
+        });
+    }
+
+    async function loadVendors(selectedId) {
+        if (!isAdmin) return;
+        const select = document.getElementById('vendorSelect');
+        select.innerHTML = '<option value="">Đang tải...</option>';
+        try {
+            const resp = await api.getVendors('', '', 'name-asc');
+            const vendors = resp.data || [];
+            if (vendors.length === 0) {
+                select.innerHTML = '<option value="">Không có vendor</option>';
+                return;
+            }
+            select.innerHTML = vendors.map(v => `
+                <option value="${v.vendorId}" ${selectedId === v.vendorId ? 'selected' : ''}>${v.businessName || v.contactName || 'Vendor'}</option>
+            `).join('');
+        } catch (error) {
+            select.innerHTML = '<option value="">Không tải được vendor</option>';
+        }
+    }
+
+    function applyRoleUi() {
+        if (!isVendor) return;
+
+        const lockedIds = ['poiCategory', 'poiAddress', 'latitude', 'longitude'];
+        lockedIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.disabled = true;
+                el.classList.add('role-locked');
+            }
+        });
+
+        const coordinateGroup = document.getElementById('coordinateGroup');
+        if (coordinateGroup) coordinateGroup.classList.add('role-locked');
+
+        const mapSearchInput = document.getElementById('mapSearchInput');
+        if (mapSearchInput) {
+            mapSearchInput.disabled = true;
+            mapSearchInput.classList.add('role-locked');
+        }
+        const mapSearchBtn = document.getElementById('mapSearchBtn');
+        if (mapSearchBtn) mapSearchBtn.disabled = true;
+        const mapMyLocationBtn = document.getElementById('mapMyLocationBtn');
+        if (mapMyLocationBtn) mapMyLocationBtn.disabled = true;
+
+        const statusSection = document.getElementById('statusSection');
+        if (statusSection) statusSection.classList.add('role-hidden');
+
+        const dangerZone = document.getElementById('dangerZone');
+        if (dangerZone) dangerZone.classList.add('role-hidden');
+    }
+
+    async function loadPoi() {
+        const id = getQueryId();
+        if (!id) {
+            window.location.href = 'poi-list.html';
+            return;
+        }
+        currentPoiId = parseInt(id, 10);
+
+        try {
+            const poi = await api.getPOI(currentPoiId);
+            document.getElementById('poiName').value = poi.name_Vi || '';
+            document.getElementById('poiDescription').value = poi.description_Vi || '';
+            document.getElementById('poiNameEn').value = poi.name_En || '';
+            document.getElementById('poiDescriptionEn').value = poi.description_En || '';
+            document.getElementById('poiNameJa').value = poi.name_Ja || '';
+            document.getElementById('poiDescriptionJa').value = poi.description_Ja || '';
+            document.getElementById('poiNameFr').value = poi.name_Fr || '';
+            document.getElementById('poiDescriptionFr').value = poi.description_Fr || '';
+            document.getElementById('poiNameKo').value = poi.name_Ko || '';
+            document.getElementById('poiDescriptionKo').value = poi.description_Ko || '';
+            document.getElementById('poiNameZh').value = poi.name_Zh || '';
+            document.getElementById('poiDescriptionZh').value = poi.description_Zh || '';
+            document.getElementById('poiAddress').value = poi.address || '';
+            document.getElementById('mapSearchInput').value = poi.address || '';
+            document.getElementById('latitude').value = poi.latitude ?? '';
+            document.getElementById('longitude').value = poi.longitude ?? '';
+            document.getElementById('geofenceRadius').value = poi.triggerRadius ?? '';
+            const zoneTypeValue = poi.zoneType || 'Spot';
+            const zoneTypeEl = document.getElementById('zoneType');
+            if (zoneTypeEl) zoneTypeEl.value = zoneTypeValue;
+            const cooldownDefault = zoneTypeValue === 'Spot' ? 0 : 30;
+            document.getElementById('priority').value = poi.priority ?? 5;
+            document.getElementById('cooldownMinutes').value = poi.cooldownMinutes ?? cooldownDefault;
+            document.getElementById('maxPlaysPerSession').value = poi.maxPlaysPerSession ?? 1;
+            document.getElementById('parentZoneId').value = poi.parentZoneId ?? '';
+            document.getElementById('funFact').value = poi.funFact || '';
+            document.getElementById('audioUrlVi').value = poi.audioUrl_Vi || '';
+            document.getElementById('audioUrlEn').value = poi.audioUrl_En || '';
+            document.getElementById('audioUrlJa').value = poi.audioUrl_Ja || '';
+            document.getElementById('audioUrlFr').value = poi.audioUrl_Fr || '';
+            document.getElementById('audioUrlKo').value = poi.audioUrl_Ko || '';
+            document.getElementById('audioUrlZh').value = poi.audioUrl_Zh || '';
+            document.getElementById('poiCategory').value = poi.category || '';
+            applyOpeningHours(poi);
+            document.getElementById('phone').value = poi.phoneNumber || '';
+            document.getElementById('avgPrice').value = poi.averagePrice ?? '';
+            document.getElementById('specialty').value = (poi.signatureDishes?.[0] || poi.signatureDish || poi.specialties?.[0] || '');
+            document.getElementById('tags').value = (poi.tags || []).join(', ');
+
+            currentImageUrl = poi.imageUrl || (Array.isArray(poi.imageUrls) ? poi.imageUrls[0] : null);
+            if (currentImageUrl) {
+                const preview = document.getElementById('imagePreview');
+                const img = document.getElementById('previewImg');
+                if (preview && img) {
+                    img.src = currentImageUrl;
+                    preview.style.display = 'block';
+                }
+            }
+
+            initMap(poi.latitude, poi.longitude);
+
+            setStatus(poi.isActive ? 'active' : 'inactive');
+
+            document.getElementById('poiIdInfo').textContent = poi.poI_ID || '-';
+            document.getElementById('createdAtInfo').textContent = poi.createdAt ? new Date(poi.createdAt).toLocaleString('vi-VN') : '-';
+            document.getElementById('updatedAtInfo').textContent = poi.updatedAt ? new Date(poi.updatedAt).toLocaleString('vi-VN') : '-';
+            document.getElementById('createdByInfo').textContent = user?.fullName || user?.email || '-';
+
+            await loadVendors(poi.vendorId || null);
+            await loadPoiAudioStats();
+        } catch (error) {
+            alert('Không thể tải POI: ' + error.message);
+            window.location.href = 'poi-list.html';
+        }
+    }
+
+    async function loadPoiAudioStats() {
+        try {
+            const resp = await api.getAudioList(1, 1000, null, currentPoiId);
+            const audios = resp.data || [];
+            document.getElementById('playsStat').textContent = audios.length;
+        } catch (error) {
+            document.getElementById('playsStat').textContent = '0';
+        }
+        document.getElementById('viewsStat').textContent = '0';
+        document.getElementById('ratingStat').textContent = 'N/A';
+        document.getElementById('commentsStat').textContent = '0';
+    }
+
+    async function savePOI() {
+        if (!currentPoiId) return;
+
+        const splitCsv = (value) => value
+            .split(',')
+            .map(v => v.trim())
+            .filter(Boolean);
+
+        const specialtyText = document.getElementById('specialty').value;
+        const specialties = splitCsv(specialtyText);
+        const tags = splitCsv(document.getElementById('tags').value);
+        const avgPriceValue = parseFloat(document.getElementById('avgPrice').value);
+        const hoursPayload = buildOpeningHours();
+
+        const data = {
+            name_Vi: document.getElementById('poiName').value,
+            description_Vi: document.getElementById('poiDescription').value,
+            name_En: document.getElementById('poiNameEn').value || null,
+            description_En: document.getElementById('poiDescriptionEn').value || null,
+            name_Ja: document.getElementById('poiNameJa').value || null,
+            description_Ja: document.getElementById('poiDescriptionJa').value || null,
+            name_Fr: document.getElementById('poiNameFr').value || null,
+            description_Fr: document.getElementById('poiDescriptionFr').value || null,
+            name_Ko: document.getElementById('poiNameKo').value || null,
+            description_Ko: document.getElementById('poiDescriptionKo').value || null,
+            name_Zh: document.getElementById('poiNameZh').value || null,
+            description_Zh: document.getElementById('poiDescriptionZh').value || null,
+            category: document.getElementById('poiCategory').value || null,
+            openingHoursText: hoursPayload.openingHoursText || null,
+            openingHours: hoursPayload.openingHours || null,
+            phoneNumber: document.getElementById('phone').value || null,
+            averagePrice: Number.isNaN(avgPriceValue) ? null : avgPriceValue,
+            signatureDish: specialtyText || null,
+            signatureDishes: specialties.length ? specialties : null,
+            specialties: specialties.length ? specialties : null,
+            tags: tags.length ? tags : null,
+            imageUrl: currentImageUrl || null
+          };
+
+          const zoneTypeValue = document.getElementById('zoneType')?.value;
+          if (zoneTypeValue) data.zoneType = zoneTypeValue;
+
+          const triggerRadiusValue = parseInt(document.getElementById('geofenceRadius').value || '', 10);
+          if (!Number.isNaN(triggerRadiusValue)) data.triggerRadius = triggerRadiusValue;
+
+          const priorityValue = parseInt(document.getElementById('priority').value || '', 10);
+          if (!Number.isNaN(priorityValue)) data.priority = priorityValue;
+
+          const cooldownValue = parseInt(document.getElementById('cooldownMinutes').value || '', 10);
+          if (!Number.isNaN(cooldownValue)) data.cooldownMinutes = cooldownValue;
+
+          const maxPlaysValue = parseInt(document.getElementById('maxPlaysPerSession').value || '', 10);
+          if (!Number.isNaN(maxPlaysValue)) data.maxPlaysPerSession = maxPlaysValue;
+
+          const parentZoneValue = parseInt(document.getElementById('parentZoneId').value || '', 10);
+          if (!Number.isNaN(parentZoneValue)) data.parentZoneId = parentZoneValue;
+
+          const funFactValue = document.getElementById('funFact').value.trim();
+          if (funFactValue) data.funFact = funFactValue;
+
+          const audioUrlVi = document.getElementById('audioUrlVi').value.trim();
+          if (audioUrlVi) data.audioUrl_Vi = audioUrlVi;
+          const audioUrlEn = document.getElementById('audioUrlEn').value.trim();
+          if (audioUrlEn) data.audioUrl_En = audioUrlEn;
+          const audioUrlJa = document.getElementById('audioUrlJa').value.trim();
+          if (audioUrlJa) data.audioUrl_Ja = audioUrlJa;
+          const audioUrlFr = document.getElementById('audioUrlFr').value.trim();
+          if (audioUrlFr) data.audioUrl_Fr = audioUrlFr;
+          const audioUrlKo = document.getElementById('audioUrlKo').value.trim();
+          if (audioUrlKo) data.audioUrl_Ko = audioUrlKo;
+          const audioUrlZh = document.getElementById('audioUrlZh').value.trim();
+          if (audioUrlZh) data.audioUrl_Zh = audioUrlZh;
+
+          if (isAdmin) {
+            data.address = document.getElementById('poiAddress').value;
+            data.latitude = parseFloat(document.getElementById('latitude').value);
+            data.longitude = parseFloat(document.getElementById('longitude').value);
+            data.isActive = currentStatus;
+        }
+
+        try {
+            await api.updatePOI(currentPoiId, data);
+            alert('POI đã được cập nhật thành công!');
+        } catch (error) {
+            alert('Lỗi khi lưu POI: ' + error.message);
+        }
+    }
+
+    async function deletePOI() {
+        if (!confirm('Bạn có chắc chắn muốn xóa POI này?')) return;
+        try {
+            await api.deletePOI(currentPoiId);
+            window.location.href = 'poi-list.html';
+        } catch (error) {
+            alert('Lỗi khi xóa POI: ' + error.message);
+        }
+    }
+
+    document.getElementById('latitude').addEventListener('input', refreshMapFromInputs);
+    document.getElementById('longitude').addEventListener('input', refreshMapFromInputs);
+
+    const zoneTypeSelect = document.getElementById('zoneType');
+    const cooldownInput = document.getElementById('cooldownMinutes');
+    if (cooldownInput) {
+        cooldownInput.dataset.auto = 'true';
+        cooldownInput.addEventListener('input', () => { cooldownInput.dataset.auto = 'false'; });
+    }
+    const applyZoneDefaults = () => {
+        if (!zoneTypeSelect || !cooldownInput) return;
+        if (cooldownInput.dataset.auto === 'false' && cooldownInput.value !== '') return;
+        cooldownInput.value = zoneTypeSelect.value === 'Spot' ? '0' : '30';
+        cooldownInput.dataset.auto = 'true';
+    };
+    if (zoneTypeSelect) zoneTypeSelect.addEventListener('change', applyZoneDefaults);
+    applyZoneDefaults();
+    document.getElementById('geofenceRadius').addEventListener('input', () => {
+        const lat = parseFloat(document.getElementById('latitude').value);
+        const lng = parseFloat(document.getElementById('longitude').value);
+        if (!isNaN(lat) && !isNaN(lng)) updateCircle(lat, lng);
+    });
+
+    const mapSearchBtn = document.getElementById('mapSearchBtn');
+    if (mapSearchBtn) mapSearchBtn.addEventListener('click', searchAddress);
+    const mapSearchInput = document.getElementById('mapSearchInput');
+    if (mapSearchInput) mapSearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            searchAddress();
+        }
+    });
+    let geocodeTimer = null;
+    const scheduleGeocode = () => {
+        if (isVendor) return;
+        if (geocodeTimer) clearTimeout(geocodeTimer);
+        geocodeTimer = setTimeout(() => {
+            searchAddress();
+        }, 800);
+    };
+    if (mapSearchInput) mapSearchInput.addEventListener('input', scheduleGeocode);
+    const poiAddressInput = document.getElementById('poiAddress');
+    if (poiAddressInput) poiAddressInput.addEventListener('input', scheduleGeocode);
+    const mapMyLocationBtn = document.getElementById('mapMyLocationBtn');
+    if (mapMyLocationBtn) mapMyLocationBtn.addEventListener('click', useMyLocation);
+    initOpeningHoursEditor();
+    applyRoleUi();
+    window.addEventListener('load', loadPoi);
+</script>
+</body>
+</html>

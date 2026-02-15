@@ -1,0 +1,131 @@
+{
+  "app": {
+    "name": "Street Food Narrator",
+    "tagline": "Discover Vinh Khanh cuisine through audio"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "tour": {
+    "startTour": "Start Tour",
+    "pauseTour": "Pause",
+    "resumeTour": "Resume",
+    "stopTour": "Stop Tour",
+    "autoMode": "Auto Play",
+    "manualMode": "Manual Mode",
+    "nearbyPOIs": "Nearby POIs",
+    "currentLocation": "Current Location",
+    "distance": "Distance",
+    "priority": "Priority"
+  },
+  "audio": {
+    "play": "Play",
+    "pause": "Pause",
+    "stop": "Stop",
+    "replay": "Replay",
+    "volume": "Volume",
+    "speed": "Playback Speed",
+    "loading": "Loading audio...",
+    "error": "Cannot play audio",
+    "noAudio": "No audio available",
+    "useTTS": "Use text-to-speech"
+  },
+  "location": {
+    "requesting": "Requesting location...",
+    "denied": "Location permission denied",
+    "unavailable": "Location unavailable",
+    "timeout": "Request timeout",
+    "enableLocation": "Enable Location",
+    "accuracy": "Accuracy",
+    "lastUpdate": "Last Update"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "volume": "Volume",
+    "autoMode": "Auto Play",
+    "geofenceRadius": "Activation Radius",
+    "ttsEnabled": "Text-to-Speech",
+    "ttsRate": "Speech Rate",
+    "ttsPitch": "Speech Pitch",
+    "mapType": "Map Type",
+    "showVisitedPOIs": "Show Visited POIs",
+    "batteryOptimization": "Battery Optimization"
+  },
+  "history": {
+    "title": "History",
+    "visited": "Visited",
+    "notVisited": "Not Visited",
+    "visitedAt": "Visited At",
+    "clear": "Clear History",
+    "empty": "No history yet"
+  },
+  "map": {
+    "title": "Map",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "centerMap": "Center to Current Location",
+    "fullscreen": "Fullscreen",
+    "layers": "Map Layers"
+  },
+  "poi": {
+    "details": "Details",
+    "signatureDish": "Signature Dish",
+    "funFact": "Fun Fact",
+    "estimatedHours": "Opening Hours",
+    "directions": "Directions",
+    "playAudio": "Play Narration",
+    "viewOnMap": "View on Map"
+  },
+  "offline": {
+    "status": "Offline",
+    "ready": "Ready for offline use",
+    "syncing": "Syncing...",
+    "syncComplete": "Sync Complete",
+    "cacheSize": "Cache Size",
+    "clearCache": "Clear Cache"
+  },
+  "battery": {
+    "level": "Battery Level",
+    "charging": "Charging",
+    "notCharging": "Not Charging",
+    "lowPowerMode": "Low Power Mode",
+    "recommendation": "Recommendation",
+    "warning": "Low battery! Some features may be limited."
+  },
+  "speed": {
+    "stationary": "Stationary",
+    "walking": "Walking",
+    "jogging": "Jogging",
+    "running": "Running",
+    "vehicle": "In Vehicle",
+    "tooFast": "You're moving too fast! Please walk for the best experience."
+  },
+  "errors": {
+    "generic": "An error occurred",
+    "network": "Network connection error",
+    "locationDenied": "You need to grant location permission to use this feature",
+    "audioPlayback": "Cannot play audio. Please try again.",
+    "storageQuota": "Storage is full. Please delete some data.",
+    "unsupported": "Your browser doesn't support this feature"
+  },
+  "welcome": {
+    "title": "Welcome to Street Food Narrator!",
+    "description": "Discover Vinh Khanh street food with automatic audio narration",
+    "step1": "Enable GPS location",
+    "step2": "Walk to Vinh Khanh street",
+    "step3": "Auto narration plays when near food stalls",
+    "getStarted": "Get Started"
+  }
+}

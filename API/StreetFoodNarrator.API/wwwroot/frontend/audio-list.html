@@ -1,0 +1,1314 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Audio - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--secondary) 0%, #1A659E 100%);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 78, 137, 0.3);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out backwards;
+        }
+
+        .stat-item:nth-child(1) { animation-delay: 0.1s; }
+        .stat-item:nth-child(2) { animation-delay: 0.2s; }
+        .stat-item:nth-child(3) { animation-delay: 0.3s; }
+        .stat-item:nth-child(4) { animation-delay: 0.4s; }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+
+        /* Filter Section */
+        .filter-section {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.6s ease-out 0.1s backwards;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.9rem;
+        }
+
+        .filter-input,
+        .filter-select {
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .filter-input:focus,
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .pagination .page-info {
+            font-weight: 600;
+            color: #666;
+        }
+
+        /* Audio Grid */
+        .audio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .audio-card {
+            background: #FFFFFF;
+            border-radius: 28px;
+            padding: 1.75rem;
+            box-shadow: 0 10px 30px rgba(26, 26, 46, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: fadeInUp 0.6s ease-out backwards;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .audio-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 18px 50px rgba(26, 26, 46, 0.12);
+        }
+
+        .audio-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .audio-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #FF7A3E 0%, #F3572F 100%);
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            color: white;
+            box-shadow: 0 10px 18px rgba(255, 122, 62, 0.35);
+        }
+
+        .audio-info h3 {
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+            font-size: 1.15rem;
+        }
+
+        .audio-info p {
+            font-size: 0.85rem;
+            color: #9AA3AE;
+        }
+
+        .audio-meta {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin: 1rem 0 1.25rem;
+            padding: 1rem;
+            background: #F7F8FA;
+            border-radius: 16px;
+        }
+
+        .meta-item {
+            text-align: center;
+        }
+
+        .meta-value {
+            font-weight: 800;
+            color: #FF6B35;
+            margin-bottom: 0.25rem;
+        }
+
+        .meta-label {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        /* Audio Player */
+        .audio-player {
+            background: #F6F7F9;
+            border-radius: 18px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .play-btn {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: #E8ECF1;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .time-display {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 600;
+        }
+
+        /* Language Badges */
+        .language-badges {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .lang-badge {
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, rgba(0, 78, 137, 0.1) 0%, rgba(0, 78, 137, 0.05) 100%);
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        /* Action Buttons */
+        .audio-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: none;
+            letter-spacing: 0.01em;
+            margin-top: 0.35rem;
+        }
+
+        .status-draft {
+            background: rgba(0, 78, 137, 0.1);
+            color: var(--secondary);
+        }
+
+        .status-pending {
+            background: rgba(255, 210, 63, 0.24);
+            color: #A76A00;
+        }
+
+        .status-approved,
+        .status-published {
+            background: rgba(6, 214, 160, 0.22);
+            color: #0C7A5B;
+        }
+
+        .status-rejected {
+            background: rgba(239, 71, 111, 0.22);
+            color: #B0284C;
+        }
+
+        .language-pills {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 0.75rem 0 0.25rem;
+        }
+
+        .lang-pill {
+            background: #EEF2F6;
+            color: #0F3D6E;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 0.35rem 0.8rem;
+            font-size: 0.78rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .lang-pill-active {
+            background: #DCE7F6;
+            color: #0B3360;
+            box-shadow: inset 0 0 0 1px rgba(11, 51, 96, 0.12);
+        }
+
+        .btn-icon {
+            padding: 0.9rem;
+            border-radius: 14px;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-weight: 700;
+            font-size: 0.92rem;
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, #0BD4A5 0%, #06B487 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(11, 212, 165, 0.28);
+        }
+
+        .btn-download:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-delete {
+            background: linear-gradient(135deg, #F04A77 0%, #D63D5F 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(240, 74, 119, 0.25);
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #18C58F 0%, #0FA36C 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(24, 197, 143, 0.25);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #FF8B5E 0%, #F3572F 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(243, 87, 47, 0.25);
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #2F7CFF 0%, #2155C5 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(47, 124, 255, 0.22);
+        }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #6C5CE7 0%, #5B4BD6 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(108, 92, 231, 0.22);
+        }
+
+        .btn-delete:hover {
+            transform: scale(1.05);
+        }
+
+        /* Upload Modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            z-index: 2000;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+        }
+
+        .modal {
+            width: 100%;
+            max-width: 560px;
+            background: white;
+            border-radius: 22px;
+            padding: 1.75rem;
+            box-shadow: 0 18px 50px rgba(15, 23, 42, 0.25);
+            animation: fadeInUp 0.2s ease-out;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+        }
+
+        .modal-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--dark);
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 1.25rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .modal-body .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .modal-body label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .modal-body input,
+        .modal-body select,
+        .modal-body textarea {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            background: var(--light);
+        }
+
+        .modal-body input:focus,
+        .modal-body select:focus,
+        .modal-body textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .modal-actions .btn {
+            width: auto;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pagination {
+                flex-direction: column;
+            }
+
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .audio-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Quản lý Audio</h1>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="window.history.back()">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Quay lại</span>
+                </button>
+                <button class="btn btn-secondary" onclick="openBulkGenerate()">
+                    <i class="fas fa-magic"></i>
+                    <span>TTS Hàng loạt</span>
+                </button>
+                <button class="btn btn-primary" onclick="openUploadModal()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>Upload Audio</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value" id="totalAudioStat">0</div>
+                <div class="stat-label">Tổng file audio</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="poiWithAudioStat">0</div>
+                <div class="stat-label">POI có audio</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="languageCountStat">0</div>
+                <div class="stat-label">Ngôn ngữ</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalSizeStat">0</div>
+                <div class="stat-label">Tổng dung lượng</div>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label">Ngôn ngữ</label>
+                    <select class="filter-select" id="languageFilter">
+                        <option value="">Tất cả</option>
+                        <option value="vi-VN">Tiếng Việt</option>
+                        <option value="en-US">English</option>
+                        <option value="ja-JP">日本語</option>
+                        <option value="ko-KR">한국어</option>
+                        <option value="zh-CN">中文</option>
+                        <option value="fr-FR">Français</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">POI (ID hoặc tên)</label>
+                    <input type="text" class="filter-input" id="poiFilter" placeholder="VD: 12 hoặc Óc Vũ">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Số dùng</label>
+                    <select class="filter-select" id="pageSizeFilter">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Trạng thái</label>
+                    <select class="filter-select" id="statusFilter">
+                        <option value="">Tất cả</option>
+                        <option value="draft">Nháp</option>
+                        <option value="pending">Đang chờ</option>
+                        <option value="approved">Đã duyệt</option>
+                        <option value="rejected">Bị từ chối</option>
+                        <option value="published">Đã xuất bản</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <button class="btn btn-primary" onclick="applyFilters()">
+                        <i class="fas fa-filter"></i>
+                        Lọc
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio Grid -->
+        <div class="audio-grid" id="audioGrid"></div>
+
+        <div class="pagination" id="pagination">
+            <button class="btn btn-outline" id="prevPage" onclick="changePage(-1)">Trước</button>
+            <span class="page-info" id="pageInfo">Trang 1/1</span>
+            <button class="btn btn-outline" id="nextPage" onclick="changePage(1)">Sau</button>
+        </div>
+    </div>
+
+<div class="modal-backdrop" id="uploadModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
+        <div class="modal-header">
+            <div class="modal-title" id="uploadModalTitle">Upload audio</div>
+            <button class="modal-close" type="button" onclick="closeUploadModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="uploadForm">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="uploadPoiId">POI ID</label>
+                    <input id="uploadPoiId" type="number" min="1" placeholder="VD: 12" required>
+                </div>
+                <div class="form-group">
+                    <label for="uploadTitle">Tiêu đề</label>
+                    <input id="uploadTitle" type="text" placeholder="Tên audio" required>
+                </div>
+                <div class="form-group">
+                    <label for="uploadLanguage">Ngôn ngữ</label>
+                    <select id="uploadLanguage" required>
+                        <option value="vi-VN">Tiếng Việt</option>
+                        <option value="en-US">English</option>
+                        <option value="ja-JP">日本語</option>
+                        <option value="ko-KR">한국어</option>
+                        <option value="zh-CN">中文</option>
+                        <option value="fr-FR">Français</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="uploadDescription">Mô tả (tuỳ chọn)</label>
+                    <textarea id="uploadDescription" rows="3" placeholder="Mô tả ngắn"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="uploadFile">Chọn file audio</label>
+                    <input id="uploadFile" type="file" accept="audio/*" required>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" type="button" onclick="closeUploadModal()">Huỷ</button>
+                <button class="btn btn-primary" id="uploadSubmitBtn" type="submit">Tải lên</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="api.js"></script>
+<script>
+    const user = TokenManager.getUser();
+    if (!user) {
+        window.location.href = TokenManager.getLoginUrl();
+    }
+
+    const isAdmin = user?.roles?.includes('Admin');
+    const isVendor = user?.roles?.includes('Vendor');
+
+    let currentPage = 1;
+    let pageSize = 20;
+    let currentLanguage = '';
+    let currentPoiQuery = '';
+    let currentStatus = '';
+
+    async function loadAudios() {
+        const grid = document.getElementById('audioGrid');
+        grid.innerHTML = '<div class="loading">Đang tải dữ liệu...</div>';
+
+        try {
+            const poiInput = currentPoiQuery.trim();
+            const poiId = poiInput && /^\d+$/.test(poiInput) ? parseInt(poiInput, 10) : null;
+            const poiName = poiInput && !poiId ? poiInput : null;
+            const data = await api.getAudioList(
+                currentPage,
+                pageSize,
+                currentLanguage || null,
+                poiId,
+                currentStatus || null,
+                poiName
+            );
+            const audios = data.data || [];
+
+            await updateStats(audios, data.total || audios.length);
+            updatePagination(data.page || currentPage, data.totalPages || 1);
+
+            if (audios.length === 0) {
+                grid.innerHTML = '<div class="empty">Chưa có audio nào.</div>';
+                return;
+            }
+
+            const grouped = groupAudiosByPoi(audios);
+            window.__audioGroupStore = grouped.reduce((acc, g) => {
+                acc[g.key] = g.items;
+                return acc;
+            }, {});
+            grid.innerHTML = grouped.map(group => renderAudioCard(group)).join('');
+            wireLanguageSwitch();
+        } catch (error) {
+            console.error('Error loading audios:', error);
+            grid.innerHTML = `<div class="empty">Không thể tải audio: ${error.message}</div>`;
+        }
+    }
+
+    async function updateStats(audios, total) {
+        let statsAudios = audios;
+        const totalValue = total ?? audios.length;
+        if (totalValue > audios.length && totalValue <= 5000) {
+            try {
+                const statsResp = await api.getAudioList(1, totalValue, currentLanguage || null, currentPoiId || null);
+                statsAudios = statsResp.data || audios;
+            } catch (error) {
+                statsAudios = audios;
+            }
+        }
+
+        const totalCount = totalValue;
+        const poiSet = new Set(statsAudios.map(a => a.poi_ID));
+        const langSet = new Set(statsAudios.map(a => a.language || '').filter(Boolean));
+        const totalSize = statsAudios.reduce((sum, a) => sum + (a.fileSize || 0), 0);
+
+        document.getElementById('totalAudioStat').textContent = totalCount;
+        document.getElementById('poiWithAudioStat').textContent = poiSet.size;
+        document.getElementById('languageCountStat').textContent = langSet.size;
+        document.getElementById('totalSizeStat').textContent = formatFileSize(totalSize);
+    }
+
+    function applyFilters() {
+        currentLanguage = document.getElementById('languageFilter').value;
+        currentPoiQuery = document.getElementById('poiFilter').value.trim();
+        pageSize = parseInt(document.getElementById('pageSizeFilter').value, 10) || 20;
+        currentStatus = document.getElementById('statusFilter').value;
+        currentPage = 1;
+        loadAudios();
+    }
+
+    function changePage(delta) {
+        currentPage = Math.max(1, currentPage + delta);
+        loadAudios();
+    }
+
+    function updatePagination(page, totalPages) {
+        const info = document.getElementById('pageInfo');
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
+
+        const safeTotal = Math.max(1, totalPages || 1);
+        const safePage = Math.min(Math.max(1, page || 1), safeTotal);
+        currentPage = safePage;
+
+        info.textContent = `Trang ${safePage}/${safeTotal}`;
+        prevBtn.disabled = safePage <= 1;
+        nextBtn.disabled = safePage >= safeTotal;
+    }
+
+    function openBulkGenerate() {
+        window.location.href = 'audio-bulk-generate.html';
+    }
+
+    function openUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        if (!modal) return;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        if (window.location.hash === '#upload') {
+            history.replaceState(null, '', window.location.pathname);
+        }
+    }
+
+    function handleUploadHash() {
+        if (window.location.hash === '#upload') {
+            openUploadModal();
+        }
+    }
+
+    function renderStatusBadge(status) {
+        const labelMap = {
+            draft: 'Draft',
+            pending: 'Pending',
+            approved: 'Approved',
+            rejected: 'Rejected',
+            published: 'Published'
+        };
+        const label = labelMap[status] || 'Published';
+        return `<span class="status-badge status-${status}">${label}</span>`;
+    }
+
+    function getLanguageLabel(language) {
+        const normalized = normalizeLanguageKey(language);
+        const map = {
+            vi: 'VN Tiếng Việt',
+            en: 'GB English',
+            ja: 'JP 日本語',
+            ko: 'KR 한국어',
+            zh: 'CN 中文',
+            fr: 'FR Français'
+        };
+        return map[normalized] || (language || 'N/A');
+    }
+
+    function normalizeLanguageKey(language) {
+        if (!language) return '';
+        const lang = String(language).toLowerCase();
+        if (lang.startsWith('vi')) return 'vi';
+        if (lang.startsWith('en')) return 'en';
+        if (lang.startsWith('ja')) return 'ja';
+        if (lang.startsWith('ko')) return 'ko';
+        if (lang.startsWith('zh')) return 'zh';
+        if (lang.startsWith('fr')) return 'fr';
+        return lang;
+    }
+
+    function sanitizeTitle(title, poiName) {
+        const raw = (title || '').trim();
+        const hasMojibake = /[Ãƒï¿½Ã¢â‚¬Â¢Ã°Å¸]/.test(raw);
+        if (!raw || hasMojibake) {
+            return poiName || 'Audio';
+        }
+        const withoutLang = raw.replace(/\s*-\s*((VN|GB|JP|KR|CN|FR|US)\b.*|tieng\s+viet|tieng\s+anh|english|francais).*/i, '').trim();
+        return withoutLang || (poiName || 'Audio');
+    }
+
+    function groupAudiosByPoi(audios) {
+        const map = new Map();
+        audios.forEach(a => {
+            const rawKey = (a.poi_ID ?? a.poiId ?? a.poiID ?? a.poi_Id);
+            const nameKey = (a.poiName || '').trim().toLowerCase();
+            let safeKey = null;
+            if (nameKey && map.has(`name-${nameKey}`)) {
+                safeKey = `name-${nameKey}`;
+            } else if (rawKey !== undefined && rawKey !== null) {
+                safeKey = `poi-${rawKey}`;
+            } else if (nameKey) {
+                safeKey = `name-${nameKey}`;
+            } else {
+                safeKey = `audio-${a.audioContent_ID}`;
+            }
+            if (!map.has(safeKey)) {
+                map.set(safeKey, {
+                    key: safeKey,
+                    poiId: rawKey,
+                    poiName: a.poiName || '',
+                    items: []
+                });
+            }
+            const group = map.get(safeKey);
+            if (!group.poiName && a.poiName) {
+                group.poiName = a.poiName;
+            }
+            group.items.push(a);
+        });
+        return Array.from(map.values());
+    }
+
+    function pickDefaultAudio(items) {
+        const vi = items.find(a => (a.language || '').toLowerCase() === 'vi-vn');
+        if (vi) return vi;
+        const en = items.find(a => (a.language || '').toLowerCase() === 'en-us');
+        if (en) return en;
+        return items[0];
+    }
+
+    function renderAudioCard(group) {
+        const selected = pickDefaultAudio(group.items);
+        const audioUrl = resolveAudioUrl(selected.audioUrl);
+        const status = (selected.status || 'published').toLowerCase();
+        const displayTitle = group.poiName || sanitizeTitle(selected.title, group.poiName);
+        const duration = selected.duration ? `${Math.floor(selected.duration / 60)}:${String(selected.duration % 60).padStart(2, '0')}` : 'N/A';
+        const fileSize = formatFileSize(selected.fileSize);
+        const uniqueItems = getUniqueLanguageItems(group.items);
+
+        return `
+            <div class="audio-card" data-group-key="${group.key}" data-poi-id="${group.poiId}" data-selected-id="${selected.audioContent_ID}">
+                <div class="audio-header">
+                    <div class="audio-icon">ðŸŽµ</div>
+                    <div class="audio-info">
+                        <h3 class="audio-title">${displayTitle}</h3>
+                        <p>${group.poiName ? `POI: ${group.poiName}` : `POI #${group.poiId}`}</p>
+                        <div class="audio-status">${renderStatusBadge(status)}</div>
+                    </div>
+                </div>
+
+                <div class="language-pills">
+                    ${uniqueItems.map(a => {
+                        const label = getLanguageLabel(a.language);
+                        const activeClass = a.audioContent_ID === selected.audioContent_ID ? ' lang-pill-active' : '';
+                        return `<button class="lang-pill${activeClass}" data-audio-id="${a.audioContent_ID}" data-group-key="${group.key}" data-poi-id="${group.poiId}">${label}</button>`;
+                    }).join('')}
+                </div>
+
+                <div class="audio-meta">
+                    <div class="meta-item">
+                        <div class="meta-value audio-duration">${duration}</div>
+                        <div class="meta-label">Thời lượng</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-value audio-size">${fileSize}</div>
+                        <div class="meta-label">Dung lượng</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-value audio-lang">${selected.language || 'N/A'}</div>
+                        <div class="meta-label">Ngôn ngữ</div>
+                    </div>
+                </div>
+
+                <div class="audio-player">
+                    ${audioUrl ? `<audio controls src="${audioUrl}"></audio>` : '<div class="empty">Chưa có file audio</div>'}
+                </div>
+
+                <div class="audio-actions">
+                    ${renderActionButtons(selected, audioUrl)}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderActionButtons(audio, audioUrl) {
+        const status = (audio.status || 'published').toLowerCase();
+        const canSubmit = isVendor && (status === 'draft' || status === 'rejected');
+        const canApprove = isAdmin && status === 'pending';
+        const canReject = isAdmin && status === 'pending';
+        const canDelete = isAdmin || (isVendor && status !== 'approved' && status !== 'published');
+        const canGenerate = isAdmin || isVendor;
+
+        return `
+            <button class="btn-icon btn-download" data-action="download" data-url="${audioUrl}">
+                <i class="fas fa-download"></i>
+                <span>Tải về</span>
+            </button>
+            ${canGenerate ? `
+                <button class="btn-icon btn-generate" data-action="generate" data-id="${audio.audioContent_ID}">
+                    <i class="fas fa-magic"></i>
+                    <span>Tạo file</span>
+                </button>
+            ` : ''}
+            ${canSubmit ? `
+                <button class="btn-icon btn-submit" data-action="submit" data-id="${audio.audioContent_ID}">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Gửi duyệt</span>
+                </button>
+            ` : ''}
+            ${canApprove ? `
+                <button class="btn-icon btn-approve" data-action="approve" data-id="${audio.audioContent_ID}">
+                    <i class="fas fa-check"></i>
+                    <span>Duyệt</span>
+                </button>
+            ` : ''}
+            ${canReject ? `
+                <button class="btn-icon btn-reject" data-action="reject" data-id="${audio.audioContent_ID}">
+                    <i class="fas fa-times"></i>
+                    <span>Từ chối</span>
+                </button>
+            ` : ''}
+            ${canDelete ? `
+                <button class="btn-icon btn-delete" data-action="delete" data-id="${audio.audioContent_ID}">
+                    <i class="fas fa-trash"></i>
+                    <span>Xóa</span>
+                </button>
+            ` : ''}
+        `;
+    }
+
+    function getUniqueLanguageItems(items) {
+        const map = new Map();
+        items.forEach(item => {
+            const key = normalizeLanguageKey(item.language);
+            if (!map.has(key)) {
+                map.set(key, item);
+                return;
+            }
+            const existing = map.get(key);
+            if (!existing.audioUrl && item.audioUrl) {
+                map.set(key, item);
+            }
+        });
+        return Array.from(map.values());
+    }
+
+    function wireLanguageSwitch() {
+        document.querySelectorAll('.lang-pill').forEach(btn => {
+            btn.onclick = () => {
+                const groupKey = btn.getAttribute('data-group-key');
+                const poiId = btn.getAttribute('data-poi-id');
+                const audioId = btn.getAttribute('data-audio-id');
+                const card = document.querySelector(`.audio-card[data-group-key="${groupKey}"]`) ||
+                    document.querySelector(`.audio-card[data-poi-id="${poiId}"]`);
+                if (!card) return;
+                const current = Array.from(document.querySelectorAll('.lang-pill')).find(p =>
+                    p.classList.contains('lang-pill-active') && p.getAttribute('data-group-key') === groupKey
+                );
+                if (current) current.classList.remove('lang-pill-active');
+                btn.classList.add('lang-pill-active');
+
+                const audio = findAudioInCard(groupKey, audioId);
+                if (!audio) return;
+                updateCard(card, audio);
+            };
+        });
+
+        document.querySelectorAll('.audio-actions button').forEach(btn => {
+            const action = btn.getAttribute('data-action');
+            if (!action) return;
+            btn.onclick = () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                const url = btn.getAttribute('data-url');
+                if (action === 'download') return downloadAudio(url);
+                if (action === 'generate') return generateAudioFile(id);
+                if (action === 'submit') return submitAudio(id);
+                if (action === 'approve') return approveAudio(id);
+                if (action === 'reject') return rejectAudio(id);
+                if (action === 'delete') return deleteAudio(id);
+            };
+        });
+    }
+
+    function findAudioInCard(groupKey, audioId) {
+        const store = window.__audioGroupStore || {};
+        const list = store[groupKey] || [];
+        return list.find(a => String(a.audioContent_ID) === String(audioId)) || null;
+    }
+
+    function updateCard(card, audio) {
+        const audioUrl = resolveAudioUrl(audio.audioUrl);
+        const status = (audio.status || 'published').toLowerCase();
+        const displayTitle = audio.poiName || sanitizeTitle(audio.title, audio.poiName);
+        const duration = audio.duration ? `${Math.floor(audio.duration / 60)}:${String(audio.duration % 60).padStart(2, '0')}` : 'N/A';
+        const fileSize = formatFileSize(audio.fileSize);
+
+        card.setAttribute('data-selected-id', audio.audioContent_ID);
+        card.querySelector('.audio-title').textContent = displayTitle;
+        card.querySelector('.audio-status').innerHTML = renderStatusBadge(status);
+        card.querySelector('.audio-duration').textContent = duration;
+        card.querySelector('.audio-size').textContent = fileSize;
+        card.querySelector('.audio-lang').textContent = audio.language || 'N/A';
+
+        const player = card.querySelector('.audio-player');
+        player.innerHTML = audioUrl ? `<audio controls src="${audioUrl}"></audio>` : '<div class="empty">Chưa có file audio</div>';
+
+        const actions = card.querySelector('.audio-actions');
+        actions.innerHTML = renderActionButtons(audio, audioUrl);
+
+        wireLanguageSwitch();
+    }
+
+    function bindUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        const form = document.getElementById('uploadForm');
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeUploadModal();
+                }
+            });
+        }
+
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const fileInput = document.getElementById('uploadFile');
+                const titleInput = document.getElementById('uploadTitle');
+                const languageSelect = document.getElementById('uploadLanguage');
+                const poiInput = document.getElementById('uploadPoiId');
+                const descInput = document.getElementById('uploadDescription');
+                const submitBtn = document.getElementById('uploadSubmitBtn');
+
+                const file = fileInput?.files?.[0];
+                const title = titleInput?.value?.trim();
+                const language = languageSelect?.value || 'vi-VN';
+                const poiId = parseInt(poiInput?.value || '', 10);
+                const description = descInput?.value?.trim();
+
+                if (!file || !title || Number.isNaN(poiId)) {
+                    alert('Vui lòng nhập đủ POI ID, tiêu đề và chọn file audio.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('AudioFile', file);
+                formData.append('Title', title);
+                formData.append('Language', language);
+                formData.append('POI_ID', poiId.toString());
+                if (description) {
+                    formData.append('Description', description);
+                }
+
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Đang upload...';
+                }
+
+                try {
+                    await api.uploadAudio(formData);
+                    closeUploadModal();
+                    if (form) form.reset();
+                    loadAudios();
+                } catch (error) {
+                    alert('Upload thất bại: ' + (error.message || 'Vui lòng thử lại.'));
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Upload';
+                    }
+                }
+            });
+        }
+    }
+
+    function resolveAudioUrl(rawUrl) {
+        if (!rawUrl) return '';
+        if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+        const apiRoot = API_BASE_URL.replace(/\/api\/?$/, '');
+        if (rawUrl.startsWith('/')) return `${apiRoot}${rawUrl}`;
+        return `${apiRoot}/${rawUrl}`;
+    }
+
+    function downloadAudio(url) {
+        if (!url) {
+            alert('Audio chưa có file.');
+            return;
+        }
+        window.open(url, '_blank');
+    }
+
+    async function generateAudioFile(id) {
+        try {
+            await api.request(`/Audio/${id}/generate-file`, { method: 'POST' });
+            loadAudios();
+        } catch (error) {
+            alert('Không thể tạo file audio: ' + error.message);
+        }
+    }
+
+    async function submitAudio(id) {
+        try {
+            await api.submitAudio(id);
+            loadAudios();
+        } catch (error) {
+            alert('Không thể gửi duyệt: ' + error.message);
+        }
+    }
+
+    async function approveAudio(id) {
+        try {
+            await api.approveAudio(id);
+            loadAudios();
+        } catch (error) {
+            alert('Không thể duyệt audio: ' + error.message);
+        }
+    }
+
+    async function rejectAudio(id) {
+        const reason = prompt('Nhập lý do từ chối (tùy chọn):') || '';
+        try {
+            await api.rejectAudio(id, reason);
+            loadAudios();
+        } catch (error) {
+            alert('Không thể từ chối audio: ' + error.message);
+        }
+    }
+
+    async function deleteAudio(id) {
+        if (!confirm('Bạn có chắc muốn xóa audio này?')) return;
+        try {
+            await api.deleteAudio(id);
+            loadAudios();
+        } catch (error) {
+            alert('Lỗi khi xóa audio: ' + error.message);
+        }
+    }
+
+    window.addEventListener('load', function() {
+        bindUploadModal();
+        applyFilters();
+        handleUploadHash();
+    });
+
+    window.addEventListener('hashchange', handleUploadHash);
+</script>
+</body>
+</html>
+

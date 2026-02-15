@@ -1,0 +1,22 @@
+<svg width="456" height="456" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient cho chủ đề tối -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0A1612;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E3D2A;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="456" height="456" fill="url(#bg-gradient)"/>
+  
+  <!-- Vòng tròn xanh lá ở giữa -->
+  <circle cx="228" cy="228" r="120" fill="#22C55E" opacity="0.15"/>
+  <circle cx="228" cy="228" r="100" fill="#1C3D2F"/>
+  
+  <!-- Emoji 🍜 using text -->
+  <text x="228" y="260" 
+        font-size="100" 
+        text-anchor="middle" 
+        font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif">
+    🍜
+  </text>
+</svg>

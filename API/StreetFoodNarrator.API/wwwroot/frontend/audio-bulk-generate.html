@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo audio tự động (TTS) - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --secondary: #004E89;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --muted: #6B7280;
+            --light: #F7F8FA;
+            --card: #FFFFFF;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; background: #f5f7fa; color: #1F2937; }
+
+        .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .header { background: var(--gradient); color: white; padding: 1.5rem 2rem; border-radius: 18px; margin-bottom: 1.5rem; }
+        .header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; }
+        .header p { opacity: 0.9; margin-top: 0.25rem; }
+
+        .stepper { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0.8rem 1rem; font-weight: 600; color: var(--muted); }
+        .step.active { border-color: var(--primary); color: var(--primary); box-shadow: 0 6px 18px var(--shadow); }
+
+        .card { background: var(--card); border-radius: 16px; padding: 1.5rem; box-shadow: 0 6px 24px var(--shadow); margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+
+        .option-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .option { border: 2px solid var(--border); border-radius: 14px; padding: 1rem; cursor: pointer; transition: all 0.2s ease; }
+        .option.active { border-color: var(--primary); background: rgba(255, 107, 53, 0.08); }
+        .option h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+        .option p { color: var(--muted); font-size: 0.9rem; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .template-list { border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem; }
+        .template-item { padding: 0.6rem 0.75rem; border-radius: 10px; cursor: pointer; }
+        .template-item.active { background: #FFF0E9; color: #C2410C; font-weight: 700; }
+        .preview-box { background: var(--light); border-radius: 12px; padding: 1rem; min-height: 160px; white-space: pre-wrap; }
+
+        .poi-grid { display: grid; gap: 0.75rem; }
+        .poi-item { display: grid; grid-template-columns: 24px 1fr auto; gap: 0.75rem; align-items: start; border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; }
+        .poi-name { font-weight: 700; }
+        .poi-warn { color: #B45309; font-size: 0.85rem; }
+
+        .lang-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+        .lang-item { border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem; display: flex; gap: 0.5rem; align-items: center; }
+
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .control { background: var(--light); border-radius: 12px; padding: 1rem; }
+        .control h4 { margin-bottom: 0.5rem; }
+        .field { margin-bottom: 0.75rem; }
+        .field label { display: block; font-weight: 600; margin-bottom: 0.35rem; }
+        .field input, .field select, .field textarea { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; }
+
+        .actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+        .btn { border: none; border-radius: 12px; padding: 0.75rem 1.2rem; font-weight: 700; cursor: pointer; }
+        .btn-primary { background: var(--gradient); color: white; }
+        .btn-outline { background: white; border: 2px solid var(--border); }
+        .btn-danger { background: var(--danger); color: white; }
+
+        .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+        .summary-item { background: var(--light); border-radius: 12px; padding: 0.8rem; text-align: center; }
+        .summary-item .value { font-weight: 800; color: var(--primary); }
+
+        .progress { background: var(--light); border-radius: 999px; height: 10px; overflow: hidden; }
+        .progress > div { height: 100%; background: var(--gradient); width: 0%; }
+
+        .hidden { display: none; }
+
+        @media (max-width: 900px) {
+            .option-grid, .two-col, .lang-grid, .summary { grid-template-columns: 1fr; }
+            .controls { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <h1>Tạo Audio Tự Động (TTS)</h1>
+            <p>Chọn template, POI, ngôn ngữ và giọng đọc trước khi tạo.</p>
+        </div>
+
+        <div class="stepper">
+            <div class="step active">1. Chọn phương thức tạo audio</div>
+            <div class="step">2. Chọn template & POI</div>
+            <div class="step">3. Ngôn ngữ & giọng đọc</div>
+            <div class="step">4. Xem trước & tạo</div>
+        </div>
+
+        <div class="card" id="step1">
+            <h2>TTS HÀNG LOẠT - CHỌN PHƯƠNG THỨC</h2>
+            <div class="option-grid">
+                <div class="option active" data-method="template">
+                    <h3>Dùng Template có sẵn (Khuyến nghị)</h3>
+                    <p>Nhanh, đơn giản, chuẩn.</p>
+                </div>
+                <div class="option" data-method="custom">
+                    <h3>Tự viết Template</h3>
+                    <p>Linh hoạt, tùy chỉnh theo ý.</p>
+                </div>
+                <div class="option" data-method="import">
+                    <h3>Nhập từ Excel/CSV</h3>
+                    <p>Hàng trăm POI cùng lúc.</p>
+                </div>
+            </div>
+            <div class="actions" style="margin-top: 1rem;">
+                <button class="btn btn-primary" onclick="goStep(2)">Tiếp tục</button>
+            </div>
+        </div>
+
+        <div class="card hidden" id="step2">
+            <h2>BƯỚC 1: CHỌN TEMPLATE</h2>
+            <div id="customTemplateBox" class="hidden" style="margin-bottom: 1rem;">
+                <div class="field">
+                    <label>Template tùy chỉnh</label>
+                    <textarea id="customTemplate" rows="6" placeholder="Nhập template của bạn với biến {TEN_POI}, {DIA_CHI}..."></textarea>
+                </div>
+            </div>
+
+            <div id="templateBox" class="two-col">
+                <div class="template-list" id="templateList"></div>
+                <div>
+                    <div style="font-weight:700;margin-bottom:0.5rem;">Xem trước template</div>
+                    <div class="preview-box" id="templatePreview"></div>
+                </div>
+            </div>
+
+            <div id="importBox" class="hidden" style="margin-top:1rem;">
+                <div class="field">
+                    <label>Import Excel/CSV</label>
+                    <input type="file" accept=".csv,.xlsx">
+                </div>
+                <div style="color: var(--muted); font-size: 0.9rem;">Demo UI. Chưa nối backend import.</div>
+            </div>
+
+            <h2 style="margin-top:1.5rem;">BƯỚC 2: CHỌN POI</h2>
+            <label style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
+                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                <strong>Chọn tất cả (<span id="poiCount">0</span> POI)</strong>
+            </label>
+            <div id="poisGrid" class="poi-grid"></div>
+            <div style="margin-top:0.75rem;color:#B45309;" id="poiWarning"></div>
+
+            <div class="actions" style="margin-top: 1rem;">
+                <button class="btn btn-outline" onclick="goStep(1)">Quay lại</button>
+                <button class="btn btn-primary" onclick="goStep(3)">Tiếp tục</button>
+            </div>
+        </div>
+
+        <div class="card hidden" id="step3">
+            <h2>BƯỚC 3: CHỌN NGÔN NGỮ & GIỌNG ĐỌC</h2>
+            <div class="lang-grid" id="langGrid"></div>
+
+            <div class="controls" style="margin-top:1rem;">
+                <div class="control">
+                    <h4>Giọng đọc</h4>
+                    <div class="field">
+                        <label>Provider</label>
+                        <select id="ttsProvider">
+                            <option value="edge-tts">Edge TTS</option>
+                        </select>
+                    </div>
+                    <div id="voiceOptions"></div>
+                </div>
+                <div class="control">
+                    <h4>Tốc độ & âm lượng</h4>
+                    <label>Tốc độ đọc: <input type="range" min="0.8" max="1.2" step="0.05" value="1" id="rate"></label>
+                    <br>
+                    <label>Âm lượng: <input type="range" min="0.8" max="1.2" step="0.05" value="1" id="volume"></label>
+                    <br>
+                    <label>Pitch: <input type="range" min="-10" max="10" step="1" value="0" id="pitch"></label>
+                </div>
+            </div>
+
+            <div class="actions" style="margin-top: 1rem;">
+                <button class="btn btn-outline" onclick="goStep(2)">Quay lại</button>
+                <button class="btn btn-primary" onclick="goStep(4)">Tiếp tục</button>
+            </div>
+        </div>
+
+        <div class="card hidden" id="step4">
+            <h2>BƯỚC 4: XEM TRƯỚC & XÁC NHẬN</h2>
+            <div class="summary" style="margin-bottom:1rem;">
+                <div class="summary-item"><div class="value" id="sumPois">0</div><div>Số POI</div></div>
+                <div class="summary-item"><div class="value" id="sumLangs">0</div><div>Ngôn ngữ</div></div>
+                <div class="summary-item"><div class="value" id="sumFiles">0</div><div>Tổng audio</div></div>
+                <div class="summary-item"><div class="value" id="sumEst">~</div><div>Được tính</div></div>
+            </div>
+
+            <div class="preview-box" id="scriptPreview"></div>
+
+            <div class="actions" style="margin-top: 1rem;">
+                <button class="btn btn-outline" onclick="goStep(3)">Quay lại</button>
+                <button class="btn btn-outline" onclick="saveDraft()">Lưu nháp</button>
+                <button class="btn btn-primary" onclick="generateAudio()">Tạo ngay</button>
+            </div>
+        </div>
+
+        <div class="card hidden" id="progressCard">
+            <h2>Đang tạo audio...</h2>
+            <div class="progress"><div id="progressFill"></div></div>
+            <div id="progressText" style="margin-top:0.5rem;">0 / 0</div>
+            <div id="progressLog" style="margin-top:0.75rem;"></div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        const user = TokenManager.getUser();
+        if (!user) window.location.href = TokenManager.getLoginUrl();
+
+        const templates = [
+            { id: 'template_001', name: '🍽 Giới thiệu món ăn (Chuẩn)',
+              text: 'Chào mừng bạn đến với {TEN_POI}.\n\n{TEN_POI} nổi tiếng với món {MON_DAC_SAN}. {MO_TA_MON_AN}\n\nĐịa chỉ: {DIA_CHI}\nGiờ mở cửa: {GIO_MO_CUA}\n\nGiá trung bình: {GIA_TRUNG_BINH}\n\nHãy đến và thưởng thức nhé!' },
+            { id: 'template_002', name: '🍜 Giới thiệu quán ăn (Đầy đủ)',
+              text: 'Xin chào! Đây là {TEN_POI}. {MO_TA_QUAN}.\n\nĐịa chỉ: {DIA_CHI}. Giờ mở cửa: {GIO_MO_CUA}.\nMón nổi bật: {MON_DAC_SAN}.\n\nChúc bạn có trải nghiệm tuyệt vời!' },
+            { id: 'template_003', name: '⏳ Giới thiệu ngắn gọn (1 phút)',
+              text: '{TEN_POI} là điểm đến nổi bật tại khu vực này. {MO_TA_QUAN}\nĐịa chỉ: {DIA_CHI}. Món nên thử: {MON_DAC_SAN}.' },
+            { id: 'template_004', name: '🌟 Giới thiệu đặc sản (Nổi bật)',
+              text: '{TEN_POI} được yêu thích nhờ {MON_DAC_SAN}. {MO_TA_MON_AN}\nHãy ghé {TEN_POI} để thưởng thức hương vị đặc biệt.' }
+        ];
+
+        const languages = [
+            { id: 'vi-VN', label: '🇻🇳 Tiếng Việt', defaultVoice: 'vi-VN-HoaiMyNeural' },
+            { id: 'en-US', label: '🇺🇸 English', defaultVoice: 'en-US-JennyNeural' },
+            { id: 'ja-JP', label: '🇯🇵 日本語', defaultVoice: 'ja-JP-NanamiNeural' },
+            { id: 'fr-FR', label: '🇫🇷 Français', defaultVoice: 'fr-FR-DeniseNeural' },
+            { id: 'ko-KR', label: '🇰🇷 한국어', defaultVoice: 'ko-KR-SunHiNeural' },
+            { id: 'zh-CN', label: '🇨🇳 中文', defaultVoice: 'zh-CN-XiaoxiaoNeural' }
+        ];
+
+        let currentTemplate = templates[0];
+        let poisWithoutAudio = [];
+        let selectedPOIs = new Set();
+        let selectedLangs = new Set(['vi-VN','en-US']);
+        let ttsVoices = [];
+
+        function renderTemplates() {
+            const list = document.getElementById('templateList');
+            list.innerHTML = templates.map(t => `
+                <div class="template-item ${t.id === currentTemplate.id ? 'active' : ''}" onclick="selectTemplate('${t.id}')">${t.name}</div>
+            `).join('');
+            document.getElementById('templatePreview').textContent = currentTemplate.text;
+        }
+
+        function selectTemplate(id) {
+            currentTemplate = templates.find(t => t.id === id) || templates[0];
+            renderTemplates();
+        }
+
+        function renderLanguages() {
+            const grid = document.getElementById('langGrid');
+            grid.innerHTML = languages.map(l => `
+                <label class="lang-item">
+                    <input type="checkbox" ${selectedLangs.has(l.id) ? 'checked' : ''} onchange="toggleLang('${l.id}')">
+                    <span>${l.label}</span>
+                </label>
+            `).join('');
+            renderVoices();
+        }
+
+        function renderVoices() {
+            const container = document.getElementById('voiceOptions');
+            const selected = Array.from(selectedLangs);
+            if (!selected.length) {
+                container.innerHTML = '<div style="color:var(--muted);">Chọn ngôn ngữ để hiển thị giọng đọc.</div>';
+                return;
+            }
+            const voicesByLang = selected.map(lang => {
+                const voices = ttsVoices.filter(v => v.language === lang);
+                const fallback = languages.find(l => l.id === lang)?.defaultVoice;
+                return { lang, voices, fallback };
+            });
+            container.innerHTML = voicesByLang.map(v => `
+                <div class="field">
+                    <label>Giọng đọc ${v.lang}</label>
+                    <select data-voice-lang="${v.lang}">
+                        ${(v.voices.length ? v.voices : [{ voice: v.fallback, name: v.fallback }]).map(vo => `
+                            <option value="${vo.voice}">${vo.name || vo.voice}</option>
+                        `).join('')}
+                    </select>
+                </div>
+            `).join('');
+        }
+
+        function toggleLang(lang) {
+            if (selectedLangs.has(lang)) selectedLangs.delete(lang); else selectedLangs.add(lang);
+            renderVoices();
+            updateSummary();
+        }
+
+        async function loadVoices() {
+            try {
+                const resp = await api.request('/TTS/voices');
+                ttsVoices = resp || [];
+            } catch { ttsVoices = []; }
+            renderVoices();
+        }
+
+        async function loadPOIs() {
+            const response = await api.getPOIsWithoutAudio('vi-VN');
+            poisWithoutAudio = response || [];
+            document.getElementById('poiCount').textContent = poisWithoutAudio.length;
+            renderPOIs();
+        }
+
+        function renderPOIs() {
+            const grid = document.getElementById('poisGrid');
+            grid.innerHTML = poisWithoutAudio.map(p => {
+                const missing = getMissingInfo(p);
+                return `
+                    <div class="poi-item">
+                        <input type="checkbox" class="poi-checkbox" data-poi-id="${p.poI_ID}" onchange="updateSelection()">
+                        <div>
+                            <div class="poi-name">${p.name_Vi || 'N/A'}</div>
+                            <div class="poi-address">${p.address || 'Chưa có địa chỉ'}</div>
+                            ${missing.length ? `<div class="poi-warn">⚠️ Thiếu thông tin: ${missing.join(', ')}</div>` : ''}
+                        </div>
+                        <div>${missing.length ? '❌' : '✅'}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getMissingInfo(poi) {
+            const vars = extractVariables(getActiveTemplateText());
+            const map = buildVariableMap(poi);
+            return vars.filter(v => !map[v]);
+        }
+
+        function extractVariables(text) {
+            const matches = text.match(/\{[A-Z0-9_]+\}/g) || [];
+            return Array.from(new Set(matches.map(v => v.replace(/[{}]/g, ''))));
+        }
+
+        function buildVariableMap(poi) {
+            const toList = (value) => {
+                if (Array.isArray(value)) return value.filter(Boolean);
+                if (typeof value === 'string' && value.trim()) return [value.trim()];
+                return [];
+            };
+            const signatureList = toList(poi.signatureDishes?.length ? poi.signatureDishes : poi.signatureDish);
+            const specialtiesList = toList(poi.specialties);
+            const monDacSan = signatureList.length ? signatureList.join(', ') : specialtiesList.join(', ');
+            const moTaMonAn = poi.story || poi.history || poi.description_Vi || '';
+            const gioMoCua = poi.openingHoursText || (Array.isArray(poi.openingHours) ? poi.openingHours.join('; ') : '');
+            const giaTrungBinh = (() => {
+                if (poi.averagePrice !== undefined && poi.averagePrice !== null && !Number.isNaN(Number(poi.averagePrice))) {
+                    return `${Number(poi.averagePrice).toLocaleString('vi-VN')}đ`;
+                }
+                if (poi.priceLevel !== undefined && poi.priceLevel !== null) {
+                    const map = { 1: 'Bình dân', 2: 'Trung bình', 3: 'Khá cao', 4: 'Cao cấp' };
+                    return map[poi.priceLevel] || '';
+                }
+                return '';
+            })();
+            return {
+                TEN_POI: poi.name_Vi || '',
+                MON_DAC_SAN: monDacSan,
+                MO_TA_MON_AN: moTaMonAn,
+                MO_TA_QUAN: poi.description_Vi || '',
+                DIA_CHI: poi.address || '',
+                GIO_MO_CUA: gioMoCua,
+                GIA_TRUNG_BINH: giaTrungBinh
+            };
+        }
+
+        function getActiveTemplateText() {
+            const method = getMethod();
+            if (method === 'custom') return document.getElementById('customTemplate').value || '';
+            if (method === 'template') return currentTemplate.text;
+            return currentTemplate.text;
+        }
+
+        function toggleSelectAll() {
+            const checked = document.getElementById('selectAll').checked;
+            document.querySelectorAll('.poi-checkbox').forEach(cb => cb.checked = checked);
+            updateSelection();
+        }
+
+        function updateSelection() {
+            selectedPOIs.clear();
+            document.querySelectorAll('.poi-checkbox:checked').forEach(cb => selectedPOIs.add(cb.getAttribute('data-poi-id')));
+            const invalid = poisWithoutAudio.filter(p => selectedPOIs.has(String(p.poI_ID)) && getMissingInfo(p).length);
+            document.getElementById('poiWarning').textContent = invalid.length ? `⚠️ ${invalid.length} POI thiếu thông tin sẽ bị bỏ qua` : '';
+            updateSummary();
+        }
+
+        function updateSummary() {
+            document.getElementById('sumPois').textContent = selectedPOIs.size;
+            document.getElementById('sumLangs').textContent = selectedLangs.size;
+            document.getElementById('sumFiles').textContent = selectedPOIs.size * selectedLangs.size;
+            document.getElementById('sumEst').textContent = `~${Math.max(1, Math.round(selectedPOIs.size * selectedLangs.size * 0.2))} phút`;
+
+            const firstPoi = poisWithoutAudio.find(p => selectedPOIs.has(String(p.poI_ID)));
+            if (firstPoi) {
+                const lang = Array.from(selectedLangs)[0] || 'vi-VN';
+                const script = buildScript(firstPoi, lang);
+                document.getElementById('scriptPreview').textContent = `POI: ${firstPoi.name_Vi}\nNgôn ngữ: ${lang}\n\nScript:\n"${script}"`;
+            } else {
+                document.getElementById('scriptPreview').textContent = 'Chưa chọn POI.';
+            }
+        }
+
+        function buildScript(poi, language) {
+            const map = buildVariableMap(poi);
+            let text = getActiveTemplateText();
+            Object.keys(map).forEach(k => text = text.replaceAll(`{${k}}`, map[k] || ''));
+            return text.trim();
+        }
+
+        function getMethod() {
+            const active = document.querySelector('.option.active');
+            return active ? active.getAttribute('data-method') : 'template';
+        }
+
+        function getVoiceForLang(lang) {
+            const select = document.querySelector(`[data-voice-lang="${lang}"]`);
+            return select ? select.value : (languages.find(l => l.id === lang)?.defaultVoice || '');
+        }
+
+        async function generateAudio() {
+            if (selectedPOIs.size === 0 || selectedLangs.size === 0) {
+                alert('Vui lòng chọn POI và ngôn ngữ');
+                return;
+            }
+
+            const progressCard = document.getElementById('progressCard');
+            progressCard.classList.remove('hidden');
+
+            let completed = 0;
+            let failed = 0;
+            const total = selectedPOIs.size * selectedLangs.size;
+
+            for (const poiId of selectedPOIs) {
+                const poi = poisWithoutAudio.find(p => p.poI_ID == poiId);
+                if (!poi || getMissingInfo(poi).length) { failed++; continue; }
+
+                for (const lang of selectedLangs) {
+                    try {
+                        const script = buildScript(poi, lang);
+                        const voice = getVoiceForLang(lang);
+                        const ttsConfig = {
+                            provider: document.getElementById('ttsProvider').value,
+                            voice,
+                            speed: parseFloat(document.getElementById('rate').value),
+                            pitch: parseFloat(document.getElementById('pitch').value),
+                            volume: parseFloat(document.getElementById('volume').value)
+                        };
+
+                        const ttsResult = await api.request('/TTS/generate', {
+                            method: 'POST',
+                            body: JSON.stringify({ text: script, language: lang, voice })
+                        });
+
+                        await api.request('/Audio', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                poiId: parseInt(poiId),
+                                language: lang,
+                                title: poi.name_Vi,
+                                description: script.substring(0, 500),
+                                fileName: ttsResult.fileName,
+                                filePath: ttsResult.filePath,
+                                fileSize: ttsResult.fileSize,
+                                duration: 0,
+                                type: 'TTS',
+                                ttsText: script,
+                                ttsVoice: voice,
+                                ttsProvider: ttsConfig.provider,
+                                ttsSpeed: ttsConfig.speed,
+                                ttsPitch: ttsConfig.pitch,
+                                ttsConfig: ttsConfig,
+                                templateId: currentTemplate.id,
+                                templateName: currentTemplate.name,
+                                templateVariables: buildVariableMap(poi)
+                            })
+                        });
+
+                        completed++;
+                    } catch (e) {
+                        failed++;
+                    }
+                    updateProgress(completed, total, failed);
+                }
+            }
+
+            alert(`Hoàn thành! Thành công: ${completed}, Lỗi: ${failed}`);
+        }
+
+        function updateProgress(completed, total, failed) {
+            const percent = total ? Math.round((completed / total) * 100) : 0;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = `${completed} / ${total} (Lỗi: ${failed})`;
+        }
+
+        function saveDraft() { alert('💾 Lưu nháp (demo UI).'); }
+
+        function goStep(step) {
+            ['step1','step2','step3','step4'].forEach((id, idx) => {
+                document.getElementById(id).classList.toggle('hidden', idx !== step-1);
+                document.querySelectorAll('.step')[idx].classList.toggle('active', idx === step-1);
+            });
+        }
+
+        document.querySelectorAll('.option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                const method = opt.getAttribute('data-method');
+                document.getElementById('templateBox').classList.toggle('hidden', method !== 'template');
+                document.getElementById('customTemplateBox').classList.toggle('hidden', method !== 'custom');
+                document.getElementById('importBox').classList.toggle('hidden', method !== 'import');
+            });
+        });
+
+        renderTemplates();
+        renderLanguages();
+        loadVoices();
+        loadPOIs();
+        updateSummary();
+    </script>
+</body>
+</html>

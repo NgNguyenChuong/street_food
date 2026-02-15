@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_OK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="Common_Continue" xml:space="preserve">
+    <value>続ける</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="Common_Retry" xml:space="preserve">
+    <value>再試行</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="Welcome_AppTitle" xml:space="preserve">
+    <value>Street Food Narrator</value>
+  </data>
+  <data name="Welcome_Subtitle" xml:space="preserve">
+    <value>ストリートフードの旅を発見
+ヴィンカンの美食</value>
+  </data>
+  <data name="Welcome_StartTour" xml:space="preserve">
+    <value>🚀  ツアーを開始</value>
+  </data>
+  <data name="Welcome_Feature_Auto_Title" xml:space="preserve">
+    <value>自動再生</value>
+  </data>
+  <data name="Welcome_Feature_Auto_Desc" xml:space="preserve">
+    <value>GPS認識</value>
+  </data>
+  <data name="Welcome_Feature_Offline_Title" xml:space="preserve">
+    <value>事前ダウンロード</value>
+  </data>
+  <data name="Welcome_Feature_Offline_Desc" xml:space="preserve">
+    <value>いつでもオフライン視聴</value>
+  </data>
+  <data name="Welcome_Feature_Local_Title" xml:space="preserve">
+    <value>地元の物語</value>
+  </data>
+  <data name="Welcome_Feature_Local_Desc" xml:space="preserve">
+    <value>地元の人々が語る美食の秘密を聴く</value>
+  </data>
+  <data name="Status_Downloading_Metadata_Title" xml:space="preserve">
+    <value>レストランリストをダウンロード中...</value>
+  </data>
+  <data name="Status_Downloading_Metadata_Detail" xml:space="preserve">
+    <value>メタデータ • マップ</value>
+  </data>
+  <data name="Status_Downloading_Offline_Title" xml:space="preserve">
+    <value>オフラインデータをダウンロード中...</value>
+  </data>
+  <data name="Status_Downloading_Offline_Detail" xml:space="preserve">
+    <value>7店舗 • オーディオ • 画像 • ~2.4 MB</value>
+  </data>
+  <data name="Status_Ready_Title" xml:space="preserve">
+    <value>✓ オフライン準備完了</value>
+  </data>
+  <data name="Status_Ready_Detail" xml:space="preserve">
+    <value>7店舗 • 2.4 MB • ベンタン・フードストリート</value>
+  </data>
+  <data name="Status_NeedInternet_Title" xml:space="preserve">
+    <value>インターネット接続が必要</value>
+  </data>
+  <data name="Status_NeedInternet_Detail" xml:space="preserve">
+    <value>WiFi/4Gに接続して初回データダウンロード</value>
+  </data>
+  <data name="Status_Error_Title" xml:space="preserve">
+    <value>データのダウンロードに失敗</value>
+  </data>
+  <data name="Status_Error_Detail" xml:space="preserve">
+    <value>接続を確認して再試行してください</value>
+  </data>
+  <data name="Button_DownloadOfflineNow" xml:space="preserve">
+    <value>📥 今すぐオフラインダウンロード</value>
+  </data>
+  <data name="Button_ContinueOnline" xml:space="preserve">
+    <value>🌐 オンラインモードを続ける</value>
+  </data>
+  <data name="Button_TryAgain" xml:space="preserve">
+    <value>🔄  再試行</value>
+  </data>
+  <data name="Info_Offline_Title" xml:space="preserve">
+    <value>💡 オフライン使用</value>
+  </data>
+  <data name="Info_Offline_Message" xml:space="preserve">
+    <value>アプリは現在オンラインモードで実行中です（継続的なネットワークが必要）。
+
+💡 推奨：最高の体験を得るためにオフラインデータをダウンロード（ネットワーク不要、オーディオ再生が速い）。</value>
+  </data>
+  <data name="Info_DontShowAgain" xml:space="preserve">
+    <value>☑️ 再表示しない</value>
+  </data>
+  <data name="Alert_NeedInternet_Title" xml:space="preserve">
+    <value>🌐 インターネット接続が必要</value>
+  </data>
+  <data name="Alert_NeedInternet_Message" xml:space="preserve">
+    <value>WiFiまたは4Gに接続して初回データをダウンロードしてください。
+
+ダウンロード後は完全にオフラインで使用できます。</value>
+  </data>
+  <data name="Alert_NoNetwork_Title" xml:space="preserve">
+    <value>❌ ネットワークなし</value>
+  </data>
+  <data name="Alert_NoNetwork_Message" xml:space="preserve">
+    <value>データをダウンロードするにはWiFiまたは4Gへの接続が必要です。</value>
+  </data>
+  <data name="Alert_UsingCellular_Title" xml:space="preserve">
+    <value>📶 モバイルデータを使用中</value>
+  </data>
+  <data name="Alert_UsingCellular_Message" xml:space="preserve">
+    <value>データのダウンロードには約2.4MBの通信量がかかります。
+
+WiFiでのダウンロードを推奨します。
+
+モバイルデータで続けますか？</value>
+  </data>
+  <data name="Alert_DownloadDone_Title" xml:space="preserve">
+    <value>✅ ダウンロード完了！</value>
+  </data>
+  <data name="Alert_DownloadDone_Message" xml:space="preserve">
+    <value>データがダウンロードされました。
+
+アプリを完全にオフラインで使用できるようになりました。</value>
+  </data>
+  <data name="Alert_ManualBrowse_Title" xml:space="preserve">
+    <value>手動ブラウズ</value>
+  </data>
+  <data name="Alert_ManualBrowse_Message" xml:space="preserve">
+    <value>機能は開発中です</value>
+  </data>
+  <data name="Alert_GoogleLogin_Message" xml:space="preserve">
+    <value>Googleログイン機能は開発中です。</value>
+  </data>
+  <data name="Alert_Tts_Message" xml:space="preserve">
+    <value>音声選択機能は開発中です。</value>
+  </data>
+  <data name="Alert_CheckOffline_Message" xml:space="preserve">
+    <value>オフラインデータを確認中...</value>
+  </data>
+  <data name="Alert_DeleteOffline_Title" xml:space="preserve">
+    <value>データを削除？</value>
+  </data>
+  <data name="Alert_DeleteOffline_Message" xml:space="preserve">
+    <value>次回再ダウンロードが必要になります。</value>
+  </data>
+  <data name="Alert_DeleteOffline_Done" xml:space="preserve">
+    <value>オフラインデータを削除しました</value>
+  </data>
+  <data name="Alert_Success_Title" xml:space="preserve">
+    <value>成功</value>
+  </data>
+  <data name="Alert_Notice_Title" xml:space="preserve">
+    <value>通知</value>
+  </data>
+  <data name="Progress_ConnectingMongo" xml:space="preserve">
+    <value>MongoDBに接続中...</value>
+  </data>
+  <data name="Progress_DownloadingList" xml:space="preserve">
+    <value>レストランリストをダウンロード中...</value>
+  </data>
+  <data name="Progress_DownloadingAudio" xml:space="preserve">
+    <value>オーディオファイルをダウンロード中...</value>
+  </data>
+  <data name="Progress_SavingOffline" xml:space="preserve">
+    <value>オフラインに保存中...</value>
+  </data>
+  <data name="Progress_Done" xml:space="preserve">
+    <value>完了！</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="Settings_General" xml:space="preserve">
+    <value>一般</value>
+  </data>
+  <data name="Settings_LoginGoogle" xml:space="preserve">
+    <value>Googleでログイン</value>
+  </data>
+  <data name="Settings_TourExperience" xml:space="preserve">
+    <value>ツアー体験</value>
+  </data>
+  <data name="Settings_Tts" xml:space="preserve">
+    <value>音声読み上げ（TTS）</value>
+  </data>
+  <data name="Settings_TtsSubtitle" xml:space="preserve">
+    <value>女性 - 北部</value>
+  </data>
+  <data name="Settings_AutoPlay" xml:space="preserve">
+    <value>オーディオの自動再生</value>
+  </data>
+  <data name="Settings_AutoPlayDesc" xml:space="preserve">
+    <value>場所に近づいたとき</value>
+  </data>
+  <data name="Settings_Volume" xml:space="preserve">
+    <value>ガイド音量</value>
+  </data>
+  <data name="Settings_VolumeShort" xml:space="preserve">
+    <value>音量</value>
+  </data>
+  <data name="Settings_Sensitivity" xml:space="preserve">
+    <value>位置感度</value>
+  </data>
+  <data name="Settings_SensitivityShort" xml:space="preserve">
+    <value>レーダー</value>
+  </data>
+  <data name="Settings_SensitivityNear" xml:space="preserve">
+    <value>正確（近い）</value>
+  </data>
+  <data name="Settings_SensitivityFar" xml:space="preserve">
+    <value>広範囲（遠い）</value>
+  </data>
+  <data name="Settings_Data" xml:space="preserve">
+    <value>データ</value>
+  </data>
+  <data name="Settings_CheckOffline" xml:space="preserve">
+    <value>オフラインデータを確認</value>
+  </data>
+  <data name="Settings_LastUpdated" xml:space="preserve">
+    <value>更新：今日 18:30</value>
+  </data>
+  <data name="Settings_PrivacyTerms" xml:space="preserve">
+    <value>プライバシーポリシーと利用規約</value>
+  </data>
+  <data name="Settings_Version" xml:space="preserve">
+    <value>バージョン 1.2.0 (ビルド 45)</value>
+  </data>
+  <data name="Nav_Map" xml:space="preserve">
+    <value>マップ</value>
+  </data>
+  <data name="Nav_Tour" xml:space="preserve">
+    <value>ツアー</value>
+  </data>
+  <data name="Nav_Saved" xml:space="preserve">
+    <value>保存済み</value>
+  </data>
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>設定</value>
+  </data>
+</root>

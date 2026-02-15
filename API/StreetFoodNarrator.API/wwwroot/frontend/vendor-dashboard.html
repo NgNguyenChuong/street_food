@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý gian hàng - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title-section {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .vendor-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
+        }
+
+        .page-title-content h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.25rem;
+        }
+
+        .page-subtitle {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #05C494 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(6, 214, 160, 0.3);
+        }
+
+        /* Quick Stats */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.75rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow);
+            transition: transform 0.3s ease;
+            animation: fadeInUp 0.6s ease-out backwards;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.1s; }
+        .stat-card:nth-child(2) { animation-delay: 0.2s; }
+        .stat-card:nth-child(3) { animation-delay: 0.3s; }
+        .stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-icon.primary {
+            background: rgba(255, 107, 53, 0.1);
+            color: var(--primary);
+        }
+
+        .stat-icon.success {
+            background: rgba(6, 214, 160, 0.1);
+            color: var(--success);
+        }
+
+        .stat-icon.secondary {
+            background: rgba(0, 78, 137, 0.1);
+            color: var(--secondary);
+        }
+
+        .stat-icon.warning {
+            background: rgba(255, 210, 63, 0.1);
+            color: #E0A800;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .card-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card-title i {
+            color: var(--primary);
+        }
+
+        /* POI List */
+        .poi-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .poi-item {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.25rem;
+            background: var(--light);
+            border-radius: 14px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .poi-item:hover {
+            border-color: rgba(255, 107, 53, 0.3);
+            background: white;
+            box-shadow: 0 4px 16px var(--shadow);
+        }
+
+        .poi-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .poi-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .poi-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.4rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .poi-meta {
+            display: flex;
+            gap: 1rem;
+            color: #666;
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+        }
+
+        .poi-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .poi-meta i {
+            color: var(--primary);
+            font-size: 0.75rem;
+        }
+
+        .poi-status {
+            padding: 0.4rem 0.9rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .poi-status.active {
+            background: rgba(6, 214, 160, 0.1);
+            color: var(--success);
+        }
+
+        .poi-status.inactive {
+            background: rgba(239, 71, 111, 0.1);
+            color: var(--danger);
+        }
+
+        .poi-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 2px solid var(--border);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--dark);
+        }
+
+        .btn-icon:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: scale(1.1);
+        }
+
+        /* Quick Actions */
+        .quick-actions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .action-item {
+            padding: 1.25rem;
+            background: var(--light);
+            border-radius: 14px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--dark);
+        }
+
+        .action-item:hover {
+            border-color: rgba(255, 107, 53, 0.3);
+            background: white;
+            transform: translateX(4px);
+        }
+
+        .action-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .action-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: white;
+        }
+
+        .action-icon.primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        }
+
+        .action-icon.success {
+            background: linear-gradient(135deg, var(--success) 0%, #05C494 100%);
+        }
+
+        .action-icon.secondary {
+            background: linear-gradient(135deg, var(--secondary) 0%, #1A659E 100%);
+        }
+
+        .action-title {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .action-desc {
+            color: #666;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 24px;
+            padding: 2.5rem;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: scaleIn 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.95);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .modal-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .modal-close {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: var(--light);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 1.25rem;
+            color: var(--dark);
+        }
+
+        .modal-close:hover {
+            background: var(--danger);
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.95rem;
+        }
+
+        .form-label .required {
+            color: var(--danger);
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            padding: 0.875rem 1.1rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-help {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .form-help i {
+            color: var(--primary);
+            font-size: 0.75rem;
+        }
+
+        /* Address Autocomplete */
+        .address-field {
+            position: relative;
+        }
+
+        .address-suggestions {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+            display: none;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .address-suggestions.show {
+            display: block;
+        }
+
+        .address-item {
+            padding: 0.875rem 1.1rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .address-item:last-child {
+            border-bottom: none;
+        }
+
+        .address-item:hover {
+            background: rgba(255, 107, 53, 0.05);
+        }
+
+        .address-empty {
+            padding: 0.875rem 1.1rem;
+            color: #888;
+            text-align: center;
+        }
+
+        /* Opening Hours */
+        .hours-section {
+            padding: 1.25rem;
+            background: var(--light);
+            border-radius: 14px;
+        }
+
+        .hours-preset {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .preset-btn {
+            padding: 0.75rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .preset-btn.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .hours-custom {
+            display: none;
+        }
+
+        .hours-custom.show {
+            display: block;
+        }
+
+        .hours-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .day-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .day-checkbox {
+            position: relative;
+        }
+
+        .day-checkbox input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .day-checkbox label {
+            display: block;
+            padding: 0.6rem 0.4rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .day-checkbox input:checked + label {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .time-sep {
+            font-weight: 700;
+            color: #666;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid var(--border);
+        }
+
+        .loading,
+        .empty {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .empty i {
+            font-size: 3rem;
+            color: #ddd;
+            margin-bottom: 1rem;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .hours-preset {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .quick-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .poi-item {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .poi-meta {
+                justify-content: center;
+            }
+
+            .day-checkboxes {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .modal {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="page-title-section">
+                <div class="vendor-avatar">
+                    🍜
+                </div>
+                <div class="page-title-content">
+                    <h1 id="vendorName">Quản lý gian hàng</h1>
+                    <p class="page-subtitle">
+                        Chủ quán: <strong id="userName">Loading...</strong>
+                    </p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="window.location.href='settings.html'">
+                    <i class="fas fa-cog"></i>
+                    <span>Cài đặt</span>
+                </button>
+                <button class="btn btn-outline" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Đăng xuất</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon primary">
+                        <i class="fas fa-store"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="myPOIs">0</div>
+                <div class="stat-label">Gian hàng của tôi</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon success">
+                        <i class="fas fa-microphone"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="myAudios">0</div>
+                <div class="stat-label">File thuyết minh</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon secondary">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="activePOIs">0</div>
+                <div class="stat-label">Đang hoạt động</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon warning">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="pendingAudios">0</div>
+                <div class="stat-label">Chờ phê duyệt</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- My POIs -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-map-marked-alt"></i>
+                        Gian hàng của tôi
+                    </h2>
+                    <button class="btn btn-primary" onclick="openAddPOIModal()">
+                        <i class="fas fa-plus"></i>
+                        <span>Thêm gian hàng</span>
+                    </button>
+                </div>
+
+                <div id="loading" class="loading">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+                    <p style="margin-top: 1rem;">Đang tải dữ liệu...</p>
+                </div>
+
+                <div id="poisList" class="poi-list" style="display:none;"></div>
+
+                <div id="emptyState" class="empty" style="display:none;">
+                    <i class="fas fa-store"></i>
+                    <p style="margin-bottom: 1rem;">Bạn chưa có gian hàng nào</p>
+                    <p style="color: #888; font-size: 0.9rem;">Tạo gian hàng đầu tiên để bắt đầu quản lý!</p>
+                    <button class="btn btn-primary" onclick="openAddPOIModal()" style="margin-top: 1rem;">
+                        <i class="fas fa-plus"></i>
+                        Tạo gian hàng mới
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-bolt"></i>
+                        Hành động nhanh
+                    </h2>
+                </div>
+
+                <div class="quick-actions-list">
+                    <a href="audio-list.html" class="action-item">
+                        <div class="action-header">
+                            <div class="action-icon primary">
+                                <i class="fas fa-microphone"></i>
+                            </div>
+                            <div class="action-title">Quản lý Audio</div>
+                        </div>
+                        <p class="action-desc">
+                            Xem, chỉnh sửa và upload file thuyết minh cho gian hàng
+                        </p>
+                    </a>
+
+                    <a href="audio-bulk-generate.html" class="action-item">
+                        <div class="action-header">
+                            <div class="action-icon success">
+                                <i class="fas fa-magic"></i>
+                            </div>
+                            <div class="action-title">Tạo audio tự động</div>
+                        </div>
+                        <p class="action-desc">
+                            Sử dụng AI để tạo thuyết minh đa ngôn ngữ tự động
+                        </p>
+                    </a>
+
+                    <a href="settings.html" class="action-item">
+                        <div class="action-header">
+                            <div class="action-icon secondary">
+                                <i class="fas fa-user-cog"></i>
+                            </div>
+                            <div class="action-title">Cài đặt tài khoản</div>
+                        </div>
+                        <p class="action-desc">
+                            Thay đổi thông tin cá nhân và cài đặt bảo mật
+                        </p>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add POI Modal -->
+    <div class="modal-overlay" id="addPOIModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Thêm gian hàng mới</h3>
+                <button class="modal-close" onclick="closeAddPOIModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="addPOIForm" onsubmit="handleSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label">
+                        Tên gian hàng
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" class="form-input" id="poiName" placeholder="VD: Phở Hà Nội 99, Ốc Đào..." required>
+                    <div class="form-help">
+                        <i class="fas fa-lightbulb"></i>
+                        Tên gian hàng sẽ hiển thị trên ứng dụng
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mô tả ngắn</label>
+                    <textarea class="form-textarea" id="poiDesc" placeholder="Giới thiệu ngắn gọn về gian hàng, đặc sản nổi bật..."></textarea>
+                    <div class="form-help">
+                        <i class="fas fa-info-circle"></i>
+                        Giúp du khách hiểu rõ hơn về gian hàng của bạn
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        Địa chỉ
+                        <span class="required">*</span>
+                    </label>
+                    <div class="address-field">
+                        <input type="text" class="form-input" id="poiAddress" placeholder="Nhập địa chỉ trong khu Vĩnh Khánh..." autocomplete="off" required>
+                        <div id="addressSuggestions" class="address-suggestions"></div>
+                    </div>
+                    <div class="form-help">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Chỉ áp dụng cho khu vực Vĩnh Khánh, Quận 4, TP.HCM
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Loại hình</label>
+                    <select class="form-select" id="poiCategory">
+                        <option value="">Chọn loại hình</option>
+                        <option value="pho">🍜 Phở</option>
+                        <option value="banh-mi">🥖 Bánh Mì</option>
+                        <option value="com-tam">🍚 Cơm Tấm</option>
+                        <option value="bun">🍝 Bún</option>
+                        <option value="che">🍨 Chè</option>
+                        <option value="seafood">🦐 Hải sản</option>
+                        <option value="breakfast">☕ Ăn sáng</option>
+                        <option value="snack">🍿 Đồ ăn vặt</option>
+                        <option value="hotpot">🍲 Lẩu</option>
+                        <option value="other">🍽️ Khác</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Giờ mở cửa</label>
+                    <div class="hours-section">
+                        <div class="hours-preset">
+                            <button type="button" class="preset-btn active" onclick="selectPreset('weekday')">
+                                Trong tuần
+                            </button>
+                            <button type="button" class="preset-btn" onclick="selectPreset('weekend')">
+                                Cuối tuần
+                            </button>
+                            <button type="button" class="preset-btn" onclick="selectPreset('custom')">
+                                Tùy chỉnh
+                            </button>
+                        </div>
+
+                        <div id="customHours" class="hours-custom">
+                            <label class="form-label" style="margin-bottom: 0.75rem; font-size: 0.9rem;">Chọn ngày hoạt động:</label>
+                            <div class="day-checkboxes">
+                                <div class="day-checkbox">
+                                    <input type="checkbox" id="day-mon" checked>
+                                    <label for="day-mon">T2</label>
+                                </div>
+                                <div class="day-checkbox">
+                                    <input type="checkbox" id="day-tue" checked>
+                                    <label for="day-tue">T3</label>
+                                </div>
+                                <div class="day-checkbox">
+                                    <input type="checkbox" id="day-wed" checked>
+                                    <label for="day-wed">T4</label>
+                                </div>
+                                <div class="day-checkbox">
+                                    <input type="checkbox" id="day-thu" checked>
+                                    <label for="day-thu">T5</label>
+                                </div>
+                                <div class="day-checkbox">
+                                    <input type="checkbox" id="day-fri" checked>
+                                    <label for="day-fri">T6</label>
+                                </div>
+                                <div class="day-checkbox">
+                                    <input type="checkbox" id="day-sat">
+                                    <label for="day-sat">T7</label>
+                                </div>
+                                <div class="day-checkbox">
+                                    <input type="checkbox" id="day-sun">
+                                    <label for="day-sun">CN</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <label class="form-label" style="margin-bottom: 0.75rem; font-size: 0.9rem;">Khung giờ:</label>
+                        <div class="time-inputs">
+                            <input type="time" class="form-input" id="openTime" value="06:00">
+                            <span class="time-sep">đến</span>
+                            <input type="time" class="form-input" id="closeTime" value="22:00">
+                        </div>
+                    </div>
+                    <div class="form-help" id="hoursPreview" style="margin-top: 0.75rem;">
+                        <i class="fas fa-clock"></i>
+                        Thứ 2 - Thứ 6: 06:00 - 22:00
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeAddPOIModal()">
+                        <i class="fas fa-times"></i>
+                        Hủy
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i>
+                        Tạo gian hàng
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        // Check authentication
+        if (!requireAuth()) {
+            // Will redirect to login
+        }
+
+        TokenManager.setRoleContext('Vendor');
+        const user = TokenManager.getUser();
+        if (user) {
+            document.getElementById('userName').textContent = user.fullName || user.email;
+        }
+
+        function logout() {
+            TokenManager.logout();
+        }
+
+        // Modal functions
+        function openAddPOIModal() {
+            document.getElementById('addPOIModal').classList.add('active');
+            setupAddressSuggestions();
+        }
+
+        function closeAddPOIModal() {
+            document.getElementById('addPOIModal').classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('addPOIModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAddPOIModal();
+            }
+        });
+
+        // Address Autocomplete
+        function setupAddressSuggestions() {
+            const input = document.getElementById('poiAddress');
+            const box = document.getElementById('addressSuggestions');
+            if (!input || !box) return;
+
+            let timer = null;
+            const vinhKhanhHint = 'Vĩnh Khánh, Quận 4, TP.HCM';
+
+            const normalize = (str) => String(str || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+
+            const isInVinhKhanh = (item) => {
+                const name = normalize(item?.display_name || '');
+                const road = normalize(item?.address?.road || '');
+                const suburb = normalize(item?.address?.suburb || '');
+                const district = normalize(item?.address?.city_district || item?.address?.county || '');
+                
+                const hasVinhKhanh = name.includes('vinh khanh') || road.includes('vinh khanh') || suburb.includes('vinh khanh');
+                const hasDistrict4 = name.includes('quan 4') || name.includes('district 4') || district.includes('4');
+                
+                return hasVinhKhanh && hasDistrict4;
+            };
+
+            const hideBox = () => {
+                box.classList.remove('show');
+                box.innerHTML = '';
+            };
+
+            const showSuggestions = (items) => {
+                box.innerHTML = '';
+                
+                if (!items.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'address-empty';
+                    empty.textContent = 'Không tìm thấy địa chỉ trong khu Vĩnh Khánh, Quận 4';
+                    box.appendChild(empty);
+                    box.classList.add('show');
+                    return;
+                }
+
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'address-item';
+                    row.textContent = item.display_name || '';
+                    row.addEventListener('click', () => {
+                        input.value = item.display_name || '';
+                        hideBox();
+                    });
+                    box.appendChild(row);
+                });
+                
+                box.classList.add('show');
+            };
+
+            const fetchSuggestions = async () => {
+                const query = input.value.trim();
+                if (query.length < 3) {
+                    hideBox();
+                    return;
+                }
+
+                try {
+                    const results = await api.geocode(`${query}, ${vinhKhanhHint}`, 10);
+                    const list = Array.isArray(results) ? results : [];
+                    const filtered = list.filter(isInVinhKhanh);
+                    showSuggestions(filtered);
+                } catch (error) {
+                    console.error('Geocoding error:', error);
+                    hideBox();
+                }
+            };
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(fetchSuggestions, 400);
+            });
+
+            input.addEventListener('focus', () => {
+                if (input.value.trim().length >= 3) {
+                    fetchSuggestions();
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                setTimeout(hideBox, 250);
+            });
+        }
+
+        // Hours Preset Selection
+        let currentPreset = 'weekday';
+
+        function selectPreset(preset) {
+            currentPreset = preset;
+            
+            // Update button states
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update day checkboxes
+            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            const customHours = document.getElementById('customHours');
+
+            if (preset === 'weekday') {
+                customHours.classList.remove('show');
+                days.forEach((day, idx) => {
+                    const checkbox = document.getElementById(`day-${day}`);
+                    if (checkbox) checkbox.checked = idx < 5; // Mon-Fri
+                });
+                updateHoursPreview();
+            } else if (preset === 'weekend') {
+                customHours.classList.remove('show');
+                days.forEach((day, idx) => {
+                    const checkbox = document.getElementById(`day-${day}`);
+                    if (checkbox) checkbox.checked = idx >= 5; // Sat-Sun
+                });
+                updateHoursPreview();
+            } else {
+                customHours.classList.add('show');
+            }
+        }
+
+        // Update hours preview
+        function updateHoursPreview() {
+            const preview = document.getElementById('hoursPreview');
+            const openTime = document.getElementById('openTime')?.value || '06:00';
+            const closeTime = document.getElementById('closeTime')?.value || '22:00';
+
+            const dayLabels = {
+                'mon': 'Thứ 2',
+                'tue': 'Thứ 3',
+                'wed': 'Thứ 4',
+                'thu': 'Thứ 5',
+                'fri': 'Thứ 6',
+                'sat': 'Thứ 7',
+                'sun': 'Chủ nhật'
+            };
+
+            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            const selectedDays = days.filter(day => {
+                const checkbox = document.getElementById(`day-${day}`);
+                return checkbox && checkbox.checked;
+            });
+
+            if (selectedDays.length === 0) {
+                preview.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Chưa chọn ngày hoạt động';
+                return;
+            }
+
+            let text = '';
+            if (selectedDays.length === 7) {
+                text = `Cả tuần: ${openTime} - ${closeTime}`;
+            } else if (selectedDays.length === 5 && selectedDays.every((d, i) => d === days[i])) {
+                text = `Thứ 2 - Thứ 6: ${openTime} - ${closeTime}`;
+            } else if (selectedDays.length === 2 && selectedDays[0] === 'sat' && selectedDays[1] === 'sun') {
+                text = `Thứ 7 - Chủ nhật: ${openTime} - ${closeTime}`;
+            } else {
+                text = selectedDays.map(d => dayLabels[d]).join(', ') + `: ${openTime} - ${closeTime}`;
+            }
+
+            preview.innerHTML = `<i class="fas fa-clock"></i> ${text}`;
+        }
+
+        // Add event listeners for time inputs and checkboxes
+        document.getElementById('openTime')?.addEventListener('change', updateHoursPreview);
+        document.getElementById('closeTime')?.addEventListener('change', updateHoursPreview);
+        
+        ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(day => {
+            document.getElementById(`day-${day}`)?.addEventListener('change', updateHoursPreview);
+        });
+
+        // Form submission
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('poiName').value;
+            const desc = document.getElementById('poiDesc').value;
+            const address = document.getElementById('poiAddress').value;
+            const category = document.getElementById('poiCategory').value;
+            
+            if (!name || !address) {
+                alert('Vui lòng điền đầy đủ thông tin bắt buộc');
+                return;
+            }
+
+            // Build opening hours
+            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            const dayLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+            const openTime = document.getElementById('openTime').value;
+            const closeTime = document.getElementById('closeTime').value;
+
+            const openingHours = days.map((day, idx) => {
+                const checkbox = document.getElementById(`day-${day}`);
+                const label = dayLabels[idx];
+                
+                if (checkbox && checkbox.checked) {
+                    return `${label}: ${openTime} - ${closeTime}`;
+                } else {
+                    return `${label}: Nghỉ`;
+                }
+            });
+
+            const poiData = {
+                name_Vi: name,
+                description_Vi: desc,
+                address: address,
+                category: category || null,
+                openingHours: openingHours,
+                openingHoursText: openingHours.join('; ')
+            };
+
+            try {
+                await api.createPOI(poiData);
+                alert('✅ Tạo gian hàng thành công!');
+                closeAddPOIModal();
+                loadDashboard();
+            } catch (error) {
+                alert('❌ Lỗi: ' + error.message);
+            }
+        }
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                let vendor = null;
+                try {
+                    vendor = await api.getVendorMe();
+                } catch (e) {
+                    const msg = String(e?.message || '').toLowerCase();
+                    if (!msg.includes('404') && !msg.includes('not found')) {
+                        throw e;
+                    }
+                }
+
+                if (vendor) {
+                    document.getElementById('vendorName').textContent = vendor.businessName || 'Quản lý gian hàng';
+                } else {
+                    document.getElementById('vendorName').textContent = 'Quản lý gian hàng';
+                }
+
+                const poisData = await api.getPOIs(1, 1000);
+                const allPOIs = poisData.data || [];
+                const myPOIs = vendor ? allPOIs.filter(p => p.vendorId === vendor.vendorId) : [];
+
+                const activePOIs = myPOIs.filter(p => p.isActive).length;
+                const totalAudios = myPOIs.reduce((sum, p) => sum + (p.audioCount || 0), 0);
+
+                let pendingAudios = 0;
+                if (vendor) {
+                    try {
+                        const audiosData = await api.getAudioList(1, 5000);
+                        const allAudios = audiosData.data || [];
+                        const myPoiIds = new Set(myPOIs.map(p => p.poI_ID));
+                        const myAudios = allAudios.filter(a => myPoiIds.has(a.poi_ID || a.poiId));
+                        pendingAudios = myAudios.filter(a => (a.status || '').toLowerCase() === 'pending').length;
+                    } catch (audioError) {
+                        pendingAudios = 0;
+                    }
+                }
+
+                document.getElementById('myPOIs').textContent = myPOIs.length;
+                document.getElementById('myAudios').textContent = totalAudios;
+                document.getElementById('activePOIs').textContent = activePOIs;
+                document.getElementById('pendingAudios').textContent = pendingAudios;
+
+                displayPOIs(myPOIs);
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.getElementById('loading').innerHTML = '<p style="color: var(--danger);">Không thể tải dữ liệu</p>';
+            }
+        }
+
+        function displayPOIs(pois) {
+            const loading = document.getElementById('loading');
+            const poisList = document.getElementById('poisList');
+            const emptyState = document.getElementById('emptyState');
+
+            loading.style.display = 'none';
+
+            if (!pois || pois.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            poisList.style.display = 'flex';
+
+            const foodEmojis = ['🍜', '🥖', '🍚', '🍲', '🥘', '🍱', '🥙', '🌮', '🌯', '🍝'];
+
+            poisList.innerHTML = pois.map((poi, index) => `
+                <div class="poi-item">
+                    <div class="poi-icon">
+                        ${foodEmojis[index % foodEmojis.length]}
+                    </div>
+                    <div class="poi-info">
+                        <div class="poi-name">${poi.name_Vi || 'Gian hàng #' + poi.poI_ID}</div>
+                        <div class="poi-meta">
+                            <span>
+                                <i class="fas fa-map-marker-alt"></i>
+                                ${poi.address || 'Chưa có địa chỉ'}
+                            </span>
+                            <span>
+                                <i class="fas fa-microphone"></i>
+                                ${poi.audioCount || 0} audio
+                            </span>
+                        </div>
+                    </div>
+                    <div class="poi-status ${poi.isActive ? 'active' : 'inactive'}">
+                        ${poi.isActive ? '✓ Hoạt động' : '○ Tạm tắt'}
+                    </div>
+                    <div class="poi-actions">
+                        <button class="btn-icon" onclick="editPOI(${poi.poI_ID})" title="Chỉnh sửa">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon" onclick="viewAudios(${poi.poI_ID})" title="Quản lý audio">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editPOI(id) {
+            window.location.href = `poi-edit.html?id=${id}`;
+        }
+
+        function viewAudios(id) {
+            window.location.href = `audio-list.html?poiId=${id}`;
+        }
+
+        // Load dashboard on page load
+        loadDashboard();
+    </script>
+</body>
+</html>

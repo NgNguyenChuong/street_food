@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Android Emulator": {
+      "commandName": "MsixPackage",
+      "nativeDebugging": false
+    }
+  }
+}

@@ -1,0 +1,1033 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
+using MongoDB.Driver;
+using StreetFoodNarrator.API.Data;
+using StreetFoodNarrator.API.Models;
+using System.Security.Claims;
+
+namespace StreetFoodNarrator.API.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class AudioController : ControllerBase
+{
+    private readonly MongoDbContext _db;
+    private readonly MongoSequenceService _sequence;
+    private readonly IWebHostEnvironment _env;
+
+    public AudioController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env)
+    {
+        _db = db;
+        _sequence = sequence;
+        _env = env;
+    }
+
+    /// <summary>
+    /// Get all audio content with pagination
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult<AudioListResponse>> GetAudioList(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? language = null,
+        [FromQuery] int? poiId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? poiName = null)
+    {
+        AudioListResponse EmptyResponse()
+        {
+            return new AudioListResponse
+            {
+                Data = new List<AudioDto>(),
+                Total = 0,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = 1
+            };
+        }
+
+        var filter = Builders<AudioContent>.Filter.Empty;
+
+        if (!string.IsNullOrEmpty(language))
+        {
+            filter &= Builders<AudioContent>.Filter.Eq(a => a.Language, language);
+        }
+
+        if (poiId.HasValue)
+        {
+            filter &= Builders<AudioContent>.Filter.Eq(a => a.POI_ID, poiId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(poiName))
+        {
+            var regex = new BsonRegularExpression(poiName.Trim(), "i");
+            var poiFilter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
+                            Builders<POI>.Filter.Or(
+                                Builders<POI>.Filter.Regex(p => p.Name_Vi, regex),
+                                Builders<POI>.Filter.Regex(p => p.Name_En, regex),
+                                Builders<POI>.Filter.Regex(p => p.Name_Ja, regex),
+                                Builders<POI>.Filter.Regex(p => p.Name_Ko, regex),
+                                Builders<POI>.Filter.Regex(p => p.Name_Zh, regex),
+                                Builders<POI>.Filter.Regex(p => p.Name_Fr, regex)
+                            );
+
+            if (IsVendor())
+            {
+                var vendor = await GetVendorProfileAsync();
+                if (vendor == null)
+                {
+                    return Ok(EmptyResponse());
+                }
+
+                poiFilter &= Builders<POI>.Filter.Eq(p => p.VendorId, vendor.VendorId);
+            }
+
+            var matchedPoiIds = await _db.POIs
+                .Find(poiFilter)
+                .Project(p => p.POI_ID)
+                .ToListAsync();
+
+            if (matchedPoiIds.Count == 0)
+            {
+                return Ok(EmptyResponse());
+            }
+
+            filter &= Builders<AudioContent>.Filter.In(a => a.POI_ID, matchedPoiIds);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var normalizedStatus = status.Trim().ToLowerInvariant();
+            if (normalizedStatus == AudioStatuses.Published)
+            {
+                filter &= Builders<AudioContent>.Filter.Or(
+                    Builders<AudioContent>.Filter.Eq(a => a.Status, AudioStatuses.Published),
+                    Builders<AudioContent>.Filter.Eq(a => a.Status, null),
+                    Builders<AudioContent>.Filter.Eq(a => a.Status, string.Empty)
+                );
+            }
+            else
+            {
+                filter &= Builders<AudioContent>.Filter.Eq(a => a.Status, normalizedStatus);
+            }
+        }
+
+        if (IsVendor())
+        {
+            var vendor = await GetVendorProfileAsync();
+            if (vendor == null)
+            {
+                return Ok(EmptyResponse());
+            }
+
+            var vendorPoiIds = await _db.POIs
+                .Find(p => p.VendorId == vendor.VendorId && p.DeletedAt == null)
+                .Project(p => p.POI_ID)
+                .ToListAsync();
+
+            filter &= Builders<AudioContent>.Filter.In(a => a.POI_ID, vendorPoiIds);
+        }
+
+        var total = await _db.AudioContents.CountDocumentsAsync(filter);
+        var audios = await _db.AudioContents
+            .Find(filter)
+            .SortByDescending(a => a.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
+
+        var poiIds = audios.Select(a => a.POI_ID).Distinct().ToList();
+        var poiNameMap = new Dictionary<int, string>();
+        var poiVendorMap = new Dictionary<int, int?>();
+        if (poiIds.Count > 0)
+        {
+            var pois = await _db.POIs
+                .Find(p => poiIds.Contains(p.POI_ID) && p.DeletedAt == null)
+                .Project(p => new { p.POI_ID, p.Name_Vi, p.VendorId })
+                .ToListAsync();
+            poiNameMap = pois.ToDictionary(p => p.POI_ID, p => p.Name_Vi);
+            poiVendorMap = pois.ToDictionary(p => p.POI_ID, p => p.VendorId);
+        }
+
+        var audioDtos = audios.Select(a => new AudioDto
+        {
+            AudioContent_ID = a.AudioContent_ID,
+            Title = a.Title,
+            Language = a.Language,
+            AudioUrl = a.AudioUrl,
+            Duration = a.Duration,
+            FileSize = a.FileSize,
+            IsActive = a.IsActive,
+            POI_ID = a.POI_ID,
+            POIName = poiNameMap.TryGetValue(a.POI_ID, out var name) ? name : string.Empty,
+            VendorId = a.VendorId ?? (poiVendorMap.TryGetValue(a.POI_ID, out var vId) ? vId : null),
+            Status = NormalizeStatus(a.Status),
+            RejectedReason = a.RejectedReason,
+            CreatedByRole = a.CreatedByRole,
+            CreatedAt = a.CreatedAt
+        }).ToList();
+
+        return Ok(new AudioListResponse
+        {
+            Data = audioDtos,
+            Total = (int)total,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = (int)Math.Ceiling(total / (double)pageSize)
+        });
+    }
+
+    /// <summary>
+    /// Get audio by ID
+    /// </summary>
+    [HttpGet("{id}")]
+    public async Task<ActionResult<AudioContent>> GetAudio(int id)
+    {
+        var audio = await _db.AudioContents.Find(a => a.AudioContent_ID == id).FirstOrDefaultAsync();
+
+        if (audio == null)
+        {
+            return NotFound(new { message = "Audio not found" });
+        }
+
+        var poi = await _db.POIs.Find(p => p.POI_ID == audio.POI_ID && p.DeletedAt == null).FirstOrDefaultAsync();
+        if (poi != null)
+        {
+            audio.POI = poi;
+        }
+
+        return Ok(audio);
+    }
+
+    /// <summary>
+    /// Create audio content record (for TTS-generated files)
+    /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
+    [HttpPost]
+    public async Task<ActionResult<AudioContent>> CreateAudioContent([FromBody] CreateAudioModel model)
+    {
+        try
+        {
+            // Check POI exists
+            var poi = await _db.POIs.Find(p => p.POI_ID == model.PoiId && p.DeletedAt == null).FirstOrDefaultAsync();
+            if (poi == null)
+            {
+                return NotFound(new { message = "POI not found", poiId = model.PoiId });
+            }
+
+            if (IsVendor())
+            {
+                var vendor = await GetVendorProfileAsync();
+                if (vendor == null || poi.VendorId != vendor.VendorId)
+                {
+                    return Forbid();
+                }
+            }
+
+            var nextId = await _sequence.GetNextAsync("audio_content_id");
+            var role = GetPrimaryRole();
+            var status = role == "Admin" ? AudioStatuses.Published : AudioStatuses.Draft;
+
+            // Create audio record
+            var audio = new AudioContent
+            {
+                AudioContent_ID = nextId,
+                Title = model.Title ?? "Untitled",
+                Description = model.Description ?? "",
+                Language = model.Language ?? "vi-VN",
+                AudioUrl = model.FilePath ?? "",
+                FileSize = model.FileSize,
+                Duration = model.Duration > 0 ? (int)Math.Round(model.Duration) : null,
+                TTSText = model.TtsText,
+                Format = model.Format,
+                Bitrate = model.Bitrate,
+                TTSVoice = model.TtsVoice,
+                TTSProvider = model.TtsProvider,
+                TTSSpeed = model.TtsSpeed,
+                TTSPitch = model.TtsPitch,
+                TTSConfig = model.TtsConfig,
+                TemplateId = model.TemplateId,
+                TemplateName = model.TemplateName,
+                TemplateVariables = model.TemplateVariables,
+                POI_ID = model.PoiId,
+                VendorId = poi.VendorId,
+                Status = status,
+                CreatedByUserId = GetUserId(),
+                CreatedByRole = role,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _db.AudioContents.InsertOneAsync(audio);
+
+            return CreatedAtAction(nameof(GetAudio), new { id = audio.AudioContent_ID }, audio);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { 
+                message = "Error creating audio record", 
+                error = ex.Message,
+                innerError = ex.InnerException?.Message 
+            });
+        }
+    }
+
+    /// <summary>
+    /// Upload audio file for a POI
+    /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
+    [HttpPost("upload")]
+    public async Task<ActionResult<AudioContent>> UploadAudio([FromForm] UploadAudioModel model)
+    {
+        if (model.AudioFile == null || model.AudioFile.Length == 0)
+        {
+            return BadRequest(new { message = "No file uploaded" });
+        }
+
+        // Check POI exists
+        var poi = await _db.POIs.Find(p => p.POI_ID == model.POI_ID && p.DeletedAt == null).FirstOrDefaultAsync();
+        if (poi == null)
+        {
+            return NotFound(new { message = "POI not found" });
+        }
+
+        if (IsVendor())
+        {
+            var vendor = await GetVendorProfileAsync();
+            if (vendor == null || poi.VendorId != vendor.VendorId)
+            {
+                return Forbid();
+            }
+        }
+
+        // Create uploads directory if not exists
+        var uploadsPath = Path.Combine(_env.WebRootPath, "uploads", "audio");
+        Directory.CreateDirectory(uploadsPath);
+
+        // Generate unique filename
+        var extension = Path.GetExtension(model.AudioFile.FileName);
+        var fileName = $"{Guid.NewGuid()}{extension}";
+        var filePath = Path.Combine(uploadsPath, fileName);
+
+        // Save file
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await model.AudioFile.CopyToAsync(stream);
+        }
+
+        var nextId = await _sequence.GetNextAsync("audio_content_id");
+        var role = GetPrimaryRole();
+        var status = role == "Admin" ? AudioStatuses.Published : AudioStatuses.Draft;
+
+        // Create audio record
+            var audio = new AudioContent
+            {
+                AudioContent_ID = nextId,
+                Title = model.Title,
+                Description = model.Description,
+                Language = model.Language,
+                AudioUrl = $"/uploads/audio/{fileName}",
+                FileSize = model.AudioFile.Length,
+                TTSText = model.TTSText,
+                Format = Path.GetExtension(model.AudioFile.FileName)?.TrimStart('.').ToLowerInvariant(),
+                POI_ID = model.POI_ID,
+                VendorId = poi.VendorId,
+                Status = status,
+                CreatedByUserId = GetUserId(),
+                CreatedByRole = role,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _db.AudioContents.InsertOneAsync(audio);
+
+        return CreatedAtAction(nameof(GetAudio), new { id = audio.AudioContent_ID }, audio);
+    }
+
+    /// <summary>
+    /// Get POIs without audio for a specific language
+    /// </summary>
+    [HttpGet("pois-without-audio")]
+    public async Task<ActionResult<List<POIWithoutAudioDto>>> GetPOIsWithoutAudio([FromQuery] string language = "vi-VN")
+    {
+        var normalizedLanguage = NormalizeLanguage(language);
+        var langRegex = new BsonRegularExpression($"^{normalizedLanguage}", "i");
+        var statusFilter = Builders<AudioContent>.Filter.In(a => a.Status, new[] { AudioStatuses.Approved, AudioStatuses.Published });
+        var filter = Builders<AudioContent>.Filter.Regex(a => a.Language, langRegex) & statusFilter;
+        var poiIdsWithAudio = await _db.AudioContents
+            .DistinctAsync(a => a.POI_ID, filter);
+        var poiIdList = await poiIdsWithAudio.ToListAsync();
+
+        var poiFilter = Builders<POI>.Filter.Eq(p => p.IsActive, true) &
+                        Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
+                        Builders<POI>.Filter.Nin(p => p.POI_ID, poiIdList) &
+                        Builders<POI>.Filter.Ne(p => p.Description_Vi, null) &
+                        Builders<POI>.Filter.Ne(p => p.Description_Vi, string.Empty);
+
+        if (IsVendor())
+        {
+            var vendor = await GetVendorProfileAsync();
+            if (vendor == null)
+            {
+                return Forbid();
+            }
+
+            poiFilter &= Builders<POI>.Filter.Eq(p => p.VendorId, vendor.VendorId);
+        }
+
+        var poisWithoutAudio = await _db.POIs
+            .Find(poiFilter)
+            .Project(p => new POIWithoutAudioDto
+            {
+                POI_ID = p.POI_ID,
+                Name_Vi = p.Name_Vi,
+                Name_En = p.Name_En,
+                Name_Ja = p.Name_Ja,
+                Name_Fr = p.Name_Fr,
+                Name_Ko = p.Name_Ko,
+                Name_Zh = p.Name_Zh,
+                Description_Vi = p.Description_Vi!,
+                Description_En = p.Description_En,
+                Description_Ja = p.Description_Ja,
+                Description_Fr = p.Description_Fr,
+                Description_Ko = p.Description_Ko,
+                Description_Zh = p.Description_Zh,
+                Address = p.Address,
+                Latitude = p.Latitude,
+                Longitude = p.Longitude,
+                SignatureDish = p.SignatureDish,
+                SignatureDishes = p.SignatureDishes,
+                Specialties = p.Specialties,
+                OpeningHours = p.OpeningHours,
+                OpeningHoursText = p.OpeningHoursText,
+                PhoneNumber = p.PhoneNumber,
+                AveragePrice = p.AveragePrice,
+                PriceLevel = p.PriceLevel,
+                Rating = p.Rating,
+                Tags = p.Tags,
+                History = p.History,
+                Story = p.Story,
+                ImageUrl = p.ImageUrl,
+                ImageUrls = p.ImageUrls,
+                HasAudio = false
+            })
+            .ToListAsync();
+
+        return Ok(poisWithoutAudio);
+    }
+
+    /// <summary>
+    /// Update audio metadata
+    /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateAudio(int id, [FromBody] UpdateAudioModel model)
+    {
+        var audio = await _db.AudioContents.Find(a => a.AudioContent_ID == id).FirstOrDefaultAsync();
+
+        if (audio == null)
+        {
+            return NotFound(new { message = "Audio not found" });
+        }
+
+        if (IsVendor())
+        {
+            var vendor = await GetVendorProfileAsync();
+            if (vendor == null || !await VendorOwnsPoiAsync(vendor.VendorId, audio.POI_ID))
+            {
+                return Forbid();
+            }
+
+            var status = NormalizeStatus(audio.Status);
+            if (status == AudioStatuses.Approved || status == AudioStatuses.Published)
+            {
+                return BadRequest(new { message = "Approved audio cannot be edited by vendor" });
+            }
+        }
+
+        var update = Builders<AudioContent>.Update
+            .Set(a => a.Title, model.Title ?? audio.Title)
+            .Set(a => a.Description, model.Description ?? audio.Description)
+            .Set(a => a.IsActive, model.IsActive ?? audio.IsActive)
+            .Set(a => a.UpdatedAt, DateTime.UtcNow);
+
+        await _db.AudioContents.UpdateOneAsync(a => a.AudioContent_ID == id, update);
+
+        return Ok(audio);
+    }
+
+    /// <summary>
+    /// Delete audio
+    /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteAudio(int id)
+    {
+        var audio = await _db.AudioContents.Find(a => a.AudioContent_ID == id).FirstOrDefaultAsync();
+
+        if (audio == null)
+        {
+            return NotFound(new { message = "Audio not found" });
+        }
+
+        if (IsVendor())
+        {
+            var vendor = await GetVendorProfileAsync();
+            if (vendor == null || !await VendorOwnsPoiAsync(vendor.VendorId, audio.POI_ID))
+            {
+                return Forbid();
+            }
+
+            var status = NormalizeStatus(audio.Status);
+            if (status == AudioStatuses.Approved || status == AudioStatuses.Published)
+            {
+                return BadRequest(new { message = "Approved audio cannot be deleted by vendor" });
+            }
+        }
+
+        // Delete physical file
+        if (!string.IsNullOrEmpty(audio.AudioUrl))
+        {
+            var filePath = Path.Combine(_env.WebRootPath, audio.AudioUrl.TrimStart('/'));
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+        }
+
+        await _db.AudioContents.DeleteOneAsync(a => a.AudioContent_ID == id);
+
+        return Ok(new { message = "Audio deleted successfully" });
+    }
+
+    /// <summary>
+    /// Generate audio file for an existing audio record (using TTSText)
+    /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
+    [HttpPost("{id}/generate-file")]
+    public async Task<IActionResult> GenerateAudioFile(int id)
+    {
+        var audio = await _db.AudioContents.Find(a => a.AudioContent_ID == id).FirstOrDefaultAsync();
+        if (audio == null)
+        {
+            return NotFound(new { message = "Audio not found" });
+        }
+
+        if (IsVendor())
+        {
+            var vendor = await GetVendorProfileAsync();
+            if (vendor == null || !await VendorOwnsPoiAsync(vendor.VendorId, audio.POI_ID))
+            {
+                return Forbid();
+            }
+        }
+
+        var result = await GenerateAudioFileInternal(audio);
+        if (!result.Ok)
+        {
+            return StatusCode(result.StatusCode ?? 500, new { message = result.Error ?? "TTS generation failed" });
+        }
+
+        return Ok(new { audioUrl = result.AudioUrl, fileSize = result.FileSize });
+    }
+
+    /// <summary>
+    /// Vendor submits audio for admin review
+    /// </summary>
+    [Authorize(Roles = "Vendor")]
+    [HttpPost("{id}/submit")]
+    public async Task<IActionResult> SubmitAudio(int id)
+    {
+        var audio = await _db.AudioContents.Find(a => a.AudioContent_ID == id).FirstOrDefaultAsync();
+        if (audio == null)
+        {
+            return NotFound(new { message = "Audio not found" });
+        }
+
+        var vendor = await GetVendorProfileAsync();
+        if (vendor == null || !await VendorOwnsPoiAsync(vendor.VendorId, audio.POI_ID))
+        {
+            return Forbid();
+        }
+
+        var status = NormalizeStatus(audio.Status);
+        if (status == AudioStatuses.Approved || status == AudioStatuses.Published)
+        {
+            return BadRequest(new { message = "Approved audio cannot be submitted again" });
+        }
+
+        var update = Builders<AudioContent>.Update
+            .Set(a => a.Status, AudioStatuses.Pending)
+            .Set(a => a.UpdatedAt, DateTime.UtcNow);
+
+        await _db.AudioContents.UpdateOneAsync(a => a.AudioContent_ID == id, update);
+        return Ok(new { message = "Audio submitted for review" });
+    }
+
+    /// <summary>
+    /// Admin approves audio
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id}/approve")]
+    public async Task<IActionResult> ApproveAudio(int id)
+    {
+        var audio = await _db.AudioContents.Find(a => a.AudioContent_ID == id).FirstOrDefaultAsync();
+        if (audio == null)
+        {
+            return NotFound(new { message = "Audio not found" });
+        }
+
+        var update = Builders<AudioContent>.Update
+            .Set(a => a.Status, AudioStatuses.Approved)
+            .Set(a => a.RejectedReason, null)
+            .Set(a => a.ApprovedByUserId, GetUserId())
+            .Set(a => a.ApprovedAt, DateTime.UtcNow)
+            .Set(a => a.UpdatedAt, DateTime.UtcNow);
+
+        await _db.AudioContents.UpdateOneAsync(a => a.AudioContent_ID == id, update);
+        return Ok(new { message = "Audio approved" });
+    }
+
+    /// <summary>
+    /// Admin rejects audio
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id}/reject")]
+    public async Task<IActionResult> RejectAudio(int id, [FromBody] RejectAudioRequest request)
+    {
+        var audio = await _db.AudioContents.Find(a => a.AudioContent_ID == id).FirstOrDefaultAsync();
+        if (audio == null)
+        {
+            return NotFound(new { message = "Audio not found" });
+        }
+
+        var reason = request?.Reason?.Trim();
+        var update = Builders<AudioContent>.Update
+            .Set(a => a.Status, AudioStatuses.Rejected)
+            .Set(a => a.RejectedReason, reason)
+            .Set(a => a.ApprovedByUserId, null)
+            .Set(a => a.ApprovedAt, null)
+            .Set(a => a.UpdatedAt, DateTime.UtcNow);
+
+        await _db.AudioContents.UpdateOneAsync(a => a.AudioContent_ID == id, update);
+        return Ok(new { message = "Audio rejected" });
+    }
+
+    /// <summary>
+    /// Bulk generate audio files for POIs based on existing descriptions.
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("bulk-generate")]
+    public async Task<IActionResult> BulkGenerate([FromBody] BulkGenerateAudioRequest request)
+    {
+        var languages = (request.Languages == null || request.Languages.Count == 0)
+            ? new List<string> { "vi-VN", "en-US" }
+            : request.Languages;
+
+        var normalizedLanguageSet = new HashSet<string>(
+            languages.Select(NormalizeLanguage),
+            StringComparer.OrdinalIgnoreCase);
+
+        var poiFilter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
+        if (request.PoiIds is { Count: > 0 })
+        {
+            poiFilter &= Builders<POI>.Filter.In(p => p.POI_ID, request.PoiIds);
+        }
+
+        var pois = await _db.POIs.Find(poiFilter).ToListAsync();
+        if (pois.Count == 0)
+        {
+            return Ok(new { message = "No POIs found", created = 0, skipped = 0, failed = 0 });
+        }
+
+        var poiIds = pois.Select(p => p.POI_ID).ToList();
+        var existingAudios = await _db.AudioContents
+            .Find(a => poiIds.Contains(a.POI_ID))
+            .ToListAsync();
+
+        var existingSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var audio in existingAudios)
+        {
+            var key = $"{audio.POI_ID}:{NormalizeLanguage(audio.Language)}";
+            existingSet.Add(key);
+        }
+
+        var created = 0;
+        var skipped = 0;
+        var failed = 0;
+        var errors = new List<object>();
+
+        foreach (var poi in pois)
+        {
+            foreach (var language in languages)
+            {
+                var normalized = NormalizeLanguage(language);
+                if (!normalizedLanguageSet.Contains(normalized))
+                {
+                    continue;
+                }
+
+                var key = $"{poi.POI_ID}:{normalized}";
+                if (request.OnlyMissing && existingSet.Contains(key))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var nextId = await _sequence.GetNextAsync("audio_content_id");
+                var audio = new AudioContent
+                {
+                    AudioContent_ID = nextId,
+                    Title = $"{poi.GetName(normalized)} - {language}",
+                    Description = string.Empty,
+                    Language = language,
+                    AudioUrl = string.Empty,
+                    FileSize = null,
+                    Duration = null,
+                    TTSText = null,
+                    POI_ID = poi.POI_ID,
+                    VendorId = poi.VendorId,
+                    Status = AudioStatuses.Published,
+                    CreatedByUserId = GetUserId(),
+                    CreatedByRole = GetPrimaryRole(),
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                await _db.AudioContents.InsertOneAsync(audio);
+
+                var result = await GenerateAudioFileInternal(audio);
+                if (!result.Ok)
+                {
+                    failed++;
+                    errors.Add(new { poiId = poi.POI_ID, language, error = result.Error });
+                    continue;
+                }
+
+                created++;
+                existingSet.Add(key);
+            }
+        }
+
+        return Ok(new
+        {
+            message = "Bulk generation completed",
+            created,
+            skipped,
+            failed,
+            errors
+        });
+    }
+
+    private string GetVoiceForLanguage(string language)
+    {
+        var normalized = NormalizeLanguage(language);
+        return normalized switch
+        {
+            "vi" => "vi-VN-HoaiMyNeural",
+            "en" => "en-US-JennyNeural",
+            "ja" => "ja-JP-NanamiNeural",
+            "ko" => "ko-KR-SunHiNeural",
+            "zh" => "zh-CN-XiaoxiaoNeural",
+            "fr" => "fr-FR-DeniseNeural",
+            _ => "vi-VN-HoaiMyNeural"
+        };
+    }
+
+    private async Task<(bool Ok, string? Error, int? StatusCode, string? AudioUrl, long? FileSize)> GenerateAudioFileInternal(AudioContent audio)
+    {
+        var text = audio.TTSText;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            var poi = await _db.POIs.Find(p => p.POI_ID == audio.POI_ID && p.DeletedAt == null).FirstOrDefaultAsync();
+            if (poi != null)
+            {
+                var langKey = NormalizeLanguage(audio.Language ?? "vi-VN");
+                var name = poi.GetName(langKey);
+                var desc = poi.GetDescription(langKey) ?? string.Empty;
+                text = string.IsNullOrWhiteSpace(desc) ? name : $"{name}. {desc}";
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return (false, "No TTSText available to generate audio", 400, null, null);
+        }
+
+        var voice = GetVoiceForLanguage(audio.Language ?? "vi-VN");
+        var fileName = $"tts_{Guid.NewGuid()}.mp3";
+        var outputPath = Path.Combine(_env.WebRootPath, "uploads", "audio", fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+
+        var pythonPath = "D:\\project\\street_food\\.venv\\Scripts\\python.exe";
+        var scriptPath = "D:\\project\\street_food\\tts_wrapper.py";
+
+        if (!System.IO.File.Exists(pythonPath) || !System.IO.File.Exists(scriptPath))
+        {
+            return (false, "Python or TTS wrapper not found", 500, null, null);
+        }
+
+        var tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_text_{Guid.NewGuid()}.txt");
+        await System.IO.File.WriteAllTextAsync(tempTextFile, text, System.Text.Encoding.UTF8);
+
+        try
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = pythonPath,
+                Arguments = $"\"{scriptPath}\" \"{voice}\" \"@{tempTextFile}\" \"{outputPath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = System.Text.Encoding.UTF8,
+                StandardErrorEncoding = System.Text.Encoding.UTF8
+            };
+
+            using var process = System.Diagnostics.Process.Start(startInfo);
+            if (process == null)
+            {
+                return (false, "Failed to start TTS process", 500, null, null);
+            }
+
+            var error = await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            if (process.ExitCode != 0)
+            {
+                return (false, $"TTS generation failed: {error}", 500, null, null);
+            }
+
+            if (!System.IO.File.Exists(outputPath))
+            {
+                return (false, "Audio file was not created", 500, null, null);
+            }
+
+            var fileInfo = new FileInfo(outputPath);
+            var audioUrl = $"/uploads/audio/{fileName}";
+
+            var update = Builders<AudioContent>.Update
+                .Set(a => a.AudioUrl, audioUrl)
+                .Set(a => a.FileSize, fileInfo.Length)
+                .Set(a => a.Format, Path.GetExtension(outputPath).TrimStart('.').ToLowerInvariant())
+                .Set(a => a.UpdatedAt, DateTime.UtcNow);
+
+            await _db.AudioContents.UpdateOneAsync(a => a.AudioContent_ID == audio.AudioContent_ID, update);
+
+            return (true, null, null, audioUrl, fileInfo.Length);
+        }
+        finally
+        {
+            try { if (System.IO.File.Exists(tempTextFile)) System.IO.File.Delete(tempTextFile); } catch { }
+        }
+    }
+
+    private static string NormalizeLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return "vi";
+        }
+
+        var lang = language.Trim().ToLowerInvariant();
+        if (lang.StartsWith("vi")) return "vi";
+        if (lang.StartsWith("en")) return "en";
+        if (lang.StartsWith("ja")) return "ja";
+        if (lang.StartsWith("fr")) return "fr";
+        if (lang.StartsWith("ko")) return "ko";
+        if (lang.StartsWith("zh")) return "zh";
+        return "vi";
+    }
+
+    private static string NormalizeStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return AudioStatuses.Published;
+        }
+
+        return status.Trim().ToLowerInvariant();
+    }
+
+    private bool IsVendor() => User.IsInRole("Vendor");
+
+    private string GetUserId()
+    {
+        return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+    }
+
+    private string GetPrimaryRole()
+    {
+        if (User.IsInRole("Admin")) return "Admin";
+        if (User.IsInRole("Vendor")) return "Vendor";
+        return "Unknown";
+    }
+
+    private async Task<VendorProfile?> GetVendorProfileAsync()
+    {
+        var userId = GetUserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+        if (vendor != null)
+        {
+            return vendor;
+        }
+
+        if (!User.IsInRole("Vendor"))
+        {
+            return null;
+        }
+
+        var vendorId = await _sequence.GetNextAsync("vendor_id");
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        var name = User.FindFirstValue(ClaimTypes.Name);
+        var fallbackName = !string.IsNullOrWhiteSpace(name)
+            ? name
+            : (!string.IsNullOrWhiteSpace(email) ? email.Split('@')[0] : "Vendor");
+
+        vendor = new VendorProfile
+        {
+            VendorId = vendorId,
+            UserId = userId,
+            ContactName = name,
+            ContactEmail = email,
+            BusinessName = fallbackName
+        };
+
+        await _db.VendorProfiles.InsertOneAsync(vendor);
+        return vendor;
+    }
+
+    private async Task<bool> VendorOwnsPoiAsync(int vendorId, int poiId)
+    {
+        var poi = await _db.POIs.Find(p => p.POI_ID == poiId && p.DeletedAt == null).FirstOrDefaultAsync();
+        return poi != null && poi.VendorId == vendorId;
+    }
+}
+
+// DTOs
+public class AudioDto
+{
+    public int AudioContent_ID { get; set; }
+    public string Title { get; set; } = null!;
+    public string Language { get; set; } = null!;
+    public string? AudioUrl { get; set; }
+    public double? Duration { get; set; }
+    public long? FileSize { get; set; }
+    public bool IsActive { get; set; }
+    public int POI_ID { get; set; }
+    public string POIName { get; set; } = null!;
+    public int? VendorId { get; set; }
+    public string Status { get; set; } = AudioStatuses.Published;
+    public string? RejectedReason { get; set; }
+    public string? CreatedByRole { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class AudioListResponse
+{
+    public List<AudioDto> Data { get; set; } = new();
+    public int Total { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalPages { get; set; }
+}
+
+public class UploadAudioModel
+{
+    public IFormFile AudioFile { get; set; } = null!;
+    public string Title { get; set; } = null!;
+    public string? Description { get; set; }
+    public string Language { get; set; } = "vi-VN";
+    public int POI_ID { get; set; }
+    public string? TTSText { get; set; }
+}
+
+public class UpdateAudioModel
+{
+    public string? Title { get; set; }
+    public string? Description { get; set; }
+    public bool? IsActive { get; set; }
+}
+
+public class CreateAudioModel
+{
+    public int PoiId { get; set; }
+    public string Language { get; set; } = "vi-VN";
+    public string Title { get; set; } = null!;
+    public string? Description { get; set; }
+    public string FileName { get; set; } = null!;
+    public string FilePath { get; set; } = null!;
+    public long FileSize { get; set; }
+    public double Duration { get; set; }
+    public string Type { get; set; } = "TTS";
+    public string? TtsText { get; set; }
+
+    public string? Format { get; set; }
+    public int? Bitrate { get; set; }
+
+    public string? TtsVoice { get; set; }
+    public string? TtsProvider { get; set; }
+    public double? TtsSpeed { get; set; }
+    public double? TtsPitch { get; set; }
+    public TTSConfig? TtsConfig { get; set; }
+
+    public string? TemplateId { get; set; }
+    public string? TemplateName { get; set; }
+    public Dictionary<string, string>? TemplateVariables { get; set; }
+}
+
+public class POIWithoutAudioDto
+{
+    public int POI_ID { get; set; }
+    public string Name_Vi { get; set; } = null!;
+    public string? Name_En { get; set; }
+    public string? Name_Ja { get; set; }
+    public string? Name_Fr { get; set; }
+    public string? Name_Ko { get; set; }
+    public string? Name_Zh { get; set; }
+    public string Description_Vi { get; set; } = null!;
+    public string? Description_En { get; set; }
+    public string? Description_Ja { get; set; }
+    public string? Description_Fr { get; set; }
+    public string? Description_Ko { get; set; }
+    public string? Description_Zh { get; set; }
+    public string? Address { get; set; }
+    public decimal Latitude { get; set; }
+    public decimal Longitude { get; set; }
+    public string? SignatureDish { get; set; }
+    public List<string>? SignatureDishes { get; set; }
+    public List<string>? Specialties { get; set; }
+    public List<string>? OpeningHours { get; set; }
+    public string? OpeningHoursText { get; set; }
+    public string? PhoneNumber { get; set; }
+    public decimal? AveragePrice { get; set; }
+    public int? PriceLevel { get; set; }
+    public double? Rating { get; set; }
+    public List<string>? Tags { get; set; }
+    public string? History { get; set; }
+    public string? Story { get; set; }
+    public string? ImageUrl { get; set; }
+    public List<string>? ImageUrls { get; set; }
+    public bool HasAudio { get; set; }
+}
+
+
+public class BulkGenerateAudioRequest
+{
+    public List<string>? Languages { get; set; }
+    public List<int>? PoiIds { get; set; }
+    public bool OnlyMissing { get; set; } = true;
+}
+
+public class RejectAudioRequest
+{
+    public string? Reason { get; set; }
+}

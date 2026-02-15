@@ -1,0 +1,81 @@
+# .NET Core
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.vsidx
+*.vssscc
+$tf/
+
+# Rider
+.idea/
+*.sln.iml
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# MAUI specific
+*.apk
+*.aab
+*.ipa
+
+# Database
+*.db
+*.db3
+*.db-shm
+*.db-wal
+*.sqlite
+
+# macOS
+.DS_Store
+*.swp
+*~.nib
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Audio cache
+AudioCache/
+*.mp3
+*.wav
+*.m4a
+
+# Uploads
+wwwroot/uploads/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Node modules (nếu có web frontend)
+node_modules/
+
+# Environment files
+.env
+appsettings.Development.json
+secrets.json

@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cài đặt - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <script src="api.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #D63D5F 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 71, 111, 0.3);
+        }
+
+        /* Settings Tabs */
+        .settings-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .settings-tab {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px 12px 0 0;
+            background: transparent;
+            color: #666;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            position: relative;
+        }
+
+        .settings-tab:hover {
+            background: rgba(255, 107, 53, 0.05);
+            color: var(--primary);
+        }
+
+        .settings-tab.active {
+            background: rgba(255, 107, 53, 0.1);
+            color: var(--primary);
+        }
+
+        .settings-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -0.6rem;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 3px 3px 0 0;
+        }
+
+        /* Settings Content */
+        .settings-content {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .settings-section {
+            display: none;
+        }
+
+        .settings-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title i {
+            color: var(--primary);
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.95rem;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 0.875rem 1.1rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .form-help {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .form-help i {
+            font-size: 0.75rem;
+            color: var(--primary);
+        }
+
+        /* Toggle Switch */
+        .toggle-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem;
+            background: var(--light);
+            border-radius: 14px;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .toggle-group:hover {
+            border-color: var(--border);
+            background: white;
+        }
+
+        .toggle-info h4 {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toggle-info h4 i {
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .toggle-info p {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 32px;
+            background: #ccc;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch.active {
+            background: var(--success);
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(28px);
+        }
+
+        /* Danger Zone */
+        .danger-zone {
+            margin-top: 2rem;
+            padding: 2rem;
+            border: 2px solid var(--danger);
+            border-radius: 16px;
+            background: rgba(239, 71, 111, 0.05);
+        }
+
+        .danger-zone h3 {
+            color: var(--danger);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .danger-zone p {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 1000;
+            animation: slideInUp 0.3s ease-out;
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast i {
+            font-size: 1.25rem;
+        }
+
+        .toast.success i {
+            color: var(--success);
+        }
+
+        .toast.error i {
+            color: var(--danger);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--border);
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInUp {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .settings-tabs {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+            }
+
+            .toggle-group {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .toast {
+                right: 1rem;
+                left: 1rem;
+                bottom: 1rem;
+            }
+        }
+
+        .admin-only {
+            display: none;
+        }
+
+        .admin-only.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Cài đặt hệ thống</h1>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="window.history.back()">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Quay lại</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings Tabs -->
+        <div class="settings-tabs">
+            <button class="settings-tab active" data-section="general">
+                <i class="fas fa-cog"></i>
+                <span>Cài đặt chung</span>
+            </button>
+            <button class="settings-tab" data-section="notifications">
+                <i class="fas fa-bell"></i>
+                <span>Thông báo</span>
+            </button>
+            <button class="settings-tab" data-section="security">
+                <i class="fas fa-shield-alt"></i>
+                <span>Bảo mật</span>
+            </button>
+        </div>
+
+        <!-- Settings Content -->
+        <div class="settings-content">
+            <!-- General Settings -->
+            <div id="general-section" class="settings-section active">
+                <h2 class="section-title">
+                    <i class="fas fa-cog"></i>
+                    Cài đặt chung
+                </h2>
+
+                <div class="form-group admin-only">
+                    <label class="form-label">Tên ứng dụng</label>
+                    <input type="text" class="form-input" id="appNameInput" value="Street Food Narrator">
+                    <div class="form-help">
+                        <i class="fas fa-info-circle"></i>
+                        Tên hiển thị của ứng dụng
+                    </div>
+                </div>
+
+                <div class="form-group admin-only">
+                    <label class="form-label">Email liên hệ</label>
+                    <input type="email" class="form-input" id="adminEmailInput" value="admin@streetfood.com">
+                    <div class="form-help">
+                        <i class="fas fa-info-circle"></i>
+                        Email để người dùng liên hệ hỗ trợ
+                    </div>
+                </div>
+
+                <div class="form-group admin-only">
+                    <label class="form-label">Bán kính Geofence mặc định (mét)</label>
+                    <input type="number" class="form-input" id="geofenceInput" value="50" min="10" max="500">
+                    <div class="form-help">
+                        <i class="fas fa-info-circle"></i>
+                        Khoảng cách kích hoạt thuyết minh tự động (10-500m)
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Ngôn ngữ mặc định</label>
+                    <select class="form-select" id="languageSelect">
+                        <option value="vi">🇻🇳 Tiếng Việt</option>
+                        <option value="en">🇬🇧 English</option>
+                        <option value="ja">🇯🇵 日本語</option>
+                        <option value="ko">🇰🇷 한국어</option>
+                        <option value="zh">🇨🇳 中文</option>
+                        <option value="fr">🇫🇷 Français</option>
+                    </select>
+                    <div class="form-help">
+                        <i class="fas fa-info-circle"></i>
+                        Ngôn ngữ hiển thị mặc định trong ứng dụng
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="saveSettings()">
+                        <i class="fas fa-save"></i>
+                        <span>Lưu thay đổi</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div id="notifications-section" class="settings-section">
+                <h2 class="section-title">
+                    <i class="fas fa-bell"></i>
+                    Cài đặt thông báo
+                </h2>
+
+                <div class="toggle-group">
+                    <div class="toggle-info">
+                        <h4>
+                            <i class="fas fa-envelope"></i>
+                            Email thông báo
+                        </h4>
+                        <p>Nhận email khi có vendor mới đăng ký hoặc nội dung cần duyệt</p>
+                    </div>
+                    <div class="toggle-switch active" id="emailNotifyToggle" onclick="toggleSwitch(this)">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+
+                <div class="toggle-group">
+                    <div class="toggle-info">
+                        <h4>
+                            <i class="fas fa-mobile-alt"></i>
+                            Push notifications
+                        </h4>
+                        <p>Thông báo đẩy trên thiết bị di động</p>
+                    </div>
+                    <div class="toggle-switch active" id="pushNotifyToggle" onclick="toggleSwitch(this)">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+
+                <div class="toggle-group">
+                    <div class="toggle-info">
+                        <h4>
+                            <i class="fas fa-chart-line"></i>
+                            Báo cáo hàng tuần
+                        </h4>
+                        <p>Nhận báo cáo thống kê và phân tích qua email mỗi tuần</p>
+                    </div>
+                    <div class="toggle-switch" id="weeklyNotifyToggle" onclick="toggleSwitch(this)">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="saveSettings()">
+                        <i class="fas fa-save"></i>
+                        <span>Lưu thay đổi</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Security Settings -->
+            <div id="security-section" class="settings-section">
+                <h2 class="section-title">
+                    <i class="fas fa-shield-alt"></i>
+                    Bảo mật
+                </h2>
+
+                <div class="form-group">
+                    <label class="form-label">Mật khẩu hiện tại</label>
+                    <input type="password" class="form-input" id="currentPassword" placeholder="••••••••">
+                    <div class="form-help">
+                        <i class="fas fa-info-circle"></i>
+                        Nhập mật khẩu hiện tại để xác nhận
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mật khẩu mới</label>
+                    <input type="password" class="form-input" id="newPassword" placeholder="••••••••">
+                    <div class="form-help">
+                        <i class="fas fa-info-circle"></i>
+                        Ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Xác nhận mật khẩu mới</label>
+                    <input type="password" class="form-input" id="confirmPassword" placeholder="••••••••">
+                </div>
+
+                <div class="toggle-group">
+                    <div class="toggle-info">
+                        <h4>
+                            <i class="fas fa-key"></i>
+                            Xác thực 2 yếu tố (2FA)
+                        </h4>
+                        <p>Tăng cường bảo mật tài khoản với mã xác thực qua email hoặc SMS</p>
+                    </div>
+                    <div class="toggle-switch" id="twoFactorToggle" onclick="toggleSwitch(this)">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="updatePassword()">
+                        <i class="fas fa-lock"></i>
+                        <span>Cập nhật mật khẩu</span>
+                    </button>
+                </div>
+
+                <div class="danger-zone">
+                    <h3>
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Vùng nguy hiểm
+                    </h3>
+                    <p>Các hành động sau đây không thể hoàn tác. Hãy cân nhắc kỹ trước khi thực hiện.</p>
+                    <button class="btn btn-danger" onclick="clearCache()">
+                        <i class="fas fa-trash-alt"></i>
+                        <span>Xóa cache hệ thống</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toastMessage">Thông báo</span>
+    </div>
+
+    <script>
+        const user = TokenManager.getUser();
+        if (!user) {
+            window.location.href = 'login.html';
+        }
+
+        const isAdmin = user?.roles?.includes('Admin');
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+
+            toastMessage.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            }
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Show/hide sections
+        function showSection(section) {
+            // Hide all sections
+            document.querySelectorAll('.settings-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+
+            // Remove active class from all tabs
+            document.querySelectorAll('.settings-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected section
+            const selectedSection = document.getElementById(`${section}-section`);
+            if (selectedSection) {
+                selectedSection.classList.add('active');
+            }
+
+            // Add active class to clicked tab
+            const selectedTab = document.querySelector(`.settings-tab[data-section="${section}"]`);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+        }
+
+        // Wire up tab clicks
+        document.querySelectorAll('.settings-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = tab.getAttribute('data-section');
+                showSection(section);
+            });
+        });
+
+        // Toggle switch
+        function toggleSwitch(el) {
+            if (!el) return;
+            el.classList.toggle('active');
+        }
+
+        // Get toggle value
+        function getToggleValue(id) {
+            const el = document.getElementById(id);
+            return !!(el && el.classList.contains('active'));
+        }
+
+        // Set toggle value
+        function setToggleValue(id, value) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (value) {
+                el.classList.add('active');
+            } else {
+                el.classList.remove('active');
+            }
+        }
+
+        // Apply role-based UI
+        function applyRoleUi() {
+            const adminOnly = document.querySelectorAll('.admin-only');
+            adminOnly.forEach(el => {
+                if (isAdmin) {
+                    el.classList.add('show');
+                } else {
+                    el.classList.remove('show');
+                }
+            });
+        }
+
+        function applySettings(settings, emailFallback) {
+            const safeSettings = settings || {};
+            const email = emailFallback || user?.email || '';
+
+            if (isAdmin) {
+                const appNameInput = document.getElementById('appNameInput');
+                const emailInput = document.getElementById('adminEmailInput');
+                const geofenceInput = document.getElementById('geofenceInput');
+
+                if (appNameInput) appNameInput.value = safeSettings?.appName || 'Street Food Narrator';
+                if (emailInput) emailInput.value = safeSettings?.contactEmail || email;
+                if (geofenceInput) geofenceInput.value = safeSettings?.defaultGeofenceRadius ?? 50;
+            }
+
+            const languageSelect = document.getElementById('languageSelect');
+            if (languageSelect) languageSelect.value = safeSettings?.defaultLanguage || 'vi';
+
+            setToggleValue('emailNotifyToggle', safeSettings?.notifications?.email ?? true);
+            setToggleValue('pushNotifyToggle', safeSettings?.notifications?.push ?? true);
+            setToggleValue('weeklyNotifyToggle', safeSettings?.notifications?.weeklyReport ?? false);
+            setToggleValue('twoFactorToggle', safeSettings?.security?.twoFactorEnabled ?? false);
+        }
+
+        // Save settings
+        async function saveSettings() {
+            try {
+                const payload = {
+                    defaultLanguage: document.getElementById('languageSelect')?.value || 'vi',
+                    notifications: {
+                        email: getToggleValue('emailNotifyToggle'),
+                        push: getToggleValue('pushNotifyToggle'),
+                        weeklyReport: getToggleValue('weeklyNotifyToggle')
+                    },
+                    security: {
+                        twoFactorEnabled: getToggleValue('twoFactorToggle')
+                    }
+                };
+
+                if (isAdmin) {
+                    payload.appName = document.getElementById('appNameInput')?.value || null;
+                    payload.contactEmail = document.getElementById('adminEmailInput')?.value || null;
+                    const radius = parseInt(document.getElementById('geofenceInput')?.value || '0', 10);
+                    payload.defaultGeofenceRadius = Number.isNaN(radius) ? null : radius;
+                }
+
+                const saved = await api.updateMySettings(payload);
+                applySettings(saved, user?.email);
+                try {
+                    localStorage.setItem('app_settings_cache', JSON.stringify(saved));
+                } catch {
+                    // ignore cache errors
+                }
+                if (window.applyAppSettings) {
+                    window.applyAppSettings(saved);
+                }
+                showToast('Đã lưu cài đặt thành công!', 'success');
+            } catch (error) {
+                console.error('Save settings error:', error);
+                showToast('Lỗi khi lưu cài đặt: ' + error.message, 'error');
+            }
+        }
+
+        // Update password
+        async function updatePassword() {
+            const currentPassword = document.getElementById('currentPassword')?.value;
+            const newPassword = document.getElementById('newPassword')?.value;
+            const confirmPassword = document.getElementById('confirmPassword')?.value;
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showToast('Vui lòng điền đầy đủ thông tin', 'error');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showToast('Mật khẩu xác nhận không khớp', 'error');
+                return;
+            }
+
+            if (newPassword.length < 8) {
+                showToast('Mật khẩu phải có ít nhất 8 ký tự', 'error');
+                return;
+            }
+
+            try {
+                await api.changePassword({
+                    currentPassword,
+                    newPassword
+                });
+                
+                // Clear password fields
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+                
+                showToast('Đã cập nhật mật khẩu thành công!', 'success');
+            } catch (error) {
+                console.error('Change password error:', error);
+                showToast('Lỗi khi đổi mật khẩu: ' + error.message, 'error');
+            }
+        }
+
+        // Clear cache
+        function clearCache() {
+            if (!confirm('Bạn có chắc muốn xóa cache hệ thống? Hành động này không thể hoàn tác.')) {
+                return;
+            }
+            
+            try {
+                // Clear localStorage
+                localStorage.clear();
+                // Clear sessionStorage
+                sessionStorage.clear();
+                
+                showToast('Đã xóa cache thành công!', 'success');
+                
+                // Reload after 2 seconds
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } catch (error) {
+                showToast('Lỗi khi xóa cache: ' + error.message, 'error');
+            }
+        }
+
+        // Load settings
+        async function loadSettings() {
+            applyRoleUi();
+            
+            try {
+                const settings = await api.getMySettings();
+                const me = await api.getCurrentUser();
+                applySettings(settings, me?.email || user?.email || '');
+                try {
+                    localStorage.setItem('app_settings_cache', JSON.stringify(settings));
+                } catch {
+                    // ignore cache errors
+                }
+                if (window.applyAppSettings) {
+                    window.applyAppSettings(settings);
+                }
+            } catch (error) {
+                console.error('Load settings error:', error);
+                
+                // Set default values if loading fails
+                applyRoleUi();
+                applySettings({}, user?.email || '');
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', loadSettings);
+    </script>
+</body>
+</html>

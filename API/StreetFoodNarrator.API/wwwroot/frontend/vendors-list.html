@@ -1,0 +1,646 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Nhà cung cấp - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out backwards;
+        }
+
+        .stat-item:nth-child(1) { animation-delay: 0.1s; }
+        .stat-item:nth-child(2) { animation-delay: 0.2s; }
+        .stat-item:nth-child(3) { animation-delay: 0.3s; }
+        .stat-item:nth-child(4) { animation-delay: 0.4s; }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.6s ease-out 0.1s backwards;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.9rem;
+        }
+
+        .filter-input,
+        .filter-select {
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .filter-input:focus,
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        /* Vendor Cards */
+        .vendor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .vendor-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.6s ease-out backwards;
+        }
+
+        .vendor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px var(--shadow);
+        }
+
+        .vendor-header {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .vendor-avatar {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .vendor-info h3 {
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .vendor-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .vendor-meta i {
+            width: 16px;
+            margin-right: 0.5rem;
+            color: var(--primary);
+        }
+
+        .vendor-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--light);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-box-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-box-label {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .status-badge.approved {
+            background: rgba(6, 214, 160, 0.15);
+            color: var(--success);
+        }
+
+        .status-badge.pending {
+            background: rgba(255, 210, 63, 0.15);
+            color: #E0A800;
+        }
+
+        .status-badge.rejected {
+            background: rgba(239, 71, 111, 0.15);
+            color: var(--danger);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.approved { background: var(--success); }
+        .status-dot.pending { background: #E0A800; }
+        .status-dot.rejected { background: var(--danger); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .vendor-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-icon {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 10px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, var(--success) 0%, #05C494 100%);
+            color: white;
+        }
+
+        .btn-approve:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, var(--danger) 0%, #D63D5F 100%);
+            color: white;
+        }
+
+        .btn-reject:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-view {
+            background: linear-gradient(135deg, var(--secondary) 0%, #1A659E 100%);
+            color: white;
+        }
+
+        .btn-view:hover {
+            transform: scale(1.05);
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .filter-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-bar {
+                grid-template-columns: 1fr;
+            }
+
+            .vendor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Quản lý Nhà cung cấp</h1>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="window.history.back()">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Quay lại</span>
+                </button>
+                <button class="btn btn-primary" onclick="exportVendors()">
+                    <i class="fas fa-file-export"></i>
+                    <span>Xuất Excel</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value" id="vendorsTotal">0</div>
+                <div class="stat-label">Tổng nhà cung cấp</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="vendorsApproved">0</div>
+                <div class="stat-label">Đã duyệt</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="vendorsPending">0</div>
+                <div class="stat-label">Chờ duyệt</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="vendorsRejected">0</div>
+                <div class="stat-label">Từ chối</div>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label">Tìm kiếm</label>
+                    <input type="text" class="filter-input" placeholder="Tìm theo tên, email, SĐT..." id="searchInput">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Trạng thái</label>
+                    <select class="filter-select" id="statusFilter">
+                        <option value="">Tất cả</option>
+                        <option value="approved">Đã duyệt</option>
+                        <option value="pending">Chờ duyệt</option>
+                        <option value="rejected">Từ chối</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Sắp xếp</label>
+                    <select class="filter-select" id="sortFilter">
+                        <option value="newest">Mới nhất</option>
+                        <option value="oldest">Cũ nhất</option>
+                        <option value="name-asc">Tên A-Z</option>
+                        <option value="pois-desc">Nhiều POI nhất</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <button class="btn btn-primary" onclick="applyFilters()">
+                        <i class="fas fa-filter"></i>
+                        Lọc
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vendor Grid -->
+        <div class="vendor-grid" id="vendorGrid"></div>
+    </div>
+
+    <script src="api.js"></script>
+<script>
+    TokenManager.setRoleContext('Admin');
+    const user = TokenManager.getUser();
+    if (!user || !user.roles?.includes('Admin')) {
+        window.location.href = TokenManager.getLoginUrl();
+    }
+
+    let currentSearch = '';
+    let currentStatus = '';
+    let currentSort = 'newest';
+
+    function formatVendorName(vendor) {
+        return vendor.businessName || vendor.contactName || 'N/A';
+    }
+
+    function getInitials(name) {
+        if (!name) return 'VN';
+        const parts = name.trim().split(/\s+/);
+        const initials = parts.slice(0, 2).map(p => p[0]).join('');
+        return initials.toUpperCase();
+    }
+
+    function formatDateShort(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('vi-VN');
+    }
+
+    function formatCount(value) {
+        if (value === null || value === undefined) return '-';
+        if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
+        return value.toString();
+    }
+
+    function getStatusBadge(status) {
+        const map = {
+            approved: { label: 'Đã duyệt', className: 'approved' },
+            pending: { label: 'Chờ duyệt', className: 'pending' },
+            rejected: { label: 'Từ chối', className: 'rejected' }
+        };
+        return map[status] || map.pending;
+    }
+
+    async function loadVendorStats() {
+        try {
+            const stats = await api.getVendorStats();
+            document.getElementById('vendorsTotal').textContent = stats.total ?? 0;
+            document.getElementById('vendorsApproved').textContent = stats.approved ?? 0;
+            document.getElementById('vendorsPending').textContent = stats.pending ?? 0;
+            document.getElementById('vendorsRejected').textContent = stats.rejected ?? 0;
+        } catch (error) {
+            console.error('Error loading vendor stats:', error);
+        }
+    }
+
+    async function loadVendors() {
+        const grid = document.getElementById('vendorGrid');
+        grid.innerHTML = '<div class="loading">Đang tải dữ liệu...</div>';
+
+        try {
+            const data = await api.getVendors(currentSearch, currentStatus, currentSort);
+            const vendors = data.data || [];
+
+            if (vendors.length === 0) {
+                grid.innerHTML = '<div class="empty">Chưa có vendor nào.</div>';
+                return;
+            }
+
+            grid.innerHTML = vendors.map(v => {
+                const status = getStatusBadge(v.verificationStatus);
+                const name = formatVendorName(v);
+                const initials = getInitials(name);
+                const rating = v.rating ?? '-';
+
+                return `
+                    <div class="vendor-card">
+                        <div class="vendor-header">
+                            <div class="vendor-avatar">${initials}</div>
+                            <div class="vendor-info">
+                                <h3>${name}</h3>
+                                <div class="vendor-meta">
+                                    <div><i class="fas fa-envelope"></i> ${v.contactEmail || 'N/A'}</div>
+                                    <div><i class="fas fa-phone"></i> ${v.contactPhone || 'N/A'}</div>
+                                    <div><i class="fas fa-calendar"></i> Tham gia: ${formatDateShort(v.createdAt)}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <span class="status-badge ${status.className}">
+                            <span class="status-dot ${status.className}"></span>
+                            ${status.label}
+                        </span>
+
+                        <div class="vendor-stats">
+                            <div class="stat-box">
+                                <div class="stat-box-value">${v.poiCount ?? 0}</div>
+                                <div class="stat-box-label">POI</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-box-value">${formatCount(v.viewCount ?? 0)}</div>
+                                <div class="stat-box-label">Lượt xem</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-box-value">${rating}</div>
+                                <div class="stat-box-label">Rating</div>
+                            </div>
+                        </div>
+
+                        <div class="vendor-actions">
+                            <button class="btn-icon btn-view" onclick="viewVendor(${v.vendorId})">
+                                <i class="fas fa-eye"></i>
+                                <span>Xem</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error loading vendors:', error);
+            grid.innerHTML = `<div class="empty">Không thể tải dữ liệu: ${error.message}</div>`;
+        }
+    }
+
+    function applyFilters() {
+        currentSearch = document.getElementById('searchInput').value.trim();
+        currentStatus = document.getElementById('statusFilter').value;
+        currentSort = document.getElementById('sortFilter').value;
+        loadVendors();
+    }
+
+    function viewVendor(id) {
+        window.location.href = `vendor-detail.html?id=${id}`;
+    }
+
+    function exportVendors() {
+        alert('Xuất danh sách vendors ra Excel');
+    }
+
+    window.addEventListener('load', function() {
+        loadVendorStats();
+        loadVendors();
+    });
+</script>
+</body>
+</html>
+
