@@ -56,9 +56,12 @@ const TokenManager = {
         return normalized;
     },
 
+    loginPath: '/index.html',
+
     getLoginUrl(role) {
         const normalized = this.normalizeRole(role) || this.getRoleContext();
-        return normalized ? `login.html?role=${normalized.toLowerCase()}` : 'login.html';
+        const base = this.loginPath;
+        return normalized ? `${base}?role=${normalized.toLowerCase()}` : base;
     },
 
     initializeRoleContext() {

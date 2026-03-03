@@ -6,7 +6,8 @@
     <title>Tạo gian hàng mới - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <!-- Leaflet CSS – OSM map (replaces Google Maps) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="sidebar.js"></script>
     <style>
         :root {
@@ -678,15 +679,6 @@
                         <button type="button" class="lang-tab" onclick="switchLang('en')">
                             🇬🇧 English
                         </button>
-                        <button type="button" class="lang-tab" onclick="switchLang('ja')">
-                            🇯🇵 日本語
-                        </button>
-                        <button type="button" class="lang-tab" onclick="switchLang('fr')">
-                            🇫🇷 Français
-                        </button>
-                        <button type="button" class="lang-tab" onclick="switchLang('ko')">
-                            🇰🇷 한국어
-                        </button>
                         <button type="button" class="lang-tab" onclick="switchLang('zh')">
                             🇨🇳 中文
                         </button>
@@ -716,39 +708,6 @@
                         <div class="form-group">
                             <label class="form-label">Description (English)</label>
                             <textarea class="form-textarea" id="description_En" placeholder="Description..."></textarea>
-                        </div>
-                    </div>
-
-                    <div id="lang-ja" class="lang-content">
-                        <div class="form-group">
-                            <label class="form-label">名前 (日本語)</label>
-                            <input type="text" class="form-input" id="name_Ja" placeholder="例: オック・ダオ">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">説明 (日本語)</label>
-                            <textarea class="form-textarea" id="description_Ja" placeholder="説明..."></textarea>
-                        </div>
-                    </div>
-
-                    <div id="lang-fr" class="lang-content">
-                        <div class="form-group">
-                            <label class="form-label">Nom (Français)</label>
-                            <input type="text" class="form-input" id="name_Fr" placeholder="par ex., Restaurant Oc Dao">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Description (Français)</label>
-                            <textarea class="form-textarea" id="description_Fr" placeholder="Description..."></textarea>
-                        </div>
-                    </div>
-
-                    <div id="lang-ko" class="lang-content">
-                        <div class="form-group">
-                            <label class="form-label">이름 (한국어)</label>
-                            <input type="text" class="form-input" id="name_Ko" placeholder="예: 옥 다오">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">설명 (한국어)</label>
-                            <textarea class="form-textarea" id="description_Ko" placeholder="설명..."></textarea>
                         </div>
                     </div>
 
@@ -924,21 +883,6 @@
                         <label class="form-label">Audio URL (EN)</label>
                         <input type="text" class="form-input" id="audioUrlEn" placeholder="https://...">
                     </div>
-                    <div class="form-group admin-only">
-                        <label class="form-label">Audio URL (JA)</label>
-                        <input type="text" class="form-input" id="audioUrlJa" placeholder="https://...">
-                    </div>
-                </div>
-
-                <div class="audio-grid admin-only">
-                    <div class="form-group">
-                        <label class="form-label">Audio URL (FR)</label>
-                        <input type="text" class="form-input" id="audioUrlFr" placeholder="https://...">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Audio URL (KO)</label>
-                        <input type="text" class="form-input" id="audioUrlKo" placeholder="https://...">
-                    </div>
                     <div class="form-group">
                         <label class="form-label">Audio URL (ZH)</label>
                         <input type="text" class="form-input" id="audioUrlZh" placeholder="https://...">
@@ -1083,13 +1027,14 @@
         </form>
     </div>
 
+    <!-- Leaflet JS – OSM map, free, no API key -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="api.js"></script>
     <script>
         // Check authentication
         const user = TokenManager.getUser();
         if (!user) {
-            window.location.href = 'login.html';
+            window.location.href = '/index.html';
         }
 
         const isAdmin = user?.roles?.includes('Admin');
@@ -1265,11 +1210,7 @@
         function initMap(lat, lng) {
             const mapEl = document.getElementById('mapPreview');
             if (!mapEl) return;
-            const placeholder = mapEl.querySelector('.map-placeholder') || mapEl.querySelector('div');
-            if (placeholder && placeholder.parentElement === mapEl) {
-                placeholder.style.display = 'none';
-            }
-            if (typeof L === 'undefined') {
+            if (typeof google === 'undefined' || !google.maps) {
                 mapEl.textContent = 'Không tải được bản đồ.';
                 return;
             }
@@ -1283,33 +1224,42 @@
             const safeLng = clamped.lng;
 
             if (!poiMap) {
-                poiMap = L.map('mapPreview', {
-                    maxBounds: [
-                        [vinhKhanhBounds.south, vinhKhanhBounds.west],
-                        [vinhKhanhBounds.north, vinhKhanhBounds.east]
-                    ],
-                    maxBoundsViscosity: 0.9
-                }).setView([safeLat, safeLng], 16);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(poiMap);
-                poiMarker = L.marker([safeLat, safeLng], { draggable: isAdmin }).addTo(poiMap);
+                mapEl.innerHTML = '';
+                poiMap = new google.maps.Map(mapEl, {
+                    center: { lat: safeLat, lng: safeLng },
+                    zoom: 16,
+                    mapTypeId: 'roadmap',
+                    mapId: 'poi_create_map',
+                    mapTypeControl: false,
+                    streetViewControl: false,
+                    fullscreenControl: false,
+                    restriction: {
+                        latLngBounds: {
+                            south: vinhKhanhBounds.south,
+                            north: vinhKhanhBounds.north,
+                            west: vinhKhanhBounds.west,
+                            east: vinhKhanhBounds.east
+                        },
+                        strictBounds: false
+                    }
+                });
+                poiMarker = new google.maps.marker.AdvancedMarkerElement({
+                    position: { lat: safeLat, lng: safeLng },
+                    map: poiMap,
+                    gmpDraggable: isAdmin
+                });
                 if (isAdmin) {
-                    poiMarker.on('dragend', () => {
-                        const { lat, lng } = poiMarker.getLatLng();
-                        setMarker(lat, lng);
+                    poiMarker.addListener('dragend', (e) => {
+                        setMarker(e.latLng.lat(), e.latLng.lng());
                     });
-                    poiMap.on('click', (e) => {
-                        setMarker(e.latlng.lat, e.latlng.lng);
+                    poiMap.addListener('click', (e) => {
+                        setMarker(e.latLng.lat(), e.latLng.lng());
                     });
                 }
             } else {
-                poiMap.setView([safeLat, safeLng], 16);
-                if (poiMarker) poiMarker.setLatLng([safeLat, safeLng]);
+                poiMap.setCenter({ lat: safeLat, lng: safeLng });
+                if (poiMarker) poiMarker.position = { lat: safeLat, lng: safeLng };
             }
-
-            setTimeout(() => { poiMap.invalidateSize(); }, 100);
         }
 
         function setMarker(lat, lng) {
@@ -1317,8 +1267,8 @@
             if (!poiMarker) {
                 initMap(clamped.lat, clamped.lng);
             } else {
-                poiMarker.setLatLng([clamped.lat, clamped.lng]);
-                if (poiMap) poiMap.setView([clamped.lat, clamped.lng], 16);
+                poiMarker.position = { lat: clamped.lat, lng: clamped.lng };
+                if (poiMap) poiMap.setCenter({ lat: clamped.lat, lng: clamped.lng });
             }
             updateLatLngInputs(clamped.lat, clamped.lng);
         }
@@ -1524,26 +1474,14 @@
             if (audioUrlVi) poiData.audioUrl_Vi = audioUrlVi;
             const audioUrlEn = document.getElementById('audioUrlEn')?.value?.trim();
             if (audioUrlEn) poiData.audioUrl_En = audioUrlEn;
-            const audioUrlJa = document.getElementById('audioUrlJa')?.value?.trim();
-            if (audioUrlJa) poiData.audioUrl_Ja = audioUrlJa;
-            const audioUrlFr = document.getElementById('audioUrlFr')?.value?.trim();
-            if (audioUrlFr) poiData.audioUrl_Fr = audioUrlFr;
-            const audioUrlKo = document.getElementById('audioUrlKo')?.value?.trim();
-            if (audioUrlKo) poiData.audioUrl_Ko = audioUrlKo;
             const audioUrlZh = document.getElementById('audioUrlZh')?.value?.trim();
             if (audioUrlZh) poiData.audioUrl_Zh = audioUrlZh;
 
             // Add multilingual data if in advanced mode
             if (isAdvancedMode) {
                 poiData.name_En = document.getElementById('name_En')?.value || null;
-                poiData.name_Ja = document.getElementById('name_Ja')?.value || null;
-                poiData.name_Fr = document.getElementById('name_Fr')?.value || null;
-                poiData.name_Ko = document.getElementById('name_Ko')?.value || null;
                 poiData.name_Zh = document.getElementById('name_Zh')?.value || null;
                 poiData.description_En = document.getElementById('description_En')?.value || null;
-                poiData.description_Ja = document.getElementById('description_Ja')?.value || null;
-                poiData.description_Fr = document.getElementById('description_Fr')?.value || null;
-                poiData.description_Ko = document.getElementById('description_Ko')?.value || null;
                 poiData.description_Zh = document.getElementById('description_Zh')?.value || null;
                 
                 const lat = parseFloat(document.getElementById('latitude')?.value);

@@ -1,4 +1,5 @@
 using Microsoft.Maui.Storage;
+using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.Views;
 
@@ -9,7 +10,10 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
-        AppStrings.SetCulture(Preferences.Get(AppConfig.LanguagePrefKey, "vi"));
+        
+        // Khôi phục ngôn ngữ đã lưu
+        var languageService = new LanguageService();
+        languageService.RestoreSavedLanguage();
     }
 
     protected override Window CreateWindow(IActivationState? activationState)

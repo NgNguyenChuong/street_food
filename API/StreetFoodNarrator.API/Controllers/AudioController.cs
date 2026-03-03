@@ -4,6 +4,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
+using StreetFoodNarrator.API.Services;
 using System.Security.Claims;
 
 namespace StreetFoodNarrator.API.Controllers;
@@ -66,10 +67,7 @@ public class AudioController : ControllerBase
                             Builders<POI>.Filter.Or(
                                 Builders<POI>.Filter.Regex(p => p.Name_Vi, regex),
                                 Builders<POI>.Filter.Regex(p => p.Name_En, regex),
-                                Builders<POI>.Filter.Regex(p => p.Name_Ja, regex),
-                                Builders<POI>.Filter.Regex(p => p.Name_Ko, regex),
-                                Builders<POI>.Filter.Regex(p => p.Name_Zh, regex),
-                                Builders<POI>.Filter.Regex(p => p.Name_Fr, regex)
+                                Builders<POI>.Filter.Regex(p => p.Name_Zh, regex)
                             );
 
             if (IsVendor())
@@ -378,43 +376,38 @@ public class AudioController : ControllerBase
             poiFilter &= Builders<POI>.Filter.Eq(p => p.VendorId, vendor.VendorId);
         }
 
-        var poisWithoutAudio = await _db.POIs
+        var poisRaw = await _db.POIs
             .Find(poiFilter)
-            .Project(p => new POIWithoutAudioDto
-            {
-                POI_ID = p.POI_ID,
-                Name_Vi = p.Name_Vi,
-                Name_En = p.Name_En,
-                Name_Ja = p.Name_Ja,
-                Name_Fr = p.Name_Fr,
-                Name_Ko = p.Name_Ko,
-                Name_Zh = p.Name_Zh,
-                Description_Vi = p.Description_Vi!,
-                Description_En = p.Description_En,
-                Description_Ja = p.Description_Ja,
-                Description_Fr = p.Description_Fr,
-                Description_Ko = p.Description_Ko,
-                Description_Zh = p.Description_Zh,
-                Address = p.Address,
-                Latitude = p.Latitude,
-                Longitude = p.Longitude,
-                SignatureDish = p.SignatureDish,
-                SignatureDishes = p.SignatureDishes,
-                Specialties = p.Specialties,
-                OpeningHours = p.OpeningHours,
-                OpeningHoursText = p.OpeningHoursText,
-                PhoneNumber = p.PhoneNumber,
-                AveragePrice = p.AveragePrice,
-                PriceLevel = p.PriceLevel,
-                Rating = p.Rating,
-                Tags = p.Tags,
-                History = p.History,
-                Story = p.Story,
-                ImageUrl = p.ImageUrl,
-                ImageUrls = p.ImageUrls,
-                HasAudio = false
-            })
             .ToListAsync();
+
+        var poisWithoutAudio = poisRaw.Select(p => new POIWithoutAudioDto
+        {
+            POI_ID = p.POI_ID,
+            Name_Vi = p.Name_Vi,
+            Name_En = p.Name_En,
+            Name_Zh = p.Name_Zh,
+            Description_Vi = p.Description_Vi!,
+            Description_En = p.Description_En,
+            Description_Zh = p.Description_Zh,
+            Address = p.Address,
+            Latitude = (decimal)(p.Location?.Latitude ?? 0),
+            Longitude = (decimal)(p.Location?.Longitude ?? 0),
+            SignatureDish = p.SignatureDishes?.FirstOrDefault(),
+            SignatureDishes = p.SignatureDishes,
+            Specialties = p.Specialties,
+            OpeningHours = p.OpeningHours,
+            OpeningHoursText = p.OpeningHoursText,
+            PhoneNumber = p.PhoneNumber,
+            AveragePrice = p.AveragePrice,
+            PriceLevel = p.PriceLevel,
+            Rating = p.Rating,
+            Tags = p.Tags,
+            History = p.History,
+            Story = p.Story,
+            ImageUrl = p.ImageUrl,
+            ImageUrls = p.ImageUrls,
+            HasAudio = false
+        }).ToList();
 
         return Ok(poisWithoutAudio);
     }
@@ -725,17 +718,7 @@ public class AudioController : ControllerBase
 
     private string GetVoiceForLanguage(string language)
     {
-        var normalized = NormalizeLanguage(language);
-        return normalized switch
-        {
-            "vi" => "vi-VN-HoaiMyNeural",
-            "en" => "en-US-JennyNeural",
-            "ja" => "ja-JP-NanamiNeural",
-            "ko" => "ko-KR-SunHiNeural",
-            "zh" => "zh-CN-XiaoxiaoNeural",
-            "fr" => "fr-FR-DeniseNeural",
-            _ => "vi-VN-HoaiMyNeural"
-        };
+        return TtsVoiceCatalog.GetDefaultVoice(language);
     }
 
     private async Task<(bool Ok, string? Error, int? StatusCode, string? AudioUrl, long? FileSize)> GenerateAudioFileInternal(AudioContent audio)
@@ -758,9 +741,9 @@ public class AudioController : ControllerBase
             return (false, "No TTSText available to generate audio", 400, null, null);
         }
 
-        var voice = GetVoiceForLanguage(audio.Language ?? "vi-VN");
+        var voice = TtsVoiceCatalog.GetAllowedVoice(audio.TTSVoice, audio.Language ?? "vi-VN");
         var fileName = $"tts_{Guid.NewGuid()}.mp3";
-        var outputPath = Path.Combine(_env.WebRootPath, "uploads", "audio", fileName);
+        var outputPath = GetUploadAudioPath(fileName);
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         var pythonPath = "D:\\project\\street_food\\.venv\\Scripts\\python.exe";
@@ -772,7 +755,9 @@ public class AudioController : ControllerBase
         }
 
         var tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_text_{Guid.NewGuid()}.txt");
-        await System.IO.File.WriteAllTextAsync(tempTextFile, text, System.Text.Encoding.UTF8);
+        var normalizedText = TtsTextPreprocessor.NormalizePlainText(text, audio.Language);
+        var ttsText = TtsTextPreprocessor.BuildSsmlIfNeeded(normalizedText, audio.Language);
+        await System.IO.File.WriteAllTextAsync(tempTextFile, ttsText, System.Text.Encoding.UTF8);
 
         try
         {
@@ -823,6 +808,11 @@ public class AudioController : ControllerBase
         {
             try { if (System.IO.File.Exists(tempTextFile)) System.IO.File.Delete(tempTextFile); } catch { }
         }
+    }
+
+    private string GetUploadAudioPath(string fileName)
+    {
+        return Path.Combine(_env.ContentRootPath, "Uploads", "audio", fileName);
     }
 
     private static string NormalizeLanguage(string? language)

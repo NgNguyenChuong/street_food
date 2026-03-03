@@ -201,7 +201,7 @@ Bạn có thể dùng app offline hoàn toàn.</value>
     <value>Giọng đọc (TTS)</value>
   </data>
   <data name="Settings_TtsSubtitle" xml:space="preserve">
-    <value>Nữ - Miền Bắc</value>
+    <value>Giọng đang chọn</value>
   </data>
   <data name="Settings_AutoPlay" xml:space="preserve">
     <value>Tự động phát âm thanh</value>

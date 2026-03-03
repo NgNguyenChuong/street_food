@@ -26,14 +26,40 @@
 ```
 street_food/
 │
-├── 📁 API/                              # Backend REST API
+├── 📁 API/                              # Backend REST API + Web Admin/Vendor Portal (Monolithic)
 │   └── StreetFoodNarrator.API/
-│       ├── Controllers/                  # 7 Controllers (POIs, Audio, Auth, TTS, Vendors...)
+│       ├── Controllers/                  # 7 REST API Controllers
+│       │   ├── AudioController.cs        # Quản lý audio content
+│       │   ├── AuthController.cs         # Đăng nhập / đăng ký
+│       │   ├── GeocodeController.cs      # Geocoding địa chỉ
+│       │   ├── POIsController.cs         # Quản lý POI
+│       │   ├── SettingsController.cs     # Cài đặt người dùng
+│       │   ├── TTSController.cs          # Text-to-Speech
+│       │   └── VendorsController.cs      # Quản lý Vendor
 │       ├── Models/                       # Data models (POI, Tour, User, Audio...)
 │       ├── Data/                         # MongoDB context, seed data
-│       └── Program.cs                    # Entry point (.NET 10.0)
+│       ├── Program.cs                    # Entry point (.NET 10.0)
+│       └── wwwroot/                      # 🌐 Web Frontend (Admin & Vendor Portal - Static HTML/JS)
+│           ├── index.html                # Landing page
+│           ├── frontend/
+│           │   ├── admin-dashboard.html  # Trang quản trị Admin
+│           │   ├── vendor-dashboard.html # Trang quản lý Vendor
+│           │   ├── poi-list.html         # Danh sách POI
+│           │   ├── poi-create.html       # Tạo POI mới
+│           │   ├── poi-edit.html         # Chỉnh sửa POI
+│           │   ├── audio-list.html       # Danh sách Audio
+│           │   ├── audio-bulk-generate.html  # Tạo audio hàng loạt (TTS)
+│           │   ├── analytics.html        # Thống kê & báo cáo
+│           │   ├── vendors-list.html     # Danh sách Vendor
+│           │   ├── login.html            # Trang đăng nhập
+│           │   ├── register.html         # Trang đăng ký
+│           │   ├── settings.html         # Cài đặt hệ thống
+│           │   ├── api.js                # API client (gọi REST API)
+│           │   ├── auth-check.js         # Auth guard
+│           │   ├── nav.js / sidebar.js   # Navigation components
+│           └── uploads/                  # File audio đã upload
 │
-├── 📁 MobileApp/                        # Mobile Application (MAUI)
+├── 📁 MobileApp/                        # 📱 Mobile Application (MAUI) - Dành cho du khách
 │   └── StreetFoodNarrator.App/
 │       ├── Views/                        # UI Pages (Welcome, Main, Settings)
 │       ├── ViewModels/                   # MVVM ViewModels
@@ -71,6 +97,282 @@ street_food/
 ├── plan.md                              # Project requirements (Vietnamese)
 └── README.md                            # This file
 ```
+
+> 💡 **Kiến trúc Monolithic**: Web frontend (Admin & Vendor) được build dưới dạng **static HTML/JS/CSS** và serve trực tiếp từ `API/wwwroot/frontend/`. Không có project Web riêng biệt — tất cả backend và web frontend gộp chung trong thư mục `API/`.
+
+> 📱 **Mobile App vẫn dùng cùng API**: Mobile App gọi API để lấy dữ liệu (POIs, Audio, Tours...) và sync về **SQLite local** để dùng offline. SQLite chỉ là local cache — API vẫn là nguồn dữ liệu chính.
+>
+> ```
+> [API Server] ←──── REST calls ────→ [Mobile App]
+>                                           │
+>                                      sync xuống
+>                                           ↓
+>                                     [SQLite Local]  ← đọc khi offline
+> ```
+
+---
+
+## 🗄️ Bảng Dữ Liệu (MongoDB Collections)
+
+> **Database**: MongoDB | **ORM**: MongoDB.Driver + AspNetCore.Identity.MongoDbCore
+
+---
+
+### 1. `ApplicationUser` — Người dùng hệ thống
+
+| Thuộc tính     | Kiểu dữ liệu | Mô tả                                     |
+|----------------|--------------|-------------------------------------------|
+| Id             | Guid         | Khóa chính (kế thừa MongoIdentityUser)    |
+| UserName       | string       | Tên đăng nhập                             |
+| Email          | string       | Email                                     |
+| FullName       | string?      | Họ tên đầy đủ                             |
+| CreatedAt      | DateTime     | Thời điểm tạo tài khoản                   |
+| LastLoginAt    | DateTime?    | Lần đăng nhập cuối                        |
+| VendorProfile  | VendorProfile? | Thông tin vendor (nếu role là Vendor)   |
+
+> 🔗 Quan hệ: 1–0/1 với **VendorProfile** | 1–1 với **UserSettings**
+
+---
+
+### 2. `ApplicationRole` — Vai trò / Phân quyền
+
+| Thuộc tính | Kiểu dữ liệu | Mô tả                                           |
+|------------|--------------|-------------------------------------------------|
+| Id         | Guid         | Khóa chính (kế thừa MongoIdentityRole)          |
+| Name       | string       | Tên role: `Admin`, `Vendor`, `Tourist`          |
+
+> 🔗 Quan hệ: n–n với **ApplicationUser**
+
+---
+
+### 3. `VendorProfile` — Thông tin quán / chủ gian hàng
+
+| Thuộc tính          | Kiểu dữ liệu | Mô tả                                          |
+|---------------------|--------------|------------------------------------------------|
+| Id                  | ObjectId     | MongoDB ObjectId                               |
+| VendorId            | int          | Mã vendor (auto-increment)                     |
+| UserId              | string       | FK → ApplicationUser                          |
+| BusinessName        | string       | Tên thương hiệu / quán                         |
+| BusinessDescription | string?      | Mô tả hoạt động kinh doanh                     |
+| ContactName         | string?      | Tên người liên hệ                              |
+| ContactEmail        | string?      | Email liên hệ                                  |
+| ContactPhone        | string?      | Số điện thoại liên hệ                          |
+| Address             | string?      | Địa chỉ                                        |
+| IsVerified          | bool         | Đã xác minh hay chưa                          |
+| VerificationStatus  | string       | `pending` / `approved` / `rejected`            |
+| Rating              | double?      | Điểm đánh giá trung bình                       |
+| ViewCount           | long         | Số lượt xem                                    |
+| CreatedAt           | DateTime     | Thời điểm tạo                                  |
+| UpdatedAt           | DateTime?    | Thời điểm cập nhật                             |
+
+> 🔗 Quan hệ: n–1 với **ApplicationUser** | 1–n với **POI**
+
+---
+
+### 4. `POI` — Điểm tham quan / quán ăn (Point of Interest)
+
+| Thuộc tính        | Kiểu dữ liệu     | Mô tả                                           |
+|-------------------|------------------|-------------------------------------------------|
+| Id                | ObjectId         | MongoDB ObjectId                                |
+| POI_ID            | int              | Mã POI (auto-increment)                         |
+| Name_Vi           | string           | Tên tiếng Việt                                  |
+| Name_En           | string?          | Tên tiếng Anh                                   |
+| Name_Zh           | string?          | Tên tiếng Trung                                 |
+| Description_Vi    | string           | Mô tả tiếng Việt                                |
+| Description_En    | string?          | Mô tả tiếng Anh                                 |
+| Description_Zh    | string?          | Mô tả tiếng Trung                               |
+| Location          | GeoJsonLocation  | Vị trí GeoJSON (dùng cho 2dsphere index)        |
+| Latitude          | decimal          | Vĩ độ                                           |
+| Longitude         | decimal          | Kinh độ                                         |
+| Address           | string?          | Địa chỉ văn bản                                 |
+| AudioUrl_Vi       | string?          | URL audio tiếng Việt                            |
+| AudioUrl_En       | string?          | URL audio tiếng Anh                             |
+| AudioUrl_Zh       | string?          | URL audio tiếng Trung                           |
+| SignatureDish     | string?          | Món ăn đặc trưng                                |
+| SignatureDishes   | List\<string\>?  | Danh sách món đặc trưng                         |
+| Specialties       | List\<string\>?  | Danh sách đặc sản                               |
+| FunFact           | string?          | Sự thật thú vị                                  |
+| History           | string?          | Lịch sử                                         |
+| Story             | string?          | Câu chuyện                                      |
+| EstimatedHours    | decimal?         | Thời gian tham quan ước tính                    |
+| OpeningHours      | List\<string\>?  | Giờ hoạt động                                   |
+| OpeningHoursText  | string?          | Giờ hoạt động dạng text                         |
+| PhoneNumber       | string?          | Số điện thoại                                   |
+| AveragePrice      | decimal?         | Giá trung bình                                  |
+| PriceLevel        | int?             | Mức giá (1–4)                                   |
+| Rating            | double?          | Điểm đánh giá                                   |
+| Tags              | List\<string\>?  | Nhãn phân loại                                  |
+| Category          | string?          | Danh mục                                        |
+| ImageUrl          | string?          | Ảnh chính                                       |
+| ImageUrls         | List\<string\>?  | Danh sách ảnh                                   |
+| ZoneType          | string           | `Area` / `District` / `Spot`                   |
+| ZoneLevel         | int              | Cấp độ vùng (1=Area, 2=District, 3=Spot)       |
+| Priority          | int              | Độ ưu tiên geofence (1–10)                      |
+| TriggerRadius     | int              | Bán kính kích hoạt geofence (mét)               |
+| CooldownMinutes   | int              | Thời gian hồi (phút)                            |
+| ParentZoneId      | int?             | FK → POI cha (cho nested zones)                 |
+| MaxPlaysPerSession| int              | Số lần phát tối đa mỗi phiên                    |
+| IsActive          | bool             | Đang hoạt động                                  |
+| VendorId          | int?             | FK → VendorProfile                             |
+| CreatedAt         | DateTime         | Thời điểm tạo                                   |
+| UpdatedAt         | DateTime?        | Thời điểm cập nhật                              |
+| DeletedAt         | DateTime?        | Soft delete                                     |
+
+> 🔗 Quan hệ: n–1 với **VendorProfile** | 1–n với **AudioContent** | 1–n với **NarrationLog** | n–n với **Tour** (qua **POI_Tour**)
+
+---
+
+### 5. `Tour` — Tuyến tham quan
+
+| Thuộc tính               | Kiểu dữ liệu | Mô tả                           |
+|--------------------------|--------------|---------------------------------|
+| Id                       | ObjectId     | MongoDB ObjectId                |
+| Tour_ID                  | int          | Mã tour (auto-increment)        |
+| TourName                 | string       | Tên tour                        |
+| Description              | string?      | Mô tả                           |
+| EstimatedDurationMinutes | int          | Thời gian ước tính (phút)       |
+| IsActive                 | bool         | Đang hoạt động                  |
+| CreatedAt                | DateTime     | Thời điểm tạo                   |
+| UpdatedAt                | DateTime?    | Thời điểm cập nhật              |
+
+> 🔗 Quan hệ: n–n với **POI** (qua **POI_Tour**)
+
+---
+
+### 6. `POI_Tour` — Bảng liên kết POI và Tour
+
+| Thuộc tính | Kiểu dữ liệu | Mô tả                        |
+|------------|--------------|------------------------------|
+| POI_ID     | int          | FK → POI                    |
+| Tour_ID    | int          | FK → Tour                   |
+| OrderIndex | int          | Thứ tự POI trong tour        |
+
+> 🔗 Quan hệ: Liên kết n–n giữa **POI** và **Tour**
+
+---
+
+### 7. `AudioContent` — Nội dung audio thuyết minh
+
+| Thuộc tính        | Kiểu dữ liệu              | Mô tả                                          |
+|-------------------|---------------------------|------------------------------------------------|
+| Id                | ObjectId                  | MongoDB ObjectId                               |
+| AudioContent_ID   | int                       | Mã audio (auto-increment)                      |
+| POI_ID            | int                       | FK → POI                                      |
+| Title             | string                    | Tiêu đề                                        |
+| Description       | string?                   | Mô tả                                          |
+| AudioUrl          | string?                   | URL file audio                                 |
+| Language          | string                    | Ngôn ngữ: `vi` / `en` / `zh`                  |
+| Format            | string?                   | Định dạng: `mp3`, `wav`...                     |
+| Bitrate           | int?                      | Bitrate file audio                             |
+| Status            | string                    | `draft` / `pending` / `approved` / `published` |
+| VendorId          | int?                      | FK → VendorProfile                            |
+| CreatedByUserId   | string?                   | FK → ApplicationUser (người tạo)              |
+| CreatedByRole     | string?                   | Role người tạo                                 |
+| ApprovedByUserId  | string?                   | FK → ApplicationUser (người duyệt)            |
+| ApprovedAt        | DateTime?                 | Thời điểm duyệt                                |
+| RejectedReason    | string?                   | Lý do từ chối                                  |
+| TTSVoice          | string?                   | Giọng TTS                                      |
+| TTSProvider       | string?                   | Nhà cung cấp TTS (Google/Azure)               |
+| TTSSpeed          | double?                   | Tốc độ đọc                                     |
+| TTSPitch          | double?                   | Cao độ giọng                                   |
+| TTSConfig         | TTSConfig?                | Cấu hình TTS chi tiết                          |
+| TTSText           | string?                   | Văn bản TTS gốc                                |
+| TemplateId        | string?                   | ID template bulk TTS                           |
+| TemplateName      | string?                   | Tên template                                   |
+| TemplateVariables | Dictionary\<string,string\>? | Biến trong template                         |
+| PlayCount         | long                      | Số lần phát                                    |
+| DownloadCount     | long                      | Số lần tải                                     |
+| CompletionRate    | double?                   | Tỷ lệ nghe hết                                 |
+| AverageListenTime | int?                      | Thời gian nghe trung bình (giây)               |
+| SkipRate          | double?                   | Tỷ lệ bỏ qua                                   |
+| Version           | int                       | Phiên bản                                      |
+| PreviousVersionId | int?                      | ID phiên bản trước                             |
+| PublishedAt       | DateTime?                 | Thời điểm phát hành                            |
+| Duration          | int?                      | Thời lượng (giây)                              |
+| FileSize          | long?                     | Kích thước file (bytes)                        |
+| IsActive          | bool                      | Đang hoạt động                                 |
+| CreatedAt         | DateTime                  | Thời điểm tạo                                  |
+| UpdatedAt         | DateTime                  | Thời điểm cập nhật                             |
+
+> 🔗 Quan hệ: n–1 với **POI** | n–1 với **VendorProfile**
+
+---
+
+### 8. `NarrationLog` — Lịch sử phát thuyết minh
+
+| Thuộc tính    | Kiểu dữ liệu | Mô tả                              |
+|---------------|--------------|------------------------------------|
+| Id            | ObjectId     | MongoDB ObjectId                   |
+| Log_ID        | int          | Mã log (auto-increment)            |
+| POI_ID        | int          | FK → POI                          |
+| UserId        | string?      | FK → ApplicationUser (có thể null cho guest) |
+| TriggeredAt   | DateTime     | Thời điểm kích hoạt                |
+| TriggerType   | string       | `Auto` (geofence) / `Manual`       |
+| UserLatitude  | decimal?     | Vĩ độ người dùng lúc kích hoạt     |
+| UserLongitude | decimal?     | Kinh độ người dùng lúc kích hoạt   |
+| WasPlayed     | bool         | Audio có thực sự phát không        |
+
+> 🔗 Quan hệ: n–1 với **POI**
+
+---
+
+### 9. `UserSettings` — Cài đặt người dùng
+
+| Thuộc tính           | Kiểu dữ liệu          | Mô tả                                  |
+|----------------------|-----------------------|----------------------------------------|
+| Id                   | ObjectId              | MongoDB ObjectId                       |
+| UserId               | string                | FK → ApplicationUser                  |
+| Role                 | string                | Role: `admin` / `vendor` / `tourist`  |
+| AppName              | string?               | Tên app (admin setting)               |
+| ContactEmail         | string?               | Email liên hệ                          |
+| DefaultGeofenceRadius| int?                  | Bán kính geofence mặc định (mét)      |
+| DefaultLanguage      | string?               | Ngôn ngữ mặc định                      |
+| Notifications.Email  | bool                  | Thông báo qua email                    |
+| Notifications.Push   | bool                  | Thông báo push                         |
+| Notifications.WeeklyReport | bool            | Báo cáo tuần                          |
+| Security.TwoFactorEnabled | bool             | Xác thực 2 lớp                        |
+| TTS.Voice            | string                | Giọng TTS mặc định                     |
+| TTS.Speed            | double                | Tốc độ đọc (0.5–2.0)                  |
+| TTS.Pitch            | double                | Cao độ (0.5–2.0)                       |
+| TTS.Volume           | int                   | Âm lượng (0–100)                       |
+| TTS.AutoPlay         | bool                  | Tự động phát                           |
+| Location.SensitivityRadius | int             | Bán kính nhạy cảm GPS (mét)           |
+| CreatedAt            | DateTime              | Thời điểm tạo                          |
+| UpdatedAt            | DateTime              | Thời điểm cập nhật                     |
+
+> 🔗 Quan hệ: 1–1 với **ApplicationUser**
+
+---
+
+### 10. `GeoJsonLocation` — Vị trí địa lý (embedded object)
+
+| Thuộc tính  | Kiểu dữ liệu | Mô tả                                                 |
+|-------------|--------------|-------------------------------------------------------|
+| Type        | string       | Luôn là `"Point"` (chuẩn GeoJSON)                    |
+| Coordinates | double[2]    | `[Longitude, Latitude]` — lưu ý thứ tự lon trước lat |
+
+> 📌 Đây là **embedded object** bên trong `POI`, dùng cho MongoDB 2dsphere index và geofence queries.
+
+---
+
+### 📊 Sơ Đồ Quan Hệ Tổng Quát
+
+```
+ApplicationUser ──1:1──► VendorProfile ──1:n──► POI ──1:n──► AudioContent
+     │                                           │
+     │                                           ├──1:n──► NarrationLog
+     │                                           │
+     │                                           └──n:n──► Tour
+     │                                                      (qua POI_Tour)
+     │
+     └──1:1──► UserSettings
+```
+
+| Phần hệ thống | Collections sử dụng                                                                 |
+|---------------|-------------------------------------------------------------------------------------|
+| Web Admin     | ApplicationUser, ApplicationRole, VendorProfile, POI, Tour, AudioContent, UserSettings |
+| Web Vendor    | VendorProfile, POI, AudioContent                                                    |
+| Mobile App    | POI, AudioContent, NarrationLog, UserSettings                                       |
 
 ---
 
@@ -281,7 +583,7 @@ street_food/
 | **Microsoft.Maui.Controls** | 10.0 | UI framework |
 | **Microsoft.Maui.Maps** | 10.0 | Map integration |
 | **Essentials: Geolocation** | - | GPS tracking |
-| **SQLite** | - | Local database (offline storage) |
+| **SQLite** | - | Local cache (offline storage) — sync từ API |
 | **CommunityToolkit.Mvvm** | - | MVVM helpers |
 | **Newtonsoft.Json** | - | JSON serialization |
 

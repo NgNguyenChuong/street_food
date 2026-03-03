@@ -1,15 +1,20 @@
+using SQLite;
+
 namespace StreetFoodNarrator.App.Core.Models;
 
 /// <summary>
 /// Records when a zone was triggered (for cooldown management)
 /// </summary>
+[Table("ZoneHistory")]
 public class ZoneHistory
 {
+    [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
     
     /// <summary>
     /// POI ID that was triggered
     /// </summary>
+    [Indexed]
     public int POI_ID { get; set; }
     
     /// <summary>
@@ -20,6 +25,7 @@ public class ZoneHistory
     /// <summary>
     /// Last time this zone was triggered
     /// </summary>
+    [Indexed]
     public DateTime LastTriggeredAt { get; set; }
     
     /// <summary>
@@ -35,6 +41,7 @@ public class ZoneHistory
     /// <summary>
     /// Session ID to track per-session plays
     /// </summary>
+    [Indexed]
     public string SessionId { get; set; } = string.Empty;
     
     /// <summary>

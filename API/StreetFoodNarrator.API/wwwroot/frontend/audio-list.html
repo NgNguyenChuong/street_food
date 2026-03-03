@@ -674,10 +674,7 @@
                         <option value="">Tất cả</option>
                         <option value="vi-VN">Tiếng Việt</option>
                         <option value="en-US">English</option>
-                        <option value="ja-JP">日本語</option>
-                        <option value="ko-KR">한국어</option>
                         <option value="zh-CN">中文</option>
-                        <option value="fr-FR">Français</option>
                     </select>
                 </div>
 
@@ -689,10 +686,8 @@
                 <div class="filter-group">
                     <label class="filter-label">Số dùng</label>
                     <select class="filter-select" id="pageSizeFilter">
-                        <option value="10">10</option>
-                        <option value="20" selected>20</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
+                        <option value="5">5</option>
+                        <option value="6" selected>6</option>
                     </select>
                 </div>
 
@@ -750,10 +745,7 @@
                     <select id="uploadLanguage" required>
                         <option value="vi-VN">Tiếng Việt</option>
                         <option value="en-US">English</option>
-                        <option value="ja-JP">日本語</option>
-                        <option value="ko-KR">한국어</option>
                         <option value="zh-CN">中文</option>
-                        <option value="fr-FR">Français</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -784,7 +776,7 @@
     const isVendor = user?.roles?.includes('Vendor');
 
     let currentPage = 1;
-    let pageSize = 20;
+    let pageSize = 6;
     let currentLanguage = '';
     let currentPoiQuery = '';
     let currentStatus = '';
@@ -854,7 +846,7 @@
     function applyFilters() {
         currentLanguage = document.getElementById('languageFilter').value;
         currentPoiQuery = document.getElementById('poiFilter').value.trim();
-        pageSize = parseInt(document.getElementById('pageSizeFilter').value, 10) || 20;
+        pageSize = parseInt(document.getElementById('pageSizeFilter').value, 10) || 6;
         currentStatus = document.getElementById('statusFilter').value;
         currentPage = 1;
         loadAudios();
@@ -923,10 +915,7 @@
         const map = {
             vi: 'VN Tiếng Việt',
             en: 'GB English',
-            ja: 'JP 日本語',
-            ko: 'KR 한국어',
-            zh: 'CN 中文',
-            fr: 'FR Français'
+            zh: 'CN 中文'
         };
         return map[normalized] || (language || 'N/A');
     }

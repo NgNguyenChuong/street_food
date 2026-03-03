@@ -50,61 +50,51 @@ public partial class WelcomePage : ContentPage
         if (_flowStarted) return;
         _flowStarted = true;
 
-        await RunSimpleFlowAsync();
+        try
+        {
+            await RunSimpleFlowAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WelcomePage] OnAppearing error: {ex}");
+            ShowErrorState(ex.Message);
+            EnableStartButton();
+        }
     }
     // AUTO LOAD: Tự động tải metadata ở background 
    
     private async Task RunSimpleFlowAsync()
     {
-        // Check if already has data
+        // Step 1: load from SQLite cache
         await _repository.LoadLocalAsync();
+
+        if (!_repository.IsSeeded)
+        {
+            // Step 2: no SQLite data — seed now
+            // Online  → downloads from API and saves to SQLite
+            // Offline → loads bundled default_pois.json and saves to SQLite
+            if (IsOnline())
+                ShowDownloadingMetadataState();
+
+            await _repository.SyncFromMongoAsync();
+
+            // After SyncFromMongoAsync the in-memory zones are set;
+            // reload from SQLite so IsSeeded reflects reality on next launch
+            if (_repository.IsSeeded)
+                await _repository.LoadLocalAsync(); // sync in-memory → SQLite state
+        }
 
         if (_repository.IsSeeded)
         {
-            // Already has data → ready immediately
             ShowReadyState();
             EnableStartButton();
             _ = RunBackgroundSyncAsync();
             return;
         }
 
-        // No data → auto load metadata in background
-        if (!IsOnline())
-        {
-            ShowNeedInternetState();
-            EnableStartButton(); // Vẫn cho user tap Start để thấy warning
-            return;
-        }
-
-        ShowDownloadingMetadataState();
-        
-        _ = AutoLoadMetadataAsync();
-    }
-
-    private async Task AutoLoadMetadataAsync()
-    {
-        try
-        {
-            await _repository.SyncFromMongoAsync();
-            await _repository.LoadLocalAsync();
-
-            if (_repository.IsSeeded)
-            {
-                // BỎ card, chỉ enable button
-                ShowReadyState();
-                EnableStartButton();
-            }
-            else
-            {
-                ShowErrorState();
-                EnableStartButton();
-            }
-        }
-        catch (Exception ex)
-        {
-            ShowErrorState(ex.Message);
-            EnableStartButton();
-        }
+        // Truly no data even after bundled seed — very unlikely
+        ShowErrorState("Không thể tải dữ liệu địa điểm.");
+        EnableStartButton();
     }
 
     private async Task RunBackgroundSyncAsync()
@@ -122,35 +112,47 @@ public partial class WelcomePage : ContentPage
     // START BUTTON:
     private async void OnStartTourClicked(object sender, EventArgs e)
     {
-        var hasFullOffline = Preferences.Get(PREF_FULL_OFFLINE, false);
-        var dontShowInfo = Preferences.Get(PREF_DONT_SHOW_INFO, false);
-
-        // CASE 1: Đã có full offline → vào thẳng (best case)
-        if (_repository.IsSeeded && hasFullOffline)
+        try
         {
+            var hasFullOffline = Preferences.Get(PREF_FULL_OFFLINE, false);
+            var dontShowInfo = Preferences.Get(PREF_DONT_SHOW_INFO, false);
+
+            // CASE 1: Đã có dữ liệu (offline hoặc online) → vào thẳng
+            if (_repository.IsSeeded)
+            {
+                // Nếu đã từng dùng full-offline flag, vào thẳng không hỏi
+                if (hasFullOffline || !IsOnline())
+                {
+                    await NavigateToMapAsync();
+                    return;
+                }
+            }
+
+            // CASE 2: Không có mạng, không có dữ liệu → cảnh báo rõ ràng
+            if (!IsOnline())
+            {
+                await DisplayAlert(
+                    AppStrings.Alert_NeedInternet_Title,
+                    AppStrings.Alert_NeedInternet_Message,
+                    AppStrings.Common_OK);
+                return;
+            }
+
+            // CASE 3: Lần đầu, có mạng → hiện info với checkbox
+            if (!dontShowInfo && !hasFullOffline)
+            {
+                await ShowFirstTimeInfoAsync();
+                return;
+            }
+
+            // CASE 4: User đã chọn "Không hỏi lại" → vào thẳng
             await NavigateToMapAsync();
-            return;
         }
-
-        // CASE 2: Không có mạng, chưa tải → cảnh báo rõ ràng
-        if (!IsOnline())
+        catch (Exception ex)
         {
-            await DisplayAlert(
-                AppStrings.Alert_NeedInternet_Title,
-                AppStrings.Alert_NeedInternet_Message,
-                AppStrings.Common_OK);
-            return;
+            System.Diagnostics.Debug.WriteLine($"[WelcomePage] OnStartTourClicked error: {ex}");
+            await DisplayAlert("Lỗi", $"Không thể mở bản đồ: {ex.Message}", "OK");
         }
-
-        // CASE 3: Lần đầu, có mạng → hiện info với checkbox
-        if (!dontShowInfo && !hasFullOffline)
-        {
-            await ShowFirstTimeInfoAsync();
-            return;
-        }
-
-        // CASE 4: User đã chọn "Không hỏi lại" → vào thẳng
-        await NavigateToMapAsync();
     }
 
     /// <summary>

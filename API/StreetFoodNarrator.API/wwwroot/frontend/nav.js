@@ -24,12 +24,12 @@ class Navigation {
         this.session = localStorage.getItem('userSession') || sessionStorage.getItem('userSession');
         
         // Allow access to login and register pages without auth
-        const publicPages = ['login.html', 'register.html'];
-        const currentPage = window.location.pathname.split('/').pop();
+        const publicPages = ['index.html', 'login.html', 'register.html'];
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
         
         if (!this.session && !publicPages.includes(currentPage)) {
             // Redirect silently without alert
-            window.location.href = 'login.html';
+            window.location.href = '/index.html';
             return false;
         }
         
@@ -165,7 +165,7 @@ class Navigation {
             sessionStorage.removeItem('userSession');
             localStorage.removeItem('authToken');
             sessionStorage.removeItem('authToken');
-            window.location.href = 'login.html';
+            window.location.href = '/index.html';
         }
     }
 
@@ -397,7 +397,7 @@ class Navigation {
 let nav;
 document.addEventListener('DOMContentLoaded', function() {
     // Skip nav on login/register pages
-    const publicPages = ['login.html', 'register.html'];
+        const publicPages = ['index.html', 'login.html', 'register.html'];
     const currentPage = window.location.pathname.split('/').pop();
     
     if (!publicPages.includes(currentPage)) {

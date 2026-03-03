@@ -126,25 +126,19 @@ public class POIsController : ControllerBase
             POI_ID = p.POI_ID,
             Name_Vi = p.Name_Vi,
             Name_En = p.Name_En,
-            Name_Ja = p.Name_Ja,
-            Name_Fr = p.Name_Fr,
-            Name_Ko = p.Name_Ko,
             Name_Zh = p.Name_Zh,
             Description_Vi = p.Description_Vi,
             Description_En = p.Description_En,
-            Description_Ja = p.Description_Ja,
-            Description_Fr = p.Description_Fr,
-            Description_Ko = p.Description_Ko,
             Description_Zh = p.Description_Zh,
             Address = p.Address ?? string.Empty,
-            Latitude = p.Latitude,
-            Longitude = p.Longitude,
+            Latitude = (decimal)(p.Location?.Latitude ?? 0),
+            Longitude = (decimal)(p.Location?.Longitude ?? 0),
             IsActive = p.IsActive,
             CreatedAt = p.CreatedAt,
             AudioCount = audioCountMap.TryGetValue(p.POI_ID, out var count) ? (int)count : 0,
             VendorId = p.VendorId,
             Category = p.Category,
-            SignatureDish = p.SignatureDish,
+            SignatureDish = p.SignatureDishes?.FirstOrDefault(),
             OpeningHoursText = p.OpeningHoursText,
             PhoneNumber = p.PhoneNumber,
             AveragePrice = p.AveragePrice,
@@ -154,9 +148,6 @@ public class POIsController : ControllerBase
             FunFact = p.FunFact,
             AudioUrl_Vi = p.AudioUrl_Vi,
             AudioUrl_En = p.AudioUrl_En,
-            AudioUrl_Ja = p.AudioUrl_Ja,
-            AudioUrl_Fr = p.AudioUrl_Fr,
-            AudioUrl_Ko = p.AudioUrl_Ko,
             AudioUrl_Zh = p.AudioUrl_Zh,
             ZoneType = p.ZoneType,
             ZoneLevel = p.ZoneLevel,
@@ -206,22 +197,13 @@ public class POIsController : ControllerBase
             POI_ID = nextId,
             Name_Vi = model.Name_Vi,
             Name_En = model.Name_En,
-            Name_Ja = model.Name_Ja,
-            Name_Fr = model.Name_Fr,
-            Name_Ko = model.Name_Ko,
             Name_Zh = model.Name_Zh,
             Description_Vi = model.Description_Vi ?? string.Empty,
             Description_En = model.Description_En,
-            Description_Ja = model.Description_Ja,
-            Description_Fr = model.Description_Fr,
-            Description_Ko = model.Description_Ko,
             Description_Zh = model.Description_Zh,
             Address = model.Address,
-            Latitude = model.Latitude,
-            Longitude = model.Longitude,
             Category = model.Category,
-            SignatureDish = model.SignatureDish,
-            SignatureDishes = model.SignatureDishes,
+            SignatureDishes = BuildSignatureDishes(model.SignatureDish, model.SignatureDishes),
             Specialties = model.Specialties,
             History = model.History,
             Story = model.Story,
@@ -237,9 +219,6 @@ public class POIsController : ControllerBase
             FunFact = model.FunFact,
             AudioUrl_Vi = model.AudioUrl_Vi,
             AudioUrl_En = model.AudioUrl_En,
-            AudioUrl_Ja = model.AudioUrl_Ja,
-            AudioUrl_Fr = model.AudioUrl_Fr,
-            AudioUrl_Ko = model.AudioUrl_Ko,
             AudioUrl_Zh = model.AudioUrl_Zh,
             ZoneType = zoneType,
             ZoneLevel = zoneLevel,
@@ -279,29 +258,20 @@ public class POIsController : ControllerBase
         var triggerRadius = model.TriggerRadius ?? poi.TriggerRadius;
         var priority = model.Priority ?? poi.Priority;
         var maxPlays = model.MaxPlaysPerSession ?? poi.MaxPlaysPerSession;
-        var latitude = model.Latitude ?? poi.Latitude;
-        var longitude = model.Longitude ?? poi.Longitude;
+        var latitude = model.Latitude.HasValue ? (double)model.Latitude.Value : poi.Location.Latitude;
+        var longitude = model.Longitude.HasValue ? (double)model.Longitude.Value : poi.Location.Longitude;
 
         var update = Builders<POI>.Update
             .Set(p => p.Name_Vi, model.Name_Vi ?? poi.Name_Vi)
             .Set(p => p.Name_En, model.Name_En ?? poi.Name_En)
-            .Set(p => p.Name_Ja, model.Name_Ja ?? poi.Name_Ja)
-            .Set(p => p.Name_Fr, model.Name_Fr ?? poi.Name_Fr)
-            .Set(p => p.Name_Ko, model.Name_Ko ?? poi.Name_Ko)
             .Set(p => p.Name_Zh, model.Name_Zh ?? poi.Name_Zh)
             .Set(p => p.Description_Vi, model.Description_Vi ?? poi.Description_Vi)
             .Set(p => p.Description_En, model.Description_En ?? poi.Description_En)
-            .Set(p => p.Description_Ja, model.Description_Ja ?? poi.Description_Ja)
-            .Set(p => p.Description_Fr, model.Description_Fr ?? poi.Description_Fr)
-            .Set(p => p.Description_Ko, model.Description_Ko ?? poi.Description_Ko)
             .Set(p => p.Description_Zh, model.Description_Zh ?? poi.Description_Zh)
             .Set(p => p.Address, model.Address ?? poi.Address)
-            .Set(p => p.Latitude, latitude)
-            .Set(p => p.Longitude, longitude)
-            .Set(p => p.Location, GeoJsonLocation.FromLatLon((double)latitude, (double)longitude))
+            .Set(p => p.Location, GeoJsonLocation.FromLatLon(latitude, longitude))
             .Set(p => p.Category, model.Category ?? poi.Category)
-            .Set(p => p.SignatureDish, model.SignatureDish ?? poi.SignatureDish)
-            .Set(p => p.SignatureDishes, model.SignatureDishes ?? poi.SignatureDishes)
+            .Set(p => p.SignatureDishes, BuildSignatureDishes(model.SignatureDish, model.SignatureDishes) ?? poi.SignatureDishes)
             .Set(p => p.Specialties, model.Specialties ?? poi.Specialties)
             .Set(p => p.History, model.History ?? poi.History)
             .Set(p => p.Story, model.Story ?? poi.Story)
@@ -317,9 +287,6 @@ public class POIsController : ControllerBase
             .Set(p => p.FunFact, model.FunFact ?? poi.FunFact)
             .Set(p => p.AudioUrl_Vi, model.AudioUrl_Vi ?? poi.AudioUrl_Vi)
             .Set(p => p.AudioUrl_En, model.AudioUrl_En ?? poi.AudioUrl_En)
-            .Set(p => p.AudioUrl_Ja, model.AudioUrl_Ja ?? poi.AudioUrl_Ja)
-            .Set(p => p.AudioUrl_Fr, model.AudioUrl_Fr ?? poi.AudioUrl_Fr)
-            .Set(p => p.AudioUrl_Ko, model.AudioUrl_Ko ?? poi.AudioUrl_Ko)
             .Set(p => p.AudioUrl_Zh, model.AudioUrl_Zh ?? poi.AudioUrl_Zh)
             .Set(p => p.ZoneType, zoneType)
             .Set(p => p.ZoneLevel, zoneLevel)
@@ -393,6 +360,23 @@ public class POIsController : ControllerBase
         };
 
         return Ok(stats);
+    }
+
+    /// <summary>
+    /// Merges a single SignatureDish string into a SignatureDishes list.
+    /// If both are provided, prepends single to the list (if not already present).
+    /// </summary>
+    private static List<string>? BuildSignatureDishes(string? single, List<string>? list)
+    {
+        if (list != null && list.Count > 0)
+        {
+            if (!string.IsNullOrWhiteSpace(single) && !list.Contains(single))
+                list.Insert(0, single);
+            return list;
+        }
+        if (!string.IsNullOrWhiteSpace(single))
+            return new List<string> { single };
+        return null;
     }
 }
 

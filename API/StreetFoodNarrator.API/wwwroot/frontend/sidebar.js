@@ -107,7 +107,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="login.html" class="nav-link" onclick="logout(); return false;">
+                        <a href="/index.html" class="nav-link" onclick="logout(); return false;">
                             <i class="nav-icon fas fa-sign-out-alt"></i>
                             <span>Đăng xuất</span>
                         </a>
@@ -302,8 +302,8 @@
     }
 
     function init() {
-        const currentPage = window.location.pathname.split('/').pop();
-        if (currentPage === 'login.html' || currentPage === 'register.html') {
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        if (currentPage === 'index.html' || currentPage === 'login.html' || currentPage === 'register.html') {
             return;
         }
 
@@ -369,7 +369,7 @@
         localStorage.removeItem('userSession');
         sessionStorage.removeItem('userSession');
         sessionStorage.removeItem('activeRole');
-        window.location.href = 'login.html';
+        window.location.href = '/index.html';
     };
 })();
 

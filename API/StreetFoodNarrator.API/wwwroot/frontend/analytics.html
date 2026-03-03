@@ -721,7 +721,7 @@
     <script>
         const user = TokenManager.getUser();
         if (!user || !user.roles?.includes('Admin')) {
-            window.location.href = 'login.html';
+            window.location.href = '/index.html';
         }
 
         let allPois = [];
@@ -782,10 +782,7 @@
             const langLabels = {
                 'vi-VN': { flag: '🇻🇳', name: 'Tiếng Việt' },
                 'en-US': { flag: '🇬🇧', name: 'English' },
-                'ja-JP': { flag: '🇯🇵', name: '日本語' },
-                'ko-KR': { flag: '🇰🇷', name: '한국어' },
-                'zh-CN': { flag: '🇨🇳', name: '中文' },
-                'fr-FR': { flag: '🇫🇷', name: 'Français' }
+                'zh-CN': { flag: '🇨🇳', name: '中文' }
             };
 
             allAudios.forEach(a => {

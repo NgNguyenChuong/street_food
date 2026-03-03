@@ -1,8 +1,8 @@
 // Simple authentication check - redirects to login if not authenticated
 (function() {
     // List of public pages that don't require authentication
-    const publicPages = ['login.html', 'register.html'];
-    const currentPage = window.location.pathname.split('/').pop();
+    const publicPages = ['index.html', 'login.html', 'register.html'];
+    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
     
     // Skip check for public pages
     if (publicPages.includes(currentPage)) {
@@ -28,12 +28,12 @@
     
     // Check for session
     const session = localStorage.getItem('userSession') || sessionStorage.getItem('userSession');
-    
+
     // Redirect to login if no session found
     if (!session) {
         console.log('⚠️ No session found, redirecting to login...');
         sessionStorage.setItem('auth_last_redirect', now.toString());
-        window.location.href = 'login.html';
+        window.location.href = '/index.html';
         return;
     }
     
@@ -49,6 +49,6 @@
         localStorage.removeItem('userSession');
         sessionStorage.removeItem('userSession');
         sessionStorage.setItem('auth_last_redirect', now.toString());
-        window.location.href = 'login.html';
+        window.location.href = '/index.html';
     }
 })();

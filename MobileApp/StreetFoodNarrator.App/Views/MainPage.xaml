@@ -1,14 +1,20 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
-             xmlns:models="clr-namespace:StreetFoodNarrator.App.Core.Models"
+             xmlns:mapsui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
              xmlns:converters="clr-namespace:StreetFoodNarrator.App.Converters"
-             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
+             xmlns:resx="clr-namespace:StreetFoodNarrator.App.Resources.Strings"
+             xmlns:models="clr-namespace:StreetFoodNarrator.App.Core.Models"
              x:Class="StreetFoodNarrator.App.Views.MainPage"
              x:DataType="vm:MainViewModel"
-             BackgroundColor="White"
-             Shell.NavBarIsVisible="False">
+             BackgroundColor="#0A1612"
+             NavigationPage.HasNavigationBar="False"
+             NavigationPage.HasBackButton="False"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             Shell.BackgroundColor="Transparent"
+             Shell.ForegroundColor="Transparent">
 
     <ContentPage.Resources>
         <converters:ZoneTypeToColorConverter x:Key="ZoneTypeColor" />
@@ -16,363 +22,906 @@
         <converters:InvertedBoolConverter x:Key="InverseBool" />
     </ContentPage.Resources>
 
-    <!-- Main Grid: Map base + Overlay UI -->
-    <Grid RowDefinitions="*" ColumnDefinitions="*">
-        <!-- Map -->
-        <maps:Map x:Name="MapView"
-                  Grid.Row="0" Grid.Column="0"
-                  IsShowingUser="True"
-                  MapType="Street"
-                  VerticalOptions="Fill"
-                  HorizontalOptions="Fill" />
+    <AbsoluteLayout Padding="0" Margin="0">
 
-        <!-- LAYER 2: FLOATING UI OVERLAY -->
-        <Grid Grid.Row="0" Grid.Column="0"
-              RowDefinitions="Auto,*,Auto"
-              Padding="0"
-              InputTransparent="False">
+        <!--  MAP  -->
+        <mapsui:MapControl x:Name="MapView"
+                           AbsoluteLayout.LayoutBounds="0,0,1,1"
+                           AbsoluteLayout.LayoutFlags="All"
+                           IsVisible="True"
+                           BackgroundColor="#0A1612" />
 
-            <!-- TOP BAR: Status + GPS Button -->
-            <Border Grid.Row="0"
-                    BackgroundColor="White"
-                    Padding="16,48,16,16"
-                    Shadow="{Shadow Brush=Black, Opacity=0.08, Radius=8, Offset='0,2'}">
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-                    <!-- App Title -->
-                    <VerticalStackLayout Grid.Column="0" Spacing="2">
-                        <Label Text="Street Food Narrator"
-                               FontSize="20" FontAttributes="Bold"
-                               TextColor="#1A1A1A" />
-                        <Label Text="{Binding CoordDisplay}"
-                               FontSize="11" TextColor="#6B7280"
-                               IsVisible="{Binding IsSimulated}" />
-                    </VerticalStackLayout>
-
-                    <!-- Zone Counter Badge -->
-                    <Border Grid.Column="1"
-                            StrokeShape="RoundRectangle 20"
-                            BackgroundColor="#22C55E"
-                            Padding="12,6"
-                            IsVisible="{Binding IsInsideAnyZone}">
-                        <Label Text="{Binding ActiveZoneCount, StringFormat='Trong {0} v�ng'}"
-                               TextColor="White" FontSize="13" FontAttributes="Bold" />
-                    </Border>
-
-                    <!-- GPS Status Icon -->
-                    <Border Grid.Column="2"
-                            StrokeShape="RoundRectangle 24"
-                            BackgroundColor="{Binding IsTracking, Converter={StaticResource ZoneTypeColor}}"
-                            WidthRequest="48" HeightRequest="48"
-                            Shadow="{Shadow Brush=Black, Opacity=0.12, Radius=8, Offset='0,2'}">
-                        <Label Text="{Binding IsTracking, Converter={StaticResource TrackingLabel}}"
-                               HorizontalOptions="Center" VerticalOptions="Center"
-                               TextColor="White" FontSize="18" />
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding ToggleTrackingCommand}" />
-                        </Border.GestureRecognizers>
-                    </Border>
-                </Grid>
+        <!-- TAB 2: Menu -->
+        <Grid x:Name="MenuOverlay"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              IsVisible="False"
+              BackgroundColor="#0A1612"
+              ZIndex="10"
+              RowDefinitions="Auto,Auto,*">
+            <Border Grid.Row="0" BackgroundColor="#0A1612" Padding="14,52,14,8">
+                <SearchBar Placeholder="Tìm kiếm quán ăn..."
+                           Text="{Binding SearchQuery}"
+                           BackgroundColor="#0E1E17"
+                           TextColor="White"
+                           PlaceholderColor="#6B7280" />
             </Border>
-
-            <!-- MIDDLE: FLOATING PRIMARY ZONE CARD (when active) -->
-            <Border Grid.Row="1"
-                    VerticalOptions="End"
-                    Margin="16,0,16,20"
-                    StrokeShape="RoundRectangle 24"
-                    BackgroundColor="White"
-                    Stroke="#E5E7EB"
-                    StrokeThickness="1"
-                    Padding="0"
-                    IsVisible="{Binding IsInsideAnyZone}"
-                    Shadow="{Shadow Brush=Black, Opacity=0.15, Radius=20, Offset='0,8'}">
-
-                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="0">
-                    <!-- Header: Zone Type Badge -->
-                    <Border Grid.Row="0"
-                            StrokeShape="RoundRectangle 0"
-                            BackgroundColor="{Binding PrimaryZoneType, Converter={StaticResource ZoneTypeColor}}"
-                            Padding="20,12">
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                            <Label Grid.Column="0"
-                                   Text="{Binding PrimaryZoneName}"
-                                   TextColor="White" FontSize="18" FontAttributes="Bold"
-                                   LineBreakMode="TailTruncation" MaxLines="1" />
-                            <Label Grid.Column="1"
-                                   Text="{Binding PrimaryZoneEmoji}"
-                                   FontSize="24" />
-                        </Grid>
+            <ScrollView Grid.Row="1" Orientation="Horizontal" Padding="14,0,14,8">
+                <HorizontalStackLayout Spacing="8">
+                    <Border x:Name="FilterChipAll" StrokeShape="RoundRectangle 20" Padding="14,7" BackgroundColor="#F97316" Stroke="Transparent">
+                        <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterAll"/></Border.GestureRecognizers>
+                        <Label Text="Tất cả" FontSize="12" TextColor="White" FontAttributes="Bold"/>
                     </Border>
-
-                    <!-- Body: Description + Audio Controls -->
-                    <VerticalStackLayout Grid.Row="1" Spacing="16" Padding="20">
-                        <Label Text="{Binding PrimaryZoneDesc}"
-                               TextColor="#374151" FontSize="15"
-                               LineBreakMode="WordWrap" MaxLines="3" />
-
-                        <!-- Audio Player UI -->
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16"
-                              IsVisible="{Binding IsAudioPlaying}">
-                            <!-- Play/Pause Button -->
-                            <Border Grid.Column="0"
-                                    StrokeShape="RoundRectangle 28"
-                                    BackgroundColor="#22C55E"
-                                    WidthRequest="56" HeightRequest="56"
-                                    Shadow="{Shadow Brush=#22C55E, Opacity=0.3, Radius=8, Offset='0,4'}">
-                                <Label Text="▶️" FontSize="24"
-                                       HorizontalOptions="Center" VerticalOptions="Center" />
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Command="{Binding ToggleAudioCommand}" />
-                                </Border.GestureRecognizers>
-                            </Border>
-
-                            <!-- Progress Bar -->
-                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="6">
-                                <ProgressBar Progress="{Binding AudioProgress}"
-                                             ProgressColor="#22C55E"
-                                             HeightRequest="4" />
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <Label Grid.Column="0"
-                                           Text="{Binding AudioTimeElapsed}"
-                                           FontSize="12" TextColor="#6B7280" />
-                                    <Label Grid.Column="1"
-                                           Text="{Binding AudioDuration}"
-                                           FontSize="12" TextColor="#6B7280" />
-                                </Grid>
-                            </VerticalStackLayout>
-
-                            <!-- Volume Icon -->
-                            <Label Grid.Column="2"
-                                   Text="🔊" FontSize="24"
-                                   VerticalOptions="Center" />
-                        </Grid>
+                    <Border x:Name="FilterChipPho" StrokeShape="RoundRectangle 20" Padding="14,7" BackgroundColor="#0E1E17" Stroke="#1C3024">
+                        <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterPho"/></Border.GestureRecognizers>
+                        <Label Text="Phở" FontSize="12" TextColor="#9CA3AF"/>
+                    </Border>
+                    <Border x:Name="FilterChipBanhMi" StrokeShape="RoundRectangle 20" Padding="14,7" BackgroundColor="#0E1E17" Stroke="#1C3024">
+                        <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterBanhMi"/></Border.GestureRecognizers>
+                        <Label Text="Bánh mì" FontSize="12" TextColor="#9CA3AF"/>
+                    </Border>
+                    <Border x:Name="FilterChipCom" StrokeShape="RoundRectangle 20" Padding="14,7" BackgroundColor="#0E1E17" Stroke="#1C3024">
+                        <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterCom"/></Border.GestureRecognizers>
+                        <Label Text="Cơm" FontSize="12" TextColor="#9CA3AF"/>
+                    </Border>
+                    <Border x:Name="FilterChipChe" StrokeShape="RoundRectangle 20" Padding="14,7" BackgroundColor="#0E1E17" Stroke="#1C3024">
+                        <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterChe"/></Border.GestureRecognizers>
+                        <Label Text="Chè" FontSize="12" TextColor="#9CA3AF"/>
+                    </Border>
+                </HorizontalStackLayout>
+            </ScrollView>
+            <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredPOIs}" Margin="0,0,0,72">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
+                        <Label Text="&#xF0349;" FontFamily="MDI" FontSize="42" TextColor="#4B5563" HorizontalOptions="Center"/>
+                        <Label Text="Không tìm thấy quán nào" FontSize="15" TextColor="#6B7280" HorizontalOptions="Center"/>
                     </VerticalStackLayout>
-
-                    <!-- Footer: Quick Actions -->
-                    <Grid Grid.Row="2"
-                          ColumnDefinitions="*,*"
-                          ColumnSpacing="1"
-                          Padding="0"
-                          BackgroundColor="#F3F4F6">
-                        <Border Grid.Column="0"
-                                StrokeShape="RoundRectangle 0"
-                                BackgroundColor="White"
-                                Padding="16,14">
-                            <Label Text="📍 Xem trên bản đồ"
-                                   TextColor="#3B82F6" FontSize="14"
-                                   FontAttributes="Bold"
-                                   HorizontalTextAlignment="Center" />
-                            <Border.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding CenterMapCommand}" />
-                            </Border.GestureRecognizers>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="14,0,14,10" StrokeShape="RoundRectangle 16"
+                                BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12">
+                            <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12">
+                                <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                                        BackgroundColor="#1A3426" WidthRequest="64" HeightRequest="64">
+                                    <Label Text="&#xF117E;" FontFamily="MDI" FontSize="28" TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                </Border>
+                                <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                    <Label Text="{Binding Name_Vi}" FontSize="14" FontAttributes="Bold" TextColor="White"/>
+                                    <Label Text="{Binding SignatureDish}" FontSize="12" TextColor="#9CA3AF" LineBreakMode="TailTruncation"/>
+                                    <Label Text="{Binding DistanceFromUser, StringFormat='{0:F0}m'}"
+                                           FontSize="11" TextColor="#22C55E"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="2" Spacing="8" VerticalOptions="Center">
+                                    <Border StrokeShape="RoundRectangle 10" BackgroundColor="#22C55E18"
+                                            Stroke="#22C55E30" WidthRequest="40" HeightRequest="36">
+                                        <Label Text="&#xF02CE;" FontFamily="MDI" FontSize="16" TextColor="#22C55E" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                    </Border>
+                                    <Border StrokeShape="RoundRectangle 10" BackgroundColor="#F9731618"
+                                            Stroke="#F9731430" WidthRequest="40" HeightRequest="36">
+                                        <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="16" TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                    </Border>
+                                </VerticalStackLayout>
+                            </Grid>
                         </Border>
-                        <Border Grid.Column="1"
-                                StrokeShape="RoundRectangle 0"
-                                BackgroundColor="White"
-                                Padding="16,14">
-                            <Label Text="📝 Chi tiết"
-                                   TextColor="#6B7280" FontSize="14"
-                                   FontAttributes="Bold"
-                                   HorizontalTextAlignment="Center" />
-                            <Border.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding ShowDetailsCommand}" />
-                            </Border.GestureRecognizers>
-                        </Border>
-                    </Grid>
-                </Grid>
-            </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
 
-            <!-- BOTTOM: CONTROL PANEL -->
-            <Border Grid.Row="2"
-                    BackgroundColor="White"
-                    StrokeShape="RoundRectangle 24,24,0,0"
-                    Padding="20,16,20,32"
-                    Shadow="{Shadow Brush=Black, Opacity=0.1, Radius=20, Offset='0,-4'}">
-
-                <VerticalStackLayout Spacing="16">
-                    <!-- Expand/Collapse Handle -->
-                    <BoxView HeightRequest="4" WidthRequest="40"
-                             BackgroundColor="#D1D5DB"
-                             CornerRadius="2"
-                             HorizontalOptions="Center" />
-
-                    <!-- Current Status Message -->
-                    <Border StrokeShape="RoundRectangle 12"
-                            BackgroundColor="#F3F4F6"
-                            Padding="16,12"
-                            IsVisible="{Binding IsInsideAnyZone, Converter={StaticResource InverseBool}}">
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                            <Label Grid.Column="0"
-                                   Text="⚙️"
-                                   FontSize="24" VerticalOptions="Center" />
-                            <VerticalStackLayout Grid.Column="1">
-                                <Label Text="Đang khám phá..."
-                                       FontSize="16" FontAttributes="Bold"
-                                       TextColor="#1F2937" />
-                                <Label Text="Di chuyển đến địa điểm để nghe giới thiệu"
-                                       FontSize="13" TextColor="#6B7280" />
-                            </VerticalStackLayout>
-                        </Grid>
+        <!-- TAB 3: Đã lưu -->
+        <Grid x:Name="SavedOverlay"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              IsVisible="False"
+              BackgroundColor="#0A1612"
+              ZIndex="10"
+              RowDefinitions="Auto,Auto,*">
+            <VerticalStackLayout Grid.Row="0" Padding="16,52,16,8" Spacing="4">
+                <Label Text="Đã lưu" FontSize="22" FontAttributes="Bold" TextColor="White"/>
+                <Label Text="Những quán bạn đã thích" FontSize="13" TextColor="#6B7280"/>
+            </VerticalStackLayout>
+            <ScrollView Grid.Row="1" Orientation="Horizontal" Padding="14,0,14,8">
+                <HorizontalStackLayout Spacing="8">
+                    <Border StrokeShape="RoundRectangle 20" Padding="14,7" BackgroundColor="#F97316" Stroke="Transparent">
+                        <Label Text="Tất cả" FontSize="12" TextColor="White" FontAttributes="Bold"/>
                     </Border>
-
-                    <!-- Simulator Controls (Dev Mode) -->
-                    <Grid ColumnDefinitions="*,Auto"
-                          ColumnSpacing="12"
-                          IsVisible="{Binding IsSimulated}">
-                        <Border Grid.Column="0"
-                                StrokeShape="RoundRectangle 12"
-                                BackgroundColor="#ECFDF5"
-                                Padding="12,10">
-                            <Label Text="{Binding SimStepLabel}"
-                                   TextColor="#059669" FontSize="13"
-                                   VerticalOptions="Center" />
+                    <Border StrokeShape="RoundRectangle 20" Padding="14,7" BackgroundColor="#0E1E17" Stroke="#1C3024">
+                        <Label Text="Muốn thử" FontSize="12" TextColor="#9CA3AF"/>
+                    </Border>
+                    <Border StrokeShape="RoundRectangle 20" Padding="14,7" BackgroundColor="#0E1E17" Stroke="#1C3024">
+                        <Label Text="Đã ghé" FontSize="12" TextColor="#9CA3AF"/>
+                    </Border>
+                    <Border StrokeShape="RoundRectangle 20" Padding="14,7" BackgroundColor="#0E1E17" Stroke="#1C3024">
+                        <Label Text="Top 5" FontSize="12" TextColor="#9CA3AF"/>
+                    </Border>
+                </HorizontalStackLayout>
+            </ScrollView>
+            <CollectionView Grid.Row="2" ItemsSource="{Binding SavedPOIs}" Margin="0,0,0,72">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
+                        <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="48" TextColor="#4B5563" HorizontalOptions="Center"/>
+                        <Label Text="Chưa có quán nào được lưu" FontSize="15" TextColor="#6B7280" HorizontalOptions="Center"/>
+                        <Label Text="Nhấn trong tab Menu để lưu" FontSize="12" TextColor="#4B5563" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="14,0,14,10" StrokeShape="RoundRectangle 16"
+                                BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12">
+                            <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12">
+                                <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                                        BackgroundColor="#1A3426" WidthRequest="64" HeightRequest="64">
+                                    <Label Text="&#xF117E;" FontFamily="MDI" FontSize="28" TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                </Border>
+                                <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                    <Label Text="{Binding Name_Vi}" FontSize="14" FontAttributes="Bold" TextColor="White"/>
+                                    <Label Text="{Binding SignatureDish}" FontSize="12" TextColor="#9CA3AF" LineBreakMode="TailTruncation"/>
+                                </VerticalStackLayout>
+                                <Border Grid.Column="2" StrokeShape="RoundRectangle 10"
+                                        BackgroundColor="#F9731618" Stroke="#F9731430"
+                                        WidthRequest="40" HeightRequest="36" VerticalOptions="Center">
+                                    <Label Text="&#xF0156;" FontFamily="MDI" FontSize="14" TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                </Border>
+                            </Grid>
                         </Border>
-                        <Button Grid.Column="1"
-                                Text="⏭️"
-                                Command="{Binding StepSimulatorCommand}"
-                                BackgroundColor="#10B981"
-                                TextColor="White"
-                                FontSize="20"
-                                CornerRadius="12"
-                                WidthRequest="60" HeightRequest="44" />
-                    </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
 
-                    <!-- Main Action Buttons -->
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                        <!-- Start/Stop Tour Button -->
-                        <Button Grid.Column="0"
-                                Text="{Binding IsTracking, Converter={StaticResource TrackingLabel}}"
-                                Command="{Binding ToggleTrackingCommand}"
-                                BackgroundColor="#22C55E"
-                                TextColor="White"
-                                FontSize="16" FontAttributes="Bold"
-                                CornerRadius="12"
-                                HeightRequest="56"
-                                Shadow="{Shadow Brush=#22C55E, Opacity=0.3, Radius=8, Offset='0,4'}" />
-
-                        <!-- Settings/Menu Button -->
-                        <Border Grid.Column="1"
-                                StrokeShape="RoundRectangle 12"
-                                Stroke="#E5E7EB"
-                                BackgroundColor="White"
-                                WidthRequest="56" HeightRequest="56">
-                            <Label Text="⚙️" FontSize="24"
-                                   HorizontalOptions="Center" VerticalOptions="Center" />
-                            <Border.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding ShowSettingsCommand}" />
-                            </Border.GestureRecognizers>
-                        </Border>
+        <!-- ════════════════════════════════════════ -->
+        <!-- HEADER BAR (Tab 1 – Tour)               -->
+        <!-- ════════════════════════════════════════ -->
+        <Grid x:Name="HeaderBar"
+              AbsoluteLayout.LayoutBounds="0.5,1,1,-1"
+              AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional"
+              IsVisible="False"
+              Padding="14,10,14,10"
+              Margin="0,0,0,96"
+              ZIndex="120">
+            <Grid ColumnDefinitions="40,*,40,40" ColumnSpacing="8">
+                <Border Grid.Column="0"
+                        StrokeShape="RoundRectangle 13"
+                        BackgroundColor="#0E1E17"
+                        Stroke="#1C3024" StrokeThickness="1"
+                        WidthRequest="40" HeightRequest="40">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackClicked" />
+                    </Border.GestureRecognizers>
+                    <Label Text="&#xF004D;" FontFamily="MDI" FontSize="20" TextColor="White"
+                           HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
+                <Border Grid.Column="1"
+                        StrokeShape="RoundRectangle 13"
+                        BackgroundColor="#0E1E17"
+                        Stroke="#1C3024" StrokeThickness="1"
+                        Padding="12,0" HeightRequest="40">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <BoxView Grid.Column="0"
+                                 WidthRequest="7" HeightRequest="7"
+                                 BackgroundColor="#22C55E"
+                                 CornerRadius="4" VerticalOptions="Center" />
+                        <Label Grid.Column="1"
+                               Text="{Binding TourName, FallbackValue='Phố ẩm thực Vĩnh Khánh'}"
+                               FontSize="12" FontAttributes="Bold"
+                               TextColor="White"
+                               VerticalTextAlignment="Center"
+                               LineBreakMode="TailTruncation" />
                     </Grid>
+                </Border>
+                <Border Grid.Column="2"
+                        StrokeShape="RoundRectangle 13"
+                        BackgroundColor="#0E1E17"
+                        Stroke="#1C3024" StrokeThickness="1"
+                        WidthRequest="40" HeightRequest="40">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCenterMapClicked" />
+                    </Border.GestureRecognizers>
+                    <Label x:Name="CenterMapIcon" Text="&#xF0590;" FontFamily="MDI" FontSize="19"
+                           TextColor="#F97316"
+                           HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
+                <Border Grid.Column="3"
+                        StrokeShape="RoundRectangle 13"
+                        BackgroundColor="#0E1E17"
+                        Stroke="#1C3024" StrokeThickness="1"
+                        WidthRequest="40" HeightRequest="40">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSettingsClicked" />
+                    </Border.GestureRecognizers>
+                    <Label Text="&#xF0493;" FontSize="18" FontFamily="MDI" TextColor="#9CA3AF"
+                           HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ════════════════════════════════════════ -->
+        <!-- MAP TOP BAR (Tab 0)                     -->
+        <!-- Layout: [←Back] [🍜 Title (centered)] [empty spacer]  -->
+        <!-- Padding right = 60 để tránh đè lên floating buttons   -->
+        <!-- ════════════════════════════════════════ -->
+        <Grid x:Name="MapTopBar"
+              AbsoluteLayout.LayoutBounds="0,0,1,-1"
+              AbsoluteLayout.LayoutFlags="WidthProportional"
+              Padding="14,48,14,12"
+              ZIndex="120">
+            <Grid.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#CC000000" Offset="0.0" />
+                    <GradientStop Color="#55000000" Offset="0.7" />
+                    <GradientStop Color="#00000000" Offset="1.0" />
+                </LinearGradientBrush>
+            </Grid.Background>
+            <!-- 3 cột: Back | Title | Spacer cân bằng -->
+            <Grid ColumnDefinitions="48,*,48" ColumnSpacing="8">
+
+                <!-- Col 0: Back – sát cạnh trái, cùng hàng với title -->
+                <Border Grid.Column="0"
+                        StrokeShape="RoundRectangle 14"
+                        BackgroundColor="#0E1E17"
+                        Stroke="#1C3024" StrokeThickness="1"
+                        WidthRequest="48" HeightRequest="48"
+                        VerticalOptions="Center">
+                    <Border.Shadow>
+                        <Shadow Brush="Black" Opacity="0.3" Radius="8" Offset="0,2" />
+                    </Border.Shadow>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackClicked" />
+                    </Border.GestureRecognizers>
+                    <Label Text="&#xF004D;" FontFamily="MDI" FontSize="22" TextColor="White"
+                           HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
+
+                <!-- Col 1: Title chip – căn giữa -->
+                <Border Grid.Column="1"
+                        StrokeShape="RoundRectangle 14"
+                        BackgroundColor="#0E1E17"
+                        Stroke="#1C3024" StrokeThickness="1"
+                        Padding="14,0" HeightRequest="48"
+                        VerticalOptions="Center">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"
+                          HorizontalOptions="Center">
+                        <!-- Orange dot -->
+                        <BoxView Grid.Column="0"
+                                 WidthRequest="8" HeightRequest="8"
+                                 BackgroundColor="#F97316"
+                                 CornerRadius="4" VerticalOptions="Center" />
+                        <Label Grid.Column="1"
+                               Text="🍜 Phố ẩm thực Vĩnh Khánh"
+                               FontSize="13" FontAttributes="Bold"
+                               TextColor="White"
+                               VerticalTextAlignment="Center"
+                               HorizontalTextAlignment="Center"
+                               LineBreakMode="TailTruncation" />
+                    </Grid>
+                </Border>
+
+                <!-- Col 2: Spacer – cân bằng với back button bên trái -->
+                <BoxView Grid.Column="2" WidthRequest="48" BackgroundColor="Transparent" />
+
+            </Grid>
+        </Grid>
+
+        <!-- ════════════════════════════════════════ -->
+        <!-- MAP LEGEND – dưới top bar, bên trái     -->
+        <!-- ════════════════════════════════════════ -->
+        <Grid x:Name="MapLegendHost"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              InputTransparent="True"
+              ZIndex="120">
+            <Border x:Name="MapLegend"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Start"
+                    Margin="12,108,0,0"
+                    StrokeShape="RoundRectangle 12"
+                    BackgroundColor="#0E1E17"
+                    Stroke="#1C3024" StrokeThickness="1"
+                    Padding="10,8">
+                <VerticalStackLayout Spacing="5">
+                    <Label Text="CHÚ THÍCH"
+                           FontSize="9" FontAttributes="Bold"
+                           TextColor="#6B7280" CharacterSpacing="1"
+                           HorizontalOptions="Center" />
+                    <HorizontalStackLayout Spacing="7" VerticalOptions="Center">
+                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
+                                 BackgroundColor="#22C55E" VerticalOptions="Center" />
+                        <Label Text="Chưa ghé" FontSize="10" TextColor="#D1D5DB" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="7" VerticalOptions="Center">
+                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
+                                 BackgroundColor="#3B82F6" VerticalOptions="Center" />
+                        <Label Text="Gần đây" FontSize="10" TextColor="#D1D5DB" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="7" VerticalOptions="Center">
+                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
+                                 BackgroundColor="#9333EA" VerticalOptions="Center" />
+                        <Label Text="Đã ghé" FontSize="10" TextColor="#D1D5DB" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="7" VerticalOptions="Center">
+                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
+                                 BackgroundColor="#FBBF24" VerticalOptions="Center" />
+                        <Label Text="Đã lưu" FontSize="10" TextColor="#D1D5DB" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Border>
         </Grid>
 
-        <!-- LAYER 3: SETTINGS/DEBUG DRAWER (Slide from right) -->
-        <Border Grid.Row="0" Grid.Column="0"
-                x:Name="SettingsDrawer"
-                HorizontalOptions="End"
-                WidthRequest="320"
-                BackgroundColor="White"
-                Shadow="{Shadow Brush=Black, Opacity=0.2, Radius=24, Offset='-4,0'}"
-                IsVisible="{Binding IsSettingsOpen}"
-                TranslationX="320">
-            
-            <ScrollView Padding="20,60,20,20">
-                <VerticalStackLayout Spacing="20">
-                    <!-- Close Button -->
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Grid.Column="0"
-                               Text="❌ Đóng Đặt"
-                               FontSize="22" FontAttributes="Bold"
-                               TextColor="#1F2937" />
-                        <Label Grid.Column="1"
-                               Text="?" FontSize="28" TextColor="#9CA3AF">
-                            <Label.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding CloseSettingsCommand}" />
-                            </Label.GestureRecognizers>
-                        </Label>
+        <!-- ════════════════════════════════════════ -->
+        <!-- RIGHT FLOATING CONTROLS (Tab 0)         -->
+        <!-- Layout: [🎯 circle] → [+/− card]        -->
+        <!-- ════════════════════════════════════════ -->
+        <VerticalStackLayout x:Name="MapRightControls"
+                             AbsoluteLayout.LayoutBounds="1,0,-1,-1"
+                             AbsoluteLayout.LayoutFlags="PositionProportional"
+                             WidthRequest="44"
+                             Margin="0,110,12,0"
+                             ZIndex="121"
+                             Spacing="8">
+
+            <!-- My Location – circle button -->
+            <Border StrokeShape="RoundRectangle 22"
+                    BackgroundColor="Black"
+                    Stroke="Black"
+                    StrokeThickness="1"
+                    WidthRequest="44" HeightRequest="44"
+                    HorizontalOptions="Center">
+                <Border.Shadow>
+                    <Shadow Brush="Black" Opacity="0.18" Radius="6" Offset="0,2" />
+                </Border.Shadow>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnCenterMapClicked" />
+                </Border.GestureRecognizers>
+                <Label Text="&#xF0590;" FontFamily="MDI" FontSize="20"
+                       TextColor="#374151"
+                       HorizontalOptions="Center" VerticalOptions="Center" />
+            </Border>
+
+            <!-- Zoom card: + / divider / − -->
+            <Border StrokeShape="RoundRectangle 12"
+                    BackgroundColor="Black"
+                    Stroke="Black"
+                    StrokeThickness="1"
+                    WidthRequest="44"
+                    HorizontalOptions="Center"
+                    Padding="0">
+                <Border.Shadow>
+                    <Shadow Brush="Black" Opacity="0.18" Radius="6" Offset="0,2" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="0">
+                    <!-- Zoom In -->
+                    <Grid WidthRequest="44" HeightRequest="44">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnZoomInClicked" />
+                        </Grid.GestureRecognizers>
+                        <Label Text="+" FontSize="22" FontAttributes="Bold"
+                               TextColor="White"
+                               HorizontalOptions="Center" VerticalOptions="Center" />
                     </Grid>
-
-                    <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" />
-
-                    <!-- Session Stats -->
-                    <VerticalStackLayout Spacing="12">
-                        <Label Text="📊 Thống Kê Phiên" 
-                               FontSize="15" FontAttributes="Bold"
-                               TextColor="#374151" />
-                        <Border StrokeShape="RoundRectangle 8"
-                                BackgroundColor="#F9FAFB"
-                                Padding="12">
-                            <Label Text="{Binding SessionSummary}"
-                                   FontSize="13" TextColor="#6B7280" />
-                        </Border>
-                    </VerticalStackLayout>
-
-                    <!-- Active Zones List -->
-                    <VerticalStackLayout Spacing="12">
-                        <Label Text="📍 Các Vùng đang Trong"
-                               FontSize="15" FontAttributes="Bold"
-                               TextColor="#374151" />
-                        <CollectionView ItemsSource="{Binding ActiveZones}">
-                            <CollectionView.ItemTemplate>
-                                <DataTemplate>
-                                    <Border StrokeShape="RoundRectangle 8"
-                                            BackgroundColor="#F3F4F6"
-                                            Padding="12,10"
-                                            Margin="0,4">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <VerticalStackLayout Grid.Column="0">
-                                                <Label Text="{Binding Name_Vi}"
-                                                       FontSize="13" FontAttributes="Bold"
-                                                       TextColor="#1F2937" />
-                                            </VerticalStackLayout>
-                                            <Label Grid.Column="1"
-                                                   Text="{Binding ZoneType}"
-                                                   FontSize="11"
-                                                   TextColor="#9CA3AF"
-                                                   VerticalOptions="Center" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </CollectionView.ItemTemplate>
-                        </CollectionView>
-                    </VerticalStackLayout>
-
-                    <!-- Log -->
-                    <VerticalStackLayout Spacing="12">
-                        <Label Text="📝 Nhật Ký"
-                               FontSize="15" FontAttributes="Bold"
-                               TextColor="#374151" />
-                        <Border StrokeShape="RoundRectangle 8"
-                                BackgroundColor="#F9FAFB"
-                                Padding="12"
-                                HeightRequest="200">
-                            <ScrollView>
-                                <CollectionView ItemsSource="{Binding StatusLog}">
-                                    <CollectionView.ItemTemplate>
-                                        <DataTemplate x:DataType="x:String">
-                                            <Label Text="{Binding .}"
-                                                   FontSize="11"
-                                                   TextColor="#6B7280"
-                                                   FontFamily="Monospace"
-                                                   Padding="0,2" />
-                                        </DataTemplate>
-                                    </CollectionView.ItemTemplate>
-                                </CollectionView>
-                            </ScrollView>
-                        </Border>
-                    </VerticalStackLayout>
-
-                    <!-- Reset Button -->
-                    <Button Text="🔄 Reset Phiên"
-                            Command="{Binding ResetSessionCommand}"
-                            BackgroundColor="#EF4444"
-                            TextColor="White"
-                            FontAttributes="Bold"
-                            CornerRadius="12"
-                            HeightRequest="48" />
+                    <!-- Divider -->
+                    <BoxView HeightRequest="1" BackgroundColor="White"
+                             HorizontalOptions="Fill" Margin="8,0" />
+                    <!-- Zoom Out -->
+                    <Grid WidthRequest="44" HeightRequest="44">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnZoomOutClicked" />
+                        </Grid.GestureRecognizers>
+                        <Label Text="−" FontSize="24" FontAttributes="Bold"
+                               TextColor="White"
+                               HorizontalOptions="Center" VerticalOptions="Center" />
+                    </Grid>
                 </VerticalStackLayout>
-            </ScrollView>
+            </Border>
+
+        </VerticalStackLayout>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- APPROACHING BANNER                      -->
+        <!-- ═══════════════════════════════════════ -->
+        <Border x:Name="ApproachingBanner"
+                AbsoluteLayout.LayoutBounds="0.5,0.28,0.9,-1"
+                AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional"
+                StrokeShape="RoundRectangle 16"
+                Padding="3"
+                IsVisible="False"
+                ZIndex="15">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#0F241DEE" Offset="0" />
+                    <GradientStop Color="#0F2820EE" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Stroke>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#22C55E66" Offset="0" />
+                    <GradientStop Color="#34D39966" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Stroke>
+            <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="10" Padding="10,8">
+                <Border Grid.Column="0"
+                        StrokeShape="RoundRectangle 11"
+                        BackgroundColor="#F9731618"
+                        WidthRequest="36" HeightRequest="36">
+                    <Label Text="&#xF034E;" FontFamily="MDI" FontSize="17" TextColor="#F97316"
+                           HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
+                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                    <Label Text="ĐANG TIẾN ĐẾN"
+                           FontSize="9" FontAttributes="Bold"
+                           TextColor="#F97316" CharacterSpacing="1.2" />
+                    <Label Text="{Binding ApproachingZoneName, FallbackValue='Bánh mì Phượng'}"
+                           FontSize="13" FontAttributes="Bold"
+                           TextColor="White" LineBreakMode="TailTruncation" />
+                </VerticalStackLayout>
+                <Border Grid.Column="2" StrokeShape="RoundRectangle 10" Padding="8,5">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#22C55E" Offset="0" />
+                            <GradientStop Color="#16A34A" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <VerticalStackLayout Spacing="0" HorizontalOptions="Center">
+                        <Label Text="{Binding ApproachingDistance, FallbackValue='38'}"
+                               FontSize="14" FontAttributes="Bold"
+                               TextColor="White" HorizontalTextAlignment="Center" />
+                        <Label Text="mét" FontSize="9"
+                               TextColor="#D1FAE5" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
         </Border>
 
-    </Grid>
+        <!-- ═══════════════════════════════════════ -->
+        <!-- BOTTOM SHEET (Tour tab)                 -->
+        <!-- ═══════════════════════════════════════ -->
+        <Border x:Name="BottomSheet"
+                AbsoluteLayout.LayoutBounds="0,1,1,420"
+                AbsoluteLayout.LayoutFlags="WidthProportional,PositionProportional"
+                IsVisible="False"
+                Margin="0,0,0,72"
+                ZIndex="100"
+                StrokeShape="RoundRectangle 22,22,0,0"
+                Stroke="#1C3024"
+                StrokeThickness="1">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#0D1E17" Offset="0" />
+                    <GradientStop Color="#0A1612" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Shadow>
+                <Shadow Brush="Black" Opacity="0.55" Radius="28" Offset="0,-6" />
+            </Border.Shadow>
+
+            <Grid RowDefinitions="Auto,*">
+                <VerticalStackLayout Grid.Row="0" Spacing="0">
+                    <BoxView WidthRequest="32" HeightRequest="3"
+                             BackgroundColor="#F97316" Opacity="0.45"
+                             CornerRadius="2" HorizontalOptions="Center" Margin="0,10,0,0">
+                        <BoxView.GestureRecognizers>
+                            <PanGestureRecognizer PanUpdated="OnBottomSheetPan" />
+                        </BoxView.GestureRecognizers>
+                    </BoxView>
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          Padding="16,10,16,0" ColumnSpacing="10">
+                        <Border Grid.Column="0"
+                                StrokeShape="RoundRectangle 8"
+                                BackgroundColor="#22C55E18"
+                                Stroke="#22C55E30"
+                                Padding="8,4">
+                            <Label Text="{Binding CurrentStopBadge, FallbackValue='ĐIỂM 3 / 8'}"
+                                   FontSize="10" FontAttributes="Bold"
+                                   TextColor="#22C55E" CharacterSpacing="0.3" />
+                        </Border>
+                        <HorizontalStackLayout Grid.Column="1"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center" Spacing="4">
+                            <BoxView WidthRequest="20" HeightRequest="4" CornerRadius="2" BackgroundColor="#F97316" />
+                            <BoxView WidthRequest="20" HeightRequest="4" CornerRadius="2" BackgroundColor="#F97316" />
+                            <BoxView WidthRequest="20" HeightRequest="4" CornerRadius="2" BackgroundColor="#F97316" />
+                            <BoxView WidthRequest="20" HeightRequest="4" CornerRadius="2" BackgroundColor="#2A2A2A" />
+                            <BoxView WidthRequest="20" HeightRequest="4" CornerRadius="2" BackgroundColor="#2A2A2A" />
+                        </HorizontalStackLayout>
+                        <HorizontalStackLayout Grid.Column="2" Spacing="6">
+                            <Border StrokeShape="RoundRectangle 9"
+                                    BackgroundColor="#0F241D" Stroke="#1C3024" StrokeThickness="1"
+                                    WidthRequest="30" HeightRequest="30">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding BookmarkCommand}" />
+                                </Border.GestureRecognizers>
+                                <Label Text="&#xF00C0;" FontFamily="MDI" FontSize="13" TextColor="#F97316"
+                                       HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                            <Border StrokeShape="RoundRectangle 9"
+                                    BackgroundColor="#0F241D" Stroke="#1C3024" StrokeThickness="1"
+                                    WidthRequest="30" HeightRequest="30">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnShareClicked" />
+                                </Border.GestureRecognizers>
+                                <Label Text="&#xF0496;" FontFamily="MDI" FontSize="13" TextColor="#9CA3AF"
+                                       HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                        </HorizontalStackLayout>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#1C3024" Margin="0,10,0,0" />
+                </VerticalStackLayout>
+
+                <ScrollView Grid.Row="1">
+                    <VerticalStackLayout Spacing="0" Padding="14,12,14,16">
+                        <Grid ColumnDefinitions="50,*,Auto" ColumnSpacing="12" Margin="0,0,0,12">
+                            <Border Grid.Column="0"
+                                    StrokeShape="RoundRectangle 14"
+                                    BackgroundColor="#1A3426"
+                                    Stroke="#1C3024"
+                                    WidthRequest="50" HeightRequest="50"
+                                    VerticalOptions="Start">
+                                <Label Text="&#xF0CEE;" FontFamily="MDI" FontSize="24" TextColor="#F97316"
+                                       HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <HorizontalStackLayout Spacing="5">
+                                    <Border StrokeShape="RoundRectangle 7"
+                                            BackgroundColor="#F9731612" Stroke="#F9731430" StrokeThickness="1"
+                                            Padding="6,2">
+                                        <Label Text="Ẩm thực" FontSize="10" TextColor="#F97316" />
+                                    </Border>
+                                    <Border StrokeShape="RoundRectangle 7"
+                                            BackgroundColor="#22C55E12" Stroke="#22C55E30" StrokeThickness="1"
+                                            Padding="6,2">
+                                        <Label Text="Nổi bật" FontSize="10" TextColor="#22C55E" />
+                                    </Border>
+                                </HorizontalStackLayout>
+                                <Label Text="{Binding PrimaryZoneName, FallbackValue='Bánh mì Phượng – Hội An'}"
+                                       FontSize="16" FontAttributes="Bold"
+                                       TextColor="White" LineBreakMode="WordWrap" />
+                                <Label Text="{Binding PrimaryZoneAddress, FallbackValue='2B Phan Chu Trinh, Hội An'}"
+                                       FontSize="11" TextColor="#6B7280" />
+                            </VerticalStackLayout>
+                            <Border Grid.Column="2"
+                                    StrokeShape="RoundRectangle 13"
+                                    BackgroundColor="#1F140A" Stroke="#3D2A1E" StrokeThickness="1"
+                                    Padding="10,6" VerticalOptions="Start">
+                                <VerticalStackLayout Spacing="1" HorizontalOptions="Center">
+                                    <Label Text="&#xF04CE;" FontFamily="MDI" FontSize="15" TextColor="#F59E0B" HorizontalOptions="Center" />
+                                    <Label Text="{Binding PrimaryZoneRating, FallbackValue='4.8'}"
+                                           FontSize="13" FontAttributes="Bold"
+                                           TextColor="White" HorizontalOptions="Center" />
+                                    <Label Text="điểm" FontSize="8"
+                                           TextColor="#6B7280" HorizontalOptions="Center" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+
+                        <!-- Audio Player Card -->
+                        <Border StrokeShape="RoundRectangle 18"
+                                Margin="0,0,0,12" Padding="14,12">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#0F241D" Offset="0" />
+                                    <GradientStop Color="#0A1C15" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.Stroke>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#22C55E" Offset="0" />
+                                    <GradientStop Color="#34D399" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Stroke>
+                            <VerticalStackLayout Spacing="10">
+                                <HorizontalStackLayout Spacing="3" HorizontalOptions="Center">
+                                    <BoxView x:Name="Wave1" WidthRequest="3" HeightRequest="8"  BackgroundColor="#22C55E40" CornerRadius="2" />
+                                    <BoxView x:Name="Wave2" WidthRequest="3" HeightRequest="14" BackgroundColor="#22C55E"   CornerRadius="2" />
+                                    <BoxView x:Name="Wave3" WidthRequest="3" HeightRequest="22" BackgroundColor="#22C55E"   CornerRadius="2" />
+                                    <BoxView x:Name="Wave4" WidthRequest="3" HeightRequest="18" BackgroundColor="#22C55E"   CornerRadius="2" />
+                                    <BoxView x:Name="Wave5" WidthRequest="3" HeightRequest="26" BackgroundColor="#22C55E"   CornerRadius="2" />
+                                    <BoxView x:Name="Wave6" WidthRequest="3" HeightRequest="14" BackgroundColor="#22C55E"   CornerRadius="2" />
+                                    <BoxView x:Name="Wave7" WidthRequest="3" HeightRequest="20" BackgroundColor="#22C55E60" CornerRadius="2" />
+                                    <BoxView x:Name="Wave8" WidthRequest="3" HeightRequest="10" BackgroundColor="#22C55E40" CornerRadius="2" />
+                                </HorizontalStackLayout>
+                                <Slider x:Name="AudioSeekBar"
+                                        Minimum="0" Maximum="1"
+                                        Value="{Binding AudioProgress}"
+                                        MinimumTrackColor="#22C55E"
+                                        MaximumTrackColor="#1E2A25"
+                                        ThumbColor="#22C55E"
+                                        HeightRequest="20"
+                                        DragCompleted="OnSeekBarDragCompleted" />
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,-6,0,0">
+                                    <Label Text="{Binding AudioTimeElapsed, FallbackValue='0:42'}"
+                                           FontSize="10" FontAttributes="Bold" TextColor="#9CA3AF" />
+                                    <Label Grid.Column="2"
+                                           Text="{Binding AudioDuration, FallbackValue='3:15'}"
+                                           FontSize="10" TextColor="#9CA3AF" />
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto"
+                                      ColumnSpacing="0" VerticalOptions="Center">
+                                    <Border Grid.Column="0"
+                                            StrokeShape="RoundRectangle 9"
+                                            BackgroundColor="#0F241D" Stroke="#1C3024" StrokeThickness="1"
+                                            Padding="9,5" VerticalOptions="Center">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnSpeedClicked" />
+                                        </Border.GestureRecognizers>
+                                        <Label x:Name="SpeedLabel" Text="1×"
+                                               FontSize="12" FontAttributes="Bold" TextColor="#F59E0B" />
+                                    </Border>
+                                    <Label Grid.Column="1"
+                                           Text="&#xF003C;" FontFamily="MDI" FontSize="24" TextColor="#D1D5DB"
+                                           HorizontalOptions="Center" VerticalOptions="Center"
+                                           Margin="10,0">
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding PrevStopCommand}" />
+                                        </Label.GestureRecognizers>
+                                    </Label>
+                                    <Border Grid.Column="2"
+                                            StrokeShape="RoundRectangle 36"
+                                            WidthRequest="64" HeightRequest="64"
+                                            HorizontalOptions="Center">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#22C55E" Offset="0" />
+                                                <GradientStop Color="#16A34A" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <Border.Shadow>
+                                            <Shadow Brush="#22C55E" Opacity="0.4" Radius="18" Offset="0,5" />
+                                        </Border.Shadow>
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnPlayPauseTapped" />
+                                        </Border.GestureRecognizers>
+                                        <Label x:Name="PlayPauseIcon"
+                                               Text="&#xF040A;" FontSize="24" TextColor="White"
+                                               HorizontalOptions="Center" VerticalOptions="Center" />
+                                    </Border>
+                                    <Label Grid.Column="3"
+                                           Text="&#xF0457;" FontFamily="MDI" FontSize="24" TextColor="#D1D5DB"
+                                           HorizontalOptions="Center" VerticalOptions="Center"
+                                           Margin="10,0">
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding NextStopCommand}" />
+                                        </Label.GestureRecognizers>
+                                    </Label>
+                                    <Border Grid.Column="4"
+                                            StrokeShape="RoundRectangle 9"
+                                            BackgroundColor="#0F241D" Stroke="#1C3024" StrokeThickness="1"
+                                            Padding="9,5" VerticalOptions="Center">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnMuteClicked" />
+                                        </Border.GestureRecognizers>
+                                        <Label x:Name="MuteIcon" Text="&#xF057E;" FontFamily="MDI" FontSize="15"
+                                               HorizontalOptions="Center" VerticalOptions="Center" />
+                                    </Border>
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <!-- Description -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,0,0,6">
+                            <Label Text="Mô tả điểm đến"
+                                   FontSize="14" FontAttributes="Bold" TextColor="White"
+                                   VerticalTextAlignment="Center" />
+                            <Label Grid.Column="1"
+                                   x:Name="ExpandDescLabel"
+                                   Text="XEM THÊM" FontSize="10" FontAttributes="Bold"
+                                   TextColor="#F97316" CharacterSpacing="0.6"
+                                   VerticalTextAlignment="Center">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnExpandDescriptionClicked" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                        </Grid>
+                        <Label x:Name="DescriptionLabel"
+                               Text="{Binding PrimaryZoneDesc, FallbackValue='Bánh mì Phượng là một trong những tiệm bánh mì nổi tiếng nhất Hội An, được Anthony Bourdain ca ngợi là chiếc bánh mì ngon nhất thế giới.'}"
+                               FontSize="13" TextColor="#D1D5DB"
+                               LineHeight="1.55" MaxLines="2"
+                               LineBreakMode="TailTruncation"
+                               Margin="0,0,0,14" />
+
+                        <!-- Next Stops -->
+                        <Label Text="Điểm tiếp theo"
+                               FontSize="14" FontAttributes="Bold"
+                               TextColor="White" Margin="0,0,0,10" />
+                        <Border StrokeShape="RoundRectangle 14"
+                                BackgroundColor="#1A120A" Stroke="#2A1A10" StrokeThickness="1"
+                                Padding="12,10" Margin="0,0,0,6">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding SelectStopCommand}" CommandParameter="4" />
+                            </Border.GestureRecognizers>
+                            <Grid ColumnDefinitions="38,*,Auto" ColumnSpacing="10">
+                                <Border Grid.Column="0" StrokeShape="RoundRectangle 11"
+                                        BackgroundColor="#F9731618"
+                                        WidthRequest="38" HeightRequest="38">
+                                    <Label Text="4" FontSize="15" FontAttributes="Bold"
+                                           TextColor="#F97316"
+                                           HorizontalOptions="Center" VerticalOptions="Center" />
+                                </Border>
+                                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                    <Label Text="{Binding NextStop1Name, FallbackValue='Cao lầu Bà Bé'}"
+                                           FontSize="13" FontAttributes="Bold" TextColor="White" />
+                                    <Label Text="{Binding NextStop1Dist, FallbackValue='~ 120m • 2 phút đi bộ'}"
+                                           FontSize="11" TextColor="#6B7280" />
+                                </VerticalStackLayout>
+                                <Label Grid.Column="2" Text="&#xF0142;" FontFamily="MDI" FontSize="17"
+                                       TextColor="#4B3020" VerticalTextAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <Border StrokeShape="RoundRectangle 14"
+                                BackgroundColor="#1A120A" Stroke="#2A1A10" StrokeThickness="1"
+                                Padding="12,10" Margin="0,0,0,6">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding SelectStopCommand}" CommandParameter="5" />
+                            </Border.GestureRecognizers>
+                            <Grid ColumnDefinitions="38,*,Auto" ColumnSpacing="10">
+                                <Border Grid.Column="0" StrokeShape="RoundRectangle 11"
+                                        BackgroundColor="#1F140A" Stroke="#3D2A1E" StrokeThickness="1"
+                                        WidthRequest="38" HeightRequest="38">
+                                    <Label Text="5" FontSize="15" FontAttributes="Bold"
+                                           TextColor="#6B7280"
+                                           HorizontalOptions="Center" VerticalOptions="Center" />
+                                </Border>
+                                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                    <Label Text="{Binding NextStop2Name, FallbackValue='Chè bà Thị'}"
+                                           FontSize="13" FontAttributes="Bold" TextColor="#9CA3AF" />
+                                    <Label Text="{Binding NextStop2Dist, FallbackValue='~ 280m • 4 phút đi bộ'}"
+                                           FontSize="11" TextColor="#4B5563" />
+                                </VerticalStackLayout>
+                                <Label Grid.Column="2" Text="&#xF0142;" FontFamily="MDI" FontSize="17"
+                                       TextColor="#4B3020" VerticalTextAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </Grid>
+        </Border>
+
+        <!-- Pin Popup Card (Tab 0) -->
+        <Border x:Name="PinPopupCard"
+                AbsoluteLayout.LayoutBounds="0,1,1,-1"
+                AbsoluteLayout.LayoutFlags="WidthProportional,PositionProportional"
+                IsVisible="False"
+                Margin="0,0,0,80"
+                ZIndex="150"
+                StrokeShape="RoundRectangle 20,20,0,0"
+                Stroke="#1C3024"
+                BackgroundColor="#0E1E17">
+            <Grid RowDefinitions="Auto,Auto" Padding="16,14,16,16" RowSpacing="12">
+                <Grid Grid.Row="0" ColumnDefinitions="56,*,Auto" ColumnSpacing="12">
+                    <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                            BackgroundColor="#1A3426" WidthRequest="56" HeightRequest="56">
+                        <Label Text="&#xF034E;" FontFamily="MDI" FontSize="24" TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Border>
+                    <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                        <Label Text="{Binding SelectedPinPOI.Name_Vi, FallbackValue='—'}"
+                               FontSize="16" FontAttributes="Bold" TextColor="White"/>
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="{Binding SelectedPinPOI.DistanceFromUser, StringFormat='{0:F0}m'}"
+                                   FontSize="12" TextColor="#22C55E"/>
+                            <Label Text="4.8" FontSize="12" TextColor="#F59E0B"/>
+                        </HorizontalStackLayout>
+                        <Label Text="{Binding SelectedPinPOI.SignatureDish}"
+                               FontSize="12" TextColor="#9CA3AF" LineBreakMode="TailTruncation"/>
+                    </VerticalStackLayout>
+                    <Border Grid.Column="2" StrokeShape="RoundRectangle 10"
+                            BackgroundColor="#1C3024" Stroke="Transparent"
+                            WidthRequest="36" HeightRequest="36" VerticalOptions="Start">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ClosePinPopupCommand}"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="&#xF0156;" FontFamily="MDI" FontSize="15" TextColor="#6B7280"
+                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Border>
+                </Grid>
+                <Grid Grid.Row="1" ColumnDefinitions="*,*,Auto" ColumnSpacing="10">
+                    <Border Grid.Column="0" StrokeShape="RoundRectangle 12" Padding="0,12">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#22C55E" Offset="0"/>
+                                <GradientStop Color="#16A34A" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPinPlayAudio"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="Phát audio" FontSize="13" FontAttributes="Bold"
+                               TextColor="White" HorizontalOptions="Center"/>
+                    </Border>
+                    <Border Grid.Column="1" StrokeShape="RoundRectangle 12"
+                            BackgroundColor="#0E1E17" Stroke="#22C55E" StrokeThickness="1"
+                            Padding="0,12">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPinNavigate"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="Dẫn đường" FontSize="13" FontAttributes="Bold"
+                               TextColor="#22C55E" HorizontalOptions="Center"/>
+                    </Border>
+                    <Border Grid.Column="2" StrokeShape="RoundRectangle 12"
+                            BackgroundColor="#F9731618" Stroke="#F9731430"
+                            WidthRequest="46" Padding="0,12">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPinSave"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="18" TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- ════════════════════════════════════════ -->
+        <!-- BOTTOM NAV – 5 TABS                      -->
+        <!-- ════════════════════════════════════════ -->
+        <Border x:Name="BottomNavBar"
+                AbsoluteLayout.LayoutBounds="0,1,1,72"
+                AbsoluteLayout.LayoutFlags="WidthProportional,PositionProportional"
+                StrokeShape="RoundRectangle 0"
+                StrokeThickness="1"
+                ZIndex="200"
+                BackgroundColor="#0A1612">
+            <Border.Background><SolidColorBrush Color="#0A1612"/></Border.Background>
+            <Border.Stroke><SolidColorBrush Color="#1C3024"/></Border.Stroke>
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="0" Padding="0,6,0,0">
+                <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*,*" HeightRequest="3" Margin="16,0">
+                    <Border x:Name="NavIndicator" Grid.Column="0"
+                            StrokeShape="RoundRectangle 2" StrokeThickness="0"
+                            HeightRequest="3" HorizontalOptions="Fill" VerticalOptions="End"
+                            TranslationX="0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#F97316" Offset="0"/>
+                                <GradientStop Color="#FB923C" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                </Grid>
+                <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*" Padding="0,4,0,16">
+                    <VerticalStackLayout Grid.Column="0" Spacing="2" HorizontalOptions="Center">
+                        <VerticalStackLayout.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavMapClicked"/>
+                        </VerticalStackLayout.GestureRecognizers>
+                        <Label x:Name="NavMapGlyph" Text="&#xF034D;" FontFamily="MDI" FontSize="20"
+                               HorizontalOptions="Center" TextColor="#F97316"/>
+                        <Label x:Name="NavMapLabel" Text="Bản đồ" FontSize="9" FontAttributes="Bold"
+                               TextColor="#F97316" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="Center">
+                        <VerticalStackLayout.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavTourClicked"/>
+                        </VerticalStackLayout.GestureRecognizers>
+                        <Label x:Name="NavTourGlyph" Text="&#xF02CE;" FontFamily="MDI" FontSize="20"
+                               HorizontalOptions="Center" TextColor="#6B7280"/>
+                        <Label x:Name="NavTourLabel" Text="Hành trình" FontSize="9"
+                               TextColor="#6B7280" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="2" Spacing="2" HorizontalOptions="Center">
+                        <VerticalStackLayout.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavMenuClicked"/>
+                        </VerticalStackLayout.GestureRecognizers>
+                        <Label x:Name="NavMenuGlyph" Text="&#xF04A3;" FontFamily="MDI" FontSize="20"
+                               HorizontalOptions="Center" TextColor="#6B7280"/>
+                        <Label x:Name="NavMenuLabel" Text="Menu" FontSize="9"
+                               TextColor="#6B7280" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="3" Spacing="2" HorizontalOptions="Center">
+                        <VerticalStackLayout.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavSavedClicked"/>
+                        </VerticalStackLayout.GestureRecognizers>
+                        <Label x:Name="NavSavedGlyph" Text="&#xF02D1;" FontFamily="MDI" FontSize="20"
+                               HorizontalOptions="Center" TextColor="#6B7280"/>
+                        <Label x:Name="NavSavedLabel" Text="Đã lưu" FontSize="9"
+                               TextColor="#6B7280" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="4" Spacing="2" HorizontalOptions="Center">
+                        <VerticalStackLayout.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavSettingsClicked"/>
+                        </VerticalStackLayout.GestureRecognizers>
+                        <Label x:Name="NavSettingsGlyph" Text="&#xF0493;" FontFamily="MDI" FontSize="20"
+                               HorizontalOptions="Center" TextColor="#6B7280"/>
+                        <Label x:Name="NavSettingsLabel" Text="Cài đặt" FontSize="9"
+                               TextColor="#6B7280" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </Grid>
+            </Grid>
+        </Border>
+
+    </AbsoluteLayout>
 </ContentPage>

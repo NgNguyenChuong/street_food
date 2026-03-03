@@ -6,6 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Exclude runtime-generated TTS audio from StaticWebAssets fingerprinting to avoid file-lock errors -->
+  <ItemGroup>
+    <Content Remove="wwwroot\uploads\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
     <PackageReference Include="AspNetCore.Identity.MongoDbCore" Version="3.1.0" />

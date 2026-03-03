@@ -49,12 +49,13 @@ public static class CustomAlert
 
         var overlay = new Grid
         {
-            BackgroundColor = Color.FromArgb("#CC000000")
+            // Semi-transparent backdrop without dimming the dialog itself
+            BackgroundColor = Color.FromArgb("#66000000")
         };
 
         var dialog = new Border
         {
-            BackgroundColor = Color.FromArgb("#0F1F17"),
+            BackgroundColor = Color.FromArgb("#234936"),
             Stroke = Color.FromArgb("#1E3D2A"),
             StrokeThickness = 2,
             Padding = new Thickness(24, 20),
@@ -303,11 +304,11 @@ public static class CustomAlert
     {
         return type switch
         {
-            AlertType.Success => Color.FromArgb("#22C55E20"),
-            AlertType.Error => Color.FromArgb("#EF444420"),
-            AlertType.Warning => Color.FromArgb("#F59E0B20"),
-            AlertType.Info => Color.FromArgb("#3B82F620"),
-            _ => Color.FromArgb("#3B82F620")
+            AlertType.Success => Color.FromArgb("#07f151"),
+            AlertType.Error => Color.FromArgb("#ef4444db"),
+            AlertType.Warning => Color.FromArgb("#f59f0b"),
+            AlertType.Info => Color.FromArgb("#3b83f6"),
+            _ => Color.FromArgb("#3b83f6ef")
         };
     }
 
@@ -318,7 +319,7 @@ public static class CustomAlert
             AlertType.Success => Color.FromArgb("#22C55E"),
             AlertType.Error => Color.FromArgb("#EF4444"),
             AlertType.Warning => Color.FromArgb("#F59E0B"),
-            AlertType.Info => Color.FromArgb("#3B82F6"),
+            AlertType.Info => Color.FromArgb("#367ae614"),
             _ => Color.FromArgb("#22C55E")
         };
     }

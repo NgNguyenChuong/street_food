@@ -27,8 +27,9 @@ public class ZoneRepository : IZoneRepository
     public ZoneRepository(ILocalDatabaseService localDb)
     {
         _localDb = localDb;
+        // Load bundled default_pois.json so the app works fully offline from first launch
         if (!AppConfig.UseBackendApi)
-            SeedMockData();
+            _ = SeedFromBundledJsonAsync();
     }
 
     public List<POI> GetAllActiveZones()
@@ -51,17 +52,21 @@ public class ZoneRepository : IZoneRepository
     {
         if (!AppConfig.UseBackendApi)
         {
-            if (!_hasData) SeedMockData();
+            if (!_hasData) await SeedFromBundledJsonAsync();
             return;
         }
 
         try
         {
             if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+            {
+                // Offline: fall back to bundled JSON so the app works without internet
+                if (!_hasData) await SeedFromBundledJsonAsync();
                 return;
+            }
 
             var currentVersion = Preferences.Get(AppConfig.DataVersionKey, 0L);
-            using var http = new HttpClient { BaseAddress = new Uri(AppConfig.ApiBaseUrl) };
+            using var http = new HttpClient { BaseAddress = new Uri(AppConfig.ApiBaseUrl), Timeout = TimeSpan.FromSeconds(10) };
             var response = await http.GetAsync($"api/POIs/sync?sinceVersion={currentVersion}");
             response.EnsureSuccessStatusCode();
 
@@ -92,8 +97,8 @@ public class ZoneRepository : IZoneRepository
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Repository] Sync failed: {ex.Message}");
-            if (!_hasData && !AppConfig.UseBackendApi)
-                SeedMockData();
+            if (!_hasData)
+                await SeedFromBundledJsonAsync();
         }
     }
 
@@ -117,15 +122,9 @@ public class ZoneRepository : IZoneRepository
             Id = dto.POI_ID,
             Name_Vi = dto.Name_Vi ?? string.Empty,
             Name_En = dto.Name_En ?? string.Empty,
-            Name_Ja = dto.Name_Ja,
-            Name_Fr = dto.Name_Fr,
-            Name_Ko = dto.Name_Ko,
             Name_Zh = dto.Name_Zh,
             Description_Vi = dto.Description_Vi,
             Description_En = dto.Description_En,
-            Description_Ja = dto.Description_Ja,
-            Description_Fr = dto.Description_Fr,
-            Description_Ko = dto.Description_Ko,
             Description_Zh = dto.Description_Zh,
             Latitude = (double)dto.Latitude,
             Longitude = (double)dto.Longitude,
@@ -138,9 +137,6 @@ public class ZoneRepository : IZoneRepository
             MaxPlaysPerSession = dto.MaxPlaysPerSession != 0 ? dto.MaxPlaysPerSession : 1,
             AudioUrl_Vi = dto.AudioUrl_Vi,
             AudioUrl_En = dto.AudioUrl_En,
-            AudioUrl_Ja = dto.AudioUrl_Ja,
-            AudioUrl_Fr = dto.AudioUrl_Fr,
-            AudioUrl_Ko = dto.AudioUrl_Ko,
             AudioUrl_Zh = dto.AudioUrl_Zh,
             ImageUrl = dto.ImageUrl,
             SignatureDish = dto.SignatureDish,
@@ -148,6 +144,43 @@ public class ZoneRepository : IZoneRepository
             EstimatedHours = dto.OpeningHoursText,
             IsActive = dto.IsActive
         };
+    }
+
+    /// <summary>
+    /// Loads POIs from the bundled Resources/Raw/default_pois.json asset.
+    /// Falls back to hardcoded mock data if the file cannot be read.
+    /// </summary>
+    private async Task SeedFromBundledJsonAsync()
+    {
+        try
+        {
+            using var stream = await FileSystem.OpenAppPackageFileAsync("default_pois.json");
+            using var reader = new System.IO.StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+            var dtos = JsonSerializer.Deserialize<List<PoiDto>>(json, ApiJsonOptions);
+            if (dtos != null && dtos.Count > 0)
+            {
+                var allPois = dtos.Select(MapToPoi).ToList();
+                _zones    = allPois.Where(z => z.IsActive).ToList();
+                _hasData  = true;
+                _isLoaded = true;
+
+                // Persist to SQLite so subsequent LoadLocalAsync() calls find the data
+                await _localDb.SavePOIsAsync(allPois);
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"[Repository] Loaded {_zones.Count} POIs from bundled JSON and saved to SQLite");
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[Repository] Bundled JSON load error: {ex.Message} — falling back to mock data");
+        }
+
+        // Fallback if the JSON asset is missing during development
+        SeedMockData();
     }
 
     private void SeedMockData()
@@ -164,7 +197,7 @@ public class ZoneRepository : IZoneRepository
                 Description_En = "Famous street food area in Saigon with over 30 specialty vendors.",
                 Latitude = 10.7626,
                 Longitude = 106.6927,
-                Radius = 200,
+                Radius = 200, // Area keeps large radius for ambient awareness
                 ZoneType = "Area",
                 ZoneLevel = 1,
                 Priority = 1,
@@ -188,7 +221,7 @@ public class ZoneRepository : IZoneRepository
                 Description_En = "Famous banh mi shop with special meat filling and homemade pate.",
                 Latitude = 10.7628,
                 Longitude = 106.6929,
-                Radius = 15,
+                Radius = 25,
                 ZoneType = "Spot",
                 ZoneLevel = 3,
                 Priority = 10,
@@ -212,7 +245,7 @@ public class ZoneRepository : IZoneRepository
                 Description_En = "Fresh spring rolls with pork and shrimp, served with special fish sauce.",
                 Latitude = 10.7632,
                 Longitude = 106.6935,
-                Radius = 12,
+                Radius = 25,
                 ZoneType = "Spot",
                 ZoneLevel = 3,
                 Priority = 10,
@@ -236,7 +269,7 @@ public class ZoneRepository : IZoneRepository
                 Description_En = "Traditional beef pho with 12-hour slow-cooked broth.",
                 Latitude = 10.7625,
                 Longitude = 106.6925,
-                Radius = 10,
+                Radius = 25,
                 ZoneType = "Spot",
                 ZoneLevel = 3,
                 Priority = 10,

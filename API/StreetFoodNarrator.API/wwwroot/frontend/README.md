@@ -3,8 +3,9 @@
 ## 🚀 Quick Start
 
 ### 1. API đang chạy tại
-- **Swagger UI**: http://localhost:5004
+- **Swagger UI**: http://localhost:5004/swagger
 - **API Base URL**: http://localhost:5004/api
+- **Trang chủ quản lý**: http://localhost:5004/ (index.html)
 
 ### 2. Tạo Tài Khoản Admin
 
@@ -59,7 +60,7 @@ sqlcmd -S "localhost\SQLEXPRESS" -d StreetFoodNarratorDB -Q "DECLARE @UserId NVA
 ### 4. Đăng Nhập
 
 1. **Qua Frontend**:
-   - Mở http://localhost:5004/frontend/login.html
+   - Mở http://localhost:5004/ (index.html)
    - Email: tài khoản bạn vừa tạo
    - Password: mật khẩu bạn đã đặt
 
@@ -71,21 +72,23 @@ sqlcmd -S "localhost\SQLEXPRESS" -d StreetFoodNarratorDB -Q "DECLARE @UserId NVA
 ## 📁 Cấu Trúc Frontend
 
 ```
-wwwroot/frontend/
-├── api.js                      # JavaScript API Client
-├── nav.js                      # Navigation & Session Manager (NEW!)
-├── login.html                  # Trang đăng nhập
-├── register.html               # Trang đăng ký
-├── admin-dashboard.html        # Dashboard Admin
-├── vendor-dashboard.html       # Dashboard Vendor
-├── poi-create.html             # Tạo POI mới
-├── poi-list.html               # Danh sách POI
-├── poi-edit.html               # Chỉnh sửa POI
-├── audio-bulk-generate.html    # Tạo audio tự động
-├── audio-list.html             # Quản lý Audio
-├── vendors-list.html           # Quản lý Vendors (Admin)
-├── analytics.html              # Thống kê & Phân tích
-└── settings.html               # Cài đặt hệ thống
+wwwroot/
+├── index.html               # Trang chủ đăng nhập (ngoài thư mục frontend)
+└── frontend/
+    ├── api.js               # JavaScript API Client
+    ├── nav.js               # Navigation & Session Manager (NEW!)
+    ├── login.html           # Redirect sang /index.html (giữ liên kết cũ)
+    ├── register.html        # Trang đăng ký
+    ├── admin-dashboard.html # Dashboard Admin
+    ├── vendor-dashboard.html # Dashboard Vendor
+    ├── poi-create.html      # Tạo POI mới
+    ├── poi-list.html        # Danh sách POI
+    ├── poi-edit.html        # Chỉnh sửa POI
+    ├── audio-bulk-generate.html # Tạo audio tự động
+    ├── audio-list.html      # Quản lý Audio
+    ├── vendors-list.html    # Quản lý Vendors (Admin)
+    ├── analytics.html       # Thống kê & Phân tích
+    └── settings.html        # Cài đặt hệ thống
 ```
 
 ### 🆕 Navigation Component (nav.js)
@@ -171,7 +174,7 @@ Tất cả các trang hiện đã sử dụng **nav.js** - một component tự 
 3. Kiểm tra console nếu có lỗi
 
 ### Test Login
-1. Mở http://localhost:5004/frontend/login.html
+1. Mở http://localhost:5004/ (index.html)
 2. Đăng nhập bằng tài khoản vừa tạo
 3. Sẽ redirect đến admin-dashboard.html
 
@@ -210,7 +213,7 @@ dotnet run
 Để test frontend với CORS đúng cách:
 
 1. Cài extension **Live Server** trong VS Code
-2. Right-click vào `login.html`
+2. Right-click vào `index.html` (trong wwwroot)
 3. Chọn **Open with Live Server**
 4. Frontend sẽ chạy tại http://localhost:5500
 
@@ -280,7 +283,7 @@ dotnet run
 **File test**: [test-nav.html](test-nav.html)
 
 Để test navigation system:
-1. Đăng nhập vào hệ thống (login.html)
+1. Đăng nhập vào hệ thống (index.html)
 2. Mở http://localhost:5004/frontend/test-nav.html
 3. Xem session info và user info
 4. Click vào các quick links để test navigation

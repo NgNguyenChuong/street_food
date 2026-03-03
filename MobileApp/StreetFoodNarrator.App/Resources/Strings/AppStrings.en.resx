@@ -201,7 +201,7 @@ You can use the app fully offline.</value>
     <value>Voice (TTS)</value>
   </data>
   <data name="Settings_TtsSubtitle" xml:space="preserve">
-    <value>Female - North</value>
+    <value>Selected voice</value>
   </data>
   <data name="Settings_AutoPlay" xml:space="preserve">
     <value>Auto play audio</value>

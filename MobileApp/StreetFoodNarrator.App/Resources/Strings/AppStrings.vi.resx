@@ -16,242 +16,237 @@
     <value>OK</value>
   </data>
   <data name="Common_Cancel" xml:space="preserve">
-    <value>キャンセル</value>
+    <value>Hủy</value>
   </data>
   <data name="Common_Continue" xml:space="preserve">
-    <value>続ける</value>
+    <value>Tiếp tục</value>
   </data>
   <data name="Common_Delete" xml:space="preserve">
-    <value>削除</value>
+    <value>Xóa</value>
   </data>
   <data name="Common_Retry" xml:space="preserve">
-    <value>再試行</value>
+    <value>Thử lại</value>
   </data>
   <data name="Common_Close" xml:space="preserve">
-    <value>閉じる</value>
+    <value>Đóng</value>
   </data>
   <data name="Welcome_AppTitle" xml:space="preserve">
     <value>Street Food Narrator</value>
   </data>
   <data name="Welcome_Subtitle" xml:space="preserve">
-    <value>ストリートフードの旅を発見
-ヴィンカンの美食</value>
+    <value>Khám phá hành trình
+ẩm thực Vĩnh Khánh</value>
   </data>
   <data name="Welcome_StartTour" xml:space="preserve">
-    <value>🚀  ツアーを開始</value>
+    <value>🚀  Bắt đầu Tour</value>
   </data>
   <data name="Welcome_Feature_Auto_Title" xml:space="preserve">
-    <value>自動再生</value>
+    <value>Tự động phát</value>
   </data>
   <data name="Welcome_Feature_Auto_Desc" xml:space="preserve">
-    <value>GPS認識</value>
+    <value>GPS nhận diện</value>
   </data>
   <data name="Welcome_Feature_Offline_Title" xml:space="preserve">
-    <value>事前ダウンロード</value>
+    <value>Tải trước</value>
   </data>
   <data name="Welcome_Feature_Offline_Desc" xml:space="preserve">
-    <value>いつでもオフライン視聴</value>
+    <value>Nghe offline mọi lúc</value>
   </data>
   <data name="Welcome_Feature_Local_Title" xml:space="preserve">
-    <value>地元の物語</value>
+    <value>Câu chuyện địa phương</value>
   </data>
   <data name="Welcome_Feature_Local_Desc" xml:space="preserve">
-    <value>地元の人々が語る美食の秘密を聴く</value>
+    <value>Nghe bí mật ẩm thực từ người dân bản địa</value>
   </data>
   <data name="Status_Downloading_Metadata_Title" xml:space="preserve">
-    <value>レストランリストをダウンロード中...</value>
+    <value>Đang tải danh sách quán...</value>
   </data>
   <data name="Status_Downloading_Metadata_Detail" xml:space="preserve">
-    <value>メタデータ • マップ</value>
+    <value>Metadata • Bản đồ</value>
   </data>
   <data name="Status_Downloading_Offline_Title" xml:space="preserve">
-    <value>オフラインデータをダウンロード中...</value>
+    <value>Đang tải dữ liệu offline...</value>
   </data>
   <data name="Status_Downloading_Offline_Detail" xml:space="preserve">
-    <value>7店舗 • オーディオ • 画像 • ~2.4 MB</value>
+    <value>7 quán • Audio • Hình ảnh • ~2.4 MB</value>
   </data>
   <data name="Status_Ready_Title" xml:space="preserve">
-    <value>✓ オフライン準備完了</value>
+    <value>✓ Sẵn sàng offline</value>
   </data>
   <data name="Status_Ready_Detail" xml:space="preserve">
-    <value>7店舗 • 2.4 MB • ベンタン・フードストリート</value>
+    <value>7 quán • 2.4 MB • Phố Ẩm Thực Bến Thành</value>
   </data>
   <data name="Status_NeedInternet_Title" xml:space="preserve">
-    <value>インターネット接続が必要</value>
+    <value>Cần kết nối Internet</value>
   </data>
   <data name="Status_NeedInternet_Detail" xml:space="preserve">
-    <value>WiFi/4Gに接続して初回データダウンロード</value>
+    <value>Kết nối WiFi/4G để tải dữ liệu lần đầu</value>
   </data>
   <data name="Status_Error_Title" xml:space="preserve">
-    <value>データのダウンロードに失敗</value>
+    <value>Tải dữ liệu thất bại</value>
   </data>
   <data name="Status_Error_Detail" xml:space="preserve">
-    <value>接続を確認して再試行してください</value>
+    <value>Vui lòng kiểm tra kết nối và thử lại</value>
   </data>
   <data name="Button_DownloadOfflineNow" xml:space="preserve">
-    <value>📥 今すぐオフラインダウンロード</value>
+    <value>📥 Tải offline ngay</value>
   </data>
   <data name="Button_ContinueOnline" xml:space="preserve">
-    <value>🌐 オンラインモードを続ける</value>
+    <value>🌐 Tiếp tục Online</value>
   </data>
   <data name="Button_TryAgain" xml:space="preserve">
-    <value>🔄  再試行</value>
+    <value>🔄  Thử lại</value>
   </data>
   <data name="Info_Offline_Title" xml:space="preserve">
-    <value>💡 オフライン使用</value>
+    <value>💡 Sử dụng Offline</value>
   </data>
   <data name="Info_Offline_Message" xml:space="preserve">
-    <value>アプリは現在オンラインモードで実行中です（継続的なネットワークが必要）。
+    <value>App đang chạy ở chế độ ONLINE (cần mạng liên tục).
 
-💡 推奨：最高の体験を得るためにオフラインデータをダウンロード（ネットワーク不要、オーディオ再生が速い）。</value>
+💡 Khuyến nghị: Tải dữ liệu offline để có trải nghiệm tốt nhất (không cần mạng, phát audio nhanh hơn).</value>
   </data>
   <data name="Info_DontShowAgain" xml:space="preserve">
-    <value>☑️ 再表示しない</value>
+    <value>☑️ Không hiển thị lại</value>
   </data>
   <data name="Alert_NeedInternet_Title" xml:space="preserve">
-    <value>🌐 インターネット接続が必要</value>
+    <value>🌐 Cần kết nối Internet</value>
   </data>
   <data name="Alert_NeedInternet_Message" xml:space="preserve">
-    <value>WiFiまたは4Gに接続して初回データをダウンロードしてください。
+    <value>Vui lòng kết nối WiFi hoặc 4G để tải dữ liệu lần đầu.
 
-ダウンロード後は完全にオフラインで使用できます。</value>
+Sau khi tải, bạn có thể dùng offline hoàn toàn.</value>
   </data>
   <data name="Alert_NoNetwork_Title" xml:space="preserve">
-    <value>❌ ネットワークなし</value>
+    <value>❌ Không có mạng</value>
   </data>
   <data name="Alert_NoNetwork_Message" xml:space="preserve">
-    <value>データをダウンロードするにはWiFiまたは4Gへの接続が必要です。</value>
+    <value>Cần kết nối WiFi hoặc 4G để tải dữ liệu.</value>
   </data>
   <data name="Alert_UsingCellular_Title" xml:space="preserve">
-    <value>📶 モバイルデータを使用中</value>
+    <value>📶 Đang dùng 4G</value>
   </data>
   <data name="Alert_UsingCellular_Message" xml:space="preserve">
-    <value>データのダウンロードには約2.4MBの通信量がかかります。
+    <value>Tải dữ liệu sẽ tốn ~2.4 MB data.
 
-WiFiでのダウンロードを推奨します。
+Khuyến dùng WiFi để tải.
 
-モバイルデータで続けますか？</value>
+Bạn có muốn tiếp tục qua 4G không?</value>
   </data>
   <data name="Alert_DownloadDone_Title" xml:space="preserve">
-    <value>✅ ダウンロード完了！</value>
+    <value>✅ Tải hoàn tất!</value>
   </data>
   <data name="Alert_DownloadDone_Message" xml:space="preserve">
-    <value>データがダウンロードされました。
+    <value>Dữ liệu đã được tải về.
 
-アプリを完全にオフラインで使用できるようになりました。</value>
+Bạn có thể dùng app offline hoàn toàn.</value>
   </data>
   <data name="Alert_ManualBrowse_Title" xml:space="preserve">
-    <value>手動ブラウズ</value>
+    <value>Duyệt thủ công</value>
   </data>
   <data name="Alert_ManualBrowse_Message" xml:space="preserve">
-    <value>機能は開発中です</value>
+    <value>Tính năng đang phát triển</value>
   </data>
   <data name="Alert_GoogleLogin_Message" xml:space="preserve">
-    <value>Googleログイン機能は開発中です。</value>
+    <value>Đăng nhập Google đang được phát triển.</value>
   </data>
   <data name="Alert_Tts_Message" xml:space="preserve">
-    <value>音声選択機能は開発中です。</value>
+    <value>Chọn giọng đọc đang được phát triển.</value>
   </data>
   <data name="Alert_CheckOffline_Message" xml:space="preserve">
-    <value>オフラインデータを確認中...</value>
+    <value>Đang kiểm tra dữ liệu offline...</value>
   </data>
   <data name="Alert_DeleteOffline_Title" xml:space="preserve">
-    <value>データを削除？</value>
+    <value>Xóa dữ liệu?</value>
   </data>
   <data name="Alert_DeleteOffline_Message" xml:space="preserve">
-    <value>次回再ダウンロードが必要になります。</value>
+    <value>Bạn sẽ cần tải lại lần sau.</value>
   </data>
   <data name="Alert_DeleteOffline_Done" xml:space="preserve">
-    <value>オフラインデータを削除しました</value>
+    <value>Đã xóa dữ liệu offline</value>
   </data>
   <data name="Alert_Success_Title" xml:space="preserve">
-    <value>成功</value>
+    <value>Thành công</value>
   </data>
   <data name="Alert_Notice_Title" xml:space="preserve">
-    <value>通知</value>
+    <value>Thông báo</value>
   </data>
   <data name="Progress_ConnectingMongo" xml:space="preserve">
-    <value>MongoDBに接続中...</value>
+    <value>Đang kết nối MongoDB...</value>
   </data>
   <data name="Progress_DownloadingList" xml:space="preserve">
-    <value>レストランリストをダウンロード中...</value>
+    <value>Đang tải danh sách quán...</value>
   </data>
   <data name="Progress_DownloadingAudio" xml:space="preserve">
-    <value>オーディオファイルをダウンロード中...</value>
+    <value>Đang tải audio files...</value>
   </data>
   <data name="Progress_SavingOffline" xml:space="preserve">
-    <value>オフラインに保存中...</value>
+    <value>Đang lưu offline...</value>
   </data>
   <data name="Progress_Done" xml:space="preserve">
-    <value>完了！</value>
+    <value>Hoàn tất!</value>
   </data>
   <data name="Settings_Title" xml:space="preserve">
-    <value>設定</value>
+    <value>Cài đặt</value>
   </data>
   <data name="Settings_General" xml:space="preserve">
-    <value>一般</value>
+    <value>Chung</value>
   </data>
   <data name="Settings_LoginGoogle" xml:space="preserve">
-    <value>Googleでログイン</value>
+    <value>Đăng nhập với Google</value>
   </data>
   <data name="Settings_TourExperience" xml:space="preserve">
-    <value>ツアー体験</value>
+    <value>Trải nghiệm Tour</value>
   </data>
   <data name="Settings_Tts" xml:space="preserve">
-    <value>音声読み上げ（TTS）</value>
+    <value>Giọng đọc (TTS)</value>
   </data>
   <data name="Settings_TtsSubtitle" xml:space="preserve">
-    <value>女性 - 北部</value>
+    <value>Giọng đang chọn</value>
   </data>
   <data name="Settings_AutoPlay" xml:space="preserve">
-    <value>オーディオの自動再生</value>
+    <value>Tự động phát âm thanh</value>
   </data>
   <data name="Settings_AutoPlayDesc" xml:space="preserve">
-    <value>場所に近づいたとき</value>
+    <value>Khi đến gần địa điểm</value>
   </data>
   <data name="Settings_Volume" xml:space="preserve">
-    <value>ガイド音量</value>
+    <value>Âm lượng hướng dẫn</value>
   </data>
   <data name="Settings_VolumeShort" xml:space="preserve">
-    <value>音量</value>
+    <value>Vol</value>
   </data>
   <data name="Settings_Sensitivity" xml:space="preserve">
-    <value>位置感度</value>
+    <value>Độ nhạy vị trí</value>
   </data>
   <data name="Settings_SensitivityShort" xml:space="preserve">
-    <value>レーダー</value>
+    <value>Radar</value>
   </data>
   <data name="Settings_SensitivityNear" xml:space="preserve">
-    <value>正確（近い）</value>
+    <value>Chính xác (Gần)</value>
   </data>
   <data name="Settings_SensitivityFar" xml:space="preserve">
-    <value>広範囲（遠い）</value>
+    <value>Rộng (Xa)</value>
   </data>
   <data name="Settings_Data" xml:space="preserve">
-    <value>データ</value>
+    <value>Dữ liệu</value>
   </data>
   <data name="Settings_CheckOffline" xml:space="preserve">
-    <value>オフラインデータを確認</value>
+    <value>Kiểm tra dữ liệu offline</value>
   </data>
   <data name="Settings_LastUpdated" xml:space="preserve">
-    <value>更新：今日 18:30</value>
+    <value>Đã cập nhật: Hôm nay, 18:30</value>
   </data>
-  <data name="Settings_PrivacyTerms" xml:space="preserve">
-    <value>プライバシーポリシーと利用規約</value>
-  </data>
-  <data name="Settings_Version" xml:space="preserve">
-    <value>バージョン 1.2.0 (ビルド 45)</value>
-  </data>
+ 
   <data name="Nav_Map" xml:space="preserve">
-    <value>マップ</value>
+    <value>Bản đồ</value>
   </data>
   <data name="Nav_Tour" xml:space="preserve">
-    <value>ツアー</value>
+    <value>Tour</value>
   </data>
   <data name="Nav_Saved" xml:space="preserve">
-    <value>保存済み</value>
+    <value>Đã lưu</value>
   </data>
   <data name="Nav_Settings" xml:space="preserve">
-    <value>設定</value>
+    <value>Cài đặt</value>
   </data>
 </root>

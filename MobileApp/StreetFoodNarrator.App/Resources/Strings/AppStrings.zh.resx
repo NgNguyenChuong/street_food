@@ -201,7 +201,7 @@
     <value>语音朗读（TTS）</value>
   </data>
   <data name="Settings_TtsSubtitle" xml:space="preserve">
-    <value>女声 - 北方</value>
+    <value>已选语音</value>
   </data>
   <data name="Settings_AutoPlay" xml:space="preserve">
     <value>自动播放音频</value>

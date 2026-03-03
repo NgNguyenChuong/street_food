@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using System.Text;
+using StreetFoodNarrator.API.Services;
 
 namespace StreetFoodNarrator.API.Controllers;
 
@@ -61,6 +62,7 @@ public class TTSController : ControllerBase
     /// Generate audio using Edge TTS
     /// </summary>
     [HttpPost("generate")]
+    [AllowAnonymous]  // Allow demo without auth
     public async Task<IActionResult> GenerateTTS([FromBody] TTSRequest request)
     {
         if (string.IsNullOrEmpty(request.Text))
@@ -70,12 +72,21 @@ public class TTSController : ControllerBase
 
         try
         {
-            // Get voice for language
-            var voice = GetVoiceForLanguage(request.Language ?? "vi-VN");
+            var normalizedText = TtsTextPreprocessor.NormalizePlainText(request.Text, request.Language);
+
+            // Clamp script so playback stays within ~30s (average 2.6 words/s)
+            var clamped = ClampToMaxDuration(normalizedText, 30);
+            if (string.IsNullOrWhiteSpace(clamped.Text))
+            {
+                return BadRequest(new { message = "Text is empty after trimming" });
+            }
+
+            // Get voice for language (allow explicit voice override)
+            var voice = TtsVoiceCatalog.GetAllowedVoice(request.Voice, request.Language ?? "vi-VN");
             
             // Create temp file name
             var fileName = $"tts_{Guid.NewGuid()}.mp3";
-            var outputPath = Path.Combine(_env.WebRootPath, "uploads", "audio", fileName);
+            var outputPath = GetUploadAudioPath(fileName);
             
             // Ensure directory exists
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
@@ -102,8 +113,9 @@ public class TTSController : ControllerBase
             }
             
             // Write text to temp file to avoid command line encoding issues with Vietnamese characters
+            var ttsText = TtsTextPreprocessor.BuildSsmlIfNeeded(clamped.Text, request.Language);
             var tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_text_{Guid.NewGuid()}.txt");
-            await System.IO.File.WriteAllTextAsync(tempTextFile, request.Text, System.Text.Encoding.UTF8);
+            await System.IO.File.WriteAllTextAsync(tempTextFile, ttsText, System.Text.Encoding.UTF8);
             
             try
             {
@@ -148,6 +160,8 @@ public class TTSController : ControllerBase
                     fileName,
                     filePath = $"/uploads/audio/{fileName}",
                     fileSize = fileInfo.Length,
+                    durationSeconds = clamped.EstimatedSeconds,
+                    truncated = clamped.Truncated,
                     language = request.Language,
                     voice
                 });
@@ -176,6 +190,7 @@ public class TTSController : ControllerBase
     /// Get available voices for a language
     /// </summary>
     [HttpGet("voices")]
+    [AllowAnonymous]  // Allow demo without auth
     public async Task<IActionResult> GetVoices([FromQuery] string? language = null)
     {
         try
@@ -198,17 +213,7 @@ public class TTSController : ControllerBase
 
     private string GetVoiceForLanguage(string language)
     {
-        var normalized = NormalizeLanguage(language);
-        return normalized switch
-        {
-            "vi" => "vi-VN-HoaiMyNeural",      // Vietnamese Female
-            "en" => "en-US-JennyNeural",        // English US Female
-            "ja" => "ja-JP-NanamiNeural",       // Japanese Female
-            "ko" => "ko-KR-SunHiNeural",        // Korean Female
-            "zh" => "zh-CN-XiaoxiaoNeural",     // Chinese Mandarin Female
-            "fr" => "fr-FR-DeniseNeural",       // French Female
-            _ => "vi-VN-HoaiMyNeural"              // Default Vietnamese
-        };
+        return TtsVoiceCatalog.GetDefaultVoice(language);
     }
 
     private static string NormalizeLanguage(string? language)
@@ -221,35 +226,55 @@ public class TTSController : ControllerBase
         var lang = language.Trim().ToLowerInvariant();
         if (lang.StartsWith("vi")) return "vi";
         if (lang.StartsWith("en")) return "en";
-        if (lang.StartsWith("ja")) return "ja";
-        if (lang.StartsWith("fr")) return "fr";
-        if (lang.StartsWith("ko")) return "ko";
         if (lang.StartsWith("zh")) return "zh";
         return "vi";
     }
 
     private List<VoiceInfo> GetAllVoices()
     {
-        return new List<VoiceInfo>
+        var voices = new List<VoiceInfo>();
+        foreach (var (language, voice, name, gender) in TtsVoiceCatalog.GetFemaleVoices())
         {
-            new VoiceInfo { Language = "vi-VN", Voice = "vi-VN-HoaiMyNeural", Name = "Hoài My (Nữ)", Gender = "Female" },
-            new VoiceInfo { Language = "vi-VN", Voice = "vi-VN-NamMinhNeural", Name = "Nam Minh (Nam)", Gender = "Male" },
-            new VoiceInfo { Language = "en-US", Voice = "en-US-JennyNeural", Name = "Jenny (Female)", Gender = "Female" },
-            new VoiceInfo { Language = "en-US", Voice = "en-US-GuyNeural", Name = "Guy (Male)", Gender = "Male" },
-            new VoiceInfo { Language = "ja-JP", Voice = "ja-JP-NanamiNeural", Name = "Nanami (女性)", Gender = "Female" },
-            new VoiceInfo { Language = "ja-JP", Voice = "ja-JP-KeitaNeural", Name = "Keita (男性)", Gender = "Male" },
-            new VoiceInfo { Language = "ko-KR", Voice = "ko-KR-SunHiNeural", Name = "Sun-Hi (여성)", Gender = "Female" },
-            new VoiceInfo { Language = "ko-KR", Voice = "ko-KR-InJoonNeural", Name = "In-Joon (남성)", Gender = "Male" },
-            new VoiceInfo { Language = "zh-CN", Voice = "zh-CN-XiaoxiaoNeural", Name = "Xiaoxiao (女)", Gender = "Female" },
-            new VoiceInfo { Language = "zh-CN", Voice = "zh-CN-YunxiNeural", Name = "Yunxi (男)", Gender = "Male" },
-            new VoiceInfo { Language = "fr-FR", Voice = "fr-FR-DeniseNeural", Name = "Denise (Femme)", Gender = "Female" },
-            new VoiceInfo { Language = "fr-FR", Voice = "fr-FR-HenriNeural", Name = "Henri (Homme)", Gender = "Male" }
-        };
+            voices.Add(new VoiceInfo
+            {
+                Language = language,
+                Voice = voice,
+                Name = name,
+                Gender = gender
+            });
+        }
+
+        return voices;
     }
 
     private string EscapeText(string text)
     {
         return text.Replace("\"", "\\\"").Replace("\n", " ").Replace("\r", " ");
+    }
+
+    private string GetUploadAudioPath(string fileName)
+    {
+        return Path.Combine(_env.ContentRootPath, "Uploads", "audio", fileName);
+    }
+
+    private static (string Text, double EstimatedSeconds, bool Truncated) ClampToMaxDuration(string input, int maxSeconds)
+    {
+        const double wordsPerSecond = 2.6; // empirical average speech rate
+        int maxWords = (int)Math.Floor(maxSeconds * wordsPerSecond);
+
+        var words = (input ?? string.Empty)
+            .Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+
+        bool truncated = words.Count > maxWords;
+        if (truncated)
+        {
+            words = words.Take(maxWords).ToList();
+        }
+
+        var finalText = string.Join(" ", words);
+        double estSeconds = words.Count / wordsPerSecond;
+        return (finalText, Math.Round(estSeconds, 2), truncated);
     }
 }
 

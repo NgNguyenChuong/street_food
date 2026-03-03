@@ -55,7 +55,7 @@ public class LocationService : ILocationService
                     System.Diagnostics.Debug.WriteLine($"[GPS] Error: {ex.Message}");
                 }
 
-                await Task.Delay(2500, _cts.Token);
+                await Task.Delay(7500, _cts.Token); // 7.5s — GPS accuracy budget
             }
 
             _isRunning = false;
@@ -122,7 +122,7 @@ public class SimulatedLocationService : ILocationService
                 };
                 OnLocationUpdated?.Invoke(loc);
                 _stepIndex++;
-                await Task.Delay(3500, _cts.Token); // Step every 3.5s
+                await Task.Delay(5000, _cts.Token); // Step every 5s
             }
             IsRunning = false;
         }, _cts.Token);

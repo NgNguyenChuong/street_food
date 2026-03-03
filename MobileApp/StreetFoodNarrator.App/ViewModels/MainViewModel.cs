@@ -31,6 +31,17 @@ public partial class MainViewModel : ObservableObject
                 foreach (var z in zones) ActiveZones.Add(z);
                 ActiveZoneCount = zones.Count;
                 IsInsideAnyZone = zones.Any();
+                IsApproaching = zones.Any();
+                var first = zones.FirstOrDefault();
+                ApproachingZoneName = first?.Name_Vi ?? ApproachingZoneName;
+                ApproachingDistance = first != null ? $"{first.DistanceFromUser:F0}" : ApproachingDistance;
+
+                // Sync distances back into AllPOIs for status-based pin colors
+                foreach (var poi in AllPOIs)
+                {
+                    var match = zones.FirstOrDefault(z => z.Id == poi.Id);
+                    if (match != null) poi.DistanceFromUser = match.DistanceFromUser;
+                }
             });
 
         _geofence.OnPrimaryZoneChanged += zone =>
@@ -40,6 +51,7 @@ public partial class MainViewModel : ObservableObject
                 PrimaryZoneName = zone?.Name_Vi ?? "—";
                 PrimaryZoneType = zone?.ZoneType ?? "";
                 PrimaryZoneDesc = zone?.Description_Vi ?? "Chưa vào khu vực nào.";
+                PrimaryZoneAddress = zone?.SignatureDish ?? "Địa chỉ đang cập nhật";
                 PrimaryZoneEmoji = zone?.ZoneType switch
                 {
                     "Area" => "🗺️",
@@ -48,7 +60,8 @@ public partial class MainViewModel : ObservableObject
                     _ => "📡"
                 };
 
-                // Simulate audio playing
+                // Mark as visited + simulate audio playing
+                if (zone != null) VisitedPOIIds.Add(zone.Id);
                 IsAudioPlaying = zone != null;
                 if (zone != null)
                 {
@@ -78,7 +91,16 @@ public partial class MainViewModel : ObservableObject
             });
 
         _location.OnLocationUpdated += async loc =>
-            await _geofence.OnLocationChangedAsync(loc);
+        {
+            try
+            {
+                await _geofence.OnLocationChangedAsync(loc);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Geofence] Unhandled error: {ex.Message}");
+            }
+        };
     }
 
     // ── Observable Properties ─────────────────────────────────
@@ -105,13 +127,45 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private double audioProgress = 0.0;
     [ObservableProperty] private string audioTimeElapsed = "0:00";
     [ObservableProperty] private string audioDuration = "0:00";
+    [ObservableProperty] private string tourName = "Phố ẩm thực Vĩnh Khánh";
+    [ObservableProperty] private bool isApproaching = true;
+    [ObservableProperty] private string approachingZoneName = "Quán Ốc X - Sắp phát";
+    [ObservableProperty] private string approachingDistance = "50";
+    [ObservableProperty] private string currentStopBadge = "ĐIỂM 3 / 8";
+    [ObservableProperty] private string primaryZoneAddress = "Đang cập nhật";
+    [ObservableProperty] private string primaryZoneRating = "4.8";
+    [ObservableProperty] private string nextStop1Name = "Điểm kế 1";
+    [ObservableProperty] private string nextStop1Dist = "~100m • 2 phút";
+    [ObservableProperty] private string nextStop2Name = "Điểm kế 2";
+    [ObservableProperty] private string nextStop2Dist = "~200m • 4 phút";
+    [ObservableProperty] private bool isTourUiVisible = false;
 
-    // Cooldown display
     [ObservableProperty] private bool isCooldownActive = false;
     [ObservableProperty] private string cooldownMessage = "";
 
     // Settings drawer
     [ObservableProperty] private bool isSettingsOpen = false;
+
+    // ── New: Browse & Map tabs ─────────────────────────────────
+    [ObservableProperty] private ObservableCollection<POI> allPOIs = new();
+    [ObservableProperty] private ObservableCollection<POI> filteredPOIs = new();
+    [ObservableProperty] private ObservableCollection<POI> savedPOIs = new();
+    [ObservableProperty] private string searchQuery = "";
+    [ObservableProperty] private POI? selectedPinPOI;
+    [ObservableProperty] private bool isPinPopupVisible = false;
+
+    // Visited/saved sets (non-observable — used for map pin coloring)
+    public HashSet<int> VisitedPOIIds { get; } = new();
+    public HashSet<int> SavedPOIIds   { get; } = new();
+
+    /// <summary>Auto-starts GPS tracking on page load. Safe to call multiple times.</summary>
+    public async Task StartTrackingAsync()
+    {
+        if (IsTracking) return;
+        IsTracking = true;
+        LatestStatus = "📡 GPS đang chạy...";
+        await _location.StartAsync();
+    }
 
     // ── Commands ──────────────────────────────────────────────
     [RelayCommand]
@@ -191,5 +245,90 @@ public partial class MainViewModel : ObservableObject
     private void CloseSettings()
     {
         IsSettingsOpen = false;
+    }
+
+    // Placeholder commands for UI bindings (prev/next/bookmark/select)
+    [RelayCommand]
+    private void PrevStop()
+    {
+        // TODO: implement previous stop navigation
+    }
+
+    [RelayCommand]
+    private void NextStop()
+    {
+        // TODO: implement next stop navigation
+    }
+
+    [RelayCommand]
+    private void Bookmark()
+    {
+        // TODO: implement bookmark logic
+    }
+
+    [RelayCommand]
+    private void SelectStop(int stopIndex)
+    {
+        // TODO: implement direct stop selection
+    }
+
+    // ── Browse / Map tab ─────────────────────────────────────────────────
+
+    /// <summary>Load all active POIs into AllPOIs + FilteredPOIs.</summary>
+    public async Task LoadAllPoisAsync()
+    {
+        // Always load from SQLite first so we have real synced data
+        await _repository.LoadLocalAsync();
+        var zones = _repository.GetAllActiveZones();
+        AllPOIs.Clear();
+        foreach (var z in zones) AllPOIs.Add(z);
+        ApplyFilter();
+    }
+
+    /// <summary>Called automatically when SearchQuery changes.</summary>
+    partial void OnSearchQueryChanged(string value) => ApplyFilter();
+
+    public void ApplyFilter()
+    {
+        var q = (SearchQuery ?? "").Trim().ToLower();
+        var results = AllPOIs.Where(p =>
+            p.ZoneType == "Spot" &&
+            (string.IsNullOrEmpty(q) ||
+             (p.Name_Vi?.ToLower().Contains(q) == true) ||
+             (p.SignatureDish?.ToLower().Contains(q) == true) ||
+             (p.Type?.ToLower().Contains(q) == true)));
+        FilteredPOIs.Clear();
+        foreach (var p in results) FilteredPOIs.Add(p);
+    }
+
+    [RelayCommand]
+    private void ToggleSavePOI(POI poi)
+    {
+        if (poi == null) return;
+        if (SavedPOIIds.Contains(poi.Id))
+        {
+            SavedPOIIds.Remove(poi.Id);
+            var item = SavedPOIs.FirstOrDefault(p => p.Id == poi.Id);
+            if (item != null) SavedPOIs.Remove(item);
+        }
+        else
+        {
+            SavedPOIIds.Add(poi.Id);
+            SavedPOIs.Add(poi);
+        }
+    }
+
+    [RelayCommand]
+    private void ShowPinPopup(POI poi)
+    {
+        SelectedPinPOI = poi;
+        IsPinPopupVisible = poi != null;
+    }
+
+    [RelayCommand]
+    private void ClosePinPopup()
+    {
+        IsPinPopupVisible = false;
+        SelectedPinPOI = null;
     }
 }

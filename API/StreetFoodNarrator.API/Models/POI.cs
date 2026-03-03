@@ -13,21 +13,12 @@ public class POI
     [BsonElement("POI_ID")]
     public int POI_ID { get; set; }
 
-    // Multi-language Names
+    // Multi-language Names - CHỈ 3 NGÔN NGỮ CHÍNH
     [Required, MaxLength(200)]
     public string Name_Vi { get; set; } = string.Empty;
     
     [MaxLength(200)]
     public string? Name_En { get; set; }
-    
-    [MaxLength(200)]
-    public string? Name_Ja { get; set; }
-    
-    [MaxLength(200)]
-    public string? Name_Fr { get; set; }
-    
-    [MaxLength(200)]
-    public string? Name_Ko { get; set; }
     
     [MaxLength(200)]
     public string? Name_Zh { get; set; }
@@ -37,9 +28,6 @@ public class POI
     public string Description_Vi { get; set; } = string.Empty;
     
     public string? Description_En { get; set; }
-    public string? Description_Ja { get; set; }
-    public string? Description_Fr { get; set; }
-    public string? Description_Ko { get; set; }
     public string? Description_Zh { get; set; }
 
     // ============================================
@@ -47,20 +35,17 @@ public class POI
     // ============================================
     
     /// <summary>
-    /// GeoJSON location object for MongoDB 2dsphere indexing
+    /// GeoJSON location 
     /// Format: { type: "Point", coordinates: [longitude, latitude] }
+    /// Access: Location.Latitude / Location.Longitude (helper props on GeoJsonLocation)
     /// </summary>
     [BsonElement("location")]
     public GeoJsonLocation Location { get; set; } = new();
-    
-    // Legacy fields for backward compatibility
-    public decimal Latitude { get; set; }
-    public decimal Longitude { get; set; }
-    
+
     [MaxLength(500)]
     public string? Address { get; set; }
 
-    // Audio URLs for each language
+    // Audio URLs for each language - CHỈ 3 NGÔN NGỮ
     [MaxLength(500)]
     public string? AudioUrl_Vi { get; set; }
     
@@ -68,21 +53,10 @@ public class POI
     public string? AudioUrl_En { get; set; }
     
     [MaxLength(500)]
-    public string? AudioUrl_Ja { get; set; }
-    
-    [MaxLength(500)]
-    public string? AudioUrl_Fr { get; set; }
-    
-    [MaxLength(500)]
-    public string? AudioUrl_Ko { get; set; }
-    
-    [MaxLength(500)]
     public string? AudioUrl_Zh { get; set; }
 
     // Additional fields
-    [MaxLength(200)]
-    public string? SignatureDish { get; set; }
-
+    /// <summary>List of signature dishes. Use SignatureDishes[0] as the primary dish.</summary>
     public List<string>? SignatureDishes { get; set; }
 
     public List<string>? Specialties { get; set; }
@@ -191,9 +165,6 @@ public class POI
         return language.ToLower() switch
         {
             "en" => Name_En ?? Name_Vi,
-            "ja" => Name_Ja ?? Name_En ?? Name_Vi,
-            "fr" => Name_Fr ?? Name_En ?? Name_Vi,
-            "ko" => Name_Ko ?? Name_En ?? Name_Vi,
             "zh" => Name_Zh ?? Name_En ?? Name_Vi,
             _ => Name_Vi
         };
@@ -204,9 +175,6 @@ public class POI
         return language.ToLower() switch
         {
             "en" => Description_En ?? Description_Vi,
-            "ja" => Description_Ja ?? Description_En ?? Description_Vi,
-            "fr" => Description_Fr ?? Description_En ?? Description_Vi,
-            "ko" => Description_Ko ?? Description_En ?? Description_Vi,
             "zh" => Description_Zh ?? Description_En ?? Description_Vi,
             _ => Description_Vi
         };
@@ -217,9 +185,6 @@ public class POI
         return language.ToLower() switch
         {
             "en" => AudioUrl_En ?? AudioUrl_Vi,
-            "ja" => AudioUrl_Ja ?? AudioUrl_En ?? AudioUrl_Vi,
-            "fr" => AudioUrl_Fr ?? AudioUrl_En ?? AudioUrl_Vi,
-            "ko" => AudioUrl_Ko ?? AudioUrl_En ?? AudioUrl_Vi,
             "zh" => AudioUrl_Zh ?? AudioUrl_En ?? AudioUrl_Vi,
             _ => AudioUrl_Vi
         };
