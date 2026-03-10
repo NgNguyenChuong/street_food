@@ -28,8 +28,8 @@ public static class Constants
     
     // Map
     public const double DEFAULT_MAP_ZOOM = 15.0;
-    public const double VINH_KHANH_LATITUDE = 10.762622;
-    public const double VINH_KHANH_LONGITUDE = 106.660172;
+    public const double VINH_KHANH_LATITUDE  = 10.7619153;  // Cổng chính Phố ẩm thực Vĩnh Khánh
+    public const double VINH_KHANH_LONGITUDE = 106.701912;
     
     // Permissions
     public const string PERMISSION_LOCATION = "Location";

@@ -151,7 +151,7 @@
             .logo-icon {
                 width: 48px;
                 height: 48px;
-                background: linear-gradient(135deg, #FF6B35 0%, #004E89 100%);
+                background: linear-gradient(135deg, #22c55e 0%, #0f766e 100%);
                 border-radius: 12px;
                 display: flex;
                 align-items: center;
@@ -193,14 +193,14 @@
                 top: 0;
                 width: 4px;
                 height: 100%;
-                background: #FF6B35;
+                background: #22c55e;
                 transform: scaleY(0);
                 transition: transform 0.3s ease;
             }
 
             .nav-link:hover,
             .nav-link.active {
-                background: rgba(255, 107, 53, 0.15);
+                background: rgba(34, 197, 94, 0.15);
                 color: white;
                 transform: translateX(4px);
             }
@@ -247,7 +247,7 @@
 
             .nav-sublink:hover,
             .nav-sublink.active {
-                background: rgba(255, 107, 53, 0.12);
+                background: rgba(34, 197, 94, 0.12);
                 color: #fff;
             }
 

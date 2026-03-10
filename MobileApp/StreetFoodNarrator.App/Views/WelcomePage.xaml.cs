@@ -18,10 +18,12 @@ public partial class WelcomePage : ContentPage
     private const string PREF_DONT_SHOW_INFO = "dont_show_offline_info";
 
     private readonly IZoneRepository _repository;
+    private readonly IAudioCacheService? _audioCache;
     private bool _flowStarted = false;
     private string _currentLang = LangVi;
     private StatusKind _statusKind = StatusKind.None;
     private string? _errorDetails;
+    private int _newAudioCount = 0;
 
     private enum StatusKind
     {
@@ -36,7 +38,8 @@ public partial class WelcomePage : ContentPage
     public WelcomePage()
     {
         InitializeComponent();
-        _repository = MauiProgram.Services.GetRequiredService<IZoneRepository>();
+        _repository  = MauiProgram.Services.GetRequiredService<IZoneRepository>();
+        _audioCache  = MauiProgram.Services.GetService<IAudioCacheService>();
         var lang = Preferences.Get(AppConfig.LanguagePrefKey, LangVi);
         ApplyLanguage(lang);
     }
@@ -89,6 +92,8 @@ public partial class WelcomePage : ContentPage
             ShowReadyState();
             EnableStartButton();
             _ = RunBackgroundSyncAsync();
+            // Kiểm tra audio mới ngay sau khi UI sẵn sàng
+            CheckAudioUpdatesInBackground();
             return;
         }
 
@@ -107,6 +112,166 @@ public partial class WelcomePage : ContentPage
             await _repository.LoadLocalAsync();
         }
         catch { /* Silent */ }
+    }
+
+    // ── Cảnh báo audio mới (ở background) ────────────────────────
+
+    private void CheckAudioUpdatesInBackground()
+    {
+        if (!IsOnline() || _audioCache == null) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(2500); // Đợi UI ổn định trước
+                var count = await _audioCache.CheckForUpdatesAsync();
+                if (count <= 0) return;
+
+                _newAudioCount = count;
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    BellButton.IsVisible   = true;
+                    BellBadge.IsVisible    = true;
+                    BellBadgeCount.Text    = count > 99 ? "99+" : count.ToString();
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WelcomePage] CheckAudioUpdates lỗi: {ex.Message}");
+            }
+        });
+    }
+
+    private async void OnBellClicked(object sender, EventArgs e)
+    {
+        var result = await ShowAudioUpdateDialogAsync(_newAudioCount);
+        if (result == "download")
+            await DownloadNewAudioAsync();
+    }
+
+    private async Task<string> ShowAudioUpdateDialogAsync(int count)
+    {
+        var tcs     = new TaskCompletionSource<string>();
+        var overlay = new Grid { BackgroundColor = Color.FromArgb("#80000000") };
+
+        var dialog = new Border
+        {
+            BackgroundColor  = Color.FromArgb("#14251F"),
+            Stroke           = Color.FromArgb("#1E3D2A"),
+            StrokeThickness  = 1,
+            Padding          = new Thickness(24),
+            Margin           = new Thickness(32),
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions   = LayoutOptions.Center,
+            MaximumWidthRequest = 340,
+            StrokeShape      = new RoundRectangle { CornerRadius = new CornerRadius(20) }
+        };
+
+        var stack = new VerticalStackLayout { Spacing = 16 };
+
+        // Icon + Tiêu đề
+        var titleRow = new HorizontalStackLayout { Spacing = 10 };
+        titleRow.Add(new Label
+        {
+            Text = "\uF009A", FontFamily = "MDI", FontSize = 28,
+            TextColor = Color.FromArgb("#F97316"),
+            VerticalOptions = LayoutOptions.Center
+        });
+        titleRow.Add(new Label
+        {
+            Text = "Có audio mới!",
+            FontSize = 20, FontAttributes = FontAttributes.Bold,
+            TextColor = Colors.White, VerticalOptions = LayoutOptions.Center
+        });
+        stack.Add(titleRow);
+
+        stack.Add(new Label
+        {
+            Text = $"Admin vừa cập nhật {count} file audio thuyết minh mới.\n"
+                 + "Tải về ngay để sử dụng offline khi không có mạng.",
+            FontSize = 14,
+            TextColor = Color.FromArgb("#94A3B8"),
+            LineBreakMode = LineBreakMode.WordWrap
+        });
+
+        var btnDownload = new Button
+        {
+            Text = "\uF0552  Tải xuống ngay",
+            FontFamily = "MDI",
+            BackgroundColor = Color.FromArgb("#22C55E"),
+            TextColor = Colors.White,
+            FontAttributes = FontAttributes.Bold,
+            CornerRadius = 12, HeightRequest = 48
+        };
+        btnDownload.Clicked += (s, e) => { tcs.TrySetResult("download"); overlay.IsVisible = false; };
+        stack.Add(btnDownload);
+
+        var btnLater = new Button
+        {
+            Text = "Để sau",
+            BackgroundColor = Colors.Transparent,
+            TextColor = Color.FromArgb("#94A3B8"),
+            BorderColor = Color.FromArgb("#1E3D2A"),
+            BorderWidth = 1,
+            CornerRadius = 12, HeightRequest = 44
+        };
+        btnLater.Clicked += (s, e) => { tcs.TrySetResult("later"); overlay.IsVisible = false; };
+        stack.Add(btnLater);
+
+        dialog.Content = stack;
+        overlay.Children.Add(dialog);
+        var mainGrid = (Grid)this.Content;
+        mainGrid.Children.Add(overlay);
+
+        var result = await tcs.Task;
+        mainGrid.Children.Remove(overlay);
+        return result;
+    }
+
+    private async Task DownloadNewAudioAsync()
+    {
+        if (_audioCache == null) return;
+
+        // Cảnh báo khi dùng mạng di động
+        var isWifi = Connectivity.Current.ConnectionProfiles.Contains(ConnectionProfile.WiFi);
+        if (!isWifi)
+        {
+            var confirm = await DisplayAlert(
+                AppStrings.Alert_UsingCellular_Title,
+                AppStrings.Alert_UsingCellular_Message,
+                AppStrings.Common_Continue, AppStrings.Common_Cancel);
+            if (!confirm) return;
+        }
+
+        // Khóa nút, hiển tiến trình quà badge
+        BellButton.IsEnabled = false;
+        BellBadgeCount.Text  = "...";
+
+        try
+        {
+            var poiIds = _repository.GetAllActiveZones().Select(p => p.Id).ToList();
+            var progress = new Progress<(int done, int total)>(p =>
+                MainThread.BeginInvokeOnMainThread(() =>
+                    BellBadgeCount.Text = $"{p.done}/{p.total}"));
+
+            await _audioCache.PreloadAllAsync(poiIds, progress);
+
+            // Tải xong → ẩn chuông
+            BellButton.IsVisible = false;
+            BellBadge.IsVisible  = false;
+            _newAudioCount       = 0;
+
+            await DisplayAlert("✅ Hoàn tất",
+                "Tải xuống xong! Audio sẽ phát offline ngay cả khi không có mạng.",
+                "OK");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WelcomePage] DownloadNewAudio lỗi: {ex.Message}");
+            BellButton.IsEnabled = true;
+            BellBadgeCount.Text  = _newAudioCount.ToString();
+        }
     }
 
     // START BUTTON:
@@ -806,9 +971,11 @@ public partial class WelcomePage : ContentPage
     
     private async Task NavigateToMapAsync()
     {
-        var vm = MauiProgram.Services.GetRequiredService<MainViewModel>();
-        var page = new MainPage(vm);
-        await Navigation.PushAsync(page);
+        // Replace root with AppShell (Main app with tabs)
+        if (Application.Current?.Windows.Count > 0)
+        {
+            Application.Current.Windows[0].Page = new AppShell();
+        }
     }
 
     private async void OnManualBrowseClicked(object sender, EventArgs e)

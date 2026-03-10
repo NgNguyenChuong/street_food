@@ -12,10 +12,10 @@ function resolveApiBaseUrl() {
 
     // Live Server defaults
     if (hostname === '127.0.0.1' && port === '5500') {
-        return 'https://localhost:7110/api';
+        return 'http://localhost:5004/api';
     }
     if (hostname === 'localhost' && port === '5500') {
-        return 'https://localhost:7110/api';
+        return 'http://localhost:5004/api';
     }
 
     // Production: assume same origin
@@ -23,6 +23,30 @@ function resolveApiBaseUrl() {
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
+
+// JWT helpers
+function parseJwtPayload(token) {
+    if (!token) return null;
+    try {
+        const payload = token.split('.')[1];
+        if (!payload) return null;
+        const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+        return JSON.parse(json);
+    } catch {
+        return null;
+    }
+}
+
+function parseJwtRoles(token) {
+    const payload = parseJwtPayload(token);
+    if (!payload) return [];
+    const MS_ROLE = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
+    const raw = payload[MS_ROLE] || payload.role || payload.roles || payload.Role;
+    if (!raw) return [];
+    const list = Array.isArray(raw) ? raw : [raw];
+    return list.flatMap(r => String(r).split(',')).map(r => r.trim()).filter(Boolean);
+}
+
 
 
 
@@ -104,14 +128,18 @@ const TokenManager = {
         return null;
     },
 
-    pickRoleForUser(user) {
-        const roles = user?.roles || [];
+    pickRoleForUser(user, token) {
+        const rawRoles = user?.roles || user?.roleNames || [];
+        const roles = Array.isArray(rawRoles) ? rawRoles.slice() : [rawRoles];
+        const tokenRoles = token ? parseJwtRoles(token) : [];
+        const merged = [...new Set([...roles, ...tokenRoles].filter(Boolean))];
         const ctx = this.getRoleContext();
-        if (ctx && roles.includes(ctx)) return ctx;
-        if (roles.includes('Admin')) return 'Admin';
-        if (roles.includes('Vendor')) return 'Vendor';
+        if (ctx && merged.includes(ctx)) return ctx;
+        if (merged.includes('Admin')) return 'Admin';
+        if (merged.includes('Vendor')) return 'Vendor';
         return null;
     },
+
 
     getToken(role) {
         const normalized = this.normalizeRole(role) || this.ensureRoleContext();
@@ -352,10 +380,10 @@ class API {
         
 
         if (data.token) {
-            const role = TokenManager.pickRoleForUser(data.user);
+            const role = TokenManager.pickRoleForUser(data.user, data.token);
             if (role) TokenManager.setRoleContext(role);
             TokenManager.setToken(data.token, role);
-            TokenManager.setUser(data.user, role);
+            if (data.user) TokenManager.setUser(data.user, role);
         }
 
         
@@ -379,7 +407,7 @@ class API {
         const data = await this.request('/Auth/refresh', { method: 'POST' });
 
         if (data.token) {
-            const role = TokenManager.getRoleContext();
+            const role = TokenManager.getRoleContext() || TokenManager.pickRoleForUser(TokenManager.getUser(), data.token);
             TokenManager.setToken(data.token, role);
         }
 
@@ -395,7 +423,7 @@ class API {
 
     async getMySettings() {
 
-        const role = TokenManager.getRoleContext();
+        const role = TokenManager.getRoleContext() || TokenManager.pickRoleForUser(TokenManager.getUser());
         const roleParam = role ? `?role=${encodeURIComponent(role.toLowerCase())}` : '';
         return this.request(`/Settings/me${roleParam}`);
 
@@ -403,7 +431,7 @@ class API {
 
     async updateMySettings(payload) {
 
-        const role = TokenManager.getRoleContext();
+        const role = TokenManager.getRoleContext() || TokenManager.pickRoleForUser(TokenManager.getUser());
         const roleParam = role ? `?role=${encodeURIComponent(role.toLowerCase())}` : '';
         return this.request(`/Settings/me${roleParam}`, {
 
@@ -639,6 +667,125 @@ class API {
 // Export API instance
 
 const api = new API();
+
+// Schema-style helpers (compatible with provided CMS files)
+const getToken = () => TokenManager.getToken();
+const setToken = (token) => {
+    const role = TokenManager.getRoleContext() || TokenManager.pickRoleForUser(TokenManager.getUser(), token) || (parseJwtRoles(token)[0] ?? null);
+    if (role) TokenManager.setRoleContext(role);
+    TokenManager.setToken(token, role);
+};
+const removeToken = () => {
+    TokenManager.removeToken('Admin');
+    TokenManager.removeToken('Vendor');
+    localStorage.removeItem('jwt_token');
+    sessionStorage.removeItem('jwt_token');
+};
+
+function qs(params = {}) {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+        if (v !== null && v !== undefined && v !== '') q.set(k, v);
+    }
+    const s = q.toString();
+    return s ? '?' + s : '';
+}
+
+const AuthAPI = {
+    login: (email, password) => api.login(email, password),
+    register: (data) => api.request('/Auth/register', { method: 'POST', body: JSON.stringify(data) }),
+    me: () => api.getCurrentUser(),
+    refresh: () => api.refreshToken()
+};
+
+const POIApi = {
+    list: ({ page = 1, pageSize = 10, search, isActive, category } = {}) =>
+        api.request('/POIs' + qs({ page, pageSize, search, isActive, category })),
+    get: (id) => api.request(`/POIs/${id}`),
+    create: (data) => api.request('/POIs', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => api.request(`/POIs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => api.request(`/POIs/${id}`, { method: 'DELETE' }),
+    stats: () => api.request('/POIs/stats'),
+    sync: (sinceVersion = 0) => api.request('/POIs/sync' + qs({ sinceVersion }))
+};
+
+const AudioApi = {
+    list: ({ page = 1, pageSize = 10, language, poiId, status, poiName } = {}) =>
+        api.request('/Audio' + qs({ page, pageSize, language, poiId, status, poiName })),
+    get: (id) => api.request(`/Audio/${id}`),
+    create: (data) => api.request('/Audio', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => api.request(`/Audio/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => api.request(`/Audio/${id}`, { method: 'DELETE' }),
+    upload: ({ audioFile, title, description, language, poiId, ttsText }) => {
+        const fd = new FormData();
+        if (audioFile) fd.append('AudioFile', audioFile);
+        if (title) fd.append('Title', title);
+        if (description) fd.append('Description', description);
+        if (language) fd.append('Language', language);
+        if (poiId != null) fd.append('POI_ID', String(poiId));
+        if (ttsText) fd.append('TTSText', ttsText);
+        return api.uploadAudio(fd);
+    },
+    poisWithoutAudio: (language = 'vi-VN') => api.request('/Audio/pois-without-audio' + qs({ language })),
+    generateFile: (id) => api.request(`/Audio/${id}/generate-file`, { method: 'POST' }),
+    submit: (id) => api.request(`/Audio/${id}/submit`, { method: 'POST' }),
+    approve: (id) => api.request(`/Audio/${id}/approve`, { method: 'POST' }),
+    reject: (id, reason) => api.request(`/Audio/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    bulkGenerate: (data) => api.request('/Audio/bulk-generate', { method: 'POST', body: JSON.stringify(data) })
+};
+
+const TTSApi = {
+    test: () => api.request('/TTS/test'),
+    generate: ({ text, language, voice }) => api.request('/TTS/generate', { method: 'POST', body: JSON.stringify({ text, language, voice }) }),
+    voices: (language) => api.request('/TTS/voices' + qs({ language }))
+};
+
+const VendorApi = {
+    me: () => api.request('/Vendors/me', { suppressNotFound: true }),
+    list: ({ search, status, sort } = {}) => api.request('/Vendors' + qs({ search, status, sort })),
+    stats: () => api.request('/Vendors/stats')
+};
+
+const SettingsApi = {
+    get: (role) => {
+        const r = role || TokenManager.getRoleContext();
+        return api.request('/Settings/me' + qs({ role: r ? String(r).toLowerCase() : null }));
+    },
+    update: (data, role) => {
+        const r = role || TokenManager.getRoleContext();
+        return api.request('/Settings/me' + qs({ role: r ? String(r).toLowerCase() : null }), { method: 'PUT', body: JSON.stringify(data) });
+    }
+};
+
+const TranslationsApi = {
+    list: ({ page = 1, pageSize = 50, search, category, status } = {}) => 
+        api.request('/Translations' + qs({ page, pageSize, search, category, status })),
+    get: (id) => api.request(`/Translations/${id}`),
+    create: (data) => api.request('/Translations', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => api.request(`/Translations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => api.request(`/Translations/${id}`, { method: 'DELETE' }),
+    stats: () => api.request('/Translations/stats')
+};
+
+const AnalyticsApi = {
+    overview: () => api.request('/Analytics/overview'),
+    narrationLogs: ({ page = 1, pageSize = 20, fromDate, toDate } = {}) => 
+        api.request('/Analytics/narration-logs' + qs({ page, pageSize, fromDate, toDate })),
+    topPOIs: (limit = 10) => api.request('/Analytics/top-pois' + qs({ limit })),
+    devices: ({ page = 1, pageSize = 20, platform } = {}) => 
+        api.request('/Analytics/devices' + qs({ page, pageSize, platform }))
+};
+
+const ToursApi = {
+    list: ({ page = 1, pageSize = 20, search } = {}) => 
+        api.request('/Tours' + qs({ page, pageSize, search })),
+    get: (id) => api.request(`/Tours/${id}`),
+    create: (data) => api.request('/Tours', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => api.request(`/Tours/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => api.request(`/Tours/${id}`, { method: 'DELETE' }),
+    stats: () => api.request('/Tours/stats')
+};
+
 
 
 

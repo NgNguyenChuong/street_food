@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%); color: var(--dark); overflow-x: hidden; }
+        .main-content { margin-left: 280px; padding: 2rem; min-height: 100vh; transition: margin-left 0.3s; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; animation: fadeIn 0.6s ease-out; }
+        .page-title { font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header-actions { display: flex; gap: 1rem; align-items: center; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.3s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; font-family: 'DM Sans', sans-serif; }
+        .btn-primary { background: var(--gradient); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,107,53,0.3); }
+        .btn-outline { background: white; border: 2px solid var(--border); color: var(--dark); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .stat-card { background: white; padding: 1.75rem; border-radius: 20px; box-shadow: 0 4px 20px var(--shadow); transition: all 0.3s; position: relative; overflow: hidden; animation: fadeInUp 0.6s ease-out backwards; cursor: pointer; }
+        .stat-card:nth-child(1) { animation-delay: 0.1s; } .stat-card:nth-child(2) { animation-delay: 0.2s; } .stat-card:nth-child(3) { animation-delay: 0.3s; } .stat-card:nth-child(4) { animation-delay: 0.4s; }
+        .stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 100px; height: 100px; background: var(--gradient); opacity: 0.04; border-radius: 0 20px 0 100%; }
+        .stat-card:hover { transform: translateY(-6px); box-shadow: 0 10px 30px var(--shadow); }
+        .stat-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem; }
+        .stat-icon.primary { background: rgba(255,107,53,0.12); color: var(--primary); }
+        .stat-icon.success { background: rgba(6,214,160,0.12); color: var(--success); }
+        .stat-icon.secondary { background: rgba(0,78,137,0.12); color: var(--secondary); }
+        .stat-icon.accent { background: rgba(255,210,63,0.12); color: #E0A800; }
+        .stat-value { font-size: 2.25rem; font-weight: 700; color: var(--dark); margin-bottom: 0.35rem; }
+        .stat-label { color: #666; font-size: 0.9rem; }
+        .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+        .card { background: white; border-radius: 20px; padding: 1.75rem; box-shadow: 0 4px 20px var(--shadow); animation: fadeInUp 0.6s ease-out 0.4s backwards; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
+        .card-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        thead { background: linear-gradient(to right, #F8F9FA, #F0F4F8); }
+        th { padding: 0.875rem 1.25rem; text-align: left; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); }
+        td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); color: #555; font-size: 0.9rem; }
+        tr:hover td { background: rgba(255,107,53,0.02); }
+        .status-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.375rem 0.875rem; border-radius: 50px; font-size: 0.8rem; font-weight: 600; }
+        .status-badge.active { background: rgba(6,214,160,0.12); color: var(--success); }
+        .status-badge.inactive { background: rgba(239,71,111,0.12); color: var(--danger); }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; animation: pulse 2s infinite; }
+        .status-dot.active { background: var(--success); } .status-dot.inactive { background: var(--danger); }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+        .activity-item { display: flex; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--border); transition: 0.3s; }
+        .activity-item:last-child { border-bottom: none; }
+        .activity-item:hover { transform: translateX(4px); }
+        .activity-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.1rem; }
+        .activity-icon.primary { background: rgba(255,107,53,0.1); color: var(--primary); }
+        .activity-icon.success { background: rgba(6,214,160,0.1); color: var(--success); }
+        .activity-icon.secondary { background: rgba(0,78,137,0.1); color: var(--secondary); }
+        .activity-content { flex: 1; }
+        .activity-title { font-weight: 600; color: var(--dark); font-size: 0.9rem; margin-bottom: 0.2rem; }
+        .activity-desc { font-size: 0.8rem; color: #999; }
+        .activity-time { font-size: 0.8rem; color: #bbb; white-space: nowrap; }
+        .quick-links { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 2rem; }
+        .quick-card { background: white; border-radius: 16px; padding: 1.25rem; box-shadow: 0 4px 16px var(--shadow); display: flex; align-items: center; gap: 1rem; cursor: pointer; transition: all 0.3s; text-decoration: none; color: var(--dark); }
+        .quick-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px var(--shadow); }
+        .quick-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+        .quick-name { font-weight: 600; font-size: 0.9rem; }
+        .quick-desc { font-size: 0.8rem; color: #888; margin-top: 0.15rem; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 1024px) { .content-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .main-content { margin-left: 0; } .stats-grid { grid-template-columns: 1fr 1fr; } .quick-links { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <h1 class="page-title">Dashboard</h1>
+        <div class="header-actions">
+            <a href="poi-create.html" class="btn btn-primary"><i class="fas fa-plus"></i> Thêm POI</a>
+        </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card" onclick="location.href='poi-list.html'">
+            <div class="stat-icon primary"><i class="fas fa-map-marker-alt"></i></div>
+            <div class="stat-value" id="totalPOIs">—</div>
+            <div class="stat-label">Tổng số POI</div>
+        </div>
+        <div class="stat-card" onclick="location.href='poi-list.html'">
+            <div class="stat-icon success"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-value" id="activePOIs">—</div>
+            <div class="stat-label">POI Đang hoạt động</div>
+        </div>
+        <div class="stat-card" onclick="location.href='audio-list.html'">
+            <div class="stat-icon secondary"><i class="fas fa-music"></i></div>
+            <div class="stat-value" id="totalAudios">—</div>
+            <div class="stat-label">Tổng Audio Files</div>
+        </div>
+        <div class="stat-card" onclick="location.href='translation.html'">
+            <div class="stat-icon accent"><i class="fas fa-globe"></i></div>
+            <div class="stat-value" id="totalTranslations">—</div>
+            <div class="stat-label">Bản dịch</div>
+        </div>
+    </div>
+
+    <!-- Content grid -->
+    <div class="content-grid">
+        <!-- Recent POIs -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">POI gần đây</h2>
+                <a href="poi-list.html" class="btn btn-outline">Xem tất cả <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div class="table-container" style="overflow-x:auto">
+                <table id="poisTable">
+                    <thead>
+                        <tr><th>Tên POI</th><th>Địa chỉ</th><th>Trạng thái</th><th>Audio</th><th>Hành động</th></tr>
+                    </thead>
+                    <tbody id="poisTableBody">
+                        <tr><td colspan="5" style="text-align:center;padding:2rem;color:#999"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Activity -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Hoạt động gần đây</h2>
+            </div>
+            <div id="activityFeed">
+                <div class="activity-item">
+                    <div class="activity-icon primary"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="activity-content">
+                        <div class="activity-title">Đang tải...</div>
+                        <div class="activity-desc">Vui lòng chờ trong giây lát.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick links -->
+    <div class="quick-links">
+        <a class="quick-card" href="translation.html">
+            <div class="quick-icon" style="background:rgba(0,78,137,0.1);color:var(--secondary)"><i class="fas fa-language"></i></div>
+            <div><div class="quick-name">Bản dịch</div><div class="quick-desc">Quản lý nội dung đa ngôn ngữ</div></div>
+        </a>
+        <a class="quick-card" href="tour.html">
+            <div class="quick-icon" style="background:rgba(255,210,63,0.15);color:#D69E00"><i class="fas fa-route"></i></div>
+            <div><div class="quick-name">Quản lý Tour</div><div class="quick-desc">Lộ trình tham quan ẩm thực</div></div>
+        </a>
+        <a class="quick-card" href="history.html">
+            <div class="quick-icon" style="background:rgba(6,214,160,0.12);color:var(--success)"><i class="fas fa-history"></i></div>
+            <div><div class="quick-name">Lịch sử</div><div class="quick-desc">Theo dõi hành vi người dùng</div></div>
+        </a>
+        <a class="quick-card" href="users.html">
+            <div class="quick-icon" style="background:rgba(255,107,53,0.1);color:var(--primary)"><i class="fas fa-mobile-alt"></i></div>
+            <div><div class="quick-name">Thiết bị</div><div class="quick-desc">Quản lý thiết bị ẩn danh</div></div>
+        </a>
+    </div>
+</main>
+
+<script src="api.js"></script>
+<script>
+    const roleContext = TokenManager.ensureRoleContext();
+    const user = TokenManager.getUser();
+    if (!user || !roleContext) window.location.href = '/index.html';
+
+    function formatDate(d) {
+        if (!d) return '—';
+        const dt = new Date(d);
+        const diff = (Date.now() - dt.getTime()) / 60000;
+        if (diff < 1) return 'Vừa xong';
+        if (diff < 60) return Math.round(diff) + ' phút trước';
+        if (diff < 1440) return Math.round(diff/60) + ' giờ trước';
+        return Math.round(diff/1440) + ' ngày trước';
+    }
+
+    async function loadDashboard() {
+        try {
+            const [poisData, audioData] = await Promise.all([
+                POIApi.list({ page: 1, pageSize: 50 }),
+                AudioApi.list({ page: 1, pageSize: 100 })
+            ]);
+
+            const pois = poisData.data || [];
+            document.getElementById('totalPOIs').textContent = poisData.total || 0;
+            document.getElementById('activePOIs').textContent = pois.filter(p => p.isActive).length;
+            document.getElementById('totalAudios').textContent = audioData.total || 0;
+
+            // Recent POIs table
+            const tbody = document.getElementById('poisTableBody');
+            if (!pois.length) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#999">Chưa có POI nào. <a href="poi-create.html" style="color:var(--primary)">Tạo mới</a></td></tr>';
+            } else {
+                tbody.innerHTML = pois.slice(0, 5).map(p => `
+                    <tr>
+                        <td style="font-weight:600;color:var(--dark)">${p.name_Vi || p.name || '—'}</td>
+                        <td>${p.address || '—'}</td>
+                        <td><span class="status-badge ${p.isActive ? 'active' : 'inactive'}"><span class="status-dot ${p.isActive ? 'active' : 'inactive'}"></span>${p.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td>${p.audioCount || 0}</td>
+                        <td><a href="poi-edit.html?id=${p.poI_ID || p.id}" class="btn btn-outline" style="padding:0.4rem 0.75rem;font-size:0.8rem"><i class="fas fa-edit"></i></a></td>
+                    </tr>
+                `).join('');
+            }
+
+            // Load translations count
+            try {
+                const transStats = await TranslationsApi.stats();
+                document.getElementById('totalTranslations').textContent = transStats.total || 0;
+            } catch (e) {}
+
+            // Activity feed
+            const feed = document.getElementById('activityFeed');
+            const activities = [];
+            pois.slice(0, 3).forEach(p => {
+                activities.push({ type: 'poi', title: p.name_Vi || p.name, desc: 'Địa điểm tham quan ẩm thực', time: p.createdAt, icon: 'fa-map-marker-alt', theme: 'primary' });
+            });
+            (audioData.data || []).slice(0, 2).forEach(a => {
+                activities.push({ type: 'audio', title: a.title || a.poiName, desc: `${a.language || ''} audio`, time: a.createdAt, icon: 'fa-music', theme: 'secondary' });
+            });
+            activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+            feed.innerHTML = activities.slice(0, 5).map(item => `
+                <div class="activity-item">
+                    <div class="activity-icon ${item.theme}"><i class="fas ${item.icon}"></i></div>
+                    <div class="activity-content">
+                        <div class="activity-title">${item.title || '—'}</div>
+                        <div class="activity-desc">${item.desc || ''}</div>
+                    </div>
+                    <div class="activity-time">${formatDate(item.time)}</div>
+                </div>
+            `).join('') || '<div class="activity-item"><div class="activity-icon secondary"><i class="fas fa-info-circle"></i></div><div class="activity-content"><div class="activity-title">Chưa có hoạt động</div></div></div>';
+
+        } catch (err) {
+            console.error('Dashboard error:', err);
+        }
+    }
+
+    loadDashboard();
+</script>
+</body>
+</html>

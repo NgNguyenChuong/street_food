@@ -28,11 +28,10 @@ public static class AppConfig
     public static string MaptilerApiKey { get; set; } =
         PLACEHOLDER; // e.g. "aBcD1234xYzW..."
 
-    // ── Default Map Center (Vinh Khanh, HCM City) ─────────────────
-    public const double DefaultLatitude  = 10.7626;
-    public const double DefaultLongitude = 106.6927;
-    public const double DefaultZoom      = 16.0;
-
+    // ── Default Map Center (Cổng chào Phố ẩm thực Vĩnh Khánh, Q.4) ──────
+    public const double DefaultLatitude  = 10.762094471587867;  // Cổng chính — 11 Đường Vĩnh Khánh, P.8, Q.4
+    public const double DefaultLongitude = 106.70189053795724;
+    public const double DefaultZoom      = 20;
     // Backend API
     // Emulator: http://10.0.2.2:5004  |  Real device: http://<YOUR_PC_IP>:5004
     public static string ApiBaseUrl { get; set; } = "http://10.0.2.2:5004/";

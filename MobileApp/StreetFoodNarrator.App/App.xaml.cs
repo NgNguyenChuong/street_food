@@ -18,6 +18,7 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
+        // Always show WelcomePage first (every time app opens)
         var page = new WelcomePage();
         return new Window(new NavigationPage(page));
     }

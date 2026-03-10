@@ -239,5 +239,29 @@
     "SignatureDish": "Ốc len xào dừa",
     "Category": "Ốc - Hải sản",
     "IsActive": true
+  },
+  {
+    "POI_ID": 1020,
+    "Name_Vi": "Ốc Oanh",
+    "Name_En": "Oc Oanh Seafood",
+    "Name_Zh": "阿鸳螺蛳摊",
+    "Description_Vi": "Quán ốc Oanh nổi tiếng tại Vĩnh Khánh với các món ốc hấp sả, ốc len xào dừa và hải sản tươi sống. Địa điểm yêu thích của người dân Quận 4.",
+    "Description_En": "Oc Oanh is a popular seafood stall in Vinh Khanh, known for steamed snails with lemongrass, stir-fried periwinkle in coconut milk, and fresh shellfish.",
+    "Description_Zh": "阿鸳是永庆知名螺蛳摊，以柠檬草蒸螺、椰汁炒玉黍螺和新鲜海鲜著称，是第四郡居民的最爱。",
+    "Latitude": 10.760779811728462,
+    "Longitude": 106.70326921329078,
+    "ZoneType": "Spot",
+    "ZoneLevel": 3,
+    "Priority": 10,
+    "TriggerRadius": 30,
+    "CooldownMinutes": 0,
+    "MaxPlaysPerSession": 1,
+    "ParentZoneId": null,
+    "AudioUrl_Vi": "audio_ocoanh_vi.mp3",
+    "AudioUrl_En": "audio_ocoanh_en.mp3",
+    "AudioUrl_Zh": "audio_ocoanh_zh.mp3",
+    "SignatureDish": "Ốc hấp sả",
+    "Category": "Ốc - Hải sản",
+    "IsActive": true
   }
 ]

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    ProfilePage.xaml – Tab Cá nhân
+    Gộp Settings: Giọng TTS, Âm lượng, Vị trí, Offline Data
+-->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="StreetFoodNarrator.App.Views.ProfilePage"
+             BackgroundColor="#0A1612"
+             Shell.NavBarIsVisible="False">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <!-- Header -->
+            <Label Text="Cá nhân" FontSize="24" FontAttributes="Bold" TextColor="White"/>
+
+            <!-- Settings quick access -->
+            <Border StrokeShape="RoundRectangle 12" BackgroundColor="#1C3024"
+                    Stroke="#2A3E2C" Padding="16">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSettingsTapped"/>
+                </Border.GestureRecognizers>
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <Label Grid.Column="0" Text="&#xF0493;" FontFamily="MDI" FontSize="20"
+                           TextColor="#F5A623" VerticalOptions="Center"/>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                        <Label Text="Cài đặt" FontSize="14" FontAttributes="Bold" TextColor="White"/>
+                        <Label Text="Giọng đọc, âm lượng, vị trí" FontSize="11" TextColor="#9CA3AF"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text="&#xF0142;" FontFamily="MDI" FontSize="16"
+                           TextColor="#6B7280" VerticalOptions="Center"/>
+                </Grid>
+            </Border>
+
+            <!-- Other profile sections (placeholder) -->
+            <Label Text="Lịch sử tour" FontSize="16" FontAttributes="Bold" TextColor="White" Margin="0,12,0,0"/>
+            <Label Text="Chức năng đang phát triển..." FontSize="12" TextColor="#6B7280"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

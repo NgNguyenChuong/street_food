@@ -32,7 +32,7 @@ public static class DbInitializer
             {
                 UserName = "admin@streetfood.vn",
                 Email = "admin@streetfood.vn",
-                FullName = "Administrator",
+                FullName = "Antran",
                 EmailConfirmed = true,
                 CreatedAt = DateTime.UtcNow
             };

@@ -36,8 +36,10 @@ public class PoiDto
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
 
+    public string? Address { get; set; }
     public string? Category { get; set; }
     public string? SignatureDish { get; set; }
+    public List<string>? SignatureDishes { get; set; }
     public string? OpeningHoursText { get; set; }
     public string? PhoneNumber { get; set; }
     public decimal? AveragePrice { get; set; }

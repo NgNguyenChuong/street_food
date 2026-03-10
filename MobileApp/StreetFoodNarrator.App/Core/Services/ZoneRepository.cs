@@ -23,6 +23,7 @@ public class ZoneRepository : IZoneRepository
     private bool _isLoaded = false;
 
     public bool IsSeeded => _hasData;
+    public DataSourceKind CurrentDataSource { get; private set; } = DataSourceKind.Unknown;
 
     public ZoneRepository(ILocalDatabaseService localDb)
     {
@@ -40,12 +41,44 @@ public class ZoneRepository : IZoneRepository
     public POI? GetById(int id)
         => _zones.FirstOrDefault(z => z.Id == id);
 
+    /// <summary>
+    /// Reset database và fetch lại từ API (hoặc mock nếu API không khả dụng).
+    /// Sử dụng khi dữ liệu bị corrupt (ví dụ: tất cả POI có tọa độ 0,0).
+    /// </summary>
+    public async Task ResetAndSyncAsync()
+    {
+        Console.WriteLine("[ZoneRepository] 🔄 Resetting database and syncing from API...");
+        
+        // Xóa toàn bộ SQLite database
+        await _localDb.DeleteAllPOIsAsync();
+        Console.WriteLine("[ZoneRepository] ✓ Deleted all POIs from SQLite");
+        
+        // Reset data version để force fetch từ API
+        Preferences.Remove(AppConfig.DataVersionKey);
+        Console.WriteLine("[ZoneRepository] ✓ Reset data version");
+        
+        // Sync từ API (hoặc fallback mock nếu offline/error)
+        await SyncFromMongoAsync();
+        
+        Console.WriteLine($"[ZoneRepository] ✓ Reset complete! Source: {CurrentDataSource}, POIs: {_zones.Count}");
+    }
+
     public async Task LoadLocalAsync()
     {
+        Console.WriteLine("[ZoneRepository] LoadLocalAsync starting...");
         await _localDb.InitializeAsync();
         _zones = await _localDb.GetAllActivePOIsAsync();
         _hasData = _zones.Count > 0;
         _isLoaded = true;
+        Console.WriteLine($"[ZoneRepository] ✓ LoadLocalAsync: Loaded {_zones.Count} POIs from SQLite");
+        if (_zones.Count > 0)
+        {
+            Console.WriteLine($"[ZoneRepository] Sample POIs: {string.Join(", ", _zones.Take(3).Select(p => p.Name_Vi ?? p.Name_En))}");
+        }
+        else
+        {
+            Console.WriteLine("[ZoneRepository] ⚠️ SQLite is empty!");
+        }
     }
 
     public async Task SyncFromMongoAsync()
@@ -53,6 +86,7 @@ public class ZoneRepository : IZoneRepository
         if (!AppConfig.UseBackendApi)
         {
             if (!_hasData) await SeedFromBundledJsonAsync();
+            else if (CurrentDataSource == DataSourceKind.Unknown) CurrentDataSource = DataSourceKind.BundledJson;
             return;
         }
 
@@ -62,6 +96,7 @@ public class ZoneRepository : IZoneRepository
             {
                 // Offline: fall back to bundled JSON so the app works without internet
                 if (!_hasData) await SeedFromBundledJsonAsync();
+                else if (CurrentDataSource == DataSourceKind.Unknown) CurrentDataSource = DataSourceKind.SqliteCache;
                 return;
             }
 
@@ -73,18 +108,31 @@ public class ZoneRepository : IZoneRepository
             var json = await response.Content.ReadAsStringAsync();
             var data = JsonSerializer.Deserialize<PoiSyncResponse>(json, ApiJsonOptions);
             if (data == null)
+            {
+                if (_zones.Count == 0) await SeedFromBundledJsonAsync();
                 return;
+            }
 
             if (data.DataVersion <= currentVersion || data.Data.Count == 0)
             {
                 if (!_isLoaded)
                     await LoadLocalAsync();
+
+                // Nếu SQLite cũng trống (API trả về rỗng), rơi về bundled JSON / mock
+                if (_zones.Count == 0)
+                {
+                    await SeedFromBundledJsonAsync();
+                    return;
+                }
+
+                CurrentDataSource = DataSourceKind.SqliteCache;
                 return;
             }
 
             var items = data.Data ?? new List<PoiDto>();
 
             var mapped = items.Select(MapToPoi).ToList();
+            Console.WriteLine($"[ZoneRepository] API returned {mapped.Count} POIs, saving to SQLite...");
             await _localDb.DeleteAllPOIsAsync();
             await _localDb.SavePOIsAsync(mapped);
             Preferences.Set(AppConfig.DataVersionKey, data.DataVersion);
@@ -92,12 +140,17 @@ public class ZoneRepository : IZoneRepository
             _zones = mapped.Where(z => z.IsActive).ToList();
             _hasData = _zones.Count > 0;
             _isLoaded = true;
-            System.Diagnostics.Debug.WriteLine($"[Repository] Synced {_zones.Count} zones from API");
+            CurrentDataSource = DataSourceKind.LiveApi;
+            Console.WriteLine($"[ZoneRepository] ✓ Synced {_zones.Count} active POIs from API and saved to SQLite");
+            if (_zones.Count > 0)
+            {
+                Console.WriteLine($"[ZoneRepository] Sample POIs: {string.Join(", ", _zones.Take(3).Select(p => p.Name_Vi ?? p.Name_En))}");
+            }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Repository] Sync failed: {ex.Message}");
-            if (!_hasData)
+            if (_zones.Count == 0)
                 await SeedFromBundledJsonAsync();
         }
     }
@@ -142,6 +195,14 @@ public class ZoneRepository : IZoneRepository
             SignatureDish = dto.SignatureDish,
             FunFact = dto.FunFact,
             EstimatedHours = dto.OpeningHoursText,
+            // New detail fields
+            Address = dto.Address,
+            Category = dto.Category,
+            PhoneNumber = dto.PhoneNumber,
+            AveragePrice = dto.AveragePrice,
+            Rating = dto.Rating,
+            OpeningHoursText = dto.OpeningHoursText,
+            SignatureDishesJson = dto.SignatureDishes != null ? string.Join(",", dto.SignatureDishes) : null,
             IsActive = dto.IsActive
         };
     }
@@ -164,6 +225,7 @@ public class ZoneRepository : IZoneRepository
                 _zones    = allPois.Where(z => z.IsActive).ToList();
                 _hasData  = true;
                 _isLoaded = true;
+                CurrentDataSource = DataSourceKind.BundledJson;
 
                 // Persist to SQLite so subsequent LoadLocalAsync() calls find the data
                 await _localDb.SavePOIsAsync(allPois);
@@ -195,8 +257,8 @@ public class ZoneRepository : IZoneRepository
                 Name_En = "Vinh Khanh Food Street",
                 Description_Vi = "Khu ẩm thực nổi tiếng của Sài Gòn với hơn 30 quán ăn đặc sản đường phố.",
                 Description_En = "Famous street food area in Saigon with over 30 specialty vendors.",
-                Latitude = 10.7626,
-                Longitude = 106.6927,
+                Latitude  = StreetFoodNarrator.App.AppConfig.DefaultLatitude,
+                Longitude = StreetFoodNarrator.App.AppConfig.DefaultLongitude,
                 Radius = 200, // Area keeps large radius for ambient awareness
                 ZoneType = "Area",
                 ZoneLevel = 1,
@@ -219,8 +281,8 @@ public class ZoneRepository : IZoneRepository
                 Name_En = "Banh Mi Ba Le",
                 Description_Vi = "Quán bánh mì nổi tiếng với nhân thịt đặc biệt và pate tự làm.",
                 Description_En = "Famous banh mi shop with special meat filling and homemade pate.",
-                Latitude = 10.7628,
-                Longitude = 106.6929,
+                Latitude  = StreetFoodNarrator.App.AppConfig.DefaultLatitude + 0.0004,
+                Longitude = StreetFoodNarrator.App.AppConfig.DefaultLongitude - 0.0004,
                 Radius = 25,
                 ZoneType = "Spot",
                 ZoneLevel = 3,
@@ -243,8 +305,8 @@ public class ZoneRepository : IZoneRepository
                 Name_En = "Fresh Spring Rolls",
                 Description_Vi = "Gỏi cuốn tôm thịt tươi ngon với nước mắm chua ngọt đặc biệt.",
                 Description_En = "Fresh spring rolls with pork and shrimp, served with special fish sauce.",
-                Latitude = 10.7632,
-                Longitude = 106.6935,
+                Latitude  = StreetFoodNarrator.App.AppConfig.DefaultLatitude - 0.0003,
+                Longitude = StreetFoodNarrator.App.AppConfig.DefaultLongitude + 0.0005,
                 Radius = 25,
                 ZoneType = "Spot",
                 ZoneLevel = 3,
@@ -267,8 +329,8 @@ public class ZoneRepository : IZoneRepository
                 Name_En = "Pho Hoa",
                 Description_Vi = "Phở bò truyền thống với nước dùng hầm 12 tiếng.",
                 Description_En = "Traditional beef pho with 12-hour slow-cooked broth.",
-                Latitude = 10.7625,
-                Longitude = 106.6925,
+                Latitude  = StreetFoodNarrator.App.AppConfig.DefaultLatitude + 0.0006,
+                Longitude = StreetFoodNarrator.App.AppConfig.DefaultLongitude + 0.0002,
                 Radius = 25,
                 ZoneType = "Spot",
                 ZoneLevel = 3,
@@ -287,5 +349,6 @@ public class ZoneRepository : IZoneRepository
 
         _hasData = true;
         _isLoaded = true;
+        CurrentDataSource = DataSourceKind.MockFallback;
     }
 }

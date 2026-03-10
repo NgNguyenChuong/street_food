@@ -9,33 +9,15 @@ public class UserSettings
     [BsonId]
     public ObjectId Id { get; set; }
 
-    public string UserId { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty;
+    public string DeviceId { get; set; } = string.Empty;
 
-    public string? AppName { get; set; }
-    public string? ContactEmail { get; set; }
-    public int? DefaultGeofenceRadius { get; set; }
     public string? DefaultLanguage { get; set; }
 
-    public NotificationSettings Notifications { get; set; } = new();
-    public SecuritySettings Security { get; set; } = new();
     public TTSSettings TTS { get; set; } = new();
     public LocationSettings Location { get; set; } = new();
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-}
-
-public class NotificationSettings
-{
-    public bool Email { get; set; } = true;
-    public bool Push { get; set; } = true;
-    public bool WeeklyReport { get; set; } = false;
-}
-
-public class SecuritySettings
-{
-    public bool TwoFactorEnabled { get; set; } = false;
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public class TTSSettings

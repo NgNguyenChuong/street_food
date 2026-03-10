@@ -66,7 +66,7 @@ public class LocalDatabaseService : ILocalDatabaseService
 
             _isInitialized = true;
             var count = await _database.Table<POI>().CountAsync();
-            System.Diagnostics.Debug.WriteLine($"LocalDatabaseService: SQLite initialized ({count} POIs in DB)");
+            Console.WriteLine($"[LocalDatabaseService] ✓ SQLite initialized ({count} POIs in DB at {_dbPath})");
         }
         finally
         {
@@ -138,9 +138,18 @@ public class LocalDatabaseService : ILocalDatabaseService
         if (_database == null)
             return new List<POI>();
 
-        return await _database.Table<POI>()
+        var pois = await _database.Table<POI>()
             .Where(p => p.IsActive)
             .ToListAsync();
+        
+        Console.WriteLine($"[LocalDatabaseService] GetAllActivePOIsAsync: Retrieved {pois.Count} active POIs from SQLite");
+        if (pois.Count > 0)
+        {
+            var first = pois[0];
+            Console.WriteLine($"[LocalDatabaseService] First POI: {first.Name_Vi ?? first.Name_En} (ID: {first.Id}, Lat: {first.Latitude}, Lon: {first.Longitude}, Type: {first.ZoneType})");
+        }
+        
+        return pois;
     }
     
     public async Task SavePOIAsync(POI poi)
@@ -195,6 +204,7 @@ public class LocalDatabaseService : ILocalDatabaseService
                     await _database.InsertAsync(poi);
                 }
             }
+            Console.WriteLine($"[LocalDatabaseService] SavePOIsAsync: ✓ Saved {pois.Count} POIs to SQLite");
         }
         finally
         {

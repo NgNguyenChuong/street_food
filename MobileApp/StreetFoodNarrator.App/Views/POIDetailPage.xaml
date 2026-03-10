@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    POIDetailPage.xaml – Trang chi tiết quán ăn
+    Thiết kế theo mẫu với màu xanh lá chủ đạo
+-->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:mapsui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
+             x:Class="StreetFoodNarrator.App.Views.POIDetailPage"
+             BackgroundColor="#22C55E"
+             NavigationPage.HasNavigationBar="False"
+             Shell.NavBarIsVisible="False">
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Spacing="0">
+
+            <!-- Header: Green background with restaurant image -->
+            <Grid HeightRequest="320" BackgroundColor="#22C55E">
+                <Image Source="{Binding ImageUrl, FallbackValue='dotnet_bot.png'}"
+                       Aspect="AspectFill"
+                       Margin="0,80,0,0"/>
+                
+                <!-- Top bar with back and share buttons -->
+                <Grid Margin="16,48,16,0" HeightRequest="40"
+                      HorizontalOptions="Fill" VerticalOptions="Start">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Back button -->
+                    <Border Grid.Column="0" WidthRequest="40" HeightRequest="40"
+                            StrokeShape="RoundRectangle 20" BackgroundColor="#00000040"
+                            HorizontalOptions="Start">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnBackTapped"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="&#xF004D;" FontFamily="MDI" FontSize="20" TextColor="White"
+                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Border>
+                    
+                    <!-- Share button -->
+                    <Border Grid.Column="1" WidthRequest="40" HeightRequest="40"
+                            StrokeShape="RoundRectangle 20" BackgroundColor="#00000040"
+                            HorizontalOptions="End">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnShareTapped"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="&#xF0FC8;" FontFamily="MDI" FontSize="20" TextColor="White"
+                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- Content on dark background -->
+            <Border StrokeShape="RoundRectangle 32,32,0,0" BackgroundColor="#1A1A1A" 
+                    Margin="0,-30,0,0" Padding="0">
+                <VerticalStackLayout Spacing="0">
+                    
+                    <!-- Header section with name, status and rating -->
+                    <VerticalStackLayout Padding="24,24,24,16" Spacing="12">
+                        <Label Text="{Binding Name_Vi, FallbackValue='Ốc Oanh'}" 
+                               FontSize="28" FontAttributes="Bold"
+                               TextColor="White" LineBreakMode="WordWrap"/>
+                        
+                        <HorizontalStackLayout Spacing="10">
+                            <!-- Open status badge -->
+                            <Border StrokeShape="RoundRectangle 12" BackgroundColor="#22C55E" 
+                                    Padding="10,6">
+                                <HorizontalStackLayout Spacing="4">
+                                    <Label Text="●" FontSize="10" TextColor="White" 
+                                           VerticalOptions="Center"/>
+                                    <Label Text="ĐANG MỞ CỬA" FontSize="11" FontAttributes="Bold" 
+                                           TextColor="White"/>
+                                </HorizontalStackLayout>
+                            </Border>
+                            
+                            <!-- Rating badge -->
+                            <Border StrokeShape="RoundRectangle 12" BackgroundColor="#2A2A2A" 
+                                    Padding="10,6">
+                                <HorizontalStackLayout Spacing="4">
+                                    <Label Text="⭐" FontSize="12" VerticalOptions="Center"/>
+                                    <Label FontSize="13" FontAttributes="Bold" TextColor="White"
+                                           VerticalOptions="Center">
+                                        <Label.FormattedText>
+                                            <FormattedString>
+                                                <Span Text="{Binding Rating, StringFormat='{0:F1}', FallbackValue='4.5'}"/>
+                                                <Span Text="(1,200+ đánh giá)" TextColor="#999999"/>
+                                            </FormattedString>
+                                        </Label.FormattedText>
+                                    </Label>
+                                </HorizontalStackLayout>
+                            </Border>
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+
+                    <!-- Info section -->
+                    <VerticalStackLayout Padding="24,0,24,20" Spacing="16">
+                        <!-- Address -->
+                        <HorizontalStackLayout Spacing="12">
+                            <Border WidthRequest="40" HeightRequest="40" 
+                                    StrokeShape="RoundRectangle 20" BackgroundColor="#FF6B3520"
+                                    VerticalOptions="Start">
+                                <Label Text="&#xF034E;" FontFamily="MDI" FontSize="20" 
+                                       TextColor="#FF6B35"
+                                       HorizontalOptions="Center" VerticalOptions="Center"/>
+                            </Border>
+                            <VerticalStackLayout Spacing="4" FlexLayout.Grow="1">
+                                <Label Text="ĐỊA CHỈ" FontSize="11" FontAttributes="Bold" 
+                                       TextColor="#999999"/>
+                                <Label Text="{Binding Address, FallbackValue='534 Vĩnh Khánh, Phường 10, Quận 4, TP. Hồ Chí Minh'}"
+                                       FontSize="14" TextColor="White" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                        </HorizontalStackLayout>
+
+                        <!-- Opening hours -->
+                        <HorizontalStackLayout Spacing="12">
+                            <Border WidthRequest="40" HeightRequest="40" 
+                                    StrokeShape="RoundRectangle 20" BackgroundColor="#FF6B3520"
+                                    VerticalOptions="Start">
+                                <Label Text="&#xF0954;" FontFamily="MDI" FontSize="20" 
+                                       TextColor="#FF6B35"
+                                       HorizontalOptions="Center" VerticalOptions="Center"/>
+                            </Border>
+                            <VerticalStackLayout Spacing="4" FlexLayout.Grow="1">
+                                <Label Text="GIỜ MỞ CỬA" FontSize="11" FontAttributes="Bold" 
+                                       TextColor="#999999"/>
+                                <Label Text="{Binding OpeningHoursText, FallbackValue='16:00 - 23:00 mỗi ngày'}"
+                                       FontSize="14" TextColor="White" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                        </HorizontalStackLayout>
+
+                        <!-- Phone -->
+                        <HorizontalStackLayout Spacing="12">
+                            <Border WidthRequest="40" HeightRequest="40" 
+                                    StrokeShape="RoundRectangle 20" BackgroundColor="#FF6B3520"
+                                    VerticalOptions="Start">
+                                <Label Text="&#xF0B0;" FontFamily="MDI" FontSize="20" 
+                                       TextColor="#FF6B35"
+                                       HorizontalOptions="Center" VerticalOptions="Center"/>
+                            </Border>
+                            <VerticalStackLayout Spacing="4" FlexLayout.Grow="1">
+                                <Label Text="ĐIỆN THOẠI" FontSize="11" FontAttributes="Bold" 
+                                       TextColor="#999999"/>
+                                <Label Text="{Binding PhoneNumber, FallbackValue='090 123 4567'}"
+                                       FontSize="14" TextColor="White">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnPhoneTapped"/>
+                                    </Label.GestureRecognizers>
+                                </Label>
+                            </VerticalStackLayout>
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+
+                    <!-- Signature dishes section -->
+                    <VerticalStackLayout Padding="24,8,24,20" Spacing="16">
+                        <Grid>
+                            <Label Text="Món đặc trưng" FontSize="18" FontAttributes="Bold" 
+                                   TextColor="White" VerticalOptions="Center"/>
+                            <Label Text="Xem menu" FontSize="13" TextColor="#FF6B35"
+                                   HorizontalOptions="End" VerticalOptions="Center">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnViewMenuTapped"/>
+                                </Label.GestureRecognizers>
+                            </Label>
+                        </Grid>
+                        
+                        <!-- Menu items -->
+                        <VerticalStackLayout x:Name="MenuItemsContainer" Spacing="12">
+                            <!-- Item 1 -->
+                            <Border StrokeShape="RoundRectangle 16" BackgroundColor="#2A2A2A" 
+                                    Padding="12">
+                                <Grid ColumnDefinitions="80,*" ColumnSpacing="12">
+                                    <Border Grid.Column="0" StrokeShape="RoundRectangle 12"
+                                            WidthRequest="80" HeightRequest="80">
+                                        <Image Source="dotnet_bot.png" Aspect="AspectFill"/>
+                                    </Border>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="4" 
+                                                        VerticalOptions="Center">
+                                        <Label Text="Ốc Hương Rang Muối" FontSize="15" 
+                                               FontAttributes="Bold" TextColor="White"/>
+                                        <Label Text="Vị đậm đà, ốc tươi giòn săn sắt" 
+                                               FontSize="12" TextColor="#999999" LineBreakMode="WordWrap"/>
+                                        <Label Text="150.000đ" FontSize="14" FontAttributes="Bold" 
+                                               TextColor="#FF6B35"/>
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+
+                            <!-- Item 2 -->
+                            <Border StrokeShape="RoundRectangle 16" BackgroundColor="#2A2A2A" 
+                                    Padding="12">
+                                <Grid ColumnDefinitions="80,*" ColumnSpacing="12">
+                                    <Border Grid.Column="0" StrokeShape="RoundRectangle 12"
+                                            WidthRequest="80" HeightRequest="80">
+                                        <Image Source="dotnet_bot.png" Aspect="AspectFill"/>
+                                    </Border>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="4" 
+                                                        VerticalOptions="Center">
+                                        <Label Text="Sò Lông Nướng Mỡ Hành" FontSize="15" 
+                                               FontAttributes="Bold" TextColor="White"/>
+                                        <Label Text="Thơm lừng mỡ hành và đậu phộng..." 
+                                               FontSize="12" TextColor="#999999" LineBreakMode="WordWrap"/>
+                                        <Label Text="80.000đ" FontSize="14" FontAttributes="Bold" 
+                                               TextColor="#FF6B35"/>
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+
+                            <!-- Item 3 -->
+                            <Border StrokeShape="RoundRectangle 16" BackgroundColor="#2A2A2A" 
+                                    Padding="12">
+                                <Grid ColumnDefinitions="80,*" ColumnSpacing="12">
+                                    <Border Grid.Column="0" StrokeShape="RoundRectangle 12"
+                                            WidthRequest="80" HeightRequest="80">
+                                        <Image Source="dotnet_bot.png" Aspect="AspectFill"/>
+                                    </Border>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="4" 
+                                                        VerticalOptions="Center">
+                                        <Label Text="Càng Ghẹ Rang Muối" FontSize="15" 
+                                               FontAttributes="Bold" TextColor="White"/>
+                                        <Label Text="Cay nồng, thịt ghẹ chắc ngọt tự..." 
+                                               FontSize="12" TextColor="#999999" LineBreakMode="WordWrap"/>
+                                        <Label Text="220.000đ" FontSize="14" FontAttributes="Bold" 
+                                               TextColor="#FF6B35"/>
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+
+                    <!-- Location/Map section -->
+                    <VerticalStackLayout Padding="24,8,24,24" Spacing="12">
+                        <Label Text="Vị trí" FontSize="18" FontAttributes="Bold" TextColor="White"/>
+                        
+                        <Border StrokeShape="RoundRectangle 12" 
+                                BackgroundColor="#1A1A1A"
+                                Stroke="#2A2A2A"
+                                StrokeThickness="1"
+                                HeightRequest="240"
+                                Padding="0">
+                            <mapsui:MapControl x:Name="MapView"
+                                              HeightRequest="100"
+                                              BackgroundColor="#1A1A1A"/>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <!-- Bottom spacing for button -->
+                    <BoxView HeightRequest="100" BackgroundColor="Transparent"/>
+
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Bottom action button -->
+        <Border VerticalOptions="End"
+                Margin="20,0,20,32"
+                StrokeShape="RoundRectangle 16" 
+                BackgroundColor="#FF6B35"
+                Padding="0,18">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnListenAudioTapped"/>
+            </Border.GestureRecognizers>
+            <HorizontalStackLayout HorizontalOptions="Center" Spacing="8">
+                <Label Text="&#xF075A;" FontFamily="MDI" FontSize="20" TextColor="White"
+                       VerticalOptions="Center"/>
+                <Label Text="Nghe hướng dẫn Audio" FontSize="16" FontAttributes="Bold"
+                       TextColor="White" VerticalOptions="Center"/>
+            </HorizontalStackLayout>
+        </Border>
+    </Grid>
+
+</ContentPage>

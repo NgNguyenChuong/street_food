@@ -210,7 +210,7 @@ class Navigation {
                 font-family: 'Playfair Display', serif;
                 font-size: 1.5rem;
                 font-weight: 700;
-                color: #FF6B35;
+                color: #22c55e;
             }
 
             .logo i {
@@ -264,14 +264,14 @@ class Navigation {
             }
 
             .nav-item:hover {
-                background: rgba(255, 107, 53, 0.1);
-                color: #FF6B35;
+                background: rgba(34, 197, 94, 0.1);
+                color: #22c55e;
             }
 
             .nav-item.active {
-                background: linear-gradient(to right, rgba(255, 107, 53, 0.2), transparent);
-                color: #FF6B35;
-                border-left: 3px solid #FF6B35;
+                background: linear-gradient(to right, rgba(34, 197, 94, 0.2), transparent);
+                color: #22c55e;
+                border-left: 3px solid #22c55e;
                 font-weight: 600;
             }
 
@@ -294,7 +294,7 @@ class Navigation {
             .user-avatar {
                 width: 48px;
                 height: 48px;
-                background: linear-gradient(135deg, #FF6B35 0%, #E85A2A 100%);
+                background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
                 border-radius: 50%;
                 display: flex;
                 align-items: center;

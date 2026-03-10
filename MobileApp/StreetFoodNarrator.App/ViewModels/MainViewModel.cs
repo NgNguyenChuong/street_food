@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
@@ -22,6 +22,14 @@ public partial class MainViewModel : ObservableObject
         _repository = repository;
         _location = location;
         _simulator = location as SimulatedLocationService;
+
+        // Default to AppConfig location until GPS/sim updates arrive
+        if (CurrentLat == 0 && CurrentLon == 0)
+        {
+            CurrentLat = StreetFoodNarrator.App.AppConfig.DefaultLatitude;
+            CurrentLon = StreetFoodNarrator.App.AppConfig.DefaultLongitude;
+            CoordDisplay = $"{CurrentLat:F6}, {CurrentLon:F6}";
+        }
 
         // Wire events from geofence service
         _geofence.OnActiveZonesChanged += zones =>
@@ -47,25 +55,65 @@ public partial class MainViewModel : ObservableObject
         _geofence.OnPrimaryZoneChanged += zone =>
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                PrimaryZone = zone;
-                PrimaryZoneName = zone?.Name_Vi ?? "—";
-                PrimaryZoneType = zone?.ZoneType ?? "";
-                PrimaryZoneDesc = zone?.Description_Vi ?? "Chưa vào khu vực nào.";
-                PrimaryZoneAddress = zone?.SignatureDish ?? "Địa chỉ đang cập nhật";
-                PrimaryZoneEmoji = zone?.ZoneType switch
+                if (zone != null)
                 {
-                    "Area" => "🗺️",
-                    "District" => "🏘️",
-                    "Spot" => "📍",
-                    _ => "📡"
-                };
+                    PrimaryZoneName = zone.Name_Vi ?? "—";
+                    PrimaryZoneType = zone.ZoneType ?? "";
+                    PrimaryZoneDesc = zone.Description_Vi ?? "Không có mô tả.";
+                    PrimaryZoneAddress = zone.Address ?? "Địa chỉ đang cập nhật";
+                    PrimaryZoneEmoji = zone.ZoneType switch
+                    {
+                        "Area" => "🗺️",
+                        "District" => "🏘️",
+                        "Spot" => "📍",
+                        _ => "📡"
+                    };
+                    PrimaryZoneRating = (zone.Rating ?? 4.5).ToString("F1");
+
+                    // Tính current spot index
+                    var spots = AllPOIs.Where(p => p.ZoneType == "Spot").ToList();
+                    int idx = spots.FindIndex(p => p.Id == zone.Id);
+                    if (idx >= 0)
+                    {
+                        CurrentStopBadge = $"{idx + 1}/{spots.Count}";  // Format: "3/8"
+                        
+                        // Next stops
+                        if (idx + 1 < spots.Count)
+                        {
+                            var next1 = spots[idx + 1];
+                            NextStop1Name = next1.Name_Vi ?? "Điểm tiếp theo";
+                            NextStop1Dist = "~150m • 2 phút"; // Todo formula
+                        }
+                        if (idx + 2 < spots.Count)
+                        {
+                            var next2 = spots[idx + 2];
+                            NextStop2Name = next2.Name_Vi ?? "Điểm kế";
+                            NextStop2Dist = "~300m • 4 phút";
+                        }
+                    }
+                }
+                else
+                {
+                    PrimaryZone = null;
+                    PrimaryZoneName = "—";
+                    PrimaryZoneType = "";
+                    PrimaryZoneDesc = "Hãy bắt đầu hành trình!";
+                    PrimaryZoneAddress = "Đang cập nhật";
+                    PrimaryZoneEmoji = "🗺️";
+                    PrimaryZoneRating = "—";
+                    CurrentStopBadge = "—";
+                    NextStop1Name = "—";
+                    NextStop2Name = "—";
+                }
 
                 // Mark as visited + simulate audio playing
                 if (zone != null) VisitedPOIIds.Add(zone.Id);
                 IsAudioPlaying = zone != null;
+                IsNarrating = zone != null;
                 if (zone != null)
                 {
-                    int duration = 45; // Mock duration
+                    // Default audio duration if API does not provide one
+                    int duration = 45; 
                     AudioDuration = $"{duration / 60}:{duration % 60:D2}";
                     AudioTimeElapsed = "0:00";
                     AudioProgress = 0.0;
@@ -124,6 +172,7 @@ public partial class MainViewModel : ObservableObject
 
     // Audio playback UI
     [ObservableProperty] private bool isAudioPlaying = false;
+    [ObservableProperty] private bool isNarrating = false;  // Controls mini player vs info cards in Tour tab
     [ObservableProperty] private double audioProgress = 0.0;
     [ObservableProperty] private string audioTimeElapsed = "0:00";
     [ObservableProperty] private string audioDuration = "0:00";
@@ -131,7 +180,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool isApproaching = true;
     [ObservableProperty] private string approachingZoneName = "Quán Ốc X - Sắp phát";
     [ObservableProperty] private string approachingDistance = "50";
-    [ObservableProperty] private string currentStopBadge = "ĐIỂM 3 / 8";
+    [ObservableProperty] private string currentStopBadge = "3/8";
     [ObservableProperty] private string primaryZoneAddress = "Đang cập nhật";
     [ObservableProperty] private string primaryZoneRating = "4.8";
     [ObservableProperty] private string nextStop1Name = "Điểm kế 1";
@@ -145,6 +194,10 @@ public partial class MainViewModel : ObservableObject
 
     // Settings drawer
     [ObservableProperty] private bool isSettingsOpen = false;
+
+    // Trạng thái nguồn dữ liệu (cho offline badge)
+    [ObservableProperty] private bool isOffline = false;
+    [ObservableProperty] private string dataSourceLabel = "";
 
     // ── New: Browse & Map tabs ─────────────────────────────────
     [ObservableProperty] private ObservableCollection<POI> allPOIs = new();
@@ -191,7 +244,22 @@ public partial class MainViewModel : ObservableObject
         LatestStatus = "🔄 Đang sync dữ liệu...";
         await _repository.SyncFromMongoAsync();
         await _repository.LoadLocalAsync();
+        RefreshDataSourceState();
         LatestStatus = $"✅ Sync hoàn tất — {_repository.GetAllActiveZones().Count} zones";
+    }
+
+    private void RefreshDataSourceState()
+    {
+        var src = _repository.CurrentDataSource;
+        IsOffline = src != DataSourceKind.Unknown && src != DataSourceKind.LiveApi;
+        DataSourceLabel = src switch
+        {
+            DataSourceKind.LiveApi      => "",
+            DataSourceKind.SqliteCache  => "Offline — dữ liệu cache",
+            DataSourceKind.BundledJson  => "Offline — dữ liệu bundled",
+            DataSourceKind.MockFallback => "Offline — dữ liệu mẫu",
+            _                           => ""
+        };
     }
 
     [RelayCommand]
@@ -277,12 +345,32 @@ public partial class MainViewModel : ObservableObject
     /// <summary>Load all active POIs into AllPOIs + FilteredPOIs.</summary>
     public async Task LoadAllPoisAsync()
     {
-        // Always load from SQLite first so we have real synced data
+        Console.WriteLine("[MainViewModel] 🔄 LoadAllPoisAsync started...");
+        
+        // Đọc SQLite trước
         await _repository.LoadLocalAsync();
+
+        // Nếu SQLite trống (lần đầu chạy / chưa sync bao giờ),
+        // gọi sync để seed dữ liệu: thử API → bundled JSON → mock
+        if (_repository.GetAllActiveZones().Count == 0)
+        {
+            Console.WriteLine("[MainViewModel] SQLite empty, calling SyncFromMongoAsync...");
+            await _repository.SyncFromMongoAsync();
+        }
+
         var zones = _repository.GetAllActiveZones();
+        Console.WriteLine($"[MainViewModel] Got {zones.Count} zones from repository");
+        
         AllPOIs.Clear();
         foreach (var z in zones) AllPOIs.Add(z);
+        Console.WriteLine($"[MainViewModel] Added {AllPOIs.Count} POIs to AllPOIs collection");
+        
         ApplyFilter();
+
+        // Cập nhật badge offline theo nguồn dữ liệu
+        RefreshDataSourceState();
+        
+        Console.WriteLine($"[MainViewModel] ✓ LoadAllPoisAsync completed! Final AllPOIs.Count={AllPOIs.Count}");
     }
 
     /// <summary>Called automatically when SearchQuery changes.</summary>
@@ -330,5 +418,36 @@ public partial class MainViewModel : ObservableObject
     {
         IsPinPopupVisible = false;
         SelectedPinPOI = null;
+    }
+
+    /// <summary>
+    /// 🔄 DEBUG: Reset database và fetch lại từ API (hoặc mock nếu offline).
+    /// Sử dụng khi dữ liệu bị corrupt.
+    /// </summary>
+    public async Task ResetDatabaseAsync()
+    {
+        try
+        {
+            Console.WriteLine("[MainViewModel] 🔄 ResetDatabaseAsync started...");
+            
+            // Reset database và sync từ API
+            await _repository.ResetAndSyncAsync();
+            
+            // Reload toàn bộ POIs vào UI
+            AllPOIs.Clear();
+            foreach (var poi in _repository.GetAllActiveZones())
+            {
+                AllPOIs.Add(poi);
+            }
+            
+            RefreshDataSourceState();
+            
+            Console.WriteLine($"[MainViewModel] ✓ ResetDatabaseAsync completed! {AllPOIs.Count} POIs loaded, Source: {_repository.CurrentDataSource}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MainViewModel] ❌ ResetDatabaseAsync error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] ResetDatabaseAsync error: {ex}");
+        }
     }
 }

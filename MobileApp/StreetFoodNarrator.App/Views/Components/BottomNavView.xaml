@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    BottomNavView.xaml
+    Thanh điều hướng dưới cùng – 5 tab (Bản đồ, Hành trình, Menu, Đã lưu, Cài đặt)
+    Màu active: xanh lá #22C55E (đồng bộ WelcomePage)
+    Sự kiện: TabSwitchRequested(int index) → MainPage.Nav.cs xử lý
+-->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="StreetFoodNarrator.App.Views.Components.BottomNavView">
+
+    <Border StrokeShape="RoundRectangle 0"
+            StrokeThickness="1"
+            BackgroundColor="#0A1612">
+        <Border.Background><SolidColorBrush Color="#0A1612"/></Border.Background>
+        <Border.Stroke><SolidColorBrush Color="#1C3024"/></Border.Stroke>
+
+        <Grid RowDefinitions="Auto,Auto" RowSpacing="0" Padding="0,6,0,0">
+
+            <!-- Thanh indicator trượt (màu xanh lá) -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*,*" HeightRequest="3" Margin="16,0">
+                <Border x:Name="NavIndicator"
+                        Grid.Column="0"
+                        StrokeShape="RoundRectangle 2" StrokeThickness="0"
+                        HeightRequest="3" HorizontalOptions="Fill" VerticalOptions="End">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#22C55E" Offset="0"/>
+                            <GradientStop Color="#34D399" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+            </Grid>
+
+            <!-- 5 tab items -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*" Padding="0,4,0,16">
+
+                <!-- Tab 0: Bản đồ -->
+                <VerticalStackLayout Grid.Column="0" Spacing="2" HorizontalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnTabMapTapped"/>
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="NavMapGlyph" x:FieldModifier="public"
+                           Text="&#xF034D;" FontFamily="MDI" FontSize="20"
+                           HorizontalOptions="Center" TextColor="#22C55E"/>
+                    <Label x:Name="NavMapLabel" x:FieldModifier="public"
+                           Text="Bản đồ" FontSize="9" FontAttributes="Bold"
+                           TextColor="#22C55E" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+
+                <!-- Tab 1: Hành trình -->
+                <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnTabTourTapped"/>
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="NavTourGlyph" x:FieldModifier="public"
+                           Text="&#xF02CE;" FontFamily="MDI" FontSize="20"
+                           HorizontalOptions="Center" TextColor="#6B7280"/>
+                    <Label x:Name="NavTourLabel" x:FieldModifier="public"
+                           Text="Hành trình" FontSize="9"
+                           TextColor="#6B7280" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+
+                <!-- Tab 2: Danh sách -->
+                <VerticalStackLayout Grid.Column="2" Spacing="2" HorizontalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnTabMenuTapped"/>
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="NavMenuGlyph" x:FieldModifier="public"
+                           Text="&#xF035F;" FontFamily="MDI" FontSize="20"
+                           HorizontalOptions="Center" TextColor="#6B7280"/>
+                    <Label x:Name="NavMenuLabel" x:FieldModifier="public"
+                           Text="Danh sách" FontSize="9"
+                           TextColor="#6B7280" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+
+                <!-- Tab 3: Đã lưu -->
+                <VerticalStackLayout Grid.Column="3" Spacing="2" HorizontalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnTabSavedTapped"/>
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="NavSavedGlyph" x:FieldModifier="public"
+                           Text="&#xF02D1;" FontFamily="MDI" FontSize="20"
+                           HorizontalOptions="Center" TextColor="#6B7280"/>
+                    <Label x:Name="NavSavedLabel" x:FieldModifier="public"
+                           Text="Đã lưu" FontSize="9"
+                           TextColor="#6B7280" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+
+                <!-- Tab 4: Cài đặt -->
+                <VerticalStackLayout Grid.Column="4" Spacing="2" HorizontalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnTabSettingsTapped"/>
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="NavSettingsGlyph" x:FieldModifier="public"
+                           Text="&#xF0493;" FontFamily="MDI" FontSize="20"
+                           HorizontalOptions="Center" TextColor="#6B7280"/>
+                    <Label x:Name="NavSettingsLabel" x:FieldModifier="public"
+                           Text="Cài đặt" FontSize="9"
+                           TextColor="#6B7280" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+
+            </Grid>
+        </Grid>
+    </Border>
+</ContentView>

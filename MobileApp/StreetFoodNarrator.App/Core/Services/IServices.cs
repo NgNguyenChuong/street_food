@@ -12,6 +12,16 @@ public interface IGeofenceService
     event Action<string>? OnStatusMessage;
 }
 
+// ── Data-source tracking ──────────────────────────────────────────
+public enum DataSourceKind
+{
+    Unknown,
+    LiveApi,
+    SqliteCache,
+    BundledJson,
+    MockFallback
+}
+
 // ── Zone Repository ────────────────────────────────────────────────
 public interface IZoneRepository
 {
@@ -19,7 +29,9 @@ public interface IZoneRepository
     POI? GetById(int id);
     Task LoadLocalAsync();
     Task SyncFromMongoAsync();
+    Task ResetAndSyncAsync(); // 🔄 DEBUG: Reset database và sync từ API
     bool IsSeeded { get; }
+    DataSourceKind CurrentDataSource { get; }
 }
 
 // ── Local Database Service ───────────────────────────────────────────────

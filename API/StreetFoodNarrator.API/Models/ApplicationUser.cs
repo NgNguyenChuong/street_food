@@ -10,4 +10,7 @@ public class ApplicationUser : MongoIdentityUser<Guid>
     
     // Navigation property for vendor
     public VendorProfile? VendorProfile { get; set; }
+
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
 }

@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!--  BackgroundColor="#0A1612" -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:resx="clr-namespace:StreetFoodNarrator.App.Resources.Strings"
              x:Class="StreetFoodNarrator.App.Views.WelcomePage"
-             BackgroundColor="#0A1612"
+             BackgroundColor="Black"
              NavigationPage.HasNavigationBar="False">
 
     <Grid>
-        <!-- Background image with stronger overlay -->
+        <!-- Background image with stronger overlay
+           Aspect="AspectFill"
+               Opacity="0.3" -->
         <Image Source="welcome_streetfood.jpg"
-               Aspect="AspectFill"
-               Opacity="0.3" />
+               Aspect="AspectFill" />
 
         <!-- Gradient overlay -->
-        <BoxView>
+         <BoxView>
             <BoxView.Background>
                 <LinearGradientBrush EndPoint="0,1">
                     <GradientStop Color="#E6000000" Offset="0.0" />
@@ -21,9 +23,52 @@
                     <GradientStop Color="#FF0A1612" Offset="1.0" />
                 </LinearGradientBrush>
             </BoxView.Background>
-        </BoxView>
+        </BoxView> 
 
-        <!-- Main content - NO SCROLL, everything fits -->
+        <!-- ═══ Nút chuông thông báo audio mới (góc trên phải) ═══ -->
+        <Grid HorizontalOptions="End"
+              VerticalOptions="Start"
+              Margin="0,48,20,0"
+              WidthRequest="48"
+              HeightRequest="48">
+
+            <!-- Nút chuông -->
+            <Button x:Name="BellButton"
+                    Text="&#xF009A;"
+                    FontFamily="MDI"
+                    FontSize="22"
+                    BackgroundColor="#0F1F17"
+                    TextColor="#94A3B8"
+                    BorderColor="#1E3D2A"
+                    BorderWidth="1"
+                    WidthRequest="44"
+                    HeightRequest="44"
+                    CornerRadius="22"
+                    IsVisible="False"
+                    Clicked="OnBellClicked" />
+
+            <!-- Badge đỏ hiển thị số audio mới -->
+            <Border x:Name="BellBadge"
+                    BackgroundColor="#EF4444"
+                    WidthRequest="18"
+                    HeightRequest="18"
+                    HorizontalOptions="End"
+                    VerticalOptions="Start"
+                    Margin="0,2,2,0"
+                    IsVisible="False"
+                    InputTransparent="True">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="9" />
+                </Border.StrokeShape>
+                <Label x:Name="BellBadgeCount"
+                       Text="0"
+                       FontSize="9"
+                       FontAttributes="Bold"
+                       TextColor="White"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </Border>
+        </Grid>
         <Grid RowDefinitions="*,Auto"
               Padding="28,56,28,36">
 
@@ -38,9 +83,9 @@
                 <VerticalStackLayout Spacing="12" HorizontalOptions="Center">
                     <!-- Smaller icon -->
                     <Grid HeightRequest="80" WidthRequest="80">
-                        <Border BackgroundColor="#1C3D2F"
-                                Stroke="#22C55E"
-                                StrokeThickness="2"
+                        <Border BackgroundColor="#1A0D00"
+                                Stroke="#F97316"
+                                StrokeThickness="2.5"
                                 HeightRequest="80"
                                 WidthRequest="80">
                             <Border.StrokeShape>
@@ -49,11 +94,11 @@
                             <Label Text="&#xF117E;"
                                    FontFamily="MDI"
                                    FontSize="42"
-                                   TextColor="#22C55E"
+                                   TextColor="#F97316"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center" />
                         </Border>
-                        <Border BackgroundColor="#22C55E"
+                        <Border BackgroundColor="#F97316"
                                 HeightRequest="28"
                                 WidthRequest="28"
                                 HorizontalOptions="End"
@@ -79,7 +124,7 @@
                     <Label x:Name="SubtitleLabel"
                            Text="{x:Static resx:AppStrings.Welcome_Subtitle}"
                            FontSize="14"
-                           TextColor="#94A3B8"
+                           TextColor="#CBD5E1"
                            HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
 
@@ -92,7 +137,7 @@
                     <!-- Feature 1: Auto GPS (top left) -->
                     <Border Grid.Column="0" Grid.Row="0"
                             BackgroundColor="#0F1F1720"
-                            Stroke="#1E3D2A"
+                            Stroke="#24cf65ff"
                             StrokeThickness="1"
                             Padding="14,12">
                         <Border.StrokeShape>
@@ -117,7 +162,7 @@
                     <!-- Feature 2: Offline (top right) -->
                     <Border Grid.Column="1" Grid.Row="0"
                             BackgroundColor="#0F1F1720"
-                            Stroke="#1E3D2A"
+                            Stroke="#24cf65ff"
                             StrokeThickness="1"
                             Padding="14,12">
                         <Border.StrokeShape>
@@ -142,7 +187,7 @@
                     <!-- Feature 3: Local Stories (bottom, spans 2 columns) -->
                     <Border Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
                             BackgroundColor="#0F1F1720"
-                            Stroke="#1E3D2A"
+                            Stroke="#24cf65ff"
                             StrokeThickness="1"
                             Padding="14,12">
                         <Border.StrokeShape>
@@ -260,7 +305,7 @@
                             FontFamily="MDI"
                             FontSize="18"
                             BackgroundColor="#0F1F17"
-                            TextColor="#94A3B8"
+                            TextColor="#f3f6faff"
                             BorderColor="#1E3D2A"
                             BorderWidth="1"
                             CornerRadius="14"

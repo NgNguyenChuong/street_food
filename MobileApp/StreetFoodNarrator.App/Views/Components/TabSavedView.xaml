@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    TabSavedView.xaml  –  Tab 3: Đã lưu
+    Chứa: Header + Filter category + CollectionView danh sách POI đã lưu
+    Tự quản lý hiển thị (không cần event ra ngoài)
+    Binding: SavedPOIs từ MainViewModel
+-->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             x:DataType="vm:MainViewModel"
+             x:Class="StreetFoodNarrator.App.Views.Components.TabSavedView"
+             BackgroundColor="#0A1612">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Padding="16,52,16,8" Spacing="4">
+            <Label Text="Đã lưu" FontSize="22" FontAttributes="Bold" TextColor="White"/>
+            <Label Text="Những quán bạn đã thích" FontSize="13" TextColor="#6B7280"/>
+        </VerticalStackLayout>
+
+        <!-- Filter categories -->
+        <ScrollView Grid.Row="1" Orientation="Horizontal" Padding="14,0,14,8">
+            <HorizontalStackLayout Spacing="8">
+                <Border StrokeShape="RoundRectangle 20" Padding="14,7"
+                        BackgroundColor="#22C55E" Stroke="Transparent">
+                    <Label Text="Tất cả" FontSize="12" TextColor="White" FontAttributes="Bold"/>
+                </Border>
+                <Border StrokeShape="RoundRectangle 20" Padding="14,7"
+                        BackgroundColor="#0E1E17" Stroke="#1C3024">
+                    <Label Text="Muốn thử" FontSize="12" TextColor="#9CA3AF"/>
+                </Border>
+                <Border StrokeShape="RoundRectangle 20" Padding="14,7"
+                        BackgroundColor="#0E1E17" Stroke="#1C3024">
+                    <Label Text="Đã ghé" FontSize="12" TextColor="#9CA3AF"/>
+                </Border>
+                <Border StrokeShape="RoundRectangle 20" Padding="14,7"
+                        BackgroundColor="#0E1E17" Stroke="#1C3024">
+                    <Label Text="Top 5" FontSize="12" TextColor="#9CA3AF"/>
+                </Border>
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Danh sách đã lưu -->
+        <CollectionView Grid.Row="2" ItemsSource="{Binding SavedPOIs}" Margin="0,0,0,72">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
+                    <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="48"
+                           TextColor="#4B5563" HorizontalOptions="Center"/>
+                    <Label Text="Chưa có quán nào được lưu" FontSize="15"
+                           TextColor="#6B7280" HorizontalOptions="Center"/>
+                    <Label Text="Nhấn trong tab Menu để lưu" FontSize="12"
+                           TextColor="#4B5563" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="14,0,14,10" StrokeShape="RoundRectangle 16"
+                            BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12">
+                        <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12">
+                            <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                                    BackgroundColor="#1A3426" WidthRequest="64" HeightRequest="64">
+                                <Label Text="&#xF117E;" FontFamily="MDI" FontSize="28"
+                                       TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                            </Border>
+                            <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                <Label Text="{Binding Name_Vi}" FontSize="14"
+                                       FontAttributes="Bold" TextColor="White"/>
+                                <Label Text="{Binding SignatureDish}" FontSize="12"
+                                       TextColor="#9CA3AF" LineBreakMode="TailTruncation"/>
+                            </VerticalStackLayout>
+                            <Border Grid.Column="2" StrokeShape="RoundRectangle 10"
+                                    BackgroundColor="#F9731618" Stroke="#F9731430"
+                                    WidthRequest="40" HeightRequest="36" VerticalOptions="Center">
+                                <Label Text="&#xF0156;" FontFamily="MDI" FontSize="14"
+                                       TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentView>

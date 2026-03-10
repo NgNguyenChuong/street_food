@@ -35,8 +35,11 @@ public static class MauiProgram
         
         // HttpClient for API calls – 10s timeout prevents long freezes when offline
         builder.Services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromSeconds(10) });
-        
-        // Text-to-Speech with Edge-TTS API
+
+        // Audio cache: tải trước file MP3 offline cho từng POI
+        builder.Services.AddSingleton<IAudioCacheService, AudioCacheService>();
+
+        // Text-to-Speech with Edge-TTS API (+ offline cache fallback)
         builder.Services.AddSingleton<ITTSService, TextToSpeechService>();
 
         // Location: use Simulated GPS by default (great for emulator)
@@ -52,7 +55,7 @@ public static class MauiProgram
         }
 
         // ── Register Pages & ViewModels ────────────────────────────
-        builder.Services.AddTransient<MainViewModel>();
+        builder.Services.AddSingleton<MainViewModel>();
         builder.Services.AddTransient<MainPage>();
 
 #if DEBUG

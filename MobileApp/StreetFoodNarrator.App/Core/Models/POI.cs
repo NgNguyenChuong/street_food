@@ -105,6 +105,62 @@ public class POI
     public string? EstimatedHours { get; set; }
     
     // ============================================
+    // RESTAURANT INFO (for Detail Page)
+    // ============================================
+    
+    /// <summary>
+    /// Địa chỉ cụ thể
+    /// </summary>
+    public string? Address { get; set; }
+    
+    /// <summary>
+    /// Số điện thoại liên hệ
+    /// </summary>
+    public string? PhoneNumber { get; set; }
+    
+    /// <summary>
+    /// Giá trung bình (VND)
+    /// </summary>
+    public decimal? AveragePrice { get; set; }
+    
+    /// <summary>
+    /// Đánh giá (0-5 sao)
+    /// </summary>
+    public double? Rating { get; set; }
+    
+    /// <summary>
+    /// Danh mục (ẨM THỰC ĐƯỜNG PHỐ, etc.)
+    /// </summary>
+    public string? Category { get; set; }
+    
+    /// <summary>
+    /// Giờ mở cửa chi tiết (text format)
+    /// </summary>
+    public string? OpeningHoursText { get; set; }
+    
+    /// <summary>
+    /// Danh sách món ăn đặc trưng (JSON serialized as comma-separated string)
+    /// </summary>
+    public string? SignatureDishesJson { get; set; }
+    
+    /// <summary>
+    /// Helper: Parse SignatureDishesJson → List
+    /// </summary>
+    [Ignore]
+    public List<string> SignatureDishes
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(SignatureDishesJson)) return new List<string>();
+            return new List<string>(SignatureDishesJson.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+        set
+        {
+            SignatureDishesJson = value != null ? string.Join(",", value) : null;
+        }
+    }
+    
+    // ============================================
     // COMPUTED PROPERTIES (not stored in DB)
     // ============================================
     

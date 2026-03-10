@@ -1,7 +1,13 @@
+#if ANDROID
+using Android.Content;
+using StreetFoodNarrator.App.Platforms.Android.Services;
+#endif
+
 namespace StreetFoodNarrator.App.Core.Services;
 
 /// <summary>
 /// Wraps MAUI Geolocation API for continuous GPS tracking.
+/// On Android: starts a Foreground Service so tracking continues in background.
 /// Also provides a simulated mode for emulator testing.
 /// </summary>
 public class LocationService : ILocationService
@@ -22,6 +28,11 @@ public class LocationService : ILocationService
             System.Diagnostics.Debug.WriteLine("[GPS] Permission denied.");
             return;
         }
+
+#if ANDROID
+        // Start Foreground Service so Android does not kill GPS in background
+        StartAndroidForegroundService();
+#endif
 
         _isRunning = true;
         _cts = new CancellationTokenSource();
@@ -68,8 +79,32 @@ public class LocationService : ILocationService
     {
         _cts?.Cancel();
         _isRunning = false;
+#if ANDROID
+        StopAndroidForegroundService();
+#endif
         await Task.CompletedTask;
     }
+
+#if ANDROID
+    private static void StartAndroidForegroundService()
+    {
+        var context = global::Android.App.Application.Context;
+        var intent  = new Intent(context, typeof(GpsForegroundService));
+        intent.SetAction(GpsForegroundService.ActionStart);
+        if (global::Android.OS.Build.VERSION.SdkInt >= global::Android.OS.BuildVersionCodes.O)
+            context.StartForegroundService(intent);
+        else
+            context.StartService(intent);
+    }
+
+    private static void StopAndroidForegroundService()
+    {
+        var context = global::Android.App.Application.Context;
+        var intent  = new Intent(context, typeof(GpsForegroundService));
+        intent.SetAction(GpsForegroundService.ActionStop);
+        context.StartService(intent);
+    }
+#endif
 }
 
 /// <summary>
@@ -82,21 +117,22 @@ public class SimulatedLocationService : ILocationService
     public bool IsRunning { get; private set; }
     public event Action<Microsoft.Maui.Devices.Sensors.Location>? OnLocationUpdated;
 
-    // Simulated path: Vinh Khanh area (lon=106.692x, lat=10.762x)
+    // Simulated path: đi dọc Phố ẩm thực Vĩnh Khánh từ cổng chính vào trong
+    // Tọa độ thực: Cổng chính 10.7619153, 106.701912
     private static readonly (double lat, double lon, string label)[] _path = new[]
     {
-        (10.7600, 106.6900, "Ngoài khu vực"),
-        (10.7610, 106.6910, "Đang tiến đến..."),
-        (10.7620, 106.6920, "Gần Vĩnh Khánh"),
-        (10.7626, 106.6927, "Vào khu Vĩnh Khánh!"),        // Area
-        (10.7627, 106.6928, "Đang khám phá..."),
-        (10.7628, 106.6929, "Đến gần Bánh Mì Ba Lẹ"),
-        (10.7628, 106.6929, "Vào Bánh Mì Ba Lẹ!"),        // Spot 1
-        (10.7630, 106.6932, "Rời Bánh Mì, vẫn ở Vĩnh Khánh"),
-        (10.7632, 106.6935, "Đến Gỏi Cuốn Tươi Ngon"),
-        (10.7632, 106.6935, "Vào Gỏi Cuốn!"),            // Spot 2
-        (10.7640, 106.6945, "Rời Vĩnh Khánh..."),
-        (10.7650, 106.6960, "Ngoài khu vực — im lặng"),
+        (StreetFoodNarrator.App.AppConfig.DefaultLatitude, StreetFoodNarrator.App.AppConfig.DefaultLongitude, "Ngoài khu vực"),
+        (10.7610, 106.7005, "Đang tiến đến Vĩnh Khánh..."),
+        (10.7615, 106.7012, "Gần cổng chào Vĩnh Khánh"),
+        (10.7619, 106.7019, "Vào cổng Phố ẩm thực Vĩnh Khánh!"),  // Cổng chính
+        (10.7622, 106.7022, "Đang khám phá phố ẩm thực..."),
+        (10.7625, 106.7025, "Đến gần Bánh Mì Ba Lẹ"),
+        (10.7628, 106.7028, "Vào Bánh Mì Ba Lẹ!"),               // Spot 1
+        (10.7630, 106.7032, "Rời Bánh Mì, vẫn ở Vĩnh Khánh"),
+        (10.7633, 106.7036, "Đến Gỏi Cuốn Tươi Ngon"),
+        (10.7635, 106.7038, "Vào Gỏi Cuốn!"),                    // Spot 2
+        (10.7645, 106.7050, "Rời Vĩnh Khánh..."),
+        (10.7660, 106.7065, "Ngoài khu vực — im lặng"),
     };
 
     private int _stepIndex = 0;
@@ -110,22 +146,16 @@ public class SimulatedLocationService : ILocationService
         _cts = new CancellationTokenSource();
         _stepIndex = 0;
 
-        _ = Task.Run(async () =>
+        // Chỉ phát vị trí ban đầu (step 0) — KHÔNG tự động đi tiếp.
+        // Dùng nút "Step" (StepForward) để di chuyển thủ công.
+        var (lat, lon, _) = _path[_stepIndex];
+        var loc = new Microsoft.Maui.Devices.Sensors.Location(lat, lon)
         {
-            while (_stepIndex < _path.Length && !_cts.Token.IsCancellationRequested)
-            {
-                var (lat, lon, _) = _path[_stepIndex];
-                var loc = new Microsoft.Maui.Devices.Sensors.Location(lat, lon)
-                {
-                    Timestamp = DateTimeOffset.UtcNow,
-                    Accuracy = 5.0
-                };
-                OnLocationUpdated?.Invoke(loc);
-                _stepIndex++;
-                await Task.Delay(5000, _cts.Token); // Step every 5s
-            }
-            IsRunning = false;
-        }, _cts.Token);
+            Timestamp = DateTimeOffset.UtcNow,
+            Accuracy = 5.0
+        };
+        OnLocationUpdated?.Invoke(loc);
+        _stepIndex++;
 
         await Task.CompletedTask;
     }

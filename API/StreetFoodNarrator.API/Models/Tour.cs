@@ -25,6 +25,9 @@ public class Tour
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    
     [BsonIgnore]
     public ICollection<POI_Tour> POI_Tours { get; set; } = new List<POI_Tour>();
 }

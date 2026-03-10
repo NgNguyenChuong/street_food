@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%); color: var(--dark); overflow-x: hidden; }
+        .main-content { margin-left: 280px; padding: 2rem; min-height: 100vh; transition: margin-left 0.3s; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; animation: fadeIn 0.6s ease-out; }
+        .page-title { font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header-actions { display: flex; gap: 1rem; align-items: center; }
+        
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.3s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; font-family: 'DM Sans', sans-serif; }
+        .btn-primary { background: var(--gradient); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,107,53,0.3); }
+        .btn-outline { background: white; border: 2px solid var(--border); color: var(--dark); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .stat-card { background: white; padding: 1.75rem; border-radius: 20px; box-shadow: 0 4px 20px var(--shadow); transition: all 0.3s; position: relative; overflow: hidden; animation: fadeInUp 0.6s ease-out backwards; }
+        .stat-card:nth-child(1) { animation-delay: 0.1s; } .stat-card:nth-child(2) { animation-delay: 0.2s; } .stat-card:nth-child(3) { animation-delay: 0.3s; } .stat-card:nth-child(4) { animation-delay: 0.4s; }
+        .stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 100px; height: 100px; background: var(--gradient); opacity: 0.04; border-radius: 0 20px 0 100%; }
+        .stat-card:hover { transform: translateY(-6px); box-shadow: 0 10px 30px var(--shadow); }
+        .stat-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem; }
+        .stat-icon.primary { background: rgba(255,107,53,0.12); color: var(--primary); }
+        .stat-icon.success { background: rgba(6,214,160,0.12); color: var(--success); }
+        .stat-icon.secondary { background: rgba(0,78,137,0.12); color: var(--secondary); }
+        .stat-icon.accent { background: rgba(255,210,63,0.12); color: #E0A800; }
+        .stat-value { font-size: 2.25rem; font-weight: 700; color: var(--dark); margin-bottom: 0.35rem; }
+        .stat-label { color: #666; font-size: 0.9rem; }
+
+        .card { background: white; border-radius: 20px; padding: 1.75rem; box-shadow: 0 4px 20px var(--shadow); animation: fadeInUp 0.6s ease-out 0.4s backwards; margin-bottom: 2rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
+        .card-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; }
+        
+        .toolbar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .filter-select { padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 12px; font-size: 0.9rem; font-family: 'DM Sans', sans-serif; outline: none; transition: 0.3s; background: white; min-width: 150px; cursor: pointer; }
+        .filter-select:focus { border-color: var(--primary); }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        thead { background: linear-gradient(to right, #F8F9FA, #F0F4F8); }
+        th { padding: 1rem 1.25rem; text-align: left; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); color: #666; }
+        td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); color: #444; font-size: 0.95rem; vertical-align: middle; }
+        tr { transition: background-color 0.2s; }
+        tr:hover td { background: rgba(255,107,53,0.02); }
+        
+        .badge { padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge.muted { background: rgba(0,0,0,0.05); color: #666; }
+        .badge.success { background: rgba(6,214,160,0.12); color: var(--success); }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 1024px) { .grid-2 { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .main-content { margin-left: 0; } table { display: block; overflow-x: auto; } }
+    </style>
+</head>
+<body>
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <h1 class="page-title">Lịch sử hoạt động</h1>
+        <div class="header-actions">
+            <!--<button class="btn btn-outline"><i class="fas fa-download"></i> Xuất CSV</button>-->
+            <select id="hist-timerange" class="filter-select" onchange="loadData()">
+                <option value="7">7 ngày qua</option>
+                <option value="30">30 ngày qua</option>
+                <option value="90">3 tháng qua</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon primary"><i class="fas fa-walking"></i></div>
+            <div class="stat-value" id="stat-sessions">—</div>
+            <div class="stat-label">Tổng Narrations</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon success"><i class="fas fa-map-marker-alt"></i></div>
+            <div class="stat-value" id="stat-audio">—</div>
+            <div class="stat-label">Audio được phát</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon secondary"><i class="fas fa-mobile-alt"></i></div>
+            <div class="stat-value" id="stat-devices">—</div>
+            <div class="stat-label">Tổng thiết bị</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon accent"><i class="fas fa-chart-line"></i></div>
+            <div class="stat-value" id="stat-active">—</div>
+            <div class="stat-label">Thiết bị HB 7 ngày</div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-fire" style="color:var(--primary);margin-right:8px"></i> POI phổ biến nhất</h2>
+            </div>
+            <div id="top-pois">
+                <div style="text-align:center;padding:2rem;color:#999"><i class="fas fa-spinner fa-spin"></i></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-chart-bar" style="color:var(--secondary);margin-right:8px"></i> Hoạt động gần đây</h2>
+            </div>
+            <div id="recent-activity">
+                <div style="text-align:center;padding:2rem;color:#999"><i class="fas fa-spinner fa-spin"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Log chi tiết</h2>
+        </div>
+        <table id="histTable">
+            <thead>
+                <tr>
+                    <th>POI</th>
+                    <th>User ID</th>
+                    <th>Kiểu kích hoạt</th>
+                    <th>Trạng thái</th>
+                    <th>Thời gian</th>
+                </tr>
+            </thead>
+            <tbody id="histBody">
+                <tr><td colspan="5" style="text-align:center;padding:3rem;color:#999"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<script src="api.js"></script>
+<script>
+    if (!TokenManager.isAuthenticated() && !localStorage.getItem('userSession')) {
+        window.location.href = 'index.html';
+    }
+
+    async function loadData() {
+        try {
+            document.getElementById('histBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:3rem;color:#999"><i class="fas fa-spinner fa-spin fa-2x"></i></td></tr>';
+            
+            const [overview, topPois, logs] = await Promise.all([
+                AnalyticsApi.overview(),
+                AnalyticsApi.topPOIs(5),
+                AnalyticsApi.narrationLogs({ page: 1, pageSize: 100 })
+            ]);
+            
+            // update stats
+            document.getElementById('stat-sessions').textContent = overview.totalNarrations || 0;
+            document.getElementById('stat-audio').textContent = overview.totalAudioPlayed || 0;
+            document.getElementById('stat-devices').textContent = overview.totalDevices || 0;
+            document.getElementById('stat-active').textContent = overview.activeDevicesLast7Days || 0;
+
+            renderTable(logs.data || []);
+            renderTopPois(topPois || []);
+            renderRecentActivity(logs.data || []);
+        } catch(err) {
+            console.error(err);
+            document.getElementById('histBody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:3rem;color:var(--danger)"><i class="fas fa-exclamation-triangle"></i> Lỗi khi tải dữ liệu</td></tr>`;
+        }
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('histBody');
+        if (!data.length) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:3rem;color:#999">Chưa có lịch sử hoạt động.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(h => {
+            const dt = new Date(h.triggeredAt);
+            const formattedDate = dt.toLocaleDateString('vi-VN') + ' ' + dt.toLocaleTimeString('vi-VN');
+            const playedBadge = h.wasPlayed ? '<span class="badge success">✓ Đã phát</span>' : '<span class="badge muted">Chưa phát</span>';
+            
+            return `
+            <tr>
+                <td style="font-weight:600;color:var(--dark)">${h.poiName || '—'}</td>
+                <td><span style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:#888">${h.userId ? h.userId.substring(0,8)+'...' : 'Anonymous'}</span></td>
+                <td><span class="badge muted">${h.triggerType || '—'}</span></td>
+                <td>${playedBadge}</td>
+                <td style="font-size:0.85rem;color:#666">${formattedDate}</td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    function renderTopPois(pois) {
+        const container = document.getElementById('top-pois');
+        if (!pois.length) {
+            container.innerHTML = '<div style="color:#999;font-style:italic">Chưa có dữ liệu</div>';
+            return;
+        }
+        
+        container.innerHTML = `<ul style="list-style:none;padding:0;margin:0">` + pois.map((p, i) => `
+            <li style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;align-items:center;gap:1rem">
+                    <div style="width:28px;height:28px;border-radius:50%;background:var(--gradient);color:white;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.85rem">${i+1}</div>
+                    <span style="font-weight:600;color:var(--dark)">${p.poiName || '—'}</span>
+                </div>
+                <div style="font-weight:bold;color:var(--primary)">${p.viewCount || 0} lượt</div>
+            </li>
+        `).join('') + `</ul>`;
+    }
+
+    function renderRecentActivity(logs) {
+        const container = document.getElementById('recent-activity');
+        if (!logs.length) {
+            container.innerHTML = '<div style="color:#999;font-style:italic">Chưa có dữ liệu</div>';
+            return;
+        }
+        
+        container.innerHTML = `<ul style="list-style:none;padding:0;margin:0">` + logs.slice(0, 5).map(h => {
+            const dt = new Date(h.triggeredAt);
+            return `
+            <li style="padding:1rem 0;border-bottom:1px solid var(--border);display:flex;gap:1rem">
+                <div style="width:10px;height:10px;border-radius:50%;background:${h.wasPlayed ? 'var(--success)' : 'var(--danger)'};margin-top:6px"></div>
+                <div>
+                    <div style="font-weight:600;color:var(--dark);margin-bottom:0.25rem">${h.poiName || '—'} <span style="font-weight:normal;color:#666">đã được kích hoạt qua ${h.triggerType}</span></div>
+                    <div style="font-size:0.8rem;color:#999">${dt.toLocaleTimeString('vi-VN')} - ${dt.toLocaleDateString('vi-VN')}</div>
+                </div>
+            </li>
+            `;
+        }).join('') + `</ul>`;
+    }
+
+    document.addEventListener('DOMContentLoaded', loadData);
+</script>
+</body>
+</html>
