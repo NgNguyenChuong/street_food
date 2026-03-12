@@ -21,8 +21,11 @@ namespace StreetFoodNarrator.App.Views;
 public partial class TourPage : ContentPage
 {
     private readonly MainViewModel _vm;
+    private readonly ITTSService _tts;
+    private readonly LanguageService _lang;
     private MemoryLayer? _tourPinsLayer;
     private bool _mapInitialized = false;
+    private bool _isPlaying = false;
     private const int DefaultMapZoomLevel = (int)AppConfig.DefaultZoom + 1;
 
     private void ZoomToDefaultLevel()
@@ -41,6 +44,8 @@ public partial class TourPage : ContentPage
     {
         InitializeComponent();
         _vm = MauiProgram.Services.GetRequiredService<MainViewModel>();
+        _tts = MauiProgram.Services.GetRequiredService<ITTSService>();
+        _lang = MauiProgram.Services.GetRequiredService<LanguageService>();
         BindingContext = _vm;
         WireComponentEvents();
         Loaded += OnPageLoaded;
@@ -52,6 +57,8 @@ public partial class TourPage : ContentPage
         TourContent.CenterMapRequested += OnCenterMapClicked;
         TourContent.ZoomInRequested += OnZoomInClicked;
         TourContent.ZoomOutRequested += OnZoomOutClicked;
+        TourContent.PlayPauseRequested += OnPlayPauseTapped;
+        TourContent.ShareRequested += OnShareTapped;
     }
 
     private void OnCenterMapClicked(object? sender, EventArgs e)
@@ -77,13 +84,87 @@ public partial class TourPage : ContentPage
     private void OnZoomOutClicked(object? sender, EventArgs e)
         => TourMapView?.Map?.Navigator.ZoomOut(300);
 
+    // ─── Audio playback ───────────────────────────────────────────────────────
+
+    private async void OnPlayPauseTapped(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_isPlaying)
+            {
+                await _tts.StopAsync();
+                _isPlaying = false;
+                TourContent.SetPlayState(false);
+                TourContent.StopWaveAnimation();
+                return;
+            }
+
+            var zone = _vm.PrimaryZone;
+            if (zone == null) return;
+
+            string lang = _lang.CurrentLanguage switch
+            {
+                "en" => "en-US",
+                "zh" => "zh-CN",
+                _    => "vi-VN"
+            };
+
+            var text = _lang.CurrentLanguage switch
+            {
+                "en" => zone.Description_En ?? zone.Name_En ?? zone.Name_Vi,
+                "zh" => zone.Description_Zh ?? zone.Name_Zh ?? zone.Name_En ?? zone.Name_Vi,
+                _    => zone.Description_Vi ?? zone.Name_Vi ?? zone.Name_En
+            } ?? "Chao mung den voi diem tham quan.";
+
+            var ok = await _tts.SpeakAsync(text, lang, poiId: zone.Id);
+            _isPlaying = ok;
+            TourContent.SetPlayState(ok);
+            if (ok) TourContent.StartWaveAnimation();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TourPage] OnPlayPauseTapped: {ex}");
+            _isPlaying = false;
+            TourContent.SetPlayState(false);
+            TourContent.StopWaveAnimation();
+        }
+    }
+
+    private async void OnShareTapped(object? sender, EventArgs e)
+    {
+        try
+        {
+            await Share.Default.RequestAsync(new ShareTextRequest
+            {
+                Title = "Chia se diem den",
+                Text  = $"Toi dang o {_vm.PrimaryZoneName} trong tour am thuc!",
+                Uri   = "https://streetfoodnarrator.app"
+            });
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[TourPage] OnShareTapped: {ex}"); }
+    }
+
     private void OnPageLoaded(object? sender, EventArgs e)
     {
         // Khởi tạo bản đồ chỉ một lần khi page load
         if (!_mapInitialized)
         {
             _mapInitialized = true;
-            try { InitializeTourMap(); }
+            try
+            {
+                InitializeTourMap();
+                // OnAppearing fires BEFORE Loaded, so pins weren't added
+                // (because _tourPinsLayer was still null). Load them now.
+                if (_vm.AllPOIs.Count > 0)
+                {
+                    UpdateTourPins();
+                }
+                else
+                {
+                    _ = _vm.LoadAllPoisAsync().ContinueWith(_ =>
+                        MainThread.BeginInvokeOnMainThread(UpdateTourPins));
+                }
+            }
             catch (Exception ex) { Console.WriteLine($"[TourPage] InitializeTourMap error: {ex.Message}"); }
         }
     }

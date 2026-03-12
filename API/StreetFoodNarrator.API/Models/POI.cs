@@ -55,6 +55,16 @@ public class POI
     [MaxLength(500)]
     public string? AudioUrl_Zh { get; set; }
 
+    // Audio Scripts for each language (TTS Source)
+    [MaxLength(4000)]
+    public string? Script_Vi { get; set; }
+    
+    [MaxLength(4000)]
+    public string? Script_En { get; set; }
+    
+    [MaxLength(4000)]
+    public string? Script_Zh { get; set; }
+
     // Additional fields
     /// <summary>List of signature dishes. Use SignatureDishes[0] as the primary dish.</summary>
     public List<string>? SignatureDishes { get; set; }

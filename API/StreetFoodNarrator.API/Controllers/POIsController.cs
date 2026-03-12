@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
+using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace StreetFoodNarrator.API.Controllers;
 
@@ -12,11 +14,15 @@ public class POIsController : ControllerBase
 {
     private readonly MongoDbContext _db;
     private readonly MongoSequenceService _sequence;
+    private readonly IWebHostEnvironment _env;
+    private readonly HttpClient _httpClient;
 
-    public POIsController(MongoDbContext db, MongoSequenceService sequence)
+    public POIsController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env)
     {
         _db = db;
         _sequence = sequence;
+        _env = env;
+        _httpClient = new HttpClient();
     }
 
     /// <summary>
@@ -51,6 +57,17 @@ public class POIsController : ControllerBase
         {
             var categoryFilter = Builders<POI>.Filter.Regex(p => p.Category, new MongoDB.Bson.BsonRegularExpression(category, "i"));
             filter &= categoryFilter;
+        }
+
+        // Vendor scoping: authenticated vendor only sees their own POIs
+        if (User.Identity?.IsAuthenticated == true && User.IsInRole("Vendor"))
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+            if (vendor != null)
+            {
+                filter &= Builders<POI>.Filter.Eq(p => p.VendorId, vendor.VendorId);
+            }
         }
 
         var total = await _db.POIs.CountDocumentsAsync(filter);
@@ -149,6 +166,9 @@ public class POIsController : ControllerBase
             AudioUrl_Vi = p.AudioUrl_Vi,
             AudioUrl_En = p.AudioUrl_En,
             AudioUrl_Zh = p.AudioUrl_Zh,
+            Script_Vi = p.Script_Vi,
+            Script_En = p.Script_En,
+            Script_Zh = p.Script_Zh,
             ZoneType = p.ZoneType,
             ZoneLevel = p.ZoneLevel,
             Priority = p.Priority,
@@ -220,6 +240,9 @@ public class POIsController : ControllerBase
             AudioUrl_Vi = model.AudioUrl_Vi,
             AudioUrl_En = model.AudioUrl_En,
             AudioUrl_Zh = model.AudioUrl_Zh,
+            Script_Vi = model.Script_Vi,
+            Script_En = model.Script_En,
+            Script_Zh = model.Script_Zh,
             ZoneType = zoneType,
             ZoneLevel = zoneLevel,
             Priority = priority,
@@ -288,6 +311,9 @@ public class POIsController : ControllerBase
             .Set(p => p.AudioUrl_Vi, model.AudioUrl_Vi ?? poi.AudioUrl_Vi)
             .Set(p => p.AudioUrl_En, model.AudioUrl_En ?? poi.AudioUrl_En)
             .Set(p => p.AudioUrl_Zh, model.AudioUrl_Zh ?? poi.AudioUrl_Zh)
+            .Set(p => p.Script_Vi, model.Script_Vi ?? poi.Script_Vi)
+            .Set(p => p.Script_En, model.Script_En ?? poi.Script_En)
+            .Set(p => p.Script_Zh, model.Script_Zh ?? poi.Script_Zh)
             .Set(p => p.ZoneType, zoneType)
             .Set(p => p.ZoneLevel, zoneLevel)
             .Set(p => p.Priority, priority)
@@ -363,6 +389,109 @@ public class POIsController : ControllerBase
     }
 
     /// <summary>
+    /// Resolve Google Maps link to coordinates
+    /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
+    [HttpPost("resolve-map-link")]
+    public async Task<ActionResult> ResolveMapLink([FromBody] ResolveMapLinkRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Url))
+            return BadRequest(new { message = "URL is required" });
+
+        var url = request.Url.Trim();
+
+        try
+        {
+            // Resolve short links (maps.app.goo.gl or goo.gl)
+            if (url.Contains("maps.app.goo.gl") || url.Contains("goo.gl/maps"))
+            {
+                var response = await _httpClient.GetAsync(url);
+                url = response.RequestMessage?.RequestUri?.ToString() ?? url;
+            }
+
+            // Extract lat/lng via regex
+            // Pattern 1: @10.760741,106.703301
+            var match = Regex.Match(url, @"@(-?\d+\.\d+),(-?\d+\.\d+)");
+            if (match.Success)
+            {
+                return Ok(new
+                {
+                    latitude = double.Parse(match.Groups[1].Value),
+                    longitude = double.Parse(match.Groups[2].Value)
+                });
+            }
+
+            // Pattern 2: ?q=10.760741,106.703301 or &q=...
+            var qMatch = Regex.Match(url, @"[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)");
+            if (qMatch.Success)
+            {
+                return Ok(new
+                {
+                    latitude = double.Parse(qMatch.Groups[1].Value),
+                    longitude = double.Parse(qMatch.Groups[2].Value)
+                });
+            }
+
+            // Pattern 3: search/10.760741,106.703301
+            var sMatch = Regex.Match(url, @"search/(-?\d+\.\d+),(-?\d+\.\d+)");
+            if (sMatch.Success)
+            {
+                return Ok(new
+                {
+                    latitude = double.Parse(sMatch.Groups[1].Value),
+                    longitude = double.Parse(sMatch.Groups[2].Value)
+                });
+            }
+
+            return BadRequest(new { message = "Could not extract coordinates from this Google Maps link" });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error resolving map link", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Upload image for a POI
+    /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
+    [HttpPost("upload-image")]
+    public async Task<ActionResult> UploadImage(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { message = "No file uploaded" });
+        }
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        
+        if (!allowedExtensions.Contains(extension))
+        {
+            return BadRequest(new { message = "Only JPG, PNG and WEBP images are allowed" });
+        }
+
+        if (file.Length > 5 * 1024 * 1024) // 5MB limit
+        {
+            return BadRequest(new { message = "File size exceeds 5MB limit" });
+        }
+
+        var uploadsPath = Path.Combine(_env.WebRootPath, "uploads", "images");
+        Directory.CreateDirectory(uploadsPath);
+
+        var fileName = $"{Guid.NewGuid()}{extension}";
+        var filePath = Path.Combine(uploadsPath, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var imageUrl = $"/uploads/images/{fileName}";
+        return Ok(new { imageUrl });
+    }
+
+    /// <summary>
     /// Merges a single SignatureDish string into a SignatureDishes list.
     /// If both are provided, prepends single to the list (if not already present).
     /// </summary>
@@ -381,6 +510,11 @@ public class POIsController : ControllerBase
 }
 
 // DTOs
+public class ResolveMapLinkRequest
+{
+    public string Url { get; set; } = string.Empty;
+}
+
 public class POIDto
 {
     public int POI_ID { get; set; }
@@ -418,6 +552,9 @@ public class POIDto
     public string? AudioUrl_Fr { get; set; }
     public string? AudioUrl_Ko { get; set; }
     public string? AudioUrl_Zh { get; set; }
+    public string? Script_Vi { get; set; }
+    public string? Script_En { get; set; }
+    public string? Script_Zh { get; set; }
     public string? ZoneType { get; set; }
     public int ZoneLevel { get; set; }
     public int Priority { get; set; }
@@ -482,6 +619,9 @@ public class CreatePOIModel
     public string? AudioUrl_Fr { get; set; }
     public string? AudioUrl_Ko { get; set; }
     public string? AudioUrl_Zh { get; set; }
+    public string? Script_Vi { get; set; }
+    public string? Script_En { get; set; }
+    public string? Script_Zh { get; set; }
     public string? ZoneType { get; set; }
     public int? ZoneLevel { get; set; }
     public int? Priority { get; set; }
@@ -531,6 +671,9 @@ public class UpdatePOIModel
     public string? AudioUrl_Fr { get; set; }
     public string? AudioUrl_Ko { get; set; }
     public string? AudioUrl_Zh { get; set; }
+    public string? Script_Vi { get; set; }
+    public string? Script_En { get; set; }
+    public string? Script_Zh { get; set; }
     public string? ZoneType { get; set; }
     public int? ZoneLevel { get; set; }
     public int? Priority { get; set; }

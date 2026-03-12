@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tạo gian hàng mới - Street Food Narrator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Leaflet CSS – OSM map (replaces Google Maps) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -396,7 +399,7 @@
             font-size: 0.85rem;
         }
 
-        .day-checkbox input:checked + label {
+        .day-checkbox input:checked+label {
             border-color: var(--primary);
             background: var(--primary);
             color: white;
@@ -563,6 +566,7 @@
                 opacity: 0;
                 transform: translateY(-20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -574,6 +578,7 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -581,11 +586,59 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
-        /* Responsive */
+        .image-preview {
+            width: 100%;
+            max-width: 400px;
+            height: 250px;
+            border: 2px dashed #ccc;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            overflow: hidden;
+            position: relative;
+            background: #f9f9f9;
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .image-preview .placeholder {
+            color: #999;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .map-link-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: stretch;
+            width: 100%;
+        }
+
+        .input-group .form-input {
+            flex: 1;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -623,6 +676,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Page Header -->
@@ -667,7 +721,8 @@
 
                 <div class="section-subtitle">
                     <i class="fas fa-lightbulb"></i>
-                    Điền thông tin về gian hàng của bạn. Các trường có dấu <span style="color: var(--danger);">*</span> là bắt buộc.
+                    Điền thông tin về gian hàng của bạn. Các trường có dấu <span style="color: var(--danger);">*</span>
+                    là bắt buộc.
                 </div>
 
                 <!-- Admin: Language Tabs -->
@@ -691,11 +746,13 @@
                                 Tên gian hàng (Tiếng Việt)
                                 <span class="required">*</span>
                             </label>
-                            <input type="text" class="form-input" id="name_Vi_admin" placeholder="VD: Ốc Đào, Phở Hà Nội 99">
+                            <input type="text" class="form-input" id="name_Vi_admin"
+                                placeholder="VD: Ốc Đào, Phở Hà Nội 99">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Mô tả (Tiếng Việt)</label>
-                            <textarea class="form-textarea" id="description_Vi_admin" placeholder="Giới thiệu về gian hàng, đặc sản nổi bật..."></textarea>
+                            <textarea class="form-textarea" id="description_Vi_admin"
+                                placeholder="Giới thiệu về gian hàng, đặc sản nổi bật..."></textarea>
                         </div>
                     </div>
 
@@ -703,7 +760,8 @@
                     <div id="lang-en" class="lang-content">
                         <div class="form-group">
                             <label class="form-label">Name (English)</label>
-                            <input type="text" class="form-input" id="name_En" placeholder="e.g., Oc Dao Snail Restaurant">
+                            <input type="text" class="form-input" id="name_En"
+                                placeholder="e.g., Oc Dao Snail Restaurant">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Description (English)</label>
@@ -730,7 +788,8 @@
                             Tên gian hàng
                             <span class="required">*</span>
                         </label>
-                        <input type="text" class="form-input" id="name_Vi" placeholder="VD: Ốc Đào, Phở Hà Nội 99, Bánh Mì Huỳnh Hoa" required>
+                        <input type="text" class="form-input" id="name_Vi"
+                            placeholder="VD: Ốc Đào, Phở Hà Nội 99, Bánh Mì Huỳnh Hoa" required>
                         <div class="form-help">
                             <i class="fas fa-lightbulb"></i>
                             Tên gian hàng sẽ hiển thị cho du khách
@@ -739,7 +798,8 @@
 
                     <div class="form-group">
                         <label class="form-label">Mô tả ngắn gọn</label>
-                        <textarea class="form-textarea" id="description_Vi" placeholder="VD: Chuyên các món ốc tươi ngon, nổi tiếng với ốc hấp sả ớt và ốc nướng muối ớt..."></textarea>
+                        <textarea class="form-textarea" id="description_Vi"
+                            placeholder="VD: Chuyên các món ốc tươi ngon, nổi tiếng với ốc hấp sả ớt và ốc nướng muối ớt..."></textarea>
                         <div class="form-help">
                             <i class="fas fa-info-circle"></i>
                             Giới thiệu ngắn về đặc sản và điểm nổi bật của quán
@@ -753,7 +813,8 @@
                         <span class="required">*</span>
                     </label>
                     <div class="address-field">
-                        <input type="text" class="form-input" id="address" placeholder="VD: 123 Vĩnh Khánh, Phường 5, Quận 4" autocomplete="off" required>
+                        <input type="text" class="form-input" id="address"
+                            placeholder="VD: 123 Vĩnh Khánh, Phường 5, Quận 4" autocomplete="off" required>
                         <div id="addressSuggestions" class="address-suggestions"></div>
                     </div>
                     <div class="form-help">
@@ -785,7 +846,7 @@
 
                 <!-- Admin Only: Coordinates -->
                 <div class="form-group admin-only">
-                    <label class="form-label">Tọa độ GPS</label>
+                    <label class="form-label">Link bản đồ Google hoặc Tọa độ GPS</label>
                     <div class="coordinate-group">
                         <div>
                             <input type="text" class="form-input" id="latitude" placeholder="Latitude (VD: 10.7623)">
@@ -803,11 +864,57 @@
                         </div>
                     </div>
                     <div id="mapPreview" class="map-preview">
-                        <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #999;">
+                        <div
+                            style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #999;">
                             <i class="fas fa-map-marked-alt" style="font-size: 3rem;"></i>
                         </div>
                     </div>
                 </div>
+
+                <!-- Vendor Location / Admin Map Link -->
+                <div class="form-group">
+                    <label class="form-label">
+                        Link Bản Đồ Google (Google Maps Link)
+                        <span class="required">*</span>
+                    </label>
+                    <div class="input-group">
+                        <input type="url" class="form-input" id="mapUrl" placeholder="VD: https://maps.app.goo.gl/..."
+                            required>
+                        <button type="button" class="btn btn-primary" id="btnResolveMap" style="white-space: nowrap;">
+                            <i class="fas fa-search-location"></i> Xác nhận vị trí
+                        </button>
+                    </div>
+                    <div class="form-help" id="mapUrlStatus">
+                        <i class="fas fa-link"></i>
+                        Copy link chia sẻ từ Google Maps dán vào đây để hệ thống tự lấy tọa độ
+                    </div>
+                    <!-- Hidden fields wrapper for Vendor to store coordinates -->
+                    <div class="vendor-only">
+                        <input type="hidden" id="vendorLat">
+                        <input type="hidden" id="vendorLng">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        Ảnh minh họa (Image)
+                    </label>
+                    <input type="file" class="form-input" id="imageFile" accept="image/jpeg, image/png, image/webp">
+                    <input type="hidden" id="imageUrl">
+                    <div class="image-preview" id="imagePreviewContainer">
+                        <div class="placeholder" id="imagePlaceholder">
+                            <i class="fas fa-image" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                            Chưa có ảnh<br>
+                            Kích thước tối đa 5MB (JPG, PNG, WEBP)
+                        </div>
+                        <img id="imagePreview" src="" alt="Preview">
+                        <div style="position: absolute; display: none; inset: 0; background: rgba(255,255,255,0.8); align-items: center; justify-content: center;"
+                            id="imageUploading">
+                            <i class="fas fa-spinner fa-spin fa-2x" style="color: var(--primary);"></i>
+                        </div>
+                    </div>
+                </div>
+
 
             </div>
 
@@ -888,6 +995,23 @@
                         <input type="text" class="form-input" id="audioUrlZh" placeholder="https://...">
                     </div>
                 </div>
+
+                <div class="audio-grid mt-3" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Kịch bản Audio (VI)</label>
+                        <textarea class="form-textarea" id="scriptVi"
+                            placeholder="Nội dung thuyết minh tiếng Việt..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kịch bản Audio (EN)</label>
+                        <textarea class="form-textarea" id="scriptEn"
+                            placeholder="English narration script..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kịch bản Audio (ZH)</label>
+                        <textarea class="form-textarea" id="scriptZh" placeholder="中文解说词..."></textarea>
+                    </div>
+                </div>
             </div>
 
             <!-- Opening Hours -->
@@ -919,7 +1043,8 @@
                     </div>
 
                     <div id="customDays" class="hours-custom">
-                        <label style="font-weight: 600; margin-bottom: 0.75rem; display: block;">Chọn ngày hoạt động:</label>
+                        <label style="font-weight: 600; margin-bottom: 0.75rem; display: block;">Chọn ngày hoạt
+                            động:</label>
                         <div class="day-checkboxes">
                             <div class="day-checkbox">
                                 <input type="checkbox" id="day-mon" checked>
@@ -952,14 +1077,16 @@
                         </div>
                     </div>
 
-                    <label style="font-weight: 600; margin-bottom: 0.75rem; display: block; margin-top: 1rem;">Khung giờ hoạt động:</label>
+                    <label style="font-weight: 600; margin-bottom: 0.75rem; display: block; margin-top: 1rem;">Khung giờ
+                        hoạt động:</label>
                     <div class="time-inputs">
                         <input type="time" class="form-input" id="openTime" value="06:00">
                         <span class="time-sep">đến</span>
                         <input type="time" class="form-input" id="closeTime" value="22:00">
                     </div>
 
-                    <div class="form-help" id="hoursPreview" style="margin-top: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--dark);">
+                    <div class="form-help" id="hoursPreview"
+                        style="margin-top: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--dark);">
                         <i class="fas fa-calendar-check"></i>
                         <span id="hoursText">Thứ 2 - Thứ 6: 06:00 - 22:00</span>
                     </div>
@@ -993,7 +1120,8 @@
 
                 <div class="form-group">
                     <label class="form-label">Món đặc sản nổi bật</label>
-                    <input type="text" class="form-input" id="specialty" placeholder="VD: Ốc hấp sả ớt, Ốc nướng muối ớt">
+                    <input type="text" class="form-input" id="specialty"
+                        placeholder="VD: Ốc hấp sả ớt, Ốc nướng muối ớt">
                     <div class="form-help">
                         <i class="fas fa-star"></i>
                         Món ăn ngon nhất, nổi tiếng nhất của quán
@@ -1008,7 +1136,8 @@
                     Cần hỗ trợ?
                 </div>
                 <div class="info-card-content">
-                    Sau khi tạo gian hàng, bạn có thể thêm file thuyết minh (audio) tại trang <strong>Quản lý Audio</strong>. 
+                    Sau khi tạo gian hàng, bạn có thể thêm file thuyết minh (audio) tại trang <strong>Quản lý
+                        Audio</strong>.
                     Hệ thống cũng hỗ trợ tạo thuyết minh tự động bằng AI cho nhiều ngôn ngữ.
                 </div>
             </div>
@@ -1043,7 +1172,7 @@
         // Apply role-based UI
         function applyRoleUi() {
             const body = document.body;
-            
+
             if (isAdmin) {
                 // Admin can toggle between simple and advanced mode
                 body.classList.add('admin-mode');
@@ -1061,9 +1190,9 @@
             const toggle = document.getElementById('modeToggle');
             const info = document.getElementById('modeInfo');
             const body = document.body;
-            
+
             toggle.classList.toggle('active');
-            
+
             if (toggle.classList.contains('active')) {
                 body.classList.remove('vendor-mode');
                 body.classList.add('admin-mode');
@@ -1084,7 +1213,7 @@
         function switchLang(lang) {
             document.querySelectorAll('.lang-tab').forEach(tab => tab.classList.remove('active'));
             event.target.classList.add('active');
-            
+
             document.querySelectorAll('.lang-content').forEach(content => content.classList.remove('active'));
             document.getElementById(`lang-${lang}`).classList.add('active');
         }
@@ -1108,10 +1237,10 @@
                 const road = normalize(item?.address?.road || '');
                 const suburb = normalize(item?.address?.suburb || '');
                 const district = normalize(item?.address?.city_district || item?.address?.county || '');
-                
+
                 const hasVinhKhanh = name.includes('vinh khanh') || road.includes('vinh khanh') || suburb.includes('vinh khanh');
                 const hasDistrict4 = name.includes('quan 4') || name.includes('district 4') || district.includes('4');
-                
+
                 return hasVinhKhanh && hasDistrict4;
             };
 
@@ -1122,7 +1251,7 @@
 
             const showSuggestions = (items) => {
                 box.innerHTML = '';
-                
+
                 if (!items.length) {
                     const empty = document.createElement('div');
                     empty.className = 'address-empty';
@@ -1138,7 +1267,7 @@
                     row.textContent = item.display_name || '';
                     row.addEventListener('click', () => {
                         input.value = item.display_name || '';
-                        
+
                         // Auto-fill coordinates for admin
                         if (isAdmin && document.body.classList.contains('admin-mode')) {
                             const lat = parseFloat(item.lat);
@@ -1149,12 +1278,12 @@
                                 if (typeof initMap === 'function') initMap(lat, lng);
                             }
                         }
-                        
+
                         hideBox();
                     });
                     box.appendChild(row);
                 });
-                
+
                 box.classList.add('show');
             };
 
@@ -1306,7 +1435,7 @@
 
         function selectPreset(preset) {
             currentPreset = preset;
-            
+
             document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
 
@@ -1328,7 +1457,7 @@
             } else {
                 customDays.classList.add('show');
             }
-            
+
             updateHoursPreview();
         }
 
@@ -1375,7 +1504,7 @@
         // Event listeners
         document.getElementById('openTime')?.addEventListener('change', updateHoursPreview);
         document.getElementById('closeTime')?.addEventListener('change', updateHoursPreview);
-        
+
         ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(day => {
             document.getElementById(`day-${day}`)?.addEventListener('change', updateHoursPreview);
         });
@@ -1390,7 +1519,7 @@
             const openingHours = days.map((day, idx) => {
                 const checkbox = document.getElementById(`day-${day}`);
                 const label = dayLabels[idx];
-                
+
                 if (checkbox && checkbox.checked) {
                     return `${label}: ${openTime} - ${closeTime}`;
                 } else {
@@ -1407,10 +1536,10 @@
         // Form submission
         document.getElementById('poiForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const errorDiv = document.getElementById('error');
             const submitBtns = document.querySelectorAll('.btn-success');
-            
+
             errorDiv.style.display = 'none';
             submitBtns.forEach(btn => {
                 btn.disabled = true;
@@ -1419,7 +1548,7 @@
 
             const hoursData = buildOpeningHours();
             const isAdvancedMode = document.body.classList.contains('admin-mode');
-            
+
             // Get name from appropriate field
             let name_Vi;
             if (isAdvancedMode) {
@@ -1435,7 +1564,7 @@
             } else {
                 description_Vi = document.getElementById('description_Vi')?.value || null;
             }
-            
+
             const poiData = {
                 name_Vi: name_Vi,
                 description_Vi: description_Vi,
@@ -1477,23 +1606,49 @@
             const audioUrlZh = document.getElementById('audioUrlZh')?.value?.trim();
             if (audioUrlZh) poiData.audioUrl_Zh = audioUrlZh;
 
+            const scriptVi = document.getElementById('scriptVi')?.value?.trim();
+            if (scriptVi) poiData.script_Vi = scriptVi;
+            const scriptEn = document.getElementById('scriptEn')?.value?.trim();
+            if (scriptEn) poiData.script_En = scriptEn;
+            const scriptZh = document.getElementById('scriptZh')?.value?.trim();
+            if (scriptZh) poiData.script_Zh = scriptZh;
+
             // Add multilingual data if in advanced mode
             if (isAdvancedMode) {
                 poiData.name_En = document.getElementById('name_En')?.value || null;
                 poiData.name_Zh = document.getElementById('name_Zh')?.value || null;
                 poiData.description_En = document.getElementById('description_En')?.value || null;
                 poiData.description_Zh = document.getElementById('description_Zh')?.value || null;
-                
+
                 const lat = parseFloat(document.getElementById('latitude')?.value);
                 const lng = parseFloat(document.getElementById('longitude')?.value);
                 if (!isNaN(lat)) poiData.latitude = lat;
                 if (!isNaN(lng)) poiData.longitude = lng;
+            } else {
+                const lat = parseFloat(document.getElementById('vendorLat')?.value);
+                const lng = parseFloat(document.getElementById('vendorLng')?.value);
+                if (!isNaN(lat)) { poiData.latitude = lat; }
+                else {
+                    errorDiv.textContent = '❌ Xin vui lòng Bấm "Xác nhận vị trí" từ link Google Maps.';
+                    errorDiv.style.display = 'block';
+                    submitBtns.forEach(btn => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-check"></i> Tạo gian hàng';
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+                if (!isNaN(lng)) poiData.longitude = lng;
             }
-            
+
+            // Set image URL if successfully uploaded
+            const imageUrl = document.getElementById('imageUrl').value;
+            if (imageUrl) poiData.imageUrl = imageUrl;
+
             try {
                 const result = await api.createPOI(poiData);
                 alert('✅ Tạo gian hàng thành công!\n\nBạn có thể thêm file thuyết minh tại trang Quản lý Audio.');
-                
+
                 if (isVendor) {
                     window.location.href = 'vendor-dashboard.html';
                 } else {
@@ -1535,6 +1690,106 @@
         if (zoneTypeSelect) zoneTypeSelect.addEventListener('change', applyZoneDefaults);
         applyZoneDefaults();
 
+        // Image Upload Handle
+        document.getElementById('imageFile')?.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const previewImg = document.getElementById('imagePreview');
+            const placeholder = document.getElementById('imagePlaceholder');
+            const overlay = document.getElementById('imageUploading');
+
+            // Show local preview immediately
+            const objectUrl = URL.createObjectURL(file);
+            previewImg.src = objectUrl;
+            previewImg.style.display = 'block';
+            placeholder.style.display = 'none';
+            overlay.style.display = 'flex';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const token = TokenManager.getToken();
+                const response = await fetch('/api/POIs/upload-image', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Upload failed');
+                }
+
+                const result = await response.json();
+                document.getElementById('imageUrl').value = result.imageUrl;
+                overlay.style.display = 'none';
+            } catch (error) {
+                alert('Lỗi upload ảnh: ' + error.message);
+                previewImg.style.display = 'none';
+                placeholder.style.display = 'block';
+                overlay.style.display = 'none';
+                document.getElementById('imageFile').value = '';
+            }
+        });
+
+        // Resolve Map URL Handle
+        document.getElementById('btnResolveMap')?.addEventListener('click', async () => {
+            const urlInput = document.getElementById('mapUrl');
+            const statusDiv = document.getElementById('mapUrlStatus');
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                alert('Vui lòng nhập link Google Maps');
+                return;
+            }
+
+            statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lấy tọa độ...';
+            statusDiv.style.color = '#666';
+
+            try {
+                const token = TokenManager.getToken();
+                const response = await fetch('/api/POIs/resolve-map-link', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || 'Không thể đọc được tọa độ từ link này');
+                }
+
+                const data = await response.json();
+
+                // Update Admin fields if present
+                const latInput = document.getElementById('latitude');
+                const lngInput = document.getElementById('longitude');
+                if (latInput) latInput.value = data.latitude;
+                if (lngInput) lngInput.value = data.longitude;
+
+                // Update hidden Vendor fields
+                const vLat = document.getElementById('vendorLat');
+                const vLng = document.getElementById('vendorLng');
+                if (vLat) vLat.value = data.latitude;
+                if (vLng) vLng.value = data.longitude;
+
+                // Move map
+                initMap(data.latitude, data.longitude);
+
+                statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Đã lấy tọa độ thành công!';
+                statusDiv.style.color = 'var(--success)';
+            } catch (err) {
+                statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Lỗi: ${err.message}`;
+                statusDiv.style.color = 'var(--danger)';
+            }
+        });
+
     </script>
 </body>
+
 </html>

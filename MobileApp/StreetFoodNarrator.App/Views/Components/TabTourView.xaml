@@ -295,6 +295,13 @@
                                     <Label Text="{Binding PrimaryZoneName}"
                                            FontSize="15" FontAttributes="Bold"
                                            TextColor="White" LineBreakMode="TailTruncation"/>
+                                    
+                                    <!-- Thêm địa chỉ/món đặc sản để dễ nhận biết quán -->
+                                    <Label Text="{Binding PrimaryZoneAddress}"
+                                           FontSize="10"
+                                           TextColor="#9CA3AF" 
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1"/>
                                 </VerticalStackLayout>
 
                                 <!-- Right: Counter badge + Rating -->
@@ -500,15 +507,28 @@
                                     </LinearGradientBrush>
                                 </Border.Stroke>
                                 <VerticalStackLayout Spacing="11">
-                                    <!-- Header -->
-                                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,0">
-                                        <Label Text="🎵 Thuyết minh" FontSize="12" FontAttributes="Bold"
-                                               TextColor="White" VerticalOptions="Center"/>
-                                        <Border Grid.Column="1" StrokeShape="RoundRectangle 8"
-                                                BackgroundColor="#142B1E" Stroke="#1E3828" Padding="3,3">
-                                            <Label Text="🇻🇳 Tiếng Việt" FontSize="10" TextColor="#6B9E7E"/>
-                                        </Border>
-                                    </Grid>
+                                    <!-- Header with POI name for clarity -->
+                                    <VerticalStackLayout Spacing="4">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <Label Text="🎵 Thuyết minh" FontSize="12" FontAttributes="Bold"
+                                                   TextColor="White" VerticalOptions="Center"/>
+                                            <Border Grid.Column="1" StrokeShape="RoundRectangle 8"
+                                                    BackgroundColor="#142B1E" Stroke="#1E3828" Padding="3,3">
+                                                <Label Text="🇻🇳 Tiếng Việt" FontSize="10" TextColor="#6B9E7E"/>
+                                            </Border>
+                                        </Grid>
+                                        <!-- Show POI name to identify which vendor's audio -->
+                                        <Label FontSize="11" TextColor="#6B9E7E" LineBreakMode="TailTruncation">
+                                            <Label.FormattedText>
+                                                <FormattedString>
+                                                    <Span Text="📍 " />
+                                                    <Span Text="{Binding PrimaryZoneName}" FontAttributes="Bold"/>
+                                                    <Span Text=" • "/>
+                                                    <Span Text="{Binding PrimaryZoneAddress}"/>
+                                                </FormattedString>
+                                            </Label.FormattedText>
+                                        </Label>
+                                    </VerticalStackLayout>
 
                                     <!-- Full waveform -->
                                     <HorizontalStackLayout Spacing="2" HorizontalOptions="Center" HeightRequest="34">

@@ -74,6 +74,10 @@ public class TTSController : ControllerBase
         {
             var normalizedText = TtsTextPreprocessor.NormalizePlainText(request.Text, request.Language);
 
+            // ═══ DEBUG LOG: xem text gốc và normalized ═══
+            _logger.LogWarning("🔍 TTS DEBUG - Original text: {Text}", request.Text);
+            _logger.LogWarning("🔍 TTS DEBUG - Normalized text: {NormalizedText}", normalizedText);
+
             // Clamp script so playback stays within ~30s (average 2.6 words/s)
             var clamped = ClampToMaxDuration(normalizedText, 30);
             if (string.IsNullOrWhiteSpace(clamped.Text))
@@ -113,7 +117,11 @@ public class TTSController : ControllerBase
             }
             
             // Write text to temp file to avoid command line encoding issues with Vietnamese characters
-            var ttsText = TtsTextPreprocessor.BuildSsmlIfNeeded(clamped.Text, request.Language);
+            var ttsText = TtsTextPreprocessor.BuildSsmlIfNeeded(normalizedText, request.Language);
+            
+            // ═══ DEBUG LOG: xem SSML output ═══
+            _logger.LogWarning("🔍 TTS DEBUG - Final SSML/text sent to Edge-TTS: {TtsText}", ttsText);
+            
             var tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_text_{Guid.NewGuid()}.txt");
             await System.IO.File.WriteAllTextAsync(tempTextFile, ttsText, System.Text.Encoding.UTF8);
             

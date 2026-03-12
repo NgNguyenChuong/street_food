@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Vendors - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="api.js"></script>
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --warning: #F97316;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .main-content {
+            margin-left: 130px;
+            padding: 2rem;
+            min-height: 100vh;
+            transition: margin-left 0.3s;
+        }
+
+        /* ═══ Header ═══ */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* ═══ Buttons ═══ */
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: var(--gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            border-radius: 8px;
+        }
+
+        .btn-success { background: rgba(6,214,160,0.12); color: var(--success); border: 1px solid var(--success); }
+        .btn-success:hover { background: rgba(6,214,160,0.25); }
+        .btn-danger { background: rgba(239,71,111,0.12); color: var(--danger); border: 1px solid var(--danger); }
+        .btn-danger:hover { background: rgba(239,71,111,0.25); }
+        .btn-warning { background: rgba(249,115,22,0.12); color: var(--warning); border: 1px solid var(--warning); }
+        .btn-warning:hover { background: rgba(249,115,22,0.25); }
+        .btn-info { background: rgba(0,78,137,0.12); color: var(--secondary); border: 1px solid var(--secondary); }
+        .btn-info:hover { background: rgba(0,78,137,0.25); }
+
+        .btn-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--light);
+            color: var(--dark);
+            flex-shrink: 0;
+        }
+
+        .btn-icon:hover { background: var(--primary); color: white; }
+        .btn-icon.danger:hover { background: var(--danger); color: white; }
+
+        /* ═══ Stats Bar ═══ */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out backwards;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .stat-item:hover { transform: translateY(-4px); box-shadow: 0 8px 30px var(--shadow); }
+        .stat-item:nth-child(1) { animation-delay: 0.1s; }
+        .stat-item:nth-child(2) { animation-delay: 0.2s; }
+        .stat-item:nth-child(3) { animation-delay: 0.3s; }
+        .stat-item:nth-child(4) { animation-delay: 0.4s; }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .stat-icon.primary { background: rgba(255,107,53,0.12); color: var(--primary); }
+        .stat-icon.success { background: rgba(6,214,160,0.12); color: var(--success); }
+        .stat-icon.warning { background: rgba(249,115,22,0.12); color: var(--warning); }
+        .stat-icon.danger { background: rgba(239,71,111,0.12); color: var(--danger); }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label { color: #666; font-size: 0.9rem; }
+
+        /* ═══ Tabs ═══ */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out 0.3s backwards;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.875rem 1.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 12px;
+            color: #666;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'DM Sans', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .tab:hover { color: var(--primary); background: rgba(255,107,53,0.05); }
+
+        .tab.active {
+            background: var(--gradient);
+            color: white;
+        }
+
+        .tab-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--warning);
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 12px;
+            font-weight: 700;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .tab.active .tab-badge {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* ═══ Filter ═══ */
+        .filter-section {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.6s ease-out 0.4s backwards;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+
+        .filter-input {
+            width: 100%;
+            padding: 0.875rem 1.25rem 0.875rem 3rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .filter-select {
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            background: var(--light);
+            min-width: 180px;
+            cursor: pointer;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* ═══ Table ═══ */
+        .table-container {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out 0.5s backwards;
+            overflow-x: auto;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .table-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .table-count {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        thead {
+            background: linear-gradient(to right, #F8F9FA, #F0F4F8);
+        }
+
+        th {
+            padding: 0.875rem 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            color: #555;
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+
+        tr:hover td { background: rgba(255,107,53,0.02); }
+
+        .vendor-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .vendor-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .vendor-details h4 {
+            color: var(--dark);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            font-size: 0.95rem;
+        }
+
+        .vendor-details p {
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.375rem 0.875rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-badge.approved { background: rgba(6,214,160,0.15); color: var(--success); }
+        .status-badge.pending { background: rgba(255,210,63,0.15); color: #E0A800; }
+        .status-badge.rejected { background: rgba(239,71,111,0.15); color: var(--danger); }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.approved { background: var(--success); }
+        .status-dot.pending { background: #E0A800; }
+        .status-dot.rejected { background: var(--danger); }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* ═══ Modal ═══ */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(26, 26, 46, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 560px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(26, 26, 46, 0.2);
+            animation: modalIn 0.3s ease-out;
+        }
+
+        .modal-header {
+            padding: 1.75rem 2rem 0;
+        }
+
+        .modal-header h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-header p {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem 2rem;
+        }
+
+        .modal-footer {
+            padding: 0 2rem 1.75rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        /* Detail modal info rows */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-item {
+            padding: 1rem;
+            background: var(--light);
+            border-radius: 12px;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: #999;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.35rem;
+        }
+
+        .info-value {
+            font-size: 0.95rem;
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .poi-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--light);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .poi-item {
+            padding: 0.6rem 0;
+            color: #555;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .poi-item:last-child { border-bottom: none; }
+
+        .poi-item i { color: var(--primary); font-size: 0.85rem; }
+
+        /* Form groups */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group label .required { color: var(--danger); }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .form-group input::placeholder { color: #bbb; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* ═══ Empty State ═══ */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .empty-state i { font-size: 4rem; color: #ddd; margin-bottom: 1rem; }
+        .empty-state h3 { font-size: 1.25rem; color: var(--dark); margin-bottom: 0.5rem; }
+        .empty-state p { color: #999; font-size: 0.95rem; }
+
+        /* ═══ Loading ═══ */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .loading i { font-size: 2rem; color: var(--primary); animation: spin 1s linear infinite; }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        @media (max-width: 1024px) { .stats-bar { grid-template-columns: 1fr 1fr; } .info-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .main-content { margin-left: 0; } .stats-bar { grid-template-columns: 1fr; } .tabs { flex-wrap: wrap; } .form-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<main class="main-content">
+    <!-- Header -->
+    <header class="page-header">
+        <h1 class="page-title">Quản lý Vendors</h1>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openCreateModal()">
+                <i class="fas fa-plus"></i> Tạo Vendor
+            </button>
+        </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+        <div class="stat-item" onclick="filterByStatus('')">
+            <div class="stat-icon primary"><i class="fas fa-store"></i></div>
+            <div class="stat-value" id="statTotal">—</div>
+            <div class="stat-label">Tổng Vendors</div>
+        </div>
+        <div class="stat-item" onclick="filterByStatus('approved')">
+            <div class="stat-icon success"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-value" id="statApproved">—</div>
+            <div class="stat-label">Đã duyệt</div>
+        </div>
+        <div class="stat-item" onclick="filterByStatus('pending')">
+            <div class="stat-icon warning"><i class="fas fa-clock"></i></div>
+            <div class="stat-value" id="statPending">—</div>
+            <div class="stat-label">Chờ duyệt</div>
+        </div>
+        <div class="stat-item" onclick="filterByStatus('rejected')">
+            <div class="stat-icon danger"><i class="fas fa-ban"></i></div>
+            <div class="stat-value" id="statRejected">—</div>
+            <div class="stat-label">Từ chối</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('')" id="tabAll">
+            <i class="fas fa-list"></i> Tất cả
+        </button>
+        <button class="tab" onclick="switchTab('pending')" id="tabPending">
+            <i class="fas fa-clock"></i> Chờ duyệt
+            <span class="tab-badge" id="pendingBadge">0</span>
+        </button>
+        <button class="tab" onclick="switchTab('approved')" id="tabApproved">
+            <i class="fas fa-check-circle"></i> Đã duyệt
+        </button>
+        <button class="tab" onclick="switchTab('rejected')" id="tabRejected">
+            <i class="fas fa-ban"></i> Từ chối
+        </button>
+    </div>
+
+    <!-- Filter -->
+    <div class="filter-section">
+        <div class="filter-row">
+            <div class="search-wrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="filter-input" id="searchInput" placeholder="Tìm theo tên quán, tên liên hệ, email, SĐT...">
+            </div>
+            <select class="filter-select" id="sortSelect">
+                <option value="">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+                <option value="name-asc">Tên A-Z</option>
+                <option value="pois-desc">Nhiều POI nhất</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <h2 class="table-title">Danh sách Vendors</h2>
+            <span class="table-count" id="tableCount"></span>
+        </div>
+
+        <div class="loading" id="loading">
+            <i class="fas fa-spinner"></i>
+            <p>Đang tải...</p>
+        </div>
+
+        <table id="vendorTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Liên hệ</th>
+                    <th>Trạng thái</th>
+                    <th>POIs</th>
+                    <th>Lượt xem</th>
+                    <th>Ngày tạo</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="vendorBody"></tbody>
+        </table>
+
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <i class="fas fa-store-slash"></i>
+            <h3>Không có vendor nào</h3>
+            <p>Chưa có vendor nào khớp với bộ lọc hiện tại.</p>
+        </div>
+    </div>
+</main>
+
+<!-- Modal: Vendor Detail -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="detailTitle">Chi tiết Vendor</h2>
+            <p id="detailEmail">—</p>
+        </div>
+        <div class="modal-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Tên quán</div>
+                    <div class="info-value" id="detailBusiness">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Người liên hệ</div>
+                    <div class="info-value" id="detailContact">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Số điện thoại</div>
+                    <div class="info-value" id="detailPhone">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Trạng thái</div>
+                    <div class="info-value" id="detailStatus">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Địa chỉ</div>
+                    <div class="info-value" id="detailAddress">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Ngày tham gia</div>
+                    <div class="info-value" id="detailDate">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Lượt xem</div>
+                    <div class="info-value" id="detailViews">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Đánh giá</div>
+                    <div class="info-value" id="detailRating">—</div>
+                </div>
+            </div>
+
+            <div class="info-label" style="margin-bottom: 0.5rem;">Danh sách POIs</div>
+            <div class="poi-list" id="detailPOIs">
+                <div style="color: #999; text-align: center; padding: 1rem;">Chưa có POI</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline btn-sm" onclick="closeModal('detailModal')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Create Vendor -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2><i class="fas fa-plus-circle" style="color:var(--primary)"></i> Tạo Vendor Mới</h2>
+            <p>Nhập thông tin để tạo tài khoản vendor</p>
+        </div>
+        <div class="modal-body">
+            <form id="createForm" onsubmit="return false;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tên quán <span class="required">*</span></label>
+                        <input type="text" id="cBusiness" placeholder="Phở Hà Nội" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Người đại diện</label>
+                        <input type="text" id="cName" placeholder="Nguyễn Văn A">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email <span class="required">*</span></label>
+                        <input type="email" id="cEmail" placeholder="vendor@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Số điện thoại</label>
+                        <input type="tel" id="cPhone" placeholder="0901234567">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Mật khẩu (bỏ trống sẽ tự tạo)</label>
+                    <input type="text" id="cPassword" placeholder="Tối thiểu 8 ký tự, có chữ hoa, số, ký tự đặc biệt">
+                </div>
+                <div class="form-group">
+                    <label>Địa chỉ</label>
+                    <input type="text" id="cAddress" placeholder="123 Nguyễn Huệ, Q1, TP.HCM">
+                </div>
+                <div class="form-group">
+                    <label>Mô tả</label>
+                    <textarea id="cDesc" rows="2" placeholder="Mô tả ngắn về quán..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Trạng thái ban đầu</label>
+                    <select id="cStatus">
+                        <option value="pending">Chờ duyệt</option>
+                        <option value="approved">Duyệt ngay</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline btn-sm" onclick="closeModal('createModal')">Hủy</button>
+            <button class="btn btn-primary btn-sm" onclick="submitCreate()">
+                <i class="fas fa-check"></i> Tạo Vendor
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Vendor -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2><i class="fas fa-edit" style="color:var(--secondary)"></i> Chỉnh sửa Vendor</h2>
+            <p id="editSubtitle">—</p>
+        </div>
+        <div class="modal-body">
+            <form id="editForm" onsubmit="return false;">
+                <input type="hidden" id="eVendorId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tên quán <span class="required">*</span></label>
+                        <input type="text" id="eBusiness" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Người đại diện</label>
+                        <input type="text" id="eName">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="eEmail">
+                    </div>
+                    <div class="form-group">
+                        <label>Số điện thoại</label>
+                        <input type="tel" id="ePhone">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Địa chỉ</label>
+                    <input type="text" id="eAddress">
+                </div>
+                <div class="form-group">
+                    <label>Mô tả</label>
+                    <textarea id="eDesc" rows="2"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline btn-sm" onclick="closeModal('editModal')">Hủy</button>
+            <button class="btn btn-primary btn-sm" onclick="submitEdit()">
+                <i class="fas fa-save"></i> Lưu
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ═══ State ═══
+    let currentTab = '';
+    let currentSort = '';
+    let searchTimer = null;
+
+    // ═══ Init ═══
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!requireAuth()) return;
+        loadStats();
+        loadVendors();
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => loadVendors(), 400);
+        });
+
+        document.getElementById('sortSelect').addEventListener('change', () => loadVendors());
+    });
+
+    // ═══ API Calls ═══
+    async function loadStats() {
+        try {
+            const stats = await VendorApi.stats();
+            document.getElementById('statTotal').textContent = stats.total || 0;
+            document.getElementById('statApproved').textContent = stats.approved || 0;
+            document.getElementById('statPending').textContent = stats.pending || 0;
+            document.getElementById('statRejected').textContent = stats.rejected || 0;
+            document.getElementById('pendingBadge').textContent = stats.pending || 0;
+        } catch (err) {
+            console.error('Load stats error:', err);
+        }
+    }
+
+    async function loadVendors() {
+        const search = document.getElementById('searchInput').value.trim();
+        const sort = document.getElementById('sortSelect').value;
+
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('vendorTable').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'none';
+
+        try {
+            const res = await VendorApi.list({ search, status: currentTab, sort });
+            renderVendors(res.data || []);
+            document.getElementById('tableCount').textContent = `${(res.data || []).length} vendor`;
+        } catch (err) {
+            console.error('Load vendors error:', err);
+            showToast('Lỗi tải danh sách vendors', 'error');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    // ═══ Render ═══
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function getInitials(name) {
+        if (!name) return '?';
+        return name.split(' ').map(n => n.charAt(0)).join('').toUpperCase().substring(0, 2);
+    }
+
+    function statusLabel(status) {
+        const map = { approved: 'Đã duyệt', pending: 'Chờ duyệt', rejected: 'Từ chối' };
+        return map[status] || status;
+    }
+
+    function renderVendors(vendors) {
+        const tbody = document.getElementById('vendorBody');
+        const table = document.getElementById('vendorTable');
+        const empty = document.getElementById('emptyState');
+
+        if (!vendors.length) {
+            table.style.display = 'none';
+            empty.style.display = 'block';
+            return;
+        }
+
+        table.style.display = 'table';
+        empty.style.display = 'none';
+
+        tbody.innerHTML = vendors.map(v => `
+            <tr>
+                <td>
+                    <div class="vendor-info">
+                        <div class="vendor-avatar">${escapeHtml(getInitials(v.businessName))}</div>
+                        <div class="vendor-details">
+                            <h4>${escapeHtml(v.businessName)}</h4>
+                            <p>${escapeHtml(v.contactName || '—')}</p>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div>${escapeHtml(v.contactEmail || '—')}</div>
+                    <div style="color:#999;font-size:0.8rem;">${escapeHtml(v.contactPhone || '')}</div>
+                </td>
+                <td>
+                    <span class="status-badge ${v.verificationStatus}">
+                        <span class="status-dot ${v.verificationStatus}"></span>
+                        ${statusLabel(v.verificationStatus)}
+                    </span>
+                </td>
+                <td><strong>${v.poiCount || 0}</strong></td>
+                <td>${(v.viewCount || 0).toLocaleString()}</td>
+                <td>${formatDateShort(v.createdAt)}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-icon" title="Xem chi tiết" onclick="viewVendor(${v.vendorId})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-icon" title="Chỉnh sửa" onclick="editVendor(${v.vendorId}, '${escapeAttr(v.businessName)}', '${escapeAttr(v.contactName)}', '${escapeAttr(v.contactEmail)}', '${escapeAttr(v.contactPhone)}', '${escapeAttr(v.address)}', '')">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        ${v.verificationStatus === 'pending' ? `
+                            <button class="btn-icon" title="Duyệt" style="background:rgba(6,214,160,0.12);color:var(--success)" onclick="changeStatus(${v.vendorId}, 'approved')">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn-icon danger" title="Từ chối" onclick="changeStatus(${v.vendorId}, 'rejected')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        ` : ''}
+                        ${v.verificationStatus === 'approved' ? `
+                            <button class="btn-icon danger" title="Từ chối" onclick="changeStatus(${v.vendorId}, 'rejected')">
+                                <i class="fas fa-ban"></i>
+                            </button>
+                        ` : ''}
+                        ${v.verificationStatus === 'rejected' ? `
+                            <button class="btn-icon" title="Duyệt lại" style="background:rgba(6,214,160,0.12);color:var(--success)" onclick="changeStatus(${v.vendorId}, 'approved')">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function escapeAttr(str) {
+        if (!str) return '';
+        return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function formatDateShort(dateStr) {
+        if (!dateStr) return '—';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('vi-VN');
+    }
+
+    // ═══ Tabs ═══
+    function switchTab(status) {
+        currentTab = status;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+        if (status === '') document.getElementById('tabAll').classList.add('active');
+        else if (status === 'pending') document.getElementById('tabPending').classList.add('active');
+        else if (status === 'approved') document.getElementById('tabApproved').classList.add('active');
+        else if (status === 'rejected') document.getElementById('tabRejected').classList.add('active');
+
+        loadVendors();
+    }
+
+    function filterByStatus(status) {
+        switchTab(status);
+    }
+
+    // ═══ View Detail ═══
+    async function viewVendor(vendorId) {
+        try {
+            const v = await VendorApi.get(vendorId);
+            document.getElementById('detailTitle').textContent = escapeHtml(v.businessName);
+            document.getElementById('detailEmail').textContent = v.contactEmail || '—';
+            document.getElementById('detailBusiness').textContent = v.businessName || '—';
+            document.getElementById('detailContact').textContent = v.contactName || '—';
+            document.getElementById('detailPhone').textContent = v.contactPhone || '—';
+            document.getElementById('detailAddress').textContent = v.address || '—';
+            document.getElementById('detailDate').textContent = formatDateShort(v.createdAt);
+            document.getElementById('detailViews').textContent = (v.viewCount || 0).toLocaleString();
+            document.getElementById('detailRating').textContent = v.rating ? `${v.rating.toFixed(1)} ⭐` : 'Chưa có';
+
+            const statusHtml = `<span class="status-badge ${v.verificationStatus}"><span class="status-dot ${v.verificationStatus}"></span> ${statusLabel(v.verificationStatus)}</span>`;
+            document.getElementById('detailStatus').innerHTML = statusHtml;
+
+            const poisEl = document.getElementById('detailPOIs');
+            if (v.pois && v.pois.length) {
+                poisEl.innerHTML = v.pois.map(p => `
+                    <div class="poi-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>${escapeHtml(p.name)}</span>
+                        ${p.isActive ? '' : '<span style="color:var(--danger);font-size:0.8rem;">(Ẩn)</span>'}
+                    </div>
+                `).join('');
+            } else {
+                poisEl.innerHTML = '<div style="color:#999;text-align:center;padding:1rem;">Chưa có POI</div>';
+            }
+
+            openModal('detailModal');
+        } catch (err) {
+            showToast('Lỗi tải chi tiết vendor', 'error');
+        }
+    }
+
+    // ═══ Change Status ═══
+    async function changeStatus(vendorId, newStatus) {
+        const labels = { approved: 'duyệt', rejected: 'từ chối', pending: 'đặt chờ duyệt' };
+        if (!confirm(`Bạn muốn ${labels[newStatus]} vendor này?`)) return;
+
+        try {
+            await VendorApi.updateStatus(vendorId, newStatus);
+            showToast(`Đã ${labels[newStatus]} vendor`, 'success');
+            loadStats();
+            loadVendors();
+        } catch (err) {
+            showToast('Lỗi cập nhật trạng thái', 'error');
+        }
+    }
+
+    // ═══ Create ═══
+    function openCreateModal() {
+        document.getElementById('createForm').reset();
+        openModal('createModal');
+    }
+
+    async function submitCreate() {
+        const email = document.getElementById('cEmail').value.trim();
+        const business = document.getElementById('cBusiness').value.trim();
+
+        if (!email || !business) {
+            showToast('Vui lòng điền Email và Tên quán', 'warning');
+            return;
+        }
+
+        const data = {
+            email,
+            businessName: business,
+            contactName: document.getElementById('cName').value.trim() || null,
+            contactPhone: document.getElementById('cPhone').value.trim() || null,
+            password: document.getElementById('cPassword').value.trim() || null,
+            address: document.getElementById('cAddress').value.trim() || null,
+            businessDescription: document.getElementById('cDesc').value.trim() || null,
+            status: document.getElementById('cStatus').value
+        };
+
+        try {
+            const res = await VendorApi.create(data);
+            closeModal('createModal');
+            showToast('Tạo vendor thành công!', 'success');
+
+            if (res.temporaryPassword) {
+                alert(`Mật khẩu tạm thời: ${res.temporaryPassword}\n\nHãy gửi cho vendor để đăng nhập.`);
+            }
+
+            loadStats();
+            loadVendors();
+        } catch (err) {
+            showToast(err.message || 'Lỗi tạo vendor', 'error');
+        }
+    }
+
+    // ═══ Edit ═══
+    function editVendor(vendorId, business, name, email, phone, address, desc) {
+        document.getElementById('eVendorId').value = vendorId;
+        document.getElementById('eBusiness').value = business || '';
+        document.getElementById('eName').value = name || '';
+        document.getElementById('eEmail').value = email || '';
+        document.getElementById('ePhone').value = phone || '';
+        document.getElementById('eAddress').value = address || '';
+        document.getElementById('eDesc').value = desc || '';
+        document.getElementById('editSubtitle').textContent = `Vendor #${vendorId}`;
+        openModal('editModal');
+    }
+
+    async function submitEdit() {
+        const vendorId = document.getElementById('eVendorId').value;
+        const business = document.getElementById('eBusiness').value.trim();
+
+        if (!business) {
+            showToast('Tên quán không được để trống', 'warning');
+            return;
+        }
+
+        const data = {
+            businessName: business,
+            contactName: document.getElementById('eName').value.trim() || null,
+            contactEmail: document.getElementById('eEmail').value.trim() || null,
+            contactPhone: document.getElementById('ePhone').value.trim() || null,
+            address: document.getElementById('eAddress').value.trim() || null,
+            businessDescription: document.getElementById('eDesc').value.trim() || null
+        };
+
+        try {
+            await VendorApi.update(vendorId, data);
+            closeModal('editModal');
+            showToast('Cập nhật thành công!', 'success');
+            loadVendors();
+        } catch (err) {
+            showToast(err.message || 'Lỗi cập nhật', 'error');
+        }
+    }
+
+    // ═══ Modal Utils ═══
+    function openModal(id) {
+        document.getElementById(id).classList.add('active');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
+    }
+
+    // Close modal on overlay click
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) {
+            e.target.classList.remove('active');
+        }
+    });
+</script>
+</body>
+</html>

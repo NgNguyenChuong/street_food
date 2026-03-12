@@ -199,6 +199,58 @@ public class AudioController : ControllerBase
     }
 
     /// <summary>
+    /// Get audio for specific POI and language (for mobile app)
+    /// Returns the published audio file that matches both POI ID and language
+    /// </summary>
+    [HttpGet("poi/{poiId}/{language}")]
+    public async Task<ActionResult<AudioContent>> GetAudioForPoi(int poiId, string language)
+    {
+        // Normalize language code (vi, vi-VN, etc → vi-VN)
+        var normalizedLang = language.ToLowerInvariant() switch
+        {
+            "vi" or "vi-vn" => "vi-VN",
+            "en" or "en-us" => "en-US",
+            "zh" or "zh-cn" => "zh-CN",
+            _ => language
+        };
+
+        // Find published audio matching POI + Language
+        var filter = Builders<AudioContent>.Filter.And(
+            Builders<AudioContent>.Filter.Eq(a => a.POI_ID, poiId),
+            Builders<AudioContent>.Filter.Eq(a => a.Language, normalizedLang),
+            Builders<AudioContent>.Filter.Eq(a => a.Status, AudioStatuses.Published),
+            Builders<AudioContent>.Filter.Eq(a => a.IsActive, true),
+            Builders<AudioContent>.Filter.Eq(a => a.IsDeleted, false)
+        );
+
+        // Get most recent version if multiple exist
+        var audio = await _db.AudioContents
+            .Find(filter)
+            .SortByDescending(a => a.Version)
+            .ThenByDescending(a => a.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (audio == null)
+        {
+            return NotFound(new 
+            { 
+                message = "No published audio found for this POI and language",
+                poiId,
+                language = normalizedLang
+            });
+        }
+
+        // Attach POI info
+        var poi = await _db.POIs.Find(p => p.POI_ID == poiId && p.DeletedAt == null).FirstOrDefaultAsync();
+        if (poi != null)
+        {
+            audio.POI = poi;
+        }
+
+        return Ok(audio);
+    }
+
+    /// <summary>
     /// Create audio content record (for TTS-generated files)
     /// </summary>
     [Authorize(Roles = "Admin,Vendor")]
@@ -343,6 +395,82 @@ public class AudioController : ControllerBase
         await _db.AudioContents.InsertOneAsync(audio);
 
         return CreatedAtAction(nameof(GetAudio), new { id = audio.AudioContent_ID }, audio);
+    }
+
+    /// <summary>
+    /// Replace audio file for an existing audio record
+    /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
+    [HttpPost("{id}/replace-file")]
+    public async Task<ActionResult<AudioContent>> ReplaceAudioFile(int id, [FromForm] ReplaceAudioFileModel model)
+    {
+        if (model.AudioFile == null || model.AudioFile.Length == 0)
+        {
+            return BadRequest(new { message = "No file uploaded" });
+        }
+
+        var audio = await _db.AudioContents.Find(a => a.AudioContent_ID == id).FirstOrDefaultAsync();
+        if (audio == null)
+        {
+            return NotFound(new { message = "Audio not found" });
+        }
+
+        if (IsVendor())
+        {
+            var vendor = await GetVendorProfileAsync();
+            if (vendor == null || !await VendorOwnsPoiAsync(vendor.VendorId, audio.POI_ID))
+            {
+                return Forbid();
+            }
+
+            var status = NormalizeStatus(audio.Status);
+            if (status == AudioStatuses.Approved || status == AudioStatuses.Published)
+            {
+                return BadRequest(new { message = "Approved audio cannot be edited by vendor" });
+            }
+        }
+
+        // Delete old file if exists
+        if (!string.IsNullOrEmpty(audio.AudioUrl))
+        {
+            var oldPath = Path.Combine(_env.WebRootPath, audio.AudioUrl.TrimStart('/'));
+            if (System.IO.File.Exists(oldPath))
+            {
+                System.IO.File.Delete(oldPath);
+            }
+        }
+
+        // Save new file
+        var uploadsPath = Path.Combine(_env.WebRootPath, "uploads", "audio");
+        Directory.CreateDirectory(uploadsPath);
+        var extension = Path.GetExtension(model.AudioFile.FileName);
+        var fileName = $"{Guid.NewGuid()}{extension}";
+        var filePath = Path.Combine(uploadsPath, fileName);
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await model.AudioFile.CopyToAsync(stream);
+        }
+
+        var audioUrl = $"/uploads/audio/{fileName}";
+        var format = Path.GetExtension(model.AudioFile.FileName)?.TrimStart('.').ToLowerInvariant();
+        var updatedAt = DateTime.UtcNow;
+
+        var update = Builders<AudioContent>.Update
+            .Set(a => a.AudioUrl, audioUrl)
+            .Set(a => a.FileSize, model.AudioFile.Length)
+            .Set(a => a.Format, format)
+            .Set(a => a.Duration, null)
+            .Set(a => a.UpdatedAt, updatedAt);
+
+        await _db.AudioContents.UpdateOneAsync(a => a.AudioContent_ID == id, update);
+
+        audio.AudioUrl = audioUrl;
+        audio.FileSize = model.AudioFile.Length;
+        audio.Format = format;
+        audio.Duration = null;
+        audio.UpdatedAt = updatedAt;
+
+        return Ok(audio);
     }
 
     /// <summary>
@@ -757,6 +885,14 @@ public class AudioController : ControllerBase
         var tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_text_{Guid.NewGuid()}.txt");
         var normalizedText = TtsTextPreprocessor.NormalizePlainText(text, audio.Language);
         var ttsText = TtsTextPreprocessor.BuildSsmlIfNeeded(normalizedText, audio.Language);
+        
+        // ═══ DEBUG LOG ═══
+        Console.WriteLine($"🔍 AUDIO DEBUG - AudioContent_ID: {audio.AudioContent_ID}");
+        Console.WriteLine($"🔍 AUDIO DEBUG - POI_ID: {audio.POI_ID}");
+        Console.WriteLine($"🔍 AUDIO DEBUG - Original TTSText from DB: {text}");
+        Console.WriteLine($"🔍 AUDIO DEBUG - Normalized: {normalizedText}");
+        Console.WriteLine($"🔍 AUDIO DEBUG - Final SSML: {ttsText}");
+        
         await System.IO.File.WriteAllTextAsync(tempTextFile, ttsText, System.Text.Encoding.UTF8);
 
         try
@@ -938,6 +1074,11 @@ public class UploadAudioModel
     public string Language { get; set; } = "vi-VN";
     public int POI_ID { get; set; }
     public string? TTSText { get; set; }
+}
+
+public class ReplaceAudioFileModel
+{
+    public IFormFile AudioFile { get; set; } = null!;
 }
 
 public class UpdateAudioModel

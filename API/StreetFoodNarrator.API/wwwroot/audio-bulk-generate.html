@@ -308,8 +308,17 @@
         // ─── DATA ────────────────────────────────────────────────────────────────────
         const templates = [
             {
+                id: 'template_simple',
+                name: '📍 Giới thiệu ngắn gọn (Khuyến nghị)',
+                text: {
+                    'vi-VN': 'Chào mừng bạn đến với {TEN_POI}. {TEN_POI} nổi tiếng với món {MON_DAC_SAN}. Địa chỉ: {DIA_CHI}. Hãy đến và thưởng thức nhé!',
+                    'en-US': 'Welcome to {TEN_POI}. {TEN_POI} is famous for {MON_DAC_SAN}. Address: {DIA_CHI}. Come and enjoy!',
+                    'zh-CN': '欢迎来到 {TEN_POI}。{TEN_POI} 以 {MON_DAC_SAN} 闻名。地址: {DIA_CHI}。欢迎品尝！'
+                }
+            },
+            {
                 id: 'template_001',
-                name: '🍽 Giới thiệu món ăn (Chuẩn)',
+                name: '🍽 Giới thiệu món ăn (Chi tiết)',
                 text: {
                     'vi-VN': 'Chào mừng bạn đến với {TEN_POI}.\n\n{TEN_POI} nổi tiếng với món {MON_DAC_SAN}. {MO_TA_MON_AN}\n\nĐịa chỉ: {DIA_CHI}\nHãy đến và thưởng thức nhé!',
                     'en-US': 'Welcome to {TEN_POI}.\n\n{TEN_POI} is famous for {MON_DAC_SAN}. {MO_TA_MON_AN}\n\nAddress: {DIA_CHI}\n\nCome and enjoy!',
@@ -338,7 +347,7 @@
             'zh-CN-XiaoxiaoNeural'
         ]);
 
-        let currentTemplate    = templates[0];
+        let currentTemplate    = templates[0]; // Default to simple template
         let poisWithoutAudio   = [];
         let selectedPOIs       = new Set();
         let selectedLangs      = new Set(['vi-VN', 'en-US']);
@@ -523,9 +532,27 @@
             if (language === 'en-US' && poi.description_En) description = poi.description_En;
             if (language === 'zh-CN' && poi.description_Zh) description = poi.description_Zh;
 
-            let moTaMonAn = poi.story || poi.history || poi.description_Vi || '';
-            if (language === 'en-US') moTaMonAn = poi.story_En || poi.history_En || poi.description_En || moTaMonAn;
-            if (language === 'zh-CN') moTaMonAn = poi.story_Zh || poi.history_Zh || poi.description_Zh || moTaMonAn;
+            // Get first 2 sentences only for MO_TA_MON_AN to keep it concise
+            let moTaMonAn = poi.story || poi.history || '';
+            if (!moTaMonAn && poi.description_Vi) {
+                // If no story/history, take first 2 sentences from description
+                const sentences = poi.description_Vi.match(/[^.!?]+[.!?]+/g) || [];
+                moTaMonAn = sentences.slice(0, 2).join(' ').trim();
+            }
+            if (language === 'en-US') {
+                moTaMonAn = poi.story_En || poi.history_En || '';
+                if (!moTaMonAn && poi.description_En) {
+                    const sentences = poi.description_En.match(/[^.!?]+[.!?]+/g) || [];
+                    moTaMonAn = sentences.slice(0, 2).join(' ').trim();
+                }
+            }
+            if (language === 'zh-CN') {
+                moTaMonAn = poi.story_Zh || poi.history_Zh || '';
+                if (!moTaMonAn && poi.description_Zh) {
+                    const sentences = poi.description_Zh.match(/[^.!?]+[.!?]+/g) || [];
+                    moTaMonAn = sentences.slice(0, 2).join(' ').trim();
+                }
+            }
 
             let signatureList  = toList(poi.signatureDishes?.length ? poi.signatureDishes : poi.signatureDish);
             let specialtiesList = toList(poi.specialties);
@@ -761,6 +788,15 @@
                             const clamp       = clampScript(script, lang);
                             const scriptToUse = clamp.text;
                             const voice       = getVoiceForLang(lang);
+
+                            // ═══ DEBUG LOG ═══
+                            console.log('🔍 FRONTEND DEBUG ═══════════════════════════════');
+                            console.log('POI:', poiName, '| Language:', lang);
+                            console.log('Template:', currentTemplate.name);
+                            console.log('Variables:', buildVariableMap(poi, lang));
+                            console.log('Script (before clamp):', script);
+                            console.log('Script (after clamp):', scriptToUse);
+                            console.log('═══════════════════════════════════════════════════');
 
                             const ttsConfig = {
                                 provider: document.getElementById('ttsProvider').value,

@@ -32,6 +32,12 @@
     const poiListHref = isAdmin ? 'poi-list.html' : 'poi-list.html?scope=mine';
     const poiListLabel = isAdmin ? 'Danh sách POI' : 'POI của tôi';
 
+    const displayName = user?.fullName || user?.email?.split('@')[0] || 'Người dùng';
+    const displayEmail = user?.email || '';
+    const roleLabel = isAdmin ? 'Quản trị viên' : (isVendor ? 'Vendor' : 'Người dùng');
+    const roleBadgeClass = isAdmin ? 'role-badge-admin' : 'role-badge-vendor';
+    const avatarLetters = displayName.split(' ').map(w => w[0]).slice(-2).join('').toUpperCase();
+
         const sidebarHTML = `
         <aside class="sidebar" id="sidebar">
             <div class="logo-section">
@@ -41,6 +47,15 @@
                 </div>
                 <span id="appNameLabel">Street Food</span>
             </div>
+            </div>
+
+            <div class="user-profile-card">
+                <div class="user-avatar">${avatarLetters}</div>
+                <div class="user-info">
+                    <div class="user-name" title="${displayName}">${displayName}</div>
+                    ${displayEmail ? `<div class="user-email" title="${displayEmail}">${displayEmail}</div>` : ''}
+                </div>
+                <span class="role-badge ${roleBadgeClass}">${roleLabel}</span>
             </div>
 
             <nav>
@@ -86,6 +101,12 @@
                             <span>Quản lý Tour</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="vendors-list.html" class="nav-link">
+                            <i class="nav-icon fas fa-store"></i>
+                            <span>Quản lý Vendors</span>
+                        </a>
+                    </li>
                     ` : ''}
 
                     <li class="nav-item has-submenu">
@@ -100,18 +121,14 @@
                             <li><a href="audio-list.html#upload" class="nav-sublink">Upload audio</a></li>
                         </ul>
                     </li>
+                    ${isAdmin ? `
                     <li class="nav-item">
                         <a href="history.html" class="nav-link">
-                            <i class="nav-icon fas fa-history"></i>
-                            <span>Lịch sử</span>
+                            <i class="nav-icon fas fa-users"></i>
+                            <span>Người dùng</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="users.html" class="nav-link">
-                            <i class="nav-icon fas fa-mobile-alt"></i>
-                            <span>Thiết bị</span>
-                        </a>
-                    </li>
+                    ` : ''}
                     <li class="nav-item">
                         <a href="/index.html" class="nav-link" onclick="logout(); return false;">
                             <i class="nav-icon fas fa-sign-out-alt"></i>
@@ -139,9 +156,83 @@
             }
 
             .logo-section {
-                padding: 0 2rem 2rem;
+                padding: 0 2rem 1.5rem;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                margin-bottom: 2rem;
+                margin-bottom: 0;
+            }
+
+            .user-profile-card {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin: 0 1rem 1.5rem;
+                padding: 0.9rem 1rem;
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 14px;
+                margin-top: 1rem;
+                overflow: hidden;
+            }
+
+            .user-avatar {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                background: linear-gradient(135deg, #FF6B35, #E85A2A);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.85rem;
+                font-weight: 700;
+                color: white;
+                flex-shrink: 0;
+                letter-spacing: 0.5px;
+            }
+
+            .user-info {
+                flex: 1;
+                overflow: hidden;
+            }
+
+            .user-name {
+                color: #ffffff;
+                font-size: 0.85rem;
+                font-weight: 600;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                line-height: 1.3;
+            }
+
+            .user-email {
+                color: rgba(255, 255, 255, 0.45);
+                font-size: 0.7rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                margin-top: 0.1rem;
+            }
+
+            .role-badge {
+                flex-shrink: 0;
+                font-size: 0.65rem;
+                font-weight: 700;
+                padding: 0.25rem 0.55rem;
+                border-radius: 20px;
+                letter-spacing: 0.3px;
+                text-transform: uppercase;
+            }
+
+            .role-badge-admin {
+                background: rgba(255, 107, 53, 0.2);
+                color: #FF8C5E;
+                border: 1px solid rgba(255, 107, 53, 0.35);
+            }
+
+            .role-badge-vendor {
+                background: rgba(34, 197, 94, 0.15);
+                color: #4ade80;
+                border: 1px solid rgba(34, 197, 94, 0.3);
             }
 
             .logo {

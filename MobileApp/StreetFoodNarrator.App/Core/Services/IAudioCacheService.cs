@@ -38,4 +38,12 @@ public interface IAudioCacheService
     /// Kiểm tra số lượng audio mới (status=published) chưa được cache.
     /// Yêu cầu có internet. Trả về 0 nếu offline hoặc không có gì mới.
     /// </summary>
-    Task<int> CheckForUpdatesAsync(CancellationToken ct = default);}
+    Task<int> CheckForUpdatesAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Lấy URL audio từ server để stream online (không tải về).
+    /// Dùng cho mode online khi user không muốn tải về.
+    /// Trả về null nếu không có audio published cho POI + language này.
+    /// </summary>
+    Task<string?> GetAudioUrlAsync(int poiId, string language, CancellationToken ct = default);
+}

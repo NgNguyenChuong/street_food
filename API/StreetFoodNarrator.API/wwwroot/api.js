@@ -611,6 +611,50 @@ class API {
 
     }
 
+    async replaceAudioFile(id, formData) {
+
+        const token = TokenManager.getToken();
+
+        const response = await fetch(`${this.baseURL}/Audio/${id}/replace-file`, {
+
+            method: 'POST',
+
+            headers: {
+
+                'Authorization': `Bearer ${token}`
+
+            },
+
+            body: formData // Don't set Content-Type for FormData
+
+        });
+
+        
+
+        if (response.status === 401) {
+
+            TokenManager.logout();
+
+            throw new Error('Unauthorized');
+
+        }
+
+        
+
+        const data = await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(data.message || 'Replace file failed');
+
+        }
+
+        
+
+        return data;
+
+    }
+
     
 
     async getPOIsWithoutAudio(language = 'vi-VN') {
@@ -743,7 +787,12 @@ const TTSApi = {
 const VendorApi = {
     me: () => api.request('/Vendors/me', { suppressNotFound: true }),
     list: ({ search, status, sort } = {}) => api.request('/Vendors' + qs({ search, status, sort })),
-    stats: () => api.request('/Vendors/stats')
+    stats: () => api.request('/Vendors/stats'),
+    get: (vendorId) => api.request(`/Vendors/${vendorId}`),
+    create: (data) => api.request('/Vendors', { method: 'POST', body: JSON.stringify(data) }),
+    update: (vendorId, data) => api.request(`/Vendors/${vendorId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateStatus: (vendorId, status) => api.request(`/Vendors/${vendorId}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    delete: (vendorId) => api.request(`/Vendors/${vendorId}`, { method: 'DELETE' })
 };
 
 const SettingsApi = {

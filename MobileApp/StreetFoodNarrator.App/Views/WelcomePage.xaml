@@ -81,42 +81,15 @@
                 
                 <!-- Compact header -->
                 <VerticalStackLayout Spacing="12" HorizontalOptions="Center">
-                    <!-- Smaller icon -->
-                    <Grid HeightRequest="80" WidthRequest="80">
-                        <Border BackgroundColor="#1A0D00"
-                                Stroke="#F97316"
-                                StrokeThickness="2.5"
-                                HeightRequest="80"
-                                WidthRequest="80">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="40" />
-                            </Border.StrokeShape>
-                            <Label Text="&#xF117E;"
-                                   FontFamily="MDI"
-                                   FontSize="42"
-                                   TextColor="#F97316"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </Border>
-                        <Border BackgroundColor="#F97316"
-                                HeightRequest="28"
-                                WidthRequest="28"
-                                HorizontalOptions="End"
-                                VerticalOptions="End">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="14" />
-                            </Border.StrokeShape>
-                            <Label Text="&#xF02CE;" FontFamily="MDI"
-                                   FontSize="14"
-                                   TextColor="White"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </Border>
-                    </Grid>
+                    <!-- Logo: colored noodle emoji, no background -->
+                    <Label Text="🍜"
+                           FontSize="80"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
 
                     <Label x:Name="TitleLabel"
                            Text="{x:Static resx:AppStrings.Welcome_AppTitle}"
-                           FontSize="32"
+                           FontSize="34"
                            FontAttributes="Bold"
                            TextColor="White"
                            HorizontalTextAlignment="Center" />

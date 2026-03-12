@@ -23,7 +23,7 @@
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'DM Sans', sans-serif; background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%); color: var(--dark); overflow-x: hidden; }
-        .main-content { margin-left: 280px; padding: 2rem; min-height: 100vh; transition: margin-left 0.3s; }
+        .main-content { margin-left: 130px; padding: 2rem; min-height: 100vh; transition: margin-left 0.3s; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; animation: fadeIn 0.6s ease-out; }
         .page-title { font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .header-actions { display: flex; gap: 1rem; align-items: center; }
@@ -121,7 +121,7 @@
         <div class="card">
             <div class="card-header">
                 <h2 class="card-title">POI gần đây</h2>
-                <a href="poi-list.html" class="btn btn-outline">Xem tất cả <i class="fas fa-arrow-right"></i></a>
+                <a href="poi-list.html" class="btn btn-outline" id="viewAllPoisBtn">Xem tất cả <i class="fas fa-arrow-right"></i></a>
             </div>
             <div class="table-container" style="overflow-x:auto">
                 <table id="poisTable">
@@ -178,6 +178,29 @@
     const roleContext = TokenManager.ensureRoleContext();
     const user = TokenManager.getUser();
     if (!user || !roleContext) window.location.href = '/index.html';
+
+    const isVendor = roleContext?.toLowerCase() === 'vendor';
+
+    // Apply vendor-specific UI adjustments
+    if (isVendor) {
+        // Update stat labels
+        document.querySelector('#totalPOIs').closest('.stat-card').querySelector('.stat-label').textContent = 'POI của tôi';
+        document.querySelector('#activePOIs').closest('.stat-card').querySelector('.stat-label').textContent = 'POI đang hoạt động';
+        // Update POI list links to scope to vendor's own POIs
+        document.querySelectorAll('a[href="poi-list.html"]').forEach(a => a.href = 'poi-list.html?scope=mine');
+        document.getElementById('viewAllPoisBtn').href = 'poi-list.html?scope=mine';
+        document.querySelector('#totalPOIs').closest('.stat-card').setAttribute('onclick', "location.href='poi-list.html?scope=mine'");
+        document.querySelector('#activePOIs').closest('.stat-card').setAttribute('onclick', "location.href='poi-list.html?scope=mine'");
+        // Hide translation stat card (vendors don't manage translations)
+        document.getElementById('totalTranslations').closest('.stat-card').style.display = 'none';
+        // Hide admin-only quick links
+        document.querySelectorAll('.quick-links .quick-card').forEach(card => {
+            const href = card.getAttribute('href');
+            if (['translation.html', 'tour.html', 'history.html', 'users.html'].includes(href)) {
+                card.style.display = 'none';
+            }
+        });
+    }
 
     function formatDate(d) {
         if (!d) return '—';

@@ -127,58 +127,104 @@ public class AudioCacheService : IAudioCacheService
         }
     }
 
+    /// <inheritdoc/>
+    public async Task<string?> GetAudioUrlAsync(int poiId, string language, CancellationToken ct = default)
+    {
+        try
+        {
+            // Normalize language code
+            var normalizedLang = language.ToLowerInvariant() switch
+            {
+                "vi" or "vi-vn" => "vi-VN",
+                "en" or "en-us" => "en-US",
+                "zh" or "zh-cn" => "zh-CN",
+                _ => language
+            };
+
+            // Call endpoint mới để lấy chính xác 1 audio
+            var url = $"{_baseUrl}/api/audio/poi/{poiId}/{normalizedLang}";
+            var audio = await _http.GetFromJsonAsync<AudioDto>(url, ct);
+
+            if (audio?.AudioUrl == null)
+                return null;
+
+            // Convert relative path to absolute URL
+            var audioUrl = audio.AudioUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? audio.AudioUrl
+                : $"{_baseUrl}{audio.AudioUrl}";
+
+            Debug.WriteLine($"[AudioCache] 🌐 URL online: POI {poiId} ({normalizedLang}) → {audioUrl}");
+            return audioUrl;
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Debug.WriteLine($"[AudioCache] POI {poiId} không có audio {language} trên server");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AudioCache] Lỗi lấy URL: {ex.Message}");
+            return null;
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private async Task DownloadAudioForPoiAsync(int poiId, CancellationToken ct)
     {
-        // Lấy danh sách audio đã published cho POI
-        var url = $"{_baseUrl}/api/audio?poiId={poiId}&status=published&pageSize=50";
-        AudioListResult? result;
-        try
+        // Thử tải audio cho các ngôn ngữ chính (vi, en, zh)
+        var languages = new[] { "vi-VN", "en-US", "zh-CN" };
+        
+        foreach (var lang in languages)
         {
-            result = await _http.GetFromJsonAsync<AudioListResult>(url, ct);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[AudioCache] Không lấy được danh sách audio POI {poiId}: {ex.Message}");
-            return;
-        }
-
-        if (result?.Data == null || result.Data.Count == 0) return;
-
-        foreach (var audio in result.Data)
-        {
-            if (string.IsNullOrWhiteSpace(audio.AudioUrl)) continue;
-
-            var lang = NormalizeLanguage(audio.Language);
-            var key  = CacheKey(poiId, lang);
-
-            // Bỏ qua nếu đã có
-            if (_cachedKeys.Contains(key)) continue;
-
-            var fileUrl = audio.AudioUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                ? audio.AudioUrl
-                : $"{_baseUrl}{audio.AudioUrl}";
-
             try
             {
-                var bytes = await _http.GetByteArrayAsync(fileUrl, ct);
-                var path  = CachePath(key);
+                // Dùng endpoint mới để lấy chính xác 1 audio cho POI + Language
+                var url = $"{_baseUrl}/api/audio/poi/{poiId}/{lang}";
+                var audio = await _http.GetFromJsonAsync<AudioDto>(url, ct);
+                
+                if (audio == null || string.IsNullOrWhiteSpace(audio.AudioUrl))
+                    continue;
 
-                await _lock.WaitAsync(ct);
-                try
+                var normalizedLang = NormalizeLanguage(lang);
+                var key = CacheKey(poiId, normalizedLang);
+                
+                // Download nếu chưa có trong cache
+                if (!_cachedKeys.Contains(key))
                 {
-                    await File.WriteAllBytesAsync(path, bytes, ct);
-                    _cachedKeys.Add(key);
-                    Debug.WriteLine($"[AudioCache] ✓ Đã lưu {key}.mp3 ({bytes.Length / 1024} KB)");
+                    await DownloadAndSaveAsync(audio.AudioUrl, key, ct);
+                    Debug.WriteLine($"[AudioCache] ✅ Tải về POI {poiId} ({normalizedLang})");
                 }
-                finally { _lock.Release(); }
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // Bình thường - POI này không có audio cho ngôn ngữ này
+                Debug.WriteLine($"[AudioCache] POI {poiId} không có audio {lang}");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[AudioCache] Tải thất bại {key}: {ex.Message}");
+                Debug.WriteLine($"[AudioCache] Lỗi tải POI {poiId} ({lang}): {ex.Message}");
             }
         }
+    }
+
+    private async Task DownloadAndSaveAsync(string audioUrl, string key, CancellationToken ct)
+    {
+        var fileUrl = audioUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? audioUrl
+            : $"{_baseUrl}{audioUrl}";
+
+        var bytes = await _http.GetByteArrayAsync(fileUrl, ct);
+        var path = CachePath(key);
+
+        await _lock.WaitAsync(ct);
+        try
+        {
+            await File.WriteAllBytesAsync(path, bytes, ct);
+            _cachedKeys.Add(key);
+            Debug.WriteLine($"[AudioCache] ✓ Đã lưu {key}.mp3 ({bytes.Length / 1024} KB)");
+        }
+        finally { _lock.Release(); }
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────
@@ -196,6 +242,15 @@ public class AudioCacheService : IAudioCacheService
         => Path.Combine(_cacheDir, $"{key}.mp3");
 
     // ── Minimal DTOs để deserialise response từ /api/audio ───────────────────
+
+    private sealed class AudioDto
+    {
+        [JsonPropertyName("audioUrl")]
+        public string? AudioUrl { get; set; }
+
+        [JsonPropertyName("language")]
+        public string Language { get; set; } = "vi";
+    }
 
     private sealed class AudioListResult
     {

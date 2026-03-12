@@ -30,7 +30,11 @@ public class TextToSpeechService : ITTSService
 
     /// <summary>
     /// Phát text với ngôn ngữ và voice được chỉ định.
-    /// Nếu poiId được cung cấp và file đã cache sẽ phát offline ngay mà không gọi API.
+    /// Thứ tự ưu tiên:
+    /// 1. File cache offline (nếu có poiId)
+    /// 2. Stream audio từ server (nếu có audio published)
+    /// 3. TTS API (generate mới)
+    /// 4. Native TTS (fallback)
     /// </summary>
     public async Task<bool> SpeakAsync(string text, string languageCode, string? voiceName = null,
         int? poiId = null, CancellationToken cancellationToken = default)
@@ -46,13 +50,32 @@ public class TextToSpeechService : ITTSService
                 var cachedStream = await _audioCache.GetCachedStreamAsync(poiId.Value, languageCode);
                 if (cachedStream != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[TTS] ▶ Phát file cache offline: POI {poiId}");
+                    System.Diagnostics.Debug.WriteLine($"[TTS] 💾 Phát file cache offline: POI {poiId}");
                     _currentPlayer = _audioManager.CreatePlayer(cachedStream);
                     _currentPlayer.Play();
                     return true;
                 }
+
+                // Ưu tiên 2: Stream audio từ server (online, không cần tải về)
+                var audioUrl = await _audioCache.GetAudioUrlAsync(poiId.Value, languageCode, cancellationToken);
+                if (!string.IsNullOrEmpty(audioUrl))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[TTS] 🌐 Stream audio online: POI {poiId} → {audioUrl}");
+                    
+                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    timeoutCts.CancelAfter(TimeSpan.FromSeconds(10)); // Timeout cho việc tải audio
+
+                    var audioBytes = await _httpClient.GetByteArrayAsync(audioUrl, timeoutCts.Token);
+                    var audioStream = new MemoryStream(audioBytes);
+                    _currentPlayer = _audioManager.CreatePlayer(audioStream);
+                    _currentPlayer.Play();
+                    return true;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[TTS] ℹ️ POI {poiId} không có audio published → fallback TTS");
             }
             
+            // Ưu tiên 3: TTS API (generate mới)
             // Build request
             var request = new
             {
@@ -62,12 +85,12 @@ public class TextToSpeechService : ITTSService
             };
 
             // Use a short timeout so offline fallback kicks in quickly
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(6));
+            using var timeoutCts2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts2.CancelAfter(TimeSpan.FromSeconds(6));
 
             // Call API to generate audio
             var response = await _httpClient.PostAsJsonAsync(
-                $"{_baseUrl}/api/tts/generate", request, timeoutCts.Token);
+                $"{_baseUrl}/api/tts/generate", request, timeoutCts2.Token);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -77,17 +100,17 @@ public class TextToSpeechService : ITTSService
             }
 
             var result = await response.Content.ReadFromJsonAsync<TtsGenerateResponse>(
-                cancellationToken: timeoutCts.Token);
+                cancellationToken: timeoutCts2.Token);
             if (result == null || string.IsNullOrEmpty(result.FilePath))
                 return await NativeSpeakAsync(text, languageCode, cancellationToken);
 
             // Play audio file
-            var audioUrl = $"{_baseUrl}{result.FilePath}";
-            System.Diagnostics.Debug.WriteLine($"[TTS] Playing audio: {audioUrl}");
+            var audioUrl2 = $"{_baseUrl}{result.FilePath}";
+            System.Diagnostics.Debug.WriteLine($"[TTS] 🤖 TTS API generated: {audioUrl2}");
             
-            var audioBytes = await _httpClient.GetByteArrayAsync(audioUrl, timeoutCts.Token);
-            var audioStream = new MemoryStream(audioBytes);
-            _currentPlayer = _audioManager.CreatePlayer(audioStream);
+            var audioBytes2 = await _httpClient.GetByteArrayAsync(audioUrl2, timeoutCts2.Token);
+            var audioStream2 = new MemoryStream(audioBytes2);
+            _currentPlayer = _audioManager.CreatePlayer(audioStream2);
             _currentPlayer.Play();
             
             return true;

@@ -18,11 +18,16 @@ namespace StreetFoodNarrator.App.Views;
 public partial class POIDetailPage : ContentPage
 {
     private readonly POI _poi;
+    private readonly ITTSService _tts;
+    private readonly LanguageService _lang;
+    private bool _isPlaying = false;
 
     public POIDetailPage(POI poi)
     {
         InitializeComponent();
         _poi = poi;
+        _tts = MauiProgram.Services.GetRequiredService<ITTSService>();
+        _lang = MauiProgram.Services.GetRequiredService<LanguageService>();
         BindingContext = poi;
         
         // Initialize map after the page is loaded
@@ -121,8 +126,47 @@ public partial class POIDetailPage : ContentPage
 
     private async void OnListenAudioTapped(object sender, EventArgs e)
     {
-        await DisplayAlertAsync("Audio", "Đang phát audio hướng dẫn...", "OK");
-        // TODO: Implement audio playback
+        try
+        {
+            if (_isPlaying)
+            {
+                await _tts.StopAsync();
+                _isPlaying = false;
+                return;
+            }
+
+            string lang = _lang.CurrentLanguage switch
+            {
+                "en" => "en-US",
+                "zh" => "zh-CN",
+                _    => "vi-VN"
+            };
+
+            var text = _lang.CurrentLanguage switch
+            {
+                "en" => _poi.Description_En ?? _poi.Name_En ?? _poi.Name_Vi,
+                "zh" => _poi.Description_Zh ?? _poi.Name_Zh ?? _poi.Name_En ?? _poi.Name_Vi,
+                _    => _poi.Description_Vi ?? _poi.Name_Vi ?? _poi.Name_En
+            } ?? "Chao mung den voi diem tham quan.";
+
+            var ok = await _tts.SpeakAsync(text, lang, poiId: _poi.Id);
+            _isPlaying = ok;
+            
+            if (ok)
+            {
+                await DisplayAlertAsync("🎵 Audio", "Đang phát audio hướng dẫn...", "OK");
+            }
+            else
+            {
+                await DisplayAlertAsync("⚠️ Lỗi", "Không thể phát audio. Vui lòng thử lại.", "OK");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIDetail] OnListenAudioTapped: {ex}");
+            await DisplayAlertAsync("❌ Lỗi", $"Không thể phát audio: {ex.Message}", "OK");
+            _isPlaying = false;
+        }
     }
 
     private async void OnNavigateTapped(object sender, EventArgs e)

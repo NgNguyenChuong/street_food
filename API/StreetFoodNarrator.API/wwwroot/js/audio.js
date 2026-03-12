@@ -166,24 +166,40 @@ function aiGenSelectPOI() {
   }).catch(err=>showToast(err.message,'error'));
 }
 
+function _getMonDacSan(p, lang) {
+  const pickList = (val) => Array.isArray(val) ? val.filter(Boolean) : [];
+  if (lang === 'en-US') {
+    if (p.signatureDishes_En) return pickList(p.signatureDishes_En).join(', ');
+    if (p.specialties_En) return pickList(p.specialties_En).join(', ');
+  }
+  if (lang === 'zh-CN') {
+    if (p.signatureDishes_Zh) return pickList(p.signatureDishes_Zh).join(', ');
+    if (p.specialties_Zh) return pickList(p.specialties_Zh).join(', ');
+  }
+  const sig = pickList(p.signatureDishes?.length ? p.signatureDishes : p.signatureDish);
+  if (sig.length) return sig.join(', ');
+  const spec = pickList(p.specialties);
+  return spec.join(', ');
+}
+
+function _getAddress(p, lang) {
+  if (lang === 'en-US' && p.address_En) return p.address_En;
+  if (lang === 'zh-CN' && p.address_Zh) return p.address_Zh;
+  return p.address || '';
+}
+
 function _scriptVI(p) {
-  return `Xin chào! Bạn đang đến ${p.name_Vi||'địa điểm này'}.
-
-${p.description_Vi||'Đây là một địa điểm đặc biệt trong khu phố.'}
-
-${p.signatureDishes?.length ? `Món đặc trưng: ${p.signatureDishes.join(', ')}.` : ''}
-
-${p.funFact||''}`;
+  const name = p.name_Vi || 'địa điểm này';
+  const mon  = _getMonDacSan(p, 'vi-VN') || 'đặc sản địa phương';
+  const addr = _getAddress(p, 'vi-VN');
+  return `Chào mừng bạn đến với ${name}.\n\n${name} nổi tiếng với món ${mon}.\n\nĐịa chỉ: ${addr}\nHãy đến và thưởng thức nhé!`;
 }
 
 function _scriptEN(p) {
-  return `Welcome! You are approaching ${p.name_En||p.name_Vi||'this location'}.
-
-${p.description_En||p.description_Vi||'This is a special place in the neighborhood.'}
-
-${p.signatureDishes?.length ? `Signature dishes: ${p.signatureDishes.join(', ')}.` : ''}
-
-${p.funFact||''}`;
+  const name = p.name_En || p.name_Vi || 'this location';
+  const mon  = _getMonDacSan(p, 'en-US') || 'local specialties';
+  const addr = _getAddress(p, 'en-US');
+  return `Welcome to ${name}.\n\n${name} is famous for ${mon}.\n\nAddress: ${addr}\n\nCome and enjoy!`;
 }
 
 async function runAIGenerate() {

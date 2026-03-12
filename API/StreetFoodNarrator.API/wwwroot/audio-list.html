@@ -765,6 +765,39 @@
     </div>
 </div>
 
+<div class="modal-backdrop" id="replaceModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="replaceModalTitle">
+        <div class="modal-header">
+            <div class="modal-title" id="replaceModalTitle">Đổi file audio</div>
+            <button class="modal-close" type="button" onclick="closeReplaceModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="replaceForm">
+            <div class="modal-body">
+                <input id="replaceAudioId" type="hidden">
+                <div class="form-group">
+                    <label>Audio đang chọn</label>
+                    <div id="replaceAudioInfo" style="padding:0.75rem 1rem;border-radius:12px;background:#F6F7F9;border:1px solid var(--border);font-weight:600;color:#334155;">
+                        --
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="replaceFile">Chọn file audio mới</label>
+                    <input id="replaceFile" type="file" accept="audio/*" required>
+                </div>
+                <div style="font-size:0.85rem;color:#64748B;">
+                    File mới sẽ thay thế trực tiếp file cũ của audio này.
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" type="button" onclick="closeReplaceModal()">Huỷ</button>
+                <button class="btn btn-primary" id="replaceSubmitBtn" type="submit">Cập nhật</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script src="api.js"></script>
 <script>
     const user = TokenManager.getUser();
@@ -898,6 +931,31 @@
         }
     }
 
+    function openReplaceModal(audioId) {
+        const modal = document.getElementById('replaceModal');
+        if (!modal) return;
+        const audio = findAudioById(audioId);
+        if (!audio) {
+            alert('Không tìm thấy audio để cập nhật.');
+            return;
+        }
+        const info = document.getElementById('replaceAudioInfo');
+        const poiLabel = audio.poiName ? `POI: ${audio.poiName}` : `POI #${getPoiIdLabel(audio)}`;
+        info.textContent = `${poiLabel} • ${audio.language || 'N/A'} • ID ${audio.audioContent_ID}`;
+        document.getElementById('replaceAudioId').value = audio.audioContent_ID;
+        const fileInput = document.getElementById('replaceFile');
+        if (fileInput) fileInput.value = '';
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeReplaceModal() {
+        const modal = document.getElementById('replaceModal');
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
     function renderStatusBadge(status) {
         const labelMap = {
             draft: 'Draft',
@@ -908,6 +966,21 @@
         };
         const label = labelMap[status] || 'Published';
         return `<span class="status-badge status-${status}">${label}</span>`;
+    }
+
+    function findAudioById(id) {
+        const store = window.__audioGroupStore || {};
+        const keys = Object.keys(store);
+        for (const key of keys) {
+            const found = (store[key] || []).find(a => String(a.audioContent_ID) === String(id));
+            if (found) return found;
+        }
+        return null;
+    }
+
+    function getPoiIdLabel(audio) {
+        const raw = audio.poi_ID ?? audio.poiId ?? audio.poiID ?? audio.poi_Id ?? audio.POI_ID;
+        return raw !== undefined && raw !== null ? raw : 'N/A';
     }
 
     function getLanguageLabel(language) {
@@ -994,7 +1067,7 @@
         return `
             <div class="audio-card" data-group-key="${group.key}" data-poi-id="${group.poiId}" data-selected-id="${selected.audioContent_ID}">
                 <div class="audio-header">
-                    <div class="audio-icon">ðŸŽµ</div>
+                    <div class="audio-icon">🏬</div>
                     <div class="audio-info">
                         <h3 class="audio-title">${displayTitle}</h3>
                         <p>${group.poiName ? `POI: ${group.poiName}` : `POI #${group.poiId}`}</p>
@@ -1042,17 +1115,17 @@
         const canApprove = isAdmin && status === 'pending';
         const canReject = isAdmin && status === 'pending';
         const canDelete = isAdmin || (isVendor && status !== 'approved' && status !== 'published');
-        const canGenerate = isAdmin || isVendor;
+        const canReplace = isAdmin || isVendor;
 
         return `
             <button class="btn-icon btn-download" data-action="download" data-url="${audioUrl}">
                 <i class="fas fa-download"></i>
                 <span>Tải về</span>
             </button>
-            ${canGenerate ? `
-                <button class="btn-icon btn-generate" data-action="generate" data-id="${audio.audioContent_ID}">
-                    <i class="fas fa-magic"></i>
-                    <span>Tạo file</span>
+            ${canReplace ? `
+                <button class="btn-icon btn-generate" data-action="replace" data-id="${audio.audioContent_ID}">
+                    <i class="fas fa-pen-to-square"></i>
+                    <span>Đổi file</span>
                 </button>
             ` : ''}
             ${canSubmit ? `
@@ -1126,7 +1199,7 @@
                 const id = parseInt(btn.getAttribute('data-id'), 10);
                 const url = btn.getAttribute('data-url');
                 if (action === 'download') return downloadAudio(url);
-                if (action === 'generate') return generateAudioFile(id);
+                if (action === 'replace') return openReplaceModal(id);
                 if (action === 'submit') return submitAudio(id);
                 if (action === 'approve') return approveAudio(id);
                 if (action === 'reject') return rejectAudio(id);
@@ -1227,6 +1300,56 @@
         }
     }
 
+    function bindReplaceModal() {
+        const modal = document.getElementById('replaceModal');
+        const form = document.getElementById('replaceForm');
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeReplaceModal();
+                }
+            });
+        }
+
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const idRaw = document.getElementById('replaceAudioId')?.value || '';
+                const id = parseInt(idRaw, 10);
+                const fileInput = document.getElementById('replaceFile');
+                const file = fileInput?.files?.[0];
+                const submitBtn = document.getElementById('replaceSubmitBtn');
+
+                if (!file || Number.isNaN(id)) {
+                    alert('Vui lòng chọn file audio mới.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('AudioFile', file);
+
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Đang cập nhật...';
+                }
+
+                try {
+                    await api.replaceAudioFile(id, formData);
+                    closeReplaceModal();
+                    if (form) form.reset();
+                    loadAudios();
+                } catch (error) {
+                    alert('Cập nhật thất bại: ' + (error.message || 'Vui lòng thử lại.'));
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Cập nhật';
+                    }
+                }
+            });
+        }
+    }
+
     function resolveAudioUrl(rawUrl) {
         if (!rawUrl) return '';
         if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
@@ -1241,15 +1364,6 @@
             return;
         }
         window.open(url, '_blank');
-    }
-
-    async function generateAudioFile(id) {
-        try {
-            await api.request(`/Audio/${id}/generate-file`, { method: 'POST' });
-            loadAudios();
-        } catch (error) {
-            alert('Không thể tạo file audio: ' + error.message);
-        }
     }
 
     async function submitAudio(id) {
@@ -1292,6 +1406,7 @@
 
     window.addEventListener('load', function() {
         bindUploadModal();
+        bindReplaceModal();
         applyFilters();
         handleUploadHash();
     });
