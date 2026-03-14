@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết POI - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35; --primary-dark: #E85A2A;
+            --secondary: #004E89; --success: #06D6A0;
+            --danger: #EF476F; --dark: #1A1A2E;
+            --border: #E8ECF1; --shadow: rgba(26,26,46,.08);
+            --bg: #F0F4F8;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--dark); }
+
+        .container { max-width:1300px; margin:0 auto; padding:2rem; }
+
+        /* ── Back + Header ── */
+        .back-btn {
+            display:inline-flex; align-items:center; gap:.5rem;
+            color:#6B7280; font-size:.9rem; text-decoration:none;
+            margin-bottom:1.25rem; transition:color .2s;
+        }
+        .back-btn:hover { color:var(--primary); }
+
+        .poi-header {
+            background:white; border-radius:20px;
+            padding:1.75rem 2rem; box-shadow:0 4px 20px var(--shadow);
+            display:flex; justify-content:space-between; align-items:flex-start;
+            gap:1.5rem; margin-bottom:1.75rem;
+            animation:fadeInDown .4s ease;
+        }
+        .poi-header-left { display:flex; gap:1.25rem; align-items:flex-start; }
+        .poi-thumb {
+            width:96px; height:96px; border-radius:16px; object-fit:cover;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            display:flex; align-items:center; justify-content:center;
+            font-size:2.5rem; color:white; flex-shrink:0;
+        }
+        .poi-thumb img { width:100%; height:100%; border-radius:16px; object-fit:cover; }
+        .poi-name { font-family:'Playfair Display',serif; font-size:1.75rem; font-weight:900; color:var(--dark); margin-bottom:.35rem; }
+        .poi-name-sub { font-size:.95rem; color:#6B7280; margin-bottom:.6rem; }
+        .poi-meta { display:flex; flex-wrap:wrap; gap:.75rem 1.25rem; }
+        .meta-chip {
+            display:inline-flex; align-items:center; gap:.4rem;
+            font-size:.85rem; color:#6B7280;
+        }
+        .meta-chip i { color:var(--primary); }
+
+        .badge {
+            display:inline-flex; align-items:center; gap:.35rem;
+            padding:.35rem .85rem; border-radius:20px; font-size:.8rem; font-weight:700;
+        }
+        .badge-active  { background:#D1FAE5; color:#059669; }
+        .badge-inactive{ background:#FEE2E2; color:#DC2626; }
+
+        .header-actions { display:flex; gap:.75rem; flex-shrink:0; }
+
+        /* ── Buttons ── */
+        .btn {
+            display:inline-flex; align-items:center; gap:.5rem;
+            padding:.7rem 1.4rem; border:none; border-radius:12px;
+            font-size:.9rem; font-weight:600; cursor:pointer;
+            font-family:'DM Sans',sans-serif; transition:all .2s; text-decoration:none;
+        }
+        .btn-primary { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; }
+        .btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(255,107,53,.3); }
+        .btn-secondary { background:white; border:2px solid var(--border); color:var(--dark); }
+        .btn-secondary:hover { border-color:var(--primary); color:var(--primary); }
+        .btn-danger { background:var(--danger); color:white; }
+        .btn-danger:hover { background:#D63D5F; }
+        .btn-success { background:var(--success); color:white; }
+        .btn-sm { padding:.4rem .85rem; font-size:.82rem; }
+
+        /* ── Tabs ── */
+        .tabs {
+            display:flex; gap:0; border-bottom:2px solid var(--border);
+            margin-bottom:1.75rem; background:white;
+            border-radius:12px 12px 0 0; padding:0 1rem;
+            box-shadow:0 2px 8px var(--shadow);
+        }
+        .tab {
+            padding:.9rem 1.4rem; background:transparent; border:none;
+            color:#6B7280; font-size:.9rem; font-weight:600; cursor:pointer;
+            border-bottom:3px solid transparent; margin-bottom:-2px;
+            display:flex; align-items:center; gap:.5rem; transition:all .2s;
+        }
+        .tab:hover { color:var(--primary); }
+        .tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+        .tab-badge {
+            background:#FFF3E0; color:#E65100; padding:.2rem .55rem;
+            border-radius:12px; font-size:.75rem; font-weight:700;
+        }
+
+        .tab-content { display:none; animation:fadeIn .25s ease; }
+        .tab-content.active { display:block; }
+
+        /* ── Cards ── */
+        .card {
+            background:white; border-radius:16px; padding:1.5rem 1.75rem;
+            box-shadow:0 4px 20px var(--shadow); margin-bottom:1.25rem;
+        }
+        .card-title {
+            font-size:1rem; font-weight:700; color:var(--dark);
+            margin-bottom:1.1rem; display:flex; align-items:center; gap:.5rem;
+        }
+        .card-title i { color:var(--primary); }
+
+        /* ── Info rows ── */
+        .info-grid { display:grid; grid-template-columns:2fr 1fr; gap:1.25rem; }
+        .info-row { display:flex; padding:.65rem 0; border-bottom:1px solid #F3F4F6; }
+        .info-row:last-child { border-bottom:none; }
+        .info-label { width:145px; color:#6B7280; font-size:.88rem; flex-shrink:0; }
+        .info-value { flex:1; color:var(--dark); font-size:.88rem; font-weight:500; }
+
+        /* lang tabs inside info */
+        .lang-tabs { display:flex; gap:.4rem; margin-bottom:1rem; }
+        .lang-tab {
+            padding:.35rem .9rem; border:1.5px solid var(--border); border-radius:8px;
+            background:white; font-size:.82rem; font-weight:600;
+            cursor:pointer; color:#6B7280; transition:all .2s;
+        }
+        .lang-tab.active { background:var(--primary); border-color:var(--primary); color:white; }
+        .lang-panel { display:none; }
+        .lang-panel.active { display:block; }
+        .desc-box {
+            background:#F8F9FA; border-radius:10px; padding:1rem; font-size:.9rem;
+            line-height:1.7; color:var(--dark);
+        }
+
+        /* price level */
+        .price-stars { color:var(--primary); font-size:1rem; }
+
+        /* ── Audio Tab ── */
+        .audio-lang-row {
+            display:flex; gap:1rem; align-items:center; padding:.85rem 1rem;
+            border-radius:12px; border:1px solid var(--border); margin-bottom:.65rem;
+            background:#F9FAFB; transition:border-color .2s;
+        }
+        .audio-lang-row:hover { border-color:var(--primary); }
+        .lang-flag { font-size:1.3rem; }
+        .lang-label { font-weight:600; font-size:.9rem; flex:1; }
+        .audio-mini-player { display:flex; align-items:center; gap:.5rem; flex:2; }
+        .audio-mini-player audio { flex:1; height:32px; }
+        .audio-missing { color:#9CA3AF; font-size:.85rem; font-style:italic; }
+
+        /* ── Menu Items ── */
+        .menu-toolbar {
+            display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:1.25rem; flex-wrap:wrap; gap:.75rem;
+        }
+        .menu-toolbar h2 { font-size:1.05rem; font-weight:700; }
+        .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; }
+
+        .menu-card {
+            background:white; border-radius:14px; overflow:hidden;
+            box-shadow:0 2px 10px var(--shadow); transition:transform .2s;
+        }
+        .menu-card:hover { transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,0,0,.12); }
+        .menu-card-img {
+            height:150px; background:linear-gradient(135deg,#FFF7ED,#FFEDD5);
+            display:flex; align-items:center; justify-content:center; position:relative;
+        }
+        .menu-card-img img { width:100%; height:150px; object-fit:cover; }
+        .menu-card-img .no-img { font-size:3.5rem; }
+        .menu-card-sig {
+            position:absolute; top:.5rem; left:.5rem;
+            background:var(--primary); color:white; font-size:.7rem;
+            font-weight:700; padding:.2rem .5rem; border-radius:6px;
+        }
+        .menu-card-body { padding:1rem; }
+        .menu-card-name { font-size:.95rem; font-weight:700; margin-bottom:.3rem; }
+        .menu-card-desc { font-size:.82rem; color:#6B7280; line-height:1.5; margin-bottom:.75rem;
+            display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .menu-card-footer { display:flex; align-items:center; justify-content:space-between;
+            padding-top:.75rem; border-top:1px solid #F3F4F6; }
+        .menu-card-price { font-size:1.1rem; font-weight:700; color:var(--primary); }
+        .menu-card-actions { display:flex; gap:.4rem; }
+        .icon-btn {
+            width:30px; height:30px; border-radius:8px; border:1px solid var(--border);
+            background:white; color:#6B7280; font-size:.8rem; cursor:pointer;
+            display:flex; align-items:center; justify-content:center; transition:all .2s;
+        }
+        .icon-btn:hover { border-color:var(--primary); color:var(--primary); }
+        .icon-btn.danger:hover { border-color:var(--danger); color:var(--danger); }
+
+        /* ── Geofence Tab ── */
+        .geo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.25rem; }
+        .geo-card {
+            background:linear-gradient(135deg,#F8F9FA,white); border:2px solid var(--border);
+            border-radius:14px; padding:1.25rem; text-align:center; transition:border-color .2s;
+        }
+        .geo-card:hover { border-color:var(--primary); }
+        .geo-icon { font-size:1.75rem; margin-bottom:.5rem; }
+        .geo-value { font-size:1.5rem; font-weight:800; color:var(--dark); }
+        .geo-label { font-size:.8rem; color:#6B7280; margin-top:.2rem; }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            position:fixed; inset:0; background:rgba(0,0,0,.6);
+            display:flex; align-items:center; justify-content:center; z-index:1000;
+            display:none;
+        }
+        .modal-overlay.show { display:flex; }
+        .modal {
+            background:white; border-radius:20px; width:90%; max-width:540px;
+            max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2);
+            animation:fadeInDown .25s ease;
+        }
+        .modal-header {
+            padding:1.25rem 1.5rem; border-bottom:1px solid var(--border);
+            display:flex; align-items:center; justify-content:space-between;
+        }
+        .modal-title { font-size:1.1rem; font-weight:700; }
+        .modal-close {
+            width:36px; height:36px; border:none; border-radius:8px;
+            background:#F3F4F6; cursor:pointer; font-size:1.1rem; color:#6B7280;
+        }
+        .modal-close:hover { background:#FEE2E2; color:var(--danger); }
+        .modal-body { padding:1.25rem 1.5rem; }
+        .modal-footer { padding:1rem 1.5rem; border-top:1px solid var(--border); display:flex; gap:.75rem; justify-content:flex-end; }
+
+        .form-group { margin-bottom:1.1rem; }
+        .form-label { display:block; font-weight:600; font-size:.88rem; margin-bottom:.4rem; }
+        .form-input, .form-textarea, .form-select {
+            width:100%; padding:.75rem 1rem; border:2px solid var(--border);
+            border-radius:10px; font-size:.9rem; font-family:'DM Sans',sans-serif;
+            background:#F8F9FA; transition:border-color .2s;
+        }
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline:none; border-color:var(--primary); background:white;
+        }
+        .form-textarea { resize:vertical; min-height:90px; }
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+
+        /* ── Empty ── */
+        .empty { text-align:center; padding:3.5rem 1rem; color:#9CA3AF; }
+        .empty i { font-size:3rem; margin-bottom:1rem; display:block; }
+        .empty p { font-size:.9rem; }
+
+        @keyframes fadeInDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+        .loading-spin {
+            text-align:center; padding:3rem; color:#6B7280;
+        }
+        .loading-spin i { font-size:2rem; animation:spin 1s linear infinite; }
+        @keyframes spin { to{transform:rotate(360deg)} }
+    </style>
+</head>
+<body>
+<!-- Banner removed per request -->
+
+<div class="container">
+    <a href="poi-list.html" class="back-btn"><i class="fas fa-arrow-left"></i> Quay lại danh sách POI</a>
+
+    <!-- Header -->
+    <div class="poi-header" id="poiHeader">
+        <div class="poi-header-left">
+            <div class="poi-thumb" id="poiThumb">🍜</div>
+            <div>
+                <div class="poi-name" id="poiName">Đang tải...</div>
+                <div class="poi-name-sub" id="poiNameSub"></div>
+                <div class="poi-meta" id="poiMeta"></div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <a id="editBtn" href="#" class="btn btn-secondary"><i class="fas fa-pen"></i> Chỉnh sửa</a>
+            <button id="audioCreateBtn" class="btn btn-primary" onclick="handleCreateAudio()"><i class="fas fa-microphone"></i> Tạo audio</button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('info')"><i class="fas fa-info-circle"></i> Thông tin</button>
+        <button class="tab" onclick="switchTab('menu')">
+            <i class="fas fa-utensils"></i> Menu
+            <span class="tab-badge" id="menuBadge">0</span>
+        </button>
+        <button class="tab" onclick="switchTab('audio')"><i class="fas fa-volume-up"></i> Audio</button>
+        <button class="tab" onclick="switchTab('geo')"><i class="fas fa-map-pin"></i> Geofence</button>
+    </div>
+
+    <!-- ── TAB 1: Thông tin ── -->
+    <div id="tabInfo" class="tab-content active">
+        <div class="info-grid">
+            <div>
+                <!-- Basic Info -->
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-store"></i> Thông tin cơ bản</div>
+                    <div id="basicInfo">
+                        <div class="loading-spin"><i class="fas fa-spinner"></i></div>
+                    </div>
+                </div>
+                <!-- Description -->
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-align-left"></i> Mô tả</div>
+                    <div class="lang-tabs">
+                        <button class="lang-tab active" onclick="switchLang(this,'vi')">🇻🇳 VI</button>
+                        <button class="lang-tab" onclick="switchLang(this,'en')">🇬🇧 EN</button>
+                        <button class="lang-tab" onclick="switchLang(this,'zh')">🇨🇳 ZH</button>
+                    </div>
+                    <div id="descVi" class="lang-panel active desc-box">—</div>
+                    <div id="descEn" class="lang-panel desc-box">—</div>
+                    <div id="descZh" class="lang-panel desc-box">—</div>
+                </div>
+            </div>
+            <div>
+                <!-- Extra -->
+                <div class="card" id="extraInfo">
+                    <div class="card-title"><i class="fas fa-star"></i> Chi tiết thêm</div>
+                    <div class="loading-spin"><i class="fas fa-spinner"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TAB 2: Menu Items ── -->
+    <div id="tabMenu" class="tab-content">
+        <div class="card">
+            <div class="menu-toolbar">
+                <h2 id="menuTitle">Menu (<span id="menuCount">0</span> món)</h2>
+                <button class="btn btn-primary btn-sm" onclick="openMenuModal()">
+                    <i class="fas fa-plus"></i> Thêm món
+                </button>
+            </div>
+            <div class="menu-grid" id="menuGrid">
+                <div class="loading-spin" style="grid-column:1/-1"><i class="fas fa-spinner"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TAB 3: Audio ── -->
+    <div id="tabAudio" class="tab-content">
+        <div class="card">
+            <div class="card-title"><i class="fas fa-volume-up"></i> Audio theo ngôn ngữ</div>
+            <div id="audioRows">
+                <div class="loading-spin"><i class="fas fa-spinner"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TAB 4: Geofence ── -->
+    <div id="tabGeo" class="tab-content">
+        <div class="card">
+            <div class="card-title"><i class="fas fa-map-marker-alt"></i> Cài đặt Geofence</div>
+            <div class="geo-grid" id="geoGrid">
+                <div class="loading-spin" style="grid-column:1/-1"><i class="fas fa-spinner"></i></div>
+            </div>
+        </div>
+        <div class="card" id="geoExtra">
+            <div class="card-title"><i class="fas fa-sliders-h"></i> Thông số kỹ thuật</div>
+            <div id="geoRows"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Add/Edit Menu Item ── -->
+<div class="modal-overlay" id="menuModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title" id="menuModalTitle">Thêm món ăn</div>
+            <button class="modal-close" onclick="closeMenuModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editItemId">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Tên món (Tiếng Việt) <span style="color:var(--danger)">*</span></label>
+                    <input class="form-input" id="itemNameVi" placeholder="VD: Phở bò tái">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Giá (VND) <span style="color:var(--danger)">*</span></label>
+                    <input class="form-input" id="itemPrice" type="number" min="0" placeholder="VD: 50000">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Danh mục</label>
+                <select class="form-input" id="itemCategory">
+                    <option value="">Chọn danh mục</option>
+                    <option value="oc">Ốc</option>
+                    <option value="pho">Phở</option>
+                    <option value="bun">Bún</option>
+                    <option value="banh-mi">Bánh mì</option>
+                    <option value="com">Cơm</option>
+                    <option value="lau">Lẩu</option>
+                    <option value="nuong">Nướng</option>
+                    <option value="hai-san">Hải sản</option>
+                    <option value="do-uong">Đồ uống</option>
+                    <option value="trang-mieng">Tráng miệng</option>
+                    <option value="khac">Khác</option>
+                </select>
+                <input class="form-input" id="itemCategoryOther" placeholder="Nhập danh mục mới" style="margin-top:0.75rem; display:none;">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mô tả (Tiếng Việt)</label>
+                <textarea class="form-textarea" id="itemDescVi" placeholder="Mô tả ngắn về món ăn..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ảnh món (không bắt buộc)</label>
+                <input class="form-input" id="itemImageFile" type="file" accept="image/*">
+                <input type="hidden" id="itemImageUrl">
+                <div id="itemImagePreview" style="margin-top:0.75rem;display:none;">
+                    <img id="itemImagePreviewImg" alt="Ảnh món" style="max-width:100%;height:auto;border-radius:10px;border:1px solid var(--border);">
+                </div>
+                <div id="itemImageStatus" style="margin-top:0.5rem;font-size:0.85rem;color:#888;"></div>
+            </div>
+            <div style="display:flex;gap:1rem;">
+                <label style="display:flex;align-items:center;gap:.4rem;font-size:.9rem;cursor:pointer;">
+                    <input type="checkbox" id="itemSig"> Món đặc trưng
+                </label>
+                <label style="display:flex;align-items:center;gap:.4rem;font-size:.9rem;cursor:pointer;">
+                    <input type="checkbox" id="itemAvail" checked> Còn phục vụ
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeMenuModal()">Hủy</button>
+            <button class="btn btn-primary" id="btnSaveMenu" onclick="saveMenuItem()"><i class="fas fa-save"></i> Lưu</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Audio already complete -->
+<div class="modal-overlay" id="audioDoneModal">
+    <div class="modal" style="max-width:520px;">
+        <div class="modal-header">
+            <h2 class="modal-title">Đã đủ audio</h2>
+            <button class="modal-close" onclick="closeAudioDoneModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="gap:.75rem;">
+            <div style="display:flex;align-items:center;gap:.6rem;font-weight:600;color:#065F46;">
+                <i class="fas fa-check-circle" style="color:#059669;"></i>
+                <span>POI này đã tạo đủ audio cho cả 3 ngôn ngữ (VI / EN / ZH).</span>
+            </div>
+        </div>
+        <div class="modal-footer" style="justify-content:flex-end;">
+            <button class="btn btn-outline" onclick="closeAudioDoneModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<script src="api.js"></script>
+<script>
+// Auth guard — runs after api.js (which defines TokenManager)
+(function() {
+    const _u = TokenManager.getUser();
+    if (!_u) { window.location.href = TokenManager.getLoginUrl(); }
+})();
+
+const params   = new URLSearchParams(location.search);
+const POI_ID   = parseInt(params.get('id') || '0', 10);
+const isAdmin  = TokenManager.getUser()?.roles?.includes('Admin');
+
+let poiData     = null;
+let menuItems   = [];
+let activeTab   = 'info';
+let ownerName   = null;
+
+if (!POI_ID) {
+    alert('Thiếu POI ID trong URL'); 
+    location.href = 'poi-list.html';
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────────
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+    activeTab = name;
+    if (name === 'menu' && menuItems.length === 0) loadMenuItems();
+}
+
+// ── Lang tabs (description) ────────────────────────────────────────────────────
+function switchLang(btn, lang) {
+    btn.closest('.card').querySelectorAll('.lang-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    btn.closest('.card').querySelectorAll('.lang-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('desc' + lang.charAt(0).toUpperCase() + lang.slice(1)).classList.add('active');
+}
+
+// ── Format helpers ─────────────────────────────────────────────────────────────
+function fmtPrice(v) {
+    if (!v && v !== 0) return '—';
+    return new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND'}).format(v);
+}
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('vi-VN') : '—'; }
+function priceLevel(n) { return n ? '🍜'.repeat(Math.min(n,4)) : '—'; }
+function row(label, val) {
+    return `<div class="info-row"><div class="info-label">${label}</div><div class="info-value">${val || '—'}</div></div>`;
+}
+
+// ── Load POI ──────────────────────────────────────────────────────────────────
+async function loadPOI() {
+    try {
+        poiData = await api.getPOI(POI_ID);
+        ownerName = await resolveOwnerName(poiData);
+        renderHeader();
+        renderInfo();
+        renderAudio();
+        renderGeo();
+        await loadMenuItems();
+    } catch(e) {
+        document.getElementById('poiName').textContent = 'Không tìm thấy POI';
+        console.error(e);
+    }
+}
+
+async function resolveOwnerName(poi) {
+    const vendorId = poi?.vendorId ?? poi?.VendorId;
+    if (!vendorId) return null;
+
+    const roleContext = TokenManager.getRoleContext();
+
+    if (roleContext === 'Admin') {
+        try {
+            const vendor = await VendorApi.get(vendorId);
+            return vendor?.contactName || vendor?.ContactName || vendor?.businessName || vendor?.BusinessName || null;
+        } catch {
+            return null;
+        }
+    }
+
+    if (roleContext === 'Vendor') {
+        try {
+            const me = await VendorApi.me();
+            const meVendorId = me?.vendorId ?? me?.VendorId;
+            if (meVendorId === vendorId) {
+                return me?.contactName || me?.ContactName || me?.businessName || me?.BusinessName || null;
+            }
+        } catch {
+            return null;
+        }
+    }
+
+    return null;
+}
+
+function renderHeader() {
+    const p = poiData;
+    document.title = `${p.name_Vi || p.Name_Vi} — Chi tiết POI`;
+
+    // Thumb
+    const thumb = document.getElementById('poiThumb');
+    const img = p.imageUrl || p.ImageUrl;
+    if (img) { thumb.innerHTML = `<img src="${img}" alt="ảnh POI">`; }
+
+    // Name
+    const nameVi = p.name_Vi || p.Name_Vi || '';
+    const nameEn = p.name_En || p.Name_En || '';
+    document.getElementById('poiName').textContent = nameVi;
+    document.getElementById('poiNameSub').textContent = nameEn || '';
+
+    // Meta chips
+    const addr  = p.address || p.Address || '';
+    const cat   = p.category || p.Category || '';
+    const phone = p.phoneNumber || p.PhoneNumber || '';
+    const isAct = p.isActive ?? p.IsActive ?? true;
+    document.getElementById('poiMeta').innerHTML = `
+        ${addr  ? `<div class="meta-chip"><i class="fas fa-map-marker-alt"></i>${addr}</div>` : ''}
+        ${cat   ? `<div class="meta-chip"><i class="fas fa-tag"></i>${cat}</div>` : ''}
+        ${phone ? `<div class="meta-chip"><i class="fas fa-phone"></i>${phone}</div>` : ''}
+        <span class="badge ${isAct ? 'badge-active':'badge-inactive'}">${isAct ? '✅ Đang hoạt động':'❌ Dừng hoạt động'}</span>
+    `;
+
+    // Edit link
+    document.getElementById('editBtn').href = `poi-edit.html?id=${POI_ID}`;
+}
+
+function renderInfo() {
+    const p = poiData;
+    const lat  = p.location?.latitude  ?? p.Location?.Latitude  ?? p.latitude  ?? p.Latitude;
+    const lon  = p.location?.longitude ?? p.Location?.Longitude ?? p.longitude ?? p.Longitude;
+    const avgP = p.averagePrice || p.AveragePrice;
+    const rat  = p.rating || p.Rating;
+    const pLvl = p.priceLevel || p.PriceLevel;
+    const sig  = (p.signatureDishes || p.SignatureDishes || []);
+    const spec = (p.specialties     || p.Specialties     || []);
+    const tags = (p.tags            || p.Tags            || []);
+    const ff   = p.funFact || p.FunFact;
+    const hrs  = p.openingHoursText || p.OpeningHoursText;
+    const vId  = p.vendorId || p.VendorId;
+    const ownerDisplay = ownerName || (vId ? `Vendor #${vId}` : 'Chưa gán chủ quán');
+    const ownerText = ownerDisplay;
+    const cAt  = p.createdAt || p.CreatedAt;
+
+    const poiIdVal = p.poI_ID || p.poi_ID || p.POI_ID || p.id || p.Id;
+    const addressText = p.address || p.Address || '';
+    const qAddr = addressText ? encodeURIComponent(addressText) : '';
+    const mapLinkHtml = qAddr
+        ? ` <a style="font-size:.8rem;color:var(--primary)" href="https://maps.google.com/?q=${qAddr}" target="_blank">🗺 Xem bản đồ</a>`
+        : '';
+
+    // Basic
+    document.getElementById('basicInfo').innerHTML = `
+        ${row('POI ID',   poiIdVal ? `#${poiIdVal}` : '—')}
+        ${row('Địa chỉ',  p.address || p.Address)}
+        ${row('Tọa độ',   lat ? `${lat}, ${lon}${mapLinkHtml}` : '—')}
+        ${row('Danh mục', p.category || p.Category)}
+        ${row('Giờ mở cửa', hrs)}
+        ${row('Điện thoại', p.phoneNumber || p.PhoneNumber)}
+        ${row('Giá TB', avgP ? fmtPrice(avgP) : '—')}
+        ${row('Mức giá', priceLevel(pLvl))}
+        ${row('Đánh giá', rat ? `⭐ ${rat}` : '—')}
+        ${row('Chủ quán', ownerText)}
+        ${row('Ngày tạo', fmtDate(cAt))}
+    `;
+
+    // Descriptions
+    document.getElementById('descVi').textContent = p.description_Vi || p.Description_Vi || '(Chưa có mô tả tiếng Việt)';
+    document.getElementById('descEn').textContent = p.description_En || p.Description_En || '(No English description)';
+    document.getElementById('descZh').textContent = p.description_Zh || p.Description_Zh || '(无中文描述)';
+
+    // Extra right column
+    let extraHtml = '';
+    if (sig.length) extraHtml += `<div class="info-row"><div class="info-label">Món đặc trưng</div><div class="info-value">${sig.map(s=>`<span style="background:#FFF3E0;color:#E65100;padding:.2rem .6rem;border-radius:8px;font-size:.82rem;margin:.15rem;display:inline-block">${s}</span>`).join('')}</div></div>`;
+    if (spec.length) extraHtml += `<div class="info-row"><div class="info-label">Đặc sản</div><div class="info-value">${spec.join(', ')}</div></div>`;
+    if (tags.length) extraHtml += `<div class="info-row"><div class="info-label">Tags</div><div class="info-value">${tags.map(t=>`<span style="background:#EFF6FF;color:#1D4ED8;padding:.2rem .6rem;border-radius:8px;font-size:.8rem;margin:.15rem;display:inline-block">#${t}</span>`).join('')}</div></div>`;
+    if (ff) extraHtml += `<div class="info-row"><div class="info-label">Fun Fact</div><div class="info-value" style="font-style:italic;color:#374151">${ff}</div></div>`;
+    if (!extraHtml) extraHtml = `<p style="color:#9CA3AF;font-size:.9rem">Chưa có thông tin bổ sung.</p>`;
+    document.getElementById('extraInfo').innerHTML = `<div class="card-title"><i class="fas fa-star"></i> Chi tiết thêm</div>${extraHtml}`;
+}
+
+// ── Audio tab ──────────────────────────────────────────────────────────────────
+function renderAudio() {
+    const p = poiData;
+    // audioContents from GET /api/POIs/{id} full response (array of AudioContent)
+    const audioContents = p.audioContents || p.AudioContents || [];
+
+    const LANGS = [
+        { code:'vi-VN', codeAlt:'vi', flag:'🇻🇳', label:'Tiếng Việt' },
+        { code:'en-US', codeAlt:'en', flag:'🇬🇧', label:'English'    },
+        { code:'zh-CN', codeAlt:'zh', flag:'🇨🇳', label:'中文'        },
+    ];
+
+    // Build a map language → audioUrl (take first match per language)
+    const audioMap = {};
+    audioContents.forEach(a => {
+        const lang = (a.language || a.Language || '').toLowerCase();
+        if (!audioMap[lang]) {
+            audioMap[lang] = a.audioUrl || a.AudioUrl || '';
+        }
+    });
+
+    // Helper to find URL for a lang spec
+    function getUrl(spec) {
+        return audioMap[spec.code.toLowerCase()] ||
+               audioMap[spec.codeAlt.toLowerCase()] || '';
+    }
+
+    const rows = LANGS.map(l => {
+        const url = getUrl(l);
+        return `
+        <div class="audio-lang-row">
+            <span class="lang-flag">${l.flag}</span>
+            <span class="lang-label">${l.label}</span>
+            ${url
+                ? `<div class="audio-mini-player"><audio controls src="${url}" preload="none"></audio></div>`
+                : `<span class="audio-missing"><i class="fas fa-ban" style="margin-right:.3rem"></i>Chưa có audio</span>`
+            }
+        </div>`;
+    }).join('');
+    document.getElementById('audioRows').innerHTML = rows;
+
+    // Show banner if all 3 languages have audio
+    const allDone = LANGS.every(l => !!getUrl(l));
+    window.__poiAudioAllDone = allDone;
+}
+
+function handleCreateAudio() {
+    if (window.__poiAudioAllDone) {
+        openAudioDoneModal();
+        return;
+    }
+    window.location.href = `audio-bulk-generate.html?poiId=${POI_ID}`;
+}
+
+function openAudioDoneModal() {
+    const modal = document.getElementById('audioDoneModal');
+    if (modal) modal.classList.add('show');
+}
+
+function closeAudioDoneModal() {
+    const modal = document.getElementById('audioDoneModal');
+    if (modal) modal.classList.remove('show');
+}
+
+// ── Menu Items ─────────────────────────────────────────────────────────────────
+async function loadMenuItems() {
+    document.getElementById('menuGrid').innerHTML = `<div class="loading-spin" style="grid-column:1/-1"><i class="fas fa-spinner"></i></div>`;
+    try {
+        const resp = await api.getMenuItems(POI_ID, 1, 100);
+        menuItems = resp.data || [];
+        document.getElementById('menuBadge').textContent = menuItems.length;
+        document.getElementById('menuCount').textContent = menuItems.length;
+        renderMenuGrid();
+    } catch(e) {
+        document.getElementById('menuGrid').innerHTML = `<div class="empty" style="grid-column:1/-1"><i class="fas fa-exclamation-triangle"></i><p>Lỗi tải menu: ${e.message}</p></div>`;
+    }
+}
+
+function renderMenuGrid() {
+    if (menuItems.length === 0) {
+        document.getElementById('menuGrid').innerHTML = `
+            <div class="empty" style="grid-column:1/-1">
+                <i class="fas fa-utensils"></i>
+                <p>Chưa có món ăn nào.<br>Nhấn "Thêm món" để bắt đầu.</p>
+            </div>`;
+        return;
+    }
+    document.getElementById('menuGrid').innerHTML = menuItems.map(item => `
+        <div class="menu-card">
+            <div class="menu-card-img">
+                ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.name_Vi}">` : `<span class="no-img">🍽️</span>`}
+                ${item.isSignatureDish ? `<span class="menu-card-sig">⭐ Đặc trưng</span>` : ''}
+            </div>
+            <div class="menu-card-body">
+                <div class="menu-card-name">${item.name_Vi || '—'}${item.name_En ? `<span style="font-size:.75rem;color:#9CA3AF;font-weight:400;margin-left:.4rem">${item.name_En}</span>` : ''}</div>
+                <div class="menu-card-desc">${item.description_Vi || item.description_En || '(Chưa có mô tả)'}</div>
+                <div class="menu-card-footer">
+                    <div class="menu-card-price">${fmtPrice(item.price)}</div>
+                    <div class="menu-card-actions">
+                        <button class="icon-btn" title="Chỉnh sửa" onclick="openEditMenu(${item.menuItemId})"><i class="fas fa-pen"></i></button>
+                        <button class="icon-btn danger" title="Xóa" onclick="deleteMenu(${item.menuItemId},'${(item.name_Vi||'').replace(/'/g,"\\'")}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ── Menu Modal ─────────────────────────────────────────────────────────────────
+function openMenuModal() {
+    document.getElementById('editItemId').value = '';
+    document.getElementById('menuModalTitle').textContent = 'Thêm món ăn';
+    ['NameVi','NameEn','NameZh','DescVi','DescEn','Category'].forEach(f => {
+        const el = document.getElementById('item'+f);
+        if (el) el.value = '';
+    });
+    document.getElementById('itemPrice').value = '';
+    const otherEl = document.getElementById('itemCategoryOther');
+    if (otherEl) {
+        otherEl.value = '';
+        otherEl.style.display = 'none';
+    }
+    const fileEl = document.getElementById('itemImageFile');
+    if (fileEl) fileEl.value = '';
+    const urlEl = document.getElementById('itemImageUrl');
+    if (urlEl) urlEl.value = '';
+    const statusEl = document.getElementById('itemImageStatus');
+    if (statusEl) statusEl.textContent = '';
+    const previewWrap = document.getElementById('itemImagePreview');
+    const previewImg = document.getElementById('itemImagePreviewImg');
+    if (previewWrap && previewImg) {
+        previewImg.src = '';
+        previewWrap.style.display = 'none';
+    }
+    document.getElementById('itemSig').checked  = false;
+    document.getElementById('itemAvail').checked = true;
+    document.getElementById('menuModal').classList.add('show');
+}
+
+// Auto Translate Logic for Menu
+async function autoTranslateMenu(srcId, enId, zhId) {
+    const srcEl = document.getElementById(srcId);
+    const enEl = document.getElementById(enId);
+    const zhEl = zhId ? document.getElementById(zhId) : null;
+    const text = srcEl.value.trim();
+    if (!text) return alert("Vui lòng nhập nội dung tiếng Việt trước khi dịch!");
+    
+    const btn = event.currentTarget;
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang dịch...';
+    btn.disabled = true;
+
+    try {
+        const targetLangs = zhId ? ['en', 'zh-CN'] : ['en'];
+        const res = await api.autoTranslate(text, targetLangs);
+        if (res.en) enEl.value = res.en;
+        if (zhEl && res['zh-CN']) zhEl.value = res['zh-CN'];
+    } catch (error) {
+        alert("Lỗi dịch tự động: " + error.message);
+    } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+
+function openEditMenu(id) {
+    const item = menuItems.find(m => m.menuItemId === id);
+    if (!item) return;
+    document.getElementById('editItemId').value       = id;
+    document.getElementById('menuModalTitle').textContent = 'Chỉnh sửa món ăn';
+    const nameViEl = document.getElementById('itemNameVi');
+    if (nameViEl) nameViEl.value = item.name_Vi || '';
+    const nameEnEl = document.getElementById('itemNameEn');
+    if (nameEnEl) nameEnEl.value = item.name_En || '';
+    const nameZhEl = document.getElementById('itemNameZh');
+    if (nameZhEl) nameZhEl.value = item.name_Zh || '';
+    const descViEl = document.getElementById('itemDescVi');
+    if (descViEl) descViEl.value = item.description_Vi || '';
+    const descEnEl = document.getElementById('itemDescEn');
+    if (descEnEl) descEnEl.value = item.description_En || '';
+    const priceEl = document.getElementById('itemPrice');
+    if (priceEl) priceEl.value = item.price || 0;
+    const itemCategoryEl = document.getElementById('itemCategory');
+    const itemCategoryOtherEl = document.getElementById('itemCategoryOther');
+    const itemCategoryVal = item.category || '';
+    if (itemCategoryEl) {
+        const hasOption = Array.from(itemCategoryEl.options).some(o => o.value === itemCategoryVal);
+        if (itemCategoryVal && !hasOption) {
+            itemCategoryEl.value = 'khac';
+            if (itemCategoryOtherEl) {
+                itemCategoryOtherEl.style.display = 'block';
+                itemCategoryOtherEl.value = itemCategoryVal;
+            }
+        } else {
+            itemCategoryEl.value = itemCategoryVal;
+            if (itemCategoryOtherEl) {
+                itemCategoryOtherEl.style.display = itemCategoryEl.value === 'khac' ? 'block' : 'none';
+                if (itemCategoryEl.value !== 'khac') itemCategoryOtherEl.value = '';
+            }
+        }
+    }
+    document.getElementById('itemImageUrl').value      = item.imageUrl || '';
+    const statusEl = document.getElementById('itemImageStatus');
+    const previewWrap = document.getElementById('itemImagePreview');
+    const previewImg = document.getElementById('itemImagePreviewImg');
+    if (item.imageUrl && previewWrap && previewImg) {
+        previewImg.src = item.imageUrl;
+        previewWrap.style.display = 'block';
+    } else if (previewWrap && previewImg) {
+        previewImg.src = '';
+        previewWrap.style.display = 'none';
+    }
+    if (statusEl) {
+        statusEl.textContent = item.imageUrl ? 'Đã có ảnh' : '';
+    }
+    document.getElementById('itemSig').checked         = !!item.isSignatureDish;
+    document.getElementById('itemAvail').checked       = item.isAvailable !== false;
+    document.getElementById('menuModal').classList.add('show');
+}
+
+function closeMenuModal() {
+    document.getElementById('menuModal').classList.remove('show');
+}
+
+document.getElementById('itemCategory')?.addEventListener('change', () => {
+    const catEl = document.getElementById('itemCategory');
+    const otherEl = document.getElementById('itemCategoryOther');
+    if (!catEl || !otherEl) return;
+    if (catEl.value === 'khac') {
+        otherEl.style.display = 'block';
+        otherEl.value = '';
+    } else {
+        otherEl.style.display = 'none';
+        otherEl.value = '';
+    }
+});
+
+document.getElementById('itemImageFile')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    const statusEl = document.getElementById('itemImageStatus');
+    const previewWrap = document.getElementById('itemImagePreview');
+    const previewImg = document.getElementById('itemImagePreviewImg');
+    if (!file) return;
+
+    if (previewWrap && previewImg) {
+        previewImg.src = URL.createObjectURL(file);
+        previewWrap.style.display = 'block';
+    }
+
+    if (statusEl) {
+        statusEl.textContent = 'Đang tải ảnh...';
+        statusEl.style.color = '#666';
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const token = TokenManager.getToken();
+        const response = await fetch('/api/POIs/upload-image', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => null);
+            throw new Error(error?.message || 'Upload failed');
+        }
+
+        const result = await response.json();
+        document.getElementById('itemImageUrl').value = result.imageUrl || '';
+        if (statusEl) {
+            statusEl.textContent = 'Đã tải ảnh thành công';
+            statusEl.style.color = 'var(--success)';
+        }
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent = 'Lỗi upload ảnh';
+            statusEl.style.color = 'var(--danger)';
+        }
+        alert('Lỗi upload ảnh: ' + err.message);
+        e.target.value = '';
+        document.getElementById('itemImageUrl').value = '';
+        if (previewWrap && previewImg) {
+            previewImg.src = '';
+            previewWrap.style.display = 'none';
+        }
+    }
+});
+
+async function saveMenuItem() {
+    const nameVi = document.getElementById('itemNameVi').value.trim();
+    const price  = parseFloat(document.getElementById('itemPrice').value);
+    if (!nameVi) { alert('Vui lòng nhập tên món (VI)'); return; }
+    if (isNaN(price) || price < 0) { alert('Giá không hợp lệ'); return; }
+
+    const btn = document.getElementById('btnSaveMenu');
+    if (btn) {
+        btn.dataset.original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+        btn.disabled = true;
+    }
+
+    try {
+        const descVi = document.getElementById('itemDescVi').value.trim();
+        
+        let nameEn = null, nameZh = null, descEn = null;
+        
+        // Auto-translate name
+        if (nameVi) {
+            const nameRes = await api.autoTranslate(nameVi, ['en', 'zh-CN']);
+            if (nameRes) {
+                nameEn = nameRes.en || null;
+                nameZh = nameRes['zh-CN'] || null;
+            }
+        }
+
+        // Auto-translate description
+        if (descVi) {
+            const descRes = await api.autoTranslate(descVi, ['en']);
+            if (descRes) {
+                descEn = descRes.en || null;
+            }
+        }
+
+        const payload = {
+            poI_ID:         POI_ID,
+            name_Vi:        nameVi,
+            name_En:        nameEn,
+            name_Zh:        nameZh,
+            description_Vi: descVi || null,
+            description_En: descEn,
+            price,
+            category:       (() => {
+                const catEl = document.getElementById('itemCategory');
+                const otherEl = document.getElementById('itemCategoryOther');
+                if (!catEl) return null;
+                if (catEl.value === 'khac') {
+                    const v = otherEl?.value?.trim();
+                    return v || null;
+                }
+                return catEl.value || null;
+            })(),
+            imageUrl:       document.getElementById('itemImageUrl').value.trim() || null,
+            isSignatureDish:document.getElementById('itemSig').checked,
+            isAvailable:    document.getElementById('itemAvail').checked,
+        };
+
+        const editId = document.getElementById('editItemId').value;
+        if (editId) {
+            await api.updateMenuItem(parseInt(editId), payload);
+        } else {
+            // POI_ID must match the C# model field name exactly
+            payload.POI_ID = POI_ID;
+            delete payload.poI_ID;
+            await api.createMenuItem(payload);
+        }
+        closeMenuModal();
+        menuItems = [];
+        await loadMenuItems();
+    } catch(e) {
+        alert('Lỗi: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.innerHTML = btn.dataset.original;
+            btn.disabled = false;
+        }
+    }
+}
+
+async function deleteMenu(id, name) {
+    if (!confirm(`Xóa món "${name}"?`)) return;
+    try {
+        await api.deleteMenuItem(id);
+        menuItems = [];
+        await loadMenuItems();
+    } catch(e) {
+        alert('Lỗi xóa: ' + e.message);
+    }
+}
+
+// ── Geofence ───────────────────────────────────────────────────────────────────
+function renderGeo() {
+    const p = poiData;
+    const zoneType = p.zoneType || p.ZoneType || 'Spot';
+    const radius   = p.triggerRadius || p.TriggerRadius || 50;
+    const cooldown = p.cooldownMinutes || p.CooldownMinutes || 0;
+    const priority = p.priority || p.Priority || 5;
+    const maxP     = p.maxPlaysPerSession || p.MaxPlaysPerSession || 1;
+    const zLvl     = p.zoneLevel || p.ZoneLevel || 3;
+    const parent   = p.parentZoneId || p.ParentZoneId;
+
+    document.getElementById('geoGrid').innerHTML = `
+        <div class="geo-card"><div class="geo-icon">🗺</div><div class="geo-value">${zoneType}</div><div class="geo-label">Loại vùng</div></div>
+        <div class="geo-card"><div class="geo-icon">📡</div><div class="geo-value">${radius}m</div><div class="geo-label">Bán kính kích hoạt</div></div>
+        <div class="geo-card"><div class="geo-icon">⏱</div><div class="geo-value">${cooldown > 0 ? cooldown + ' phút' : 'Không'}</div><div class="geo-label">Cooldown</div></div>
+        <div class="geo-card"><div class="geo-icon">🏆</div><div class="geo-value">${priority}/10</div><div class="geo-label">Độ ưu tiên</div></div>
+        <div class="geo-card"><div class="geo-icon">🔁</div><div class="geo-value">${maxP}</div><div class="geo-label">Phát tối đa/phiên</div></div>
+        <div class="geo-card"><div class="geo-icon">📊</div><div class="geo-value">Cấp ${zLvl}</div><div class="geo-label">Cấp vùng</div></div>
+    `;
+    document.getElementById('geoRows').innerHTML = parent ? row('POI cha', `#${parent}`) : `<p style="color:#9CA3AF;font-size:.88rem">Đây là POI gốc (không có POI cha).</p>`;
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+loadPOI();
+</script>
+</body>
+</html>

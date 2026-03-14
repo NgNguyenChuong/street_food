@@ -23,6 +23,13 @@ public partial class SettingsPage : ContentPage
     private bool _isVoicePickerExpanded = false;
     private System.Timers.Timer? _volumeDebounceTimer;
     private System.Timers.Timer? _sensitivityDebounceTimer;
+    private bool _isLoadingPlaybackMode;
+    private readonly List<AudioPlaybackOption> _audioPlaybackOptions = new()
+    {
+        new AudioPlaybackOption(AudioPlaybackModes.Auto, "Tự động (khuyên dùng)"),
+        new AudioPlaybackOption(AudioPlaybackModes.Stream, "Nghe online khi có mạng"),
+        new AudioPlaybackOption(AudioPlaybackModes.Download, "Tải về máy trước khi phát")
+    };
 
     // Language picker meta
     private static readonly Dictionary<string, (string Flag, string DisplayName)> LangMeta = new()
@@ -54,6 +61,7 @@ public partial class SettingsPage : ContentPage
         InitializeComponent();
         _languageService = new LanguageService();
         _ttsService = MauiProgram.Services.GetRequiredService<ITTSService>();
+        AudioPlaybackModePicker.ItemsSource = _audioPlaybackOptions.Select(o => o.Label).ToList();
         SetupCustomLangPicker();
         LoadSettingsAndVoices();
         WireUpSliders();
@@ -160,7 +168,8 @@ public partial class SettingsPage : ContentPage
                 {
                     Voice = "vi-VN-HoaiMyNeural",
                     Volume = 80,
-                    AutoPlay = true
+                    AutoPlay = true,
+                    AudioPlaybackMode = AudioPlaybackModes.Auto
                 },
                 Location = new LocationSettings
                 {
@@ -174,6 +183,7 @@ public partial class SettingsPage : ContentPage
             SensitivitySlider.Value = _settings.Location.SensitivityRadius;
             SensitivityValueLabel.Text = $"{_settings.Location.SensitivityRadius}m";
             AutoPlaySwitch.IsToggled = _settings.TTS.AutoPlay;
+            ApplyPlaybackModeToPicker(_settings.TTS.AudioPlaybackMode);
         }
         catch (Exception ex)
         {
@@ -306,6 +316,31 @@ public partial class SettingsPage : ContentPage
             _settings.TTS.AutoPlay = e.Value;
             await SaveSettings();
         }
+    }
+
+    private async void OnAudioPlaybackModeChanged(object? sender, EventArgs e)
+    {
+        if (_isLoadingPlaybackMode || _settings == null) return;
+
+        var idx = AudioPlaybackModePicker.SelectedIndex;
+        if (idx < 0 || idx >= _audioPlaybackOptions.Count) return;
+
+        _settings.TTS.AudioPlaybackMode = _audioPlaybackOptions[idx].Mode;
+        await SaveSettings();
+    }
+
+    private void ApplyPlaybackModeToPicker(string? mode)
+    {
+        var normalized = string.IsNullOrWhiteSpace(mode)
+            ? AudioPlaybackModes.Auto
+            : mode.Trim().ToLowerInvariant();
+
+        var index = _audioPlaybackOptions.FindIndex(x => x.Mode == normalized);
+        if (index < 0) index = 0;
+
+        _isLoadingPlaybackMode = true;
+        AudioPlaybackModePicker.SelectedIndex = index;
+        _isLoadingPlaybackMode = false;
     }
 
     private async Task SaveSettings()
@@ -496,6 +531,49 @@ public partial class SettingsPage : ContentPage
         }
     }
 
+    private async void OnTestFallbackTtsClicked(object sender, EventArgs e)
+    {
+        TestFallbackButton.IsEnabled = false;
+        TestFallbackButton.Text = "...";
+
+        try
+        {
+            var lang = _languageService.CurrentLanguage switch
+            {
+                "en" => "en-US",
+                "zh" => "zh-CN",
+                _ => "vi-VN"
+            };
+
+            var text = DemoTexts.TryGetValue(_languageService.CurrentLanguage, out var demo)
+                ? demo
+                : DemoTexts["vi"];
+
+            var ok = await _ttsService.SpeakNativeFallbackAsync(text, lang);
+            if (!ok)
+            {
+                await CustomAlert.ShowAsync(
+                    "Lỗi",
+                    "Native fallback TTS không phát được trên thiết bị này.",
+                    "OK",
+                    AlertType.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            await CustomAlert.ShowAsync(
+                "Lỗi",
+                $"Test fallback TTS thất bại: {ex.Message}",
+                "OK",
+                AlertType.Error);
+        }
+        finally
+        {
+            TestFallbackButton.IsEnabled = true;
+            TestFallbackButton.Text = "N";
+        }
+    }
+
     private async void OnCheckOfflineClicked(object sender, EventArgs e)
     {
         if (sender is not Button button) return;
@@ -588,4 +666,16 @@ public class LanguageOption
 {
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+}
+
+public class AudioPlaybackOption
+{
+    public string Mode { get; }
+    public string Label { get; }
+
+    public AudioPlaybackOption(string mode, string label)
+    {
+        Mode = mode;
+        Label = label;
+    }
 }

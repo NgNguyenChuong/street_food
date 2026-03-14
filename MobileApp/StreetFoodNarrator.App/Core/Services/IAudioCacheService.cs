@@ -25,6 +25,13 @@ public interface IAudioCacheService
     Task<Stream?> GetCachedStreamAsync(int poiId, string language);
 
     /// <summary>
+    /// Đảm bảo có file cache cho POI+language.
+    /// Nếu chưa có sẽ tải từ server về local rồi trả Stream.
+    /// Trả null nếu không tải được hoặc không có audio.
+    /// </summary>
+    Task<Stream?> GetOrDownloadCachedStreamAsync(int poiId, string language, CancellationToken ct = default);
+
+    /// <summary>
     /// Kiểm tra nhanh xem file đã được cache chưa (không cần async).
     /// </summary>
     bool IsCached(int poiId, string language);

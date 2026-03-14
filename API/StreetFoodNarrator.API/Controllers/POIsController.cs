@@ -34,7 +34,8 @@ public class POIsController : ControllerBase
         [FromQuery] int pageSize = 10,
         [FromQuery] string? search = null,
         [FromQuery] bool? isActive = null,
-        [FromQuery] string? category = null)
+        [FromQuery] string? category = null,
+        [FromQuery] string? reviewStatus = null)
     {
         var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
 
@@ -59,15 +60,41 @@ public class POIsController : ControllerBase
             filter &= categoryFilter;
         }
 
+        if (!string.IsNullOrWhiteSpace(reviewStatus))
+        {
+            filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, reviewStatus.ToLowerInvariant());
+        }
+
         // Vendor scoping: authenticated vendor only sees their own POIs
         if (User.Identity?.IsAuthenticated == true && User.IsInRole("Vendor"))
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+            if (vendor == null)
+            {
+                var email = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name;
+                if (!string.IsNullOrWhiteSpace(email))
+                {
+                    vendor = await _db.VendorProfiles.Find(v => v.ContactEmail == email).FirstOrDefaultAsync();
+                    if (vendor != null && string.IsNullOrWhiteSpace(vendor.UserId))
+                    {
+                        var update = Builders<VendorProfile>.Update
+                            .Set(v => v.UserId, userId)
+                            .Set(v => v.UpdatedAt, DateTime.UtcNow);
+                        await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, update);
+                    }
+                }
+            }
             if (vendor != null)
             {
                 filter &= Builders<POI>.Filter.Eq(p => p.VendorId, vendor.VendorId);
             }
+        }
+        else if (User.Identity?.IsAuthenticated != true)
+        {
+            // Public: only approved + active
+            filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
+                      Builders<POI>.Filter.Eq(p => p.IsActive, true);
         }
 
         var total = await _db.POIs.CountDocumentsAsync(filter);
@@ -96,7 +123,9 @@ public class POIsController : ControllerBase
     [HttpGet("sync")]
     public async Task<ActionResult<POISyncResponse>> SyncPOIs([FromQuery] long sinceVersion = 0)
     {
-        var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
+        var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
+                     Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
+                     Builders<POI>.Filter.Eq(p => p.IsActive, true);
 
         var latest = await _db.POIs
             .Find(filter)
@@ -140,6 +169,7 @@ public class POIsController : ControllerBase
         var audioCountMap = audioCounts.ToDictionary(x => x.POI_ID, x => x.Count);
         return pois.Select(p => new POIDto
         {
+            Id = p.Id.ToString(),
             POI_ID = p.POI_ID,
             Name_Vi = p.Name_Vi,
             Name_En = p.Name_En,
@@ -154,6 +184,7 @@ public class POIsController : ControllerBase
             CreatedAt = p.CreatedAt,
             AudioCount = audioCountMap.TryGetValue(p.POI_ID, out var count) ? (int)count : 0,
             VendorId = p.VendorId,
+            ReviewStatus = p.ReviewStatus,
             Category = p.Category,
             SignatureDish = p.SignatureDishes?.FirstOrDefault(),
             OpeningHoursText = p.OpeningHoursText,
@@ -192,8 +223,53 @@ public class POIsController : ControllerBase
             return NotFound(new { message = "POI not found" });
         }
 
-        var audios = await _db.AudioContents.Find(a => a.POI_ID == id).ToListAsync();
-        poi.AudioContents = audios;
+        // Public access: only approved + active
+        if (User.Identity?.IsAuthenticated != true &&
+            (poi.ReviewStatus != "approved" || !poi.IsActive))
+        {
+            return NotFound(new { message = "POI not found" });
+        }
+
+        // Attach audio contents with least-privilege:
+        // - Admin: all audio
+        // - Vendor: only if owns this POI
+        // - Anonymous: published + active + not deleted only
+        var canSeeAll = User.Identity?.IsAuthenticated == true && User.IsInRole("Admin");
+        var isVendor = User.Identity?.IsAuthenticated == true && User.IsInRole("Vendor");
+
+        if (canSeeAll)
+        {
+            var audios = await _db.AudioContents.Find(a => a.POI_ID == id).ToListAsync();
+            poi.AudioContents = audios;
+        }
+        else if (isVendor)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var vendor = !string.IsNullOrWhiteSpace(userId)
+                ? await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync()
+                : null;
+
+            if (vendor != null && poi.VendorId == vendor.VendorId)
+            {
+                var audios = await _db.AudioContents.Find(a => a.POI_ID == id).ToListAsync();
+                poi.AudioContents = audios;
+            }
+            else
+            {
+                return Forbid();
+            }
+        }
+        else
+        {
+            var publishedFilter = Builders<AudioContent>.Filter.And(
+                Builders<AudioContent>.Filter.Eq(a => a.POI_ID, id),
+                Builders<AudioContent>.Filter.Eq(a => a.Status, AudioStatuses.Published),
+                Builders<AudioContent>.Filter.Eq(a => a.IsActive, true),
+                Builders<AudioContent>.Filter.Eq(a => a.IsDeleted, false)
+            );
+            var audios = await _db.AudioContents.Find(publishedFilter).ToListAsync();
+            poi.AudioContents = audios;
+        }
 
         return Ok(poi);
     }
@@ -205,6 +281,49 @@ public class POIsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<POI>> CreatePOI([FromBody] CreatePOIModel model)
     {
+        // Vendor must only create POIs under their own VendorId.
+        int? vendorId = null;
+        var isVendor = User.IsInRole("Vendor");
+        if (User.IsInRole("Vendor"))
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Forbid();
+            }
+
+            var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+            if (vendor == null)
+            {
+                return Forbid();
+            }
+
+            if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
+            {
+                return Forbid();
+            }
+
+            vendorId = vendor.VendorId;
+        }
+        else if (User.IsInRole("Admin"))
+        {
+            if (!model.VendorId.HasValue)
+            {
+                return BadRequest(new { message = "VendorId is required when admin creates a POI" });
+            }
+
+            var vendorProfile = await _db.VendorProfiles
+                .Find(v => v.VendorId == model.VendorId.Value)
+                .FirstOrDefaultAsync();
+
+            if (vendorProfile == null)
+            {
+                return BadRequest(new { message = "VendorId does not exist" });
+            }
+
+            vendorId = model.VendorId.Value;
+        }
+
         var nextId = await _sequence.GetNextAsync("poi_id");
         var zoneType = string.IsNullOrWhiteSpace(model.ZoneType) ? "Spot" : model.ZoneType;
         var zoneLevel = model.ZoneLevel ?? (zoneType == "Area" ? 1 : zoneType == "District" ? 2 : 3);
@@ -212,6 +331,16 @@ public class POIsController : ControllerBase
         var triggerRadius = model.TriggerRadius ?? 50;
         var priority = model.Priority ?? 5;
         var maxPlays = model.MaxPlaysPerSession ?? 1;
+        var reviewStatus = "pending";
+        if (!isVendor && !string.IsNullOrWhiteSpace(model.ReviewStatus))
+        {
+            reviewStatus = model.ReviewStatus.ToLowerInvariant();
+        }
+        else if (!isVendor)
+        {
+            reviewStatus = "approved";
+        }
+
         var poi = new POI
         {
             POI_ID = nextId,
@@ -251,10 +380,20 @@ public class POIsController : ControllerBase
             ParentZoneId = model.ParentZoneId,
             MaxPlaysPerSession = maxPlays,
             IsActive = model.IsActive,
+            VendorId = vendorId,
+            ReviewStatus = reviewStatus,
+            ReviewNote = null,
+            ReviewedAt = reviewStatus == "approved" ? DateTime.UtcNow : null,
+            ReviewedBy = reviewStatus == "approved" ? "admin" : null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             Location = GeoJsonLocation.FromLatLon((double)model.Latitude, (double)model.Longitude)
         };
+
+        if (isVendor || reviewStatus != "approved")
+        {
+            poi.IsActive = false;
+        }
 
         await _db.POIs.InsertOneAsync(poi);
 
@@ -273,6 +412,48 @@ public class POIsController : ControllerBase
         if (poi == null)
         {
             return NotFound(new { message = "POI not found" });
+        }
+
+        // Vendor must only update their own POIs
+        if (User.IsInRole("Vendor"))
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Forbid();
+            }
+
+            var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+            if (vendor == null || poi.VendorId != vendor.VendorId)
+            {
+                return Forbid();
+            }
+
+            if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
+            {
+                return Forbid();
+            }
+        }
+
+        int? effectiveVendorId = poi.VendorId;
+
+        if (User.IsInRole("Admin") && model.VendorId.HasValue)
+        {
+            var vendorExists = await _db.VendorProfiles
+                .Find(v => v.VendorId == model.VendorId.Value)
+                .AnyAsync();
+
+            if (!vendorExists)
+            {
+                return BadRequest(new { message = "VendorId does not exist" });
+            }
+
+            effectiveVendorId = model.VendorId.Value;
+        }
+
+        if (!effectiveVendorId.HasValue && !User.IsInRole("Admin"))
+        {
+            return BadRequest(new { message = "POI must belong to a vendor" });
         }
 
         var zoneType = string.IsNullOrWhiteSpace(model.ZoneType) ? poi.ZoneType : model.ZoneType;
@@ -324,15 +505,154 @@ public class POIsController : ControllerBase
             .Set(p => p.IsActive, model.IsActive ?? poi.IsActive)
             .Set(p => p.UpdatedAt, DateTime.UtcNow);
 
+        if (effectiveVendorId.HasValue)
+        {
+            update = update.Set(p => p.VendorId, effectiveVendorId.Value);
+        }
+
+        if (User.IsInRole("Vendor"))
+        {
+            update = update
+                .Set(p => p.ReviewStatus, "pending")
+                .Set(p => p.ReviewNote, null)
+                .Set(p => p.ReviewedAt, null)
+                .Set(p => p.ReviewedBy, null)
+                .Set(p => p.IsActive, false);
+        }
+        else if (User.IsInRole("Admin") && !string.IsNullOrWhiteSpace(model.ReviewStatus))
+        {
+            var status = model.ReviewStatus.ToLowerInvariant();
+
+            if (status == "approved")
+            {
+                if (!effectiveVendorId.HasValue)
+                {
+                    return BadRequest(new { message = "Cannot approve POI without VendorId" });
+                }
+
+                var vendor = await _db.VendorProfiles
+                    .Find(v => v.VendorId == effectiveVendorId.Value)
+                    .FirstOrDefaultAsync();
+
+                if (vendor == null)
+                {
+                    return BadRequest(new { message = "Cannot approve POI because VendorId does not exist" });
+                }
+
+                if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "Cannot approve POI while vendor is not approved" });
+                }
+            }
+
+            update = update
+                .Set(p => p.ReviewStatus, status)
+                .Set(p => p.ReviewNote, model.ReviewNote)
+                .Set(p => p.ReviewedAt, DateTime.UtcNow)
+                .Set(p => p.ReviewedBy, "admin");
+
+            if (status != "approved")
+                update = update.Set(p => p.IsActive, false);
+        }
+
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id, update);
 
         return Ok(poi);
     }
 
     /// <summary>
-    /// Delete POI (soft delete)
+    /// Admin review POI (approve/reject)
     /// </summary>
     [Authorize(Roles = "Admin")]
+    [HttpPost("{id}/review")]
+    public async Task<IActionResult> ReviewPOI(int id, [FromBody] ReviewPOIRequest request)
+    {
+        var status = request.Status?.ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(status) || (status != "approved" && status != "rejected"))
+            return BadRequest(new { message = "Invalid status. Allowed: approved, rejected" });
+
+        var poi = await _db.POIs
+            .Find(p => p.POI_ID == id && p.DeletedAt == null)
+            .FirstOrDefaultAsync();
+
+        if (poi == null)
+            return NotFound(new { message = "POI not found" });
+
+        if (status == "approved")
+        {
+            if (!poi.VendorId.HasValue)
+                return BadRequest(new { message = "Cannot approve POI without VendorId" });
+
+            var vendor = await _db.VendorProfiles
+                .Find(v => v.VendorId == poi.VendorId.Value)
+                .FirstOrDefaultAsync();
+
+            if (vendor == null)
+                return BadRequest(new { message = "Cannot approve POI because VendorId does not exist" });
+
+            if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "Cannot approve POI while vendor is not approved" });
+        }
+
+        var update = Builders<POI>.Update
+            .Set(p => p.ReviewStatus, status)
+            .Set(p => p.ReviewNote, request.Note)
+            .Set(p => p.ReviewedAt, DateTime.UtcNow)
+            .Set(p => p.ReviewedBy, User.Identity?.Name ?? "admin")
+            .Set(p => p.IsActive, status == "approved");
+
+        await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
+
+        return Ok(new { message = $"POI review updated to {status}" });
+    }
+
+    /// <summary>
+    /// Check integrity of Vendor-POI relation.
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpGet("vendor-integrity")]
+    public async Task<IActionResult> GetVendorPoiIntegrity()
+    {
+        var poiFilter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
+        var pois = await _db.POIs.Find(poiFilter).ToListAsync();
+        var vendors = await _db.VendorProfiles.Find(Builders<VendorProfile>.Filter.Empty).ToListAsync();
+
+        var vendorIdSet = vendors.Select(v => v.VendorId).ToHashSet();
+        var assignedPois = pois.Where(p => p.VendorId.HasValue).ToList();
+        var unassignedPois = pois.Where(p => !p.VendorId.HasValue).Select(p => p.POI_ID).ToList();
+        var orphanPoiIds = assignedPois
+            .Where(p => !vendorIdSet.Contains(p.VendorId!.Value))
+            .Select(p => p.POI_ID)
+            .ToList();
+
+        var poiVendorSet = assignedPois
+            .Where(p => p.VendorId.HasValue)
+            .Select(p => p.VendorId!.Value)
+            .ToHashSet();
+
+        var vendorsWithoutPoi = vendors
+            .Where(v => !poiVendorSet.Contains(v.VendorId))
+            .Select(v => new { v.VendorId, v.BusinessName, v.ContactName })
+            .ToList();
+
+        return Ok(new
+        {
+            totalVendors = vendors.Count,
+            totalPois = pois.Count,
+            assignedPois = assignedPois.Count,
+            unassignedPoiCount = unassignedPois.Count,
+            orphanPoiCount = orphanPoiIds.Count,
+            vendorsWithoutPoiCount = vendorsWithoutPoi.Count,
+            unassignedPoiIds = unassignedPois,
+            orphanPoiIds,
+            vendorsWithoutPoi
+        });
+    }
+
+    /// <summary>
+    /// Delete POI (soft delete) - Admin or owning Vendor only
+    /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeletePOI(int id)
     {
@@ -343,8 +663,63 @@ public class POIsController : ControllerBase
             return NotFound(new { message = "POI not found" });
         }
 
-        var update = Builders<POI>.Update.Set(p => p.DeletedAt, DateTime.UtcNow);
-        await _db.POIs.UpdateOneAsync(p => p.POI_ID == id, update);
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+            if (vendor == null)
+            {
+                var email = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name;
+                if (!string.IsNullOrWhiteSpace(email))
+                {
+                    vendor = await _db.VendorProfiles.Find(v => v.ContactEmail == email).FirstOrDefaultAsync();
+                }
+            }
+            if (vendor == null || poi.VendorId != vendor.VendorId)
+            {
+                return StatusCode(403, new { message = "Bạn không có quyền xóa POI này." });
+            }
+        }
+
+        var blockingTours = new List<Tour>();
+        var poiObjectId = poi.Id.ToString();
+
+        var toursByList = await _db.Tours.Find(t =>
+                t.DeletedAt == null &&
+                t.PoiIds.Contains(poiObjectId))
+            .ToListAsync();
+        if (toursByList.Count > 0) blockingTours.AddRange(toursByList);
+
+        var links = await _db.POITours.Find(pt => pt.POI_ID == id).ToListAsync();
+        if (links.Count > 0)
+        {
+            var tourIds = links.Select(l => l.Tour_ID).Distinct().ToList();
+            var toursByJoin = await _db.Tours.Find(t => tourIds.Contains(t.Tour_ID) && t.DeletedAt == null).ToListAsync();
+            if (toursByJoin.Count > 0) blockingTours.AddRange(toursByJoin);
+        }
+
+        if (blockingTours.Count > 0)
+        {
+            var names = blockingTours
+                .Select(t => t.TourName)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .Take(3)
+                .ToList();
+
+            var msg = names.Count > 0
+                ? $"POI đang được dùng trong tour: {string.Join(", ", names)}. Vui lòng gỡ khỏi tour trước khi xóa."
+                : "POI đang được dùng trong tour. Vui lòng gỡ khỏi tour trước khi xóa.";
+
+            return BadRequest(new { message = msg, tours = names });
+        }
+
+        var update = Builders<POI>.Update
+            .Set(p => p.IsDeleted, true)
+            .Set(p => p.DeletedAt, DateTime.UtcNow)
+            .Set(p => p.IsActive, false);
+        await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
 
         return Ok(new { message = "POI deleted successfully" });
     }
@@ -359,10 +734,12 @@ public class POIsController : ControllerBase
         var activeFilter = Builders<POI>.Filter.Eq(p => p.IsActive, true) & Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
         var inactiveFilter = Builders<POI>.Filter.Eq(p => p.IsActive, false) & Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
         var totalFilter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
+        var pendingFilter = Builders<POI>.Filter.Eq(p => p.ReviewStatus, "pending") & Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
 
         var totalPOIs = await _db.POIs.CountDocumentsAsync(totalFilter);
         var activePOIs = await _db.POIs.CountDocumentsAsync(activeFilter);
         var inactivePOIs = await _db.POIs.CountDocumentsAsync(inactiveFilter);
+        var pendingPOIs = await _db.POIs.CountDocumentsAsync(pendingFilter);
         var totalAudios = await _db.AudioContents.CountDocumentsAsync(Builders<AudioContent>.Filter.Empty);
 
         var poiIdsWithViAudio = await _db.AudioContents
@@ -382,7 +759,7 @@ public class POIsController : ControllerBase
             inactivePOIs,
             totalAudios,
             poisWithoutAudio,
-            pendingPOIs = 0
+            pendingPOIs
         };
 
         return Ok(stats);
@@ -515,8 +892,15 @@ public class ResolveMapLinkRequest
     public string Url { get; set; } = string.Empty;
 }
 
+public class ReviewPOIRequest
+{
+    public string? Status { get; set; }
+    public string? Note { get; set; }
+}
+
 public class POIDto
 {
+    public string? Id { get; set; }
     public int POI_ID { get; set; }
     public string Name_Vi { get; set; } = null!;
     public string? Name_En { get; set; }
@@ -537,6 +921,7 @@ public class POIDto
     public DateTime CreatedAt { get; set; }
     public int AudioCount { get; set; }
     public int? VendorId { get; set; }
+    public string? ReviewStatus { get; set; }
     public string? Category { get; set; }
     public string? SignatureDish { get; set; }
     public string? OpeningHoursText { get; set; }
@@ -628,6 +1013,9 @@ public class CreatePOIModel
     public int? CooldownMinutes { get; set; }
     public int? ParentZoneId { get; set; }
     public int? MaxPlaysPerSession { get; set; }
+    public int? VendorId { get; set; }
+    public string? ReviewStatus { get; set; }
+    public string? ReviewNote { get; set; }
     public bool IsActive { get; set; } = true;
 }
 
@@ -680,5 +1068,8 @@ public class UpdatePOIModel
     public int? CooldownMinutes { get; set; }
     public int? ParentZoneId { get; set; }
     public int? MaxPlaysPerSession { get; set; }
+    public int? VendorId { get; set; }
+    public string? ReviewStatus { get; set; }
+    public string? ReviewNote { get; set; }
     public bool? IsActive { get; set; }
 }

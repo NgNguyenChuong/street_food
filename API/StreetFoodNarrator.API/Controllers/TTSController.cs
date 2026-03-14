@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using System.Text;
@@ -74,10 +74,6 @@ public class TTSController : ControllerBase
         {
             var normalizedText = TtsTextPreprocessor.NormalizePlainText(request.Text, request.Language);
 
-            // ═══ DEBUG LOG: xem text gốc và normalized ═══
-            _logger.LogWarning("🔍 TTS DEBUG - Original text: {Text}", request.Text);
-            _logger.LogWarning("🔍 TTS DEBUG - Normalized text: {NormalizedText}", normalizedText);
-
             // Clamp script so playback stays within ~30s (average 2.6 words/s)
             var clamped = ClampToMaxDuration(normalizedText, 30);
             if (string.IsNullOrWhiteSpace(clamped.Text))
@@ -88,9 +84,11 @@ public class TTSController : ControllerBase
             // Get voice for language (allow explicit voice override)
             var voice = TtsVoiceCatalog.GetAllowedVoice(request.Voice, request.Language ?? "vi-VN");
             
-            // Create temp file name
-            var fileName = $"tts_{Guid.NewGuid()}.mp3";
-            var outputPath = GetUploadAudioPath(fileName);
+            // Create file name (poi + language + unique suffix to avoid file-lock conflicts)
+            var uniqueSuffix = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            var fileName = BuildTtsFileName(request.PoiName, request.Language, request.IsTemp == true ? uniqueSuffix : null);
+            var subDir = request.IsTemp == true ? "audio-temp" : "audio";
+            var outputPath = GetUploadAudioPath(fileName, subDir);
             
             // Ensure directory exists
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
@@ -118,19 +116,18 @@ public class TTSController : ControllerBase
             
             // Write text to temp file to avoid command line encoding issues with Vietnamese characters
             var ttsText = TtsTextPreprocessor.BuildSsmlIfNeeded(normalizedText, request.Language);
-            
-            // ═══ DEBUG LOG: xem SSML output ═══
-            _logger.LogWarning("🔍 TTS DEBUG - Final SSML/text sent to Edge-TTS: {TtsText}", ttsText);
-            
             var tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_text_{Guid.NewGuid()}.txt");
             await System.IO.File.WriteAllTextAsync(tempTextFile, ttsText, System.Text.Encoding.UTF8);
             
             try
             {
+                var rate = ToEdgeRate(request.Speed);
+                var volume = ToEdgeVolume(request.Volume);
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = pythonPath,
-                    Arguments = $"\"{scriptPath}\" \"{voice}\" \"@{tempTextFile}\" \"{outputPath}\"",
+                    Arguments = $"\"{scriptPath}\" \"{voice}\" \"@{tempTextFile}\" \"{outputPath}\" \"{rate}\" \"{volume}\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -166,7 +163,7 @@ public class TTSController : ControllerBase
                 return Ok(new
                 {
                     fileName,
-                    filePath = $"/uploads/audio/{fileName}",
+                    filePath = $"/uploads/{subDir}/{fileName}",
                     fileSize = fileInfo.Length,
                     durationSeconds = clamped.EstimatedSeconds,
                     truncated = clamped.Truncated,
@@ -195,6 +192,45 @@ public class TTSController : ControllerBase
     }
 
     /// <summary>
+    /// Delete a temporary generated audio file
+    /// </summary>
+    [HttpPost("delete-temp")]
+    [Authorize(Roles = "Admin,Vendor")]
+    public IActionResult DeleteTemp([FromBody] DeleteTtsFileRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.FilePath))
+        {
+            return BadRequest(new { message = "FilePath is required" });
+        }
+
+        var raw = request.FilePath.Trim();
+        if (!IsTempOrAudioPath(raw))
+        {
+            return BadRequest(new { message = "Invalid file path" });
+        }
+
+        var fileName = Path.GetFileName(raw);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return BadRequest(new { message = "Invalid file path" });
+        }
+
+        var subDir = GetSubDirFromPath(raw);
+        if (string.IsNullOrWhiteSpace(subDir))
+        {
+            return BadRequest(new { message = "Invalid file path" });
+        }
+        var path = GetUploadAudioPath(fileName, subDir);
+        if (System.IO.File.Exists(path))
+        {
+            System.IO.File.Delete(path);
+            return Ok(new { message = "Deleted" });
+        }
+
+        return Ok(new { message = "Not found" });
+    }
+
+    /// <summary>
     /// Get available voices for a language
     /// </summary>
     [HttpGet("voices")]
@@ -216,6 +252,103 @@ public class TTSController : ControllerBase
         {
             _logger.LogError(ex, "Error getting voices");
             return StatusCode(500, new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Test TTS with RAW text (no processing) - for debugging
+    /// </summary>
+    [HttpPost("test-raw")]
+    [AllowAnonymous]
+    public async Task<IActionResult> TestRawTTS([FromBody] TTSRequest request)
+    {
+        if (string.IsNullOrEmpty(request.Text))
+        {
+            return BadRequest(new { message = "Text is required" });
+        }
+
+        try
+        {
+            var voice = TtsVoiceCatalog.GetAllowedVoice(request.Voice, request.Language ?? "vi-VN");
+            var fileName = $"tts_raw_{Guid.NewGuid()}.mp3";
+            var outputPath = GetUploadAudioPath(fileName);
+            
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+
+            var pythonPath = "D:\\project\\street_food\\.venv\\Scripts\\python.exe";
+            var scriptPath = "D:\\project\\street_food\\tts_wrapper.py";
+            
+            if (!System.IO.File.Exists(pythonPath) || !System.IO.File.Exists(scriptPath))
+            {
+                return StatusCode(500, new { message = "Python or TTS wrapper not found" });
+            }
+            
+            // â•â•â• WRITE RAW TEXT - NO PROCESSING AT ALL â•â•â•
+            var tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_raw_{Guid.NewGuid()}.txt");
+            await System.IO.File.WriteAllTextAsync(tempTextFile, request.Text, System.Text.Encoding.UTF8);
+            
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = pythonPath,
+                    Arguments = $"\"{scriptPath}\" \"{voice}\" \"@{tempTextFile}\" \"{outputPath}\" \"{ToEdgeRate(request.Speed)}\" \"{ToEdgeVolume(request.Volume)}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    StandardOutputEncoding = System.Text.Encoding.UTF8,
+                    StandardErrorEncoding = System.Text.Encoding.UTF8
+                };
+
+                using var process = Process.Start(startInfo);
+                if (process == null)
+                {
+                    return StatusCode(500, new { message = "Failed to start edge-tts process" });
+                }
+
+                var output = await process.StandardOutput.ReadToEndAsync();
+                var error = await process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
+
+                if (process.ExitCode != 0)
+                {
+                    _logger.LogError($"Edge-TTS error: {error}");
+                    return StatusCode(500, new { message = "TTS generation failed", error });
+                }
+
+                if (!System.IO.File.Exists(outputPath))
+                {
+                    return StatusCode(500, new { message = "Audio file was not created" });
+                }
+
+                var fileInfo = new FileInfo(outputPath);
+                return Ok(new
+                {
+                    fileName,
+                    filePath = $"/uploads/audio/{fileName}",
+                    fileSize = fileInfo.Length,
+                    message = "RAW text sent to Edge-TTS (no normalize, no SSML)",
+                    originalText = request.Text,
+                    voice
+                });
+            }
+            finally
+            {
+                try
+                {
+                    if (System.IO.File.Exists(tempTextFile))
+                    {
+                        System.IO.File.Delete(tempTextFile);
+                    }
+                }
+                catch { /* Ignore cleanup errors */ }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in raw TTS test");
+            return StatusCode(500, new { message = "Internal server error: " + ex.Message });
         }
     }
 
@@ -260,9 +393,10 @@ public class TTSController : ControllerBase
         return text.Replace("\"", "\\\"").Replace("\n", " ").Replace("\r", " ");
     }
 
-    private string GetUploadAudioPath(string fileName)
+    private string GetUploadAudioPath(string fileName, string? subDir = null)
     {
-        return Path.Combine(_env.ContentRootPath, "Uploads", "audio", fileName);
+        var dir = string.IsNullOrWhiteSpace(subDir) ? "audio" : subDir;
+        return Path.Combine(_env.ContentRootPath, "Uploads", dir, fileName);
     }
 
     private static (string Text, double EstimatedSeconds, bool Truncated) ClampToMaxDuration(string input, int maxSeconds)
@@ -284,6 +418,81 @@ public class TTSController : ControllerBase
         double estSeconds = words.Count / wordsPerSecond;
         return (finalText, Math.Round(estSeconds, 2), truncated);
     }
+
+    private static string BuildTtsFileName(string? poiName, string? language, string? suffix = null)
+    {
+        var namePart = SanitizeFileSegment(poiName);
+        var langPart = NormalizeLangForFile(language);
+        return string.IsNullOrWhiteSpace(suffix)
+            ? $"{namePart}_{langPart}.mp3"
+            : $"{namePart}_{langPart}_{suffix}.mp3";
+    }
+
+    private static string NormalizeLangForFile(string? language)
+    {
+        var lang = (language ?? "vi-VN").Trim().ToLowerInvariant();
+        // Keep full language tag, normalize to safe slug (e.g., "vi-VN" -> "vi-vn")
+        var sb = new System.Text.StringBuilder();
+        foreach (var ch in lang)
+        {
+            if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+            else sb.Append('-');
+        }
+        var slug = System.Text.RegularExpressions.Regex.Replace(sb.ToString(), "-{2,}", "-").Trim('-');
+        return string.IsNullOrWhiteSpace(slug) ? "vi-vn" : slug;
+    }
+
+    private static string SanitizeFileSegment(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return "audio";
+        var normalized = input.Trim().Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder();
+        foreach (var ch in normalized)
+        {
+            var cat = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch);
+            if (cat == System.Globalization.UnicodeCategory.NonSpacingMark) continue;
+            var lower = char.ToLowerInvariant(ch);
+            if (char.IsLetterOrDigit(lower)) sb.Append(lower);
+            else if (lower == ' ' || lower == '-') sb.Append('-');
+        }
+        var slug = System.Text.RegularExpressions.Regex.Replace(sb.ToString(), "-{2,}", "-").Trim('-');
+        if (slug.Length == 0) slug = "audio";
+        if (slug.Length > 50) slug = slug[..50].Trim('-');
+        return slug;
+    }
+
+    private static string ToEdgeRate(double? speed)
+    {
+        if (speed is null) return "+0%";
+        var clamped = Math.Max(0.5, Math.Min(1.5, speed.Value));
+        var pct = (clamped - 1.0) * 100;
+        var sign = pct >= 0 ? "+" : "-";
+        return $"{sign}{Math.Abs(pct):0}%";
+    }
+
+    private static string ToEdgeVolume(double? volume)
+    {
+        if (volume is null) return "+0%";
+        var clamped = Math.Max(0.5, Math.Min(1.5, volume.Value));
+        var pct = (clamped - 1.0) * 100;
+        var sign = pct >= 0 ? "+" : "-";
+        return $"{sign}{Math.Abs(pct):0}%";
+    }
+
+    private static bool IsTempOrAudioPath(string raw)
+    {
+        return raw.StartsWith("/uploads/audio-temp/", StringComparison.OrdinalIgnoreCase)
+            || raw.StartsWith("/uploads/temp/", StringComparison.OrdinalIgnoreCase)
+            || raw.StartsWith("/uploads/audio/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetSubDirFromPath(string raw)
+    {
+        if (raw.StartsWith("/uploads/audio-temp/", StringComparison.OrdinalIgnoreCase)) return "audio-temp";
+        if (raw.StartsWith("/uploads/temp/", StringComparison.OrdinalIgnoreCase)) return "temp";
+        if (raw.StartsWith("/uploads/audio/", StringComparison.OrdinalIgnoreCase)) return "audio";
+        return null;
+    }
 }
 
 public class TTSRequest
@@ -291,6 +500,15 @@ public class TTSRequest
     public string Text { get; set; } = string.Empty;
     public string? Language { get; set; } = "vi-VN";
     public string? Voice { get; set; }
+    public double? Speed { get; set; }
+    public double? Volume { get; set; }
+    public string? PoiName { get; set; }
+    public bool? IsTemp { get; set; }
+}
+
+public class DeleteTtsFileRequest
+{
+    public string FilePath { get; set; } = string.Empty;
 }
 
 public class VoiceInfo
@@ -300,3 +518,4 @@ public class VoiceInfo
     public string Name { get; set; } = string.Empty;
     public string Gender { get; set; } = string.Empty;
 }
+

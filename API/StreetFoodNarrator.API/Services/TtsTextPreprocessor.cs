@@ -65,13 +65,54 @@ public static class TtsTextPreprocessor
 
         var normalizedLanguage = TtsVoiceCatalog.NormalizeLanguage(language);
         text = ReplaceDecimals(text, normalizedLanguage);
+        if (normalizedLanguage == "vi")
+        {
+            text = NormalizeVietnameseTimeAndSlash(text);
+        }
         text = ReplaceSymbols(text, normalizedLanguage);
         text = MultiSpaceRegex.Replace(text, " ").Trim();
         return text;
     }
 
+    private static string NormalizeVietnameseTimeAndSlash(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+
+        // 11h00 -> "11 giờ", 11h30 -> "11 giờ 30 phút"
+        text = Regex.Replace(text, @"\b([01]?\d|2[0-3])\s*h\s*([0-5]\d)\b", match =>
+        {
+            var hour = match.Groups[1].Value;
+            var minute = match.Groups[2].Value;
+            if (minute == "00") return $"{hour} giờ";
+            return $"{hour} giờ {minute} phút";
+        });
+
+        // 11:00 -> "11 giờ", 11:30 -> "11 giờ 30 phút"
+        text = Regex.Replace(text, @"\b([01]?\d|2[0-3]):([0-5]\d)\b", match =>
+        {
+            var hour = match.Groups[1].Value;
+            var minute = match.Groups[2].Value;
+            if (minute == "00") return $"{hour} giờ";
+            return $"{hour} giờ {minute} phút";
+        });
+
+        // 11 giờ 00 -> "11 giờ"
+        text = Regex.Replace(text, @"\b([01]?\d|2[0-3])\s*giờ\s*0{1,2}\b", "$1 giờ");
+
+        // 24/7 -> "24 trên 7" (and similar a/b patterns)
+        text = Regex.Replace(text, @"\b(\d+)\s*/\s*(\d+)\b", "$1 trên $2");
+
+        return text;
+    }
+
     public static string BuildSsmlIfNeeded(string text, string? language)
     {
+        // ═══ FIX: Edge-TTS CLI đọc SSML tags như text thường ═══
+        // Tạm thời disable SSML wrapper vì Edge-TTS không parse đúng
+        // TODO: Tìm cách enable SSML cho edge-tts CLI nếu cần
+        return text;
+        
+        /* ORIGINAL CODE - CAUSING ISSUE:
         var normalizedLanguage = TtsVoiceCatalog.NormalizeLanguage(language);
         if (normalizedLanguage == "en")
         {
@@ -101,6 +142,7 @@ public static class TtsTextPreprocessor
         }
 
         return $"<speak version=\"1.0\" xml:lang=\"{ssmlLang}\">{sb}</speak>";
+        */
     }
 
     private static string ReplaceDecimals(string text, string normalizedLanguage)

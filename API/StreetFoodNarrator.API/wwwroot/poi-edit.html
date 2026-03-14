@@ -595,42 +595,6 @@
             line-height: 1.7;
         }
 
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .stat-box {
-            padding: 1.25rem;
-            background: linear-gradient(135deg, var(--light) 0%, white 100%);
-            border-radius: 14px;
-            text-align: center;
-            border: 2px solid var(--border);
-            transition: all 0.3s ease;
-        }
-
-        .stat-box:hover {
-            border-color: var(--primary);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
-
-        .stat-value {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 0.25rem;
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: #666;
-            font-weight: 500;
-        }
-
         /* System Info */
         .system-info-list {
             display: flex;
@@ -677,7 +641,93 @@
             background: #f5f5f5 !important;
         }
 
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            padding: 1rem 1.5rem;
+            border-radius: 14px;
+            min-width: 280px;
+            max-width: 420px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            pointer-events: all;
+            animation: toastIn 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+        }
+
+        .toast.toast-hide {
+            animation: toastOut 0.3s ease-in forwards;
+        }
+
+        .toast-success {
+            background: linear-gradient(135deg, #06D6A0 0%, #05C494 100%);
+            color: white;
+        }
+
+        .toast-error {
+            background: linear-gradient(135deg, #EF476F 0%, #D63D5F 100%);
+            color: white;
+        }
+
+        .toast-warning {
+            background: linear-gradient(135deg, #FFD23F 0%, #E8BE35 100%);
+            color: #1A1A2E;
+        }
+
+        .toast-info {
+            background: linear-gradient(135deg, #004E89 0%, #003D6B 100%);
+            color: white;
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .toast-msg { flex: 1; }
+
+        .toast-close {
+            background: rgba(255,255,255,0.25);
+            border: none;
+            color: inherit;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        .toast-close:hover { background: rgba(255,255,255,0.4); }
+
         /* Animations */
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0); }
+            to   { opacity: 0; transform: translateX(100%); }
+        }
+
         @keyframes fadeInDown {
             from {
                 opacity: 0;
@@ -743,10 +793,6 @@
                 grid-template-columns: 1fr;
             }
 
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
             .hours-main-row {
                 grid-template-columns: 1fr;
             }
@@ -763,6 +809,8 @@
 </head>
 
 <body>
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
@@ -784,65 +832,22 @@
             <!-- Left Column - Main Info -->
             <div>
                 <!-- Basic Information -->
-                <div class="form-section" id="statusSection">
+                <div class="form-section" id="basicInfoSection">
                     <h2 class="section-title">
                         <i class="fas fa-info-circle"></i>
                         Thông tin cơ bản
                     </h2>
 
                     <!-- Language Tabs -->
-                    <div class="lang-tabs">
-                        <button type="button" class="lang-tab active" onclick="switchLang('vi')">
-                            🇻🇳 Tiếng Việt
-                        </button>
-                        <button type="button" class="lang-tab" onclick="switchLang('en')">
-                            🇬🇧 English
-                        </button>
-                        <button type="button" class="lang-tab" onclick="switchLang('zh')">
-                            🇨🇳 中文
-                        </button>
-                    </div>
-
-                    <!-- Vietnamese -->
+                    <!-- Vietnamese Only (Auto-translated to EN/ZH on save) -->
                     <div id="lang-vi" class="lang-content active">
                         <div class="form-group">
-                            <label class="form-label">
-                                Tên POI (Tiếng Việt)
-                                <span class="required">*</span>
-                            </label>
-                            <input type="text" class="form-input" placeholder="VD: Phở Hà Nội 99" required id="poiName"
-                                value="">
+                            <label class="form-label">Tên POI (Tiếng Việt) <span class="required">*</span></label>
+                            <input type="text" class="form-input" placeholder="VD: Phở Hà Nội 99" required id="poiName" value="">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Mô tả (Tiếng Việt)</label>
-                            <textarea class="form-textarea" placeholder="Mô tả về gian hàng..."
-                                id="poiDescription"></textarea>
-                        </div>
-                    </div>
-
-                    <!-- English -->
-                    <div id="lang-en" class="lang-content">
-                        <div class="form-group">
-                            <label class="form-label">Name (English)</label>
-                            <input type="text" class="form-input" placeholder="e.g., Pho Ha Noi 99" id="poiNameEn"
-                                value="">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Description (English)</label>
-                            <textarea class="form-textarea" placeholder="Description..."
-                                id="poiDescriptionEn"></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Chinese -->
-                    <div id="lang-zh" class="lang-content">
-                        <div class="form-group">
-                            <label class="form-label">名称 (中文)</label>
-                            <input type="text" class="form-input" placeholder="例如：河内粉99" id="poiNameZh" value="">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">描述 (中文)</label>
-                            <textarea class="form-textarea" placeholder="描述..." id="poiDescriptionZh"></textarea>
+                            <textarea class="form-textarea" placeholder="Mô tả về gian hàng..." id="poiDescription"></textarea>
                         </div>
                     </div>
 
@@ -864,6 +869,7 @@
                             <option value="hotpot">Lẩu</option>
                             <option value="other">Khác</option>
                         </select>
+                        <input type="text" class="form-input" id="poiCategoryOther" placeholder="Nhập danh mục mới" style="margin-top:0.75rem; display:none;">
                     </div>
 
                     <div class="form-group">
@@ -875,12 +881,35 @@
                             id="poiAddress" value="">
                     </div>
 
+                    <div class="form-group admin-only" id="vendorOwnerGroup">
+                        <label class="form-label">
+                            Chủ sở hữu POI (Vendor)
+                            <span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="vendorSelect">
+                            <option value="">Đang tải danh sách vendor...</option>
+                        </select>
+                        <div class="form-help" id="vendorSelectHelp">
+                            <i class="fas fa-user-tie"></i>
+                            Admin bắt buộc chọn vendor để POI luôn có chủ sở hữu.
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label">
                             Tọa độ GPS
                             <span class="required">*</span>
                         </label>
-                        <div class="map-search">
+                        <div class="form-row" style="margin-bottom:0.75rem;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label class="form-label" style="font-size:0.85rem;">Cách nhập tọa độ</label>
+                                <select class="form-select" id="gpsMode">
+                                    <option value="address">Nhập địa chỉ thủ công</option>
+                                    <option value="maplink">Dán link Google Maps</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="map-search" id="mapSearchGroup">
                             <input type="text" class="form-input" id="mapSearchInput" placeholder="Nhập địa chỉ để tìm">
                             <button type="button" class="btn btn-primary" id="mapSearchBtn">
                                 <i class="fas fa-search"></i>
@@ -897,7 +926,7 @@
                         </div>
 
                         <!-- Vendor / Admin Map Link -->
-                        <div class="map-search mt-2 pt-2 border-t border-gray-100"
+                        <div class="map-search mt-2 pt-2 border-t border-gray-100" id="mapUrlGroup"
                             style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
                             <input type="url" class="form-input" id="mapUrlInput"
                                 placeholder="VD: https://maps.app.goo.gl/... (Link Google Maps)">
@@ -1213,13 +1242,13 @@
             <!-- Right Column - Status & Stats -->
             <div>
                 <!-- Status -->
-                <div class="form-section">
+                <div class="form-section" id="statusSection">
                     <h2 class="section-title">
                         <i class="fas fa-toggle-on"></i>
                         Trạng thái
                     </h2>
 
-                    <div class="form-group">
+                    <div class="form-group admin-only">
                         <label class="form-label">Trạng thái POI</label>
                         <div class="status-toggle">
                             <div class="status-option active" onclick="setStatus('active')">
@@ -1233,41 +1262,10 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Vendor</label>
-                        <select class="form-select" id="vendorSelect"></select>
-                    </div>
-                </div>
-
-                <!-- Statistics -->
-                <div class="form-section" style="margin-top: 2rem;">
-                    <h2 class="section-title">
-                        <i class="fas fa-chart-line"></i>
-                        Thống kê
-                    </h2>
-
-                    <div class="stats-grid">
-                        <div class="stat-box">
-                            <div class="stat-value" id="viewsStat">0</div>
-                            <div class="stat-label">Lượt xem</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value" id="playsStat">0</div>
-                            <div class="stat-label">Lượt phát</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value" id="ratingStat">N/A</div>
-                            <div class="stat-label">Đánh giá</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value" id="commentsStat">0</div>
-                            <div class="stat-label">Bình luận</div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Info Card -->
-                <div class="form-section" style="margin-top: 2rem;">
+                <div class="form-section" style="margin-top: 2rem;" id="systemMetaSection">
                     <h2 class="section-title">
                         <i class="fas fa-info-circle"></i>
                         Thông tin hệ thống
@@ -1347,10 +1345,14 @@
 
         let currentStatus = true;
         let currentPoiId = null;
+        let currentPoi = null;
         let currentImageUrl = null;
+        let currentVendorProfile = null;
         let poiMap = null;
         let poiMarker = null;
         let poiCircle = null;
+
+        // Auto Translate Logic
 
         function getQueryId() {
             const params = new URLSearchParams(window.location.search);
@@ -1366,17 +1368,6 @@
             } else {
                 options[1].classList.add('inactive');
             }
-        }
-
-        function switchLang(langCode) {
-            // Update tabs
-            document.querySelectorAll('.lang-tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-
-            // Update content
-            document.querySelectorAll('.lang-content').forEach(content => content.classList.remove('active'));
-            const targetContent = document.getElementById(`lang-${langCode}`);
-            if (targetContent) targetContent.classList.add('active');
         }
 
         function initMap(lat, lng) {
@@ -1420,6 +1411,18 @@
             if (!isNaN(lat) && !isNaN(lng)) {
                 initMap(lat, lng);
             }
+        }
+
+        function applyGpsMode() {
+            const modeEl = document.getElementById('gpsMode');
+            const searchGroup = document.getElementById('mapSearchGroup');
+            const urlGroup = document.getElementById('mapUrlGroup');
+            const urlStatus = document.getElementById('mapUrlStatus');
+            const mode = modeEl?.value || 'address';
+
+            if (searchGroup) searchGroup.style.display = mode === 'address' ? '' : 'none';
+            if (urlGroup) urlGroup.style.display = mode === 'maplink' ? '' : 'none';
+            if (urlStatus) urlStatus.style.display = mode === 'maplink' ? '' : 'none';
         }
 
         function updateLatLngInputs(lat, lng) {
@@ -1661,19 +1664,38 @@
         async function loadVendors(selectedId) {
             if (!isAdmin) return;
             const select = document.getElementById('vendorSelect');
+            const help = document.getElementById('vendorSelectHelp');
             select.innerHTML = '<option value="">Đang tải...</option>';
             try {
-                const resp = await api.getVendors('', '', 'name-asc');
+                const resp = await api.getVendors('', 'approved', 'name-asc');
                 const vendors = resp.data || [];
                 if (vendors.length === 0) {
-                    select.innerHTML = '<option value="">Không có vendor</option>';
+                    select.innerHTML = '<option value="">Không có vendor đã duyệt</option>';
+                    if (help) {
+                        help.textContent = 'Hiện chưa có vendor ở trạng thái approved để gán cho POI.';
+                        help.style.color = 'var(--danger)';
+                    }
                     return;
                 }
-                select.innerHTML = vendors.map(v => `
-                <option value="${v.vendorId}" ${selectedId === v.vendorId ? 'selected' : ''}>${v.businessName || v.contactName || 'Vendor'}</option>
-            `).join('');
+
+                const options = vendors.map(v => {
+                    const id = v.vendorId ?? v.VendorId;
+                    const contact = v.contactName ?? v.ContactName ?? 'N/A';
+                    const business = v.businessName ?? v.BusinessName ?? '';
+                    return `<option value="${id}" ${selectedId === id ? 'selected' : ''}>#${id} - ${contact}${business ? ` (${business})` : ''}</option>`;
+                }).join('');
+
+                select.innerHTML = `<option value="">Chọn Vendor sở hữu POI</option>${options}`;
+                if (help) {
+                    help.innerHTML = '<i class="fas fa-user-tie"></i> Chọn đúng vendor để tránh POI không có chủ.';
+                    help.style.color = '';
+                }
             } catch (error) {
                 select.innerHTML = '<option value="">Không tải được vendor</option>';
+                if (help) {
+                    help.textContent = 'Không tải được danh sách vendor. Vui lòng thử lại.';
+                    help.style.color = 'var(--danger)';
+                }
             }
         }
 
@@ -1699,8 +1721,8 @@
                 }
             });
 
-            const statusSection = document.getElementById('statusSection');
-            if (statusSection) statusSection.classList.add('role-hidden');
+            const systemMetaSection = document.getElementById('systemMetaSection');
+            if (systemMetaSection) systemMetaSection.classList.add('role-hidden');
 
             const dangerZone = document.getElementById('dangerZone');
             if (dangerZone) dangerZone.classList.add('role-hidden');
@@ -1716,22 +1738,39 @@
 
             try {
                 const poi = await api.getPOI(currentPoiId);
+                currentPoi = poi;
+
+                if (isVendor) {
+                    try {
+                        currentVendorProfile = await api.getVendorMe();
+                    } catch {
+                        currentVendorProfile = null;
+                    }
+
+                    const poiVendorId = parseInt((poi.vendorId ?? poi.VendorId ?? ''), 10);
+                    const myVendorId = parseInt((currentVendorProfile?.vendorId ?? currentVendorProfile?.VendorId ?? ''), 10);
+
+                    if (Number.isNaN(myVendorId) || Number.isNaN(poiVendorId) || poiVendorId !== myVendorId) {
+                        alert('Bạn không có quyền chỉnh sửa POI này.');
+                        window.location.href = 'poi-list.html';
+                        return;
+                    }
+                }
+
                 document.getElementById('poiName').value = poi.name_Vi || '';
                 document.getElementById('poiDescription').value = poi.description_Vi || '';
-                document.getElementById('poiNameEn').value = poi.name_En || '';
-                document.getElementById('poiDescriptionEn').value = poi.description_En || '';
-                document.getElementById('poiNameZh').value = poi.name_Zh || '';
-                document.getElementById('poiDescriptionZh').value = poi.description_Zh || '';
                 document.getElementById('poiAddress').value = poi.address || '';
 
-                if (isAdmin) {
-                    document.getElementById('mapSearchInput').value = poi.address || '';
-                    document.getElementById('latitude').value = poi.latitude ?? '';
-                    document.getElementById('longitude').value = poi.longitude ?? '';
-                } else {
-                    document.getElementById('vendorLat').value = poi.latitude ?? '';
-                    document.getElementById('vendorLng').value = poi.longitude ?? '';
-                }
+                const mapSearchEl = document.getElementById('mapSearchInput');
+                if (mapSearchEl) mapSearchEl.value = poi.address || '';
+                const latEl = document.getElementById('latitude');
+                const lngEl = document.getElementById('longitude');
+                if (latEl) latEl.value = poi.latitude ?? '';
+                if (lngEl) lngEl.value = poi.longitude ?? '';
+                const vLatEl = document.getElementById('vendorLat');
+                const vLngEl = document.getElementById('vendorLng');
+                if (vLatEl) vLatEl.value = poi.latitude ?? '';
+                if (vLngEl) vLngEl.value = poi.longitude ?? '';
 
                 document.getElementById('geofenceRadius').value = poi.triggerRadius ?? '';
                 const zoneTypeValue = poi.zoneType || 'Spot';
@@ -1751,8 +1790,40 @@
                 document.getElementById('scriptEn').value = poi.script_En || '';
                 document.getElementById('scriptZh').value = poi.script_Zh || '';
 
-                document.getElementById('poiCategory').value = poi.category || '';
-                applyOpeningHours(poi);
+                const categoryEl = document.getElementById('poiCategory');
+                const categoryOtherEl = document.getElementById('poiCategoryOther');
+                const categoryValue = poi.category || '';
+                if (categoryEl) {
+                    const hasOption = Array.from(categoryEl.options).some(o => o.value === categoryValue);
+                    if (categoryValue && !hasOption) {
+                        categoryEl.value = 'other';
+                        if (categoryOtherEl) {
+                            categoryOtherEl.style.display = 'block';
+                            categoryOtherEl.value = '';
+                        }
+                    } else {
+                        categoryEl.value = categoryValue;
+                        if (categoryOtherEl) {
+                            categoryOtherEl.style.display = categoryEl.value === 'other' ? 'block' : 'none';
+                            if (categoryEl.value !== 'other') categoryOtherEl.value = '';
+                        }
+                    }
+                }
+                const handleCategoryChange = () => {
+                    const catEl = document.getElementById('poiCategory');
+                    const otherEl = document.getElementById('poiCategoryOther');
+                    if (!catEl || !otherEl) return;
+                    if (catEl.value === 'other') {
+                        otherEl.style.display = 'block';
+                        otherEl.value = '';
+                    } else {
+                        otherEl.style.display = 'none';
+                        otherEl.value = '';
+                    }
+                };
+                const categoryEl2 = document.getElementById('poiCategory');
+                if (categoryEl2) categoryEl2.addEventListener('change', handleCategoryChange);
+                                applyOpeningHours(poi);
                 document.getElementById('phone').value = poi.phoneNumber || '';
                 document.getElementById('avgPrice').value = poi.averagePrice ?? '';
                 document.getElementById('specialty').value = (poi.signatureDishes?.[0] || poi.signatureDish || poi.specialties?.[0] || '');
@@ -1786,20 +1857,33 @@
         }
 
         async function loadPoiAudioStats() {
+            const playsEl = document.getElementById('playsStat');
+            const viewsEl = document.getElementById('viewsStat');
+            const ratingEl = document.getElementById('ratingStat');
+            const commentsEl = document.getElementById('commentsStat');
+            if (!playsEl && !viewsEl && !ratingEl && !commentsEl) return;
             try {
                 const resp = await api.getAudioList(1, 1000, null, currentPoiId);
                 const audios = resp.data || [];
-                document.getElementById('playsStat').textContent = audios.length;
+                if (playsEl) playsEl.textContent = audios.length;
             } catch (error) {
-                document.getElementById('playsStat').textContent = '0';
+                if (playsEl) playsEl.textContent = '0';
             }
-            document.getElementById('viewsStat').textContent = '0';
-            document.getElementById('ratingStat').textContent = 'N/A';
-            document.getElementById('commentsStat').textContent = '0';
+            if (viewsEl) viewsEl.textContent = '0';
+            if (ratingEl) ratingEl.textContent = 'N/A';
+            if (commentsEl) commentsEl.textContent = '0';
         }
 
         async function savePOI() {
             if (!currentPoiId) return;
+
+            if (isAdmin) {
+                const selectedVendorId = parseInt(document.getElementById('vendorSelect')?.value || '', 10);
+                if (Number.isNaN(selectedVendorId)) {
+                    alert('Admin bắt buộc chọn Vendor trước khi lưu POI.');
+                    return;
+                }
+            }
 
             const splitCsv = (value) => value
                 .split(',')
@@ -1812,79 +1896,124 @@
             const avgPriceValue = parseFloat(document.getElementById('avgPrice').value);
             const hoursPayload = buildOpeningHours();
 
-            const data = {
-                name_Vi: document.getElementById('poiName').value,
-                description_Vi: document.getElementById('poiDescription').value,
-                name_En: document.getElementById('poiNameEn').value || null,
-                description_En: document.getElementById('poiDescriptionEn').value || null,
-                name_Zh: document.getElementById('poiNameZh').value || null,
-                description_Zh: document.getElementById('poiDescriptionZh').value || null,
-                category: document.getElementById('poiCategory').value || null,
-                openingHoursText: hoursPayload.openingHoursText || null,
-                openingHours: hoursPayload.openingHours || null,
-                phoneNumber: document.getElementById('phone').value || null,
-                averagePrice: Number.isNaN(avgPriceValue) ? null : avgPriceValue,
-                signatureDish: specialtyText || null,
-                signatureDishes: specialties.length ? specialties : null,
-                specialties: specialties.length ? specialties : null,
-                tags: tags.length ? tags : null,
-                imageUrl: currentImageUrl || null
-            };
-
-            const zoneTypeValue = document.getElementById('zoneType')?.value;
-            if (zoneTypeValue) data.zoneType = zoneTypeValue;
-
-            const triggerRadiusValue = parseInt(document.getElementById('geofenceRadius').value || '', 10);
-            if (!Number.isNaN(triggerRadiusValue)) data.triggerRadius = triggerRadiusValue;
-
-            const priorityValue = parseInt(document.getElementById('priority').value || '', 10);
-            if (!Number.isNaN(priorityValue)) data.priority = priorityValue;
-
-            const cooldownValue = parseInt(document.getElementById('cooldownMinutes').value || '', 10);
-            if (!Number.isNaN(cooldownValue)) data.cooldownMinutes = cooldownValue;
-
-            const maxPlaysValue = parseInt(document.getElementById('maxPlaysPerSession').value || '', 10);
-            if (!Number.isNaN(maxPlaysValue)) data.maxPlaysPerSession = maxPlaysValue;
-
-            const parentZoneValue = parseInt(document.getElementById('parentZoneId').value || '', 10);
-            if (!Number.isNaN(parentZoneValue)) data.parentZoneId = parentZoneValue;
-
-            const funFactValue = document.getElementById('funFact').value.trim();
-            if (funFactValue) data.funFact = funFactValue;
-
-            const audioUrlVi = document.getElementById('audioUrlVi').value.trim();
-            if (audioUrlVi) data.audioUrl_Vi = audioUrlVi;
-            const audioUrlEn = document.getElementById('audioUrlEn').value.trim();
-            if (audioUrlEn) data.audioUrl_En = audioUrlEn;
-            const audioUrlZh = document.getElementById('audioUrlZh').value.trim();
-            if (audioUrlZh) data.audioUrl_Zh = audioUrlZh;
-
-            const scriptVi = document.getElementById('scriptVi').value.trim();
-            if (scriptVi) data.script_Vi = scriptVi;
-            const scriptEn = document.getElementById('scriptEn').value.trim();
-            if (scriptEn) data.script_En = scriptEn;
-            const scriptZh = document.getElementById('scriptZh').value.trim();
-            if (scriptZh) data.script_Zh = scriptZh;
-
-            if (isAdmin) {
-                data.address = document.getElementById('poiAddress').value;
-                data.latitude = parseFloat(document.getElementById('latitude').value);
-                data.longitude = parseFloat(document.getElementById('longitude').value);
-                data.isActive = currentStatus;
-            } else {
-                const lat = parseFloat(document.getElementById('vendorLat').value);
-                const lng = parseFloat(document.getElementById('vendorLng').value);
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    data.latitude = lat;
-                    data.longitude = lng;
-                }
-            }
+            const btnHtml = event.target.innerHTML;
+            event.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+            event.target.disabled = true;
 
             try {
+                let nameEn = null, nameZh = null, descEn = null, descZh = null;
+                const nameVi = document.getElementById('poiName').value.trim();
+                const descVi = document.getElementById('poiDescription').value.trim();
+
+                if (nameVi) {
+                    const nameRes = await api.autoTranslate(nameVi, ['en', 'zh-CN']);
+                    if (nameRes) {
+                        nameEn = nameRes.en || null;
+                        nameZh = nameRes['zh-CN'] || null;
+                    }
+                }
+                if (descVi) {
+                    const descRes = await api.autoTranslate(descVi, ['en', 'zh-CN']);
+                    if (descRes) {
+                        descEn = descRes.en || null;
+                        descZh = descRes['zh-CN'] || null;
+                    }
+                }
+
+                const data = {
+                    name_Vi: nameVi,
+                    description_Vi: descVi || null,
+                    name_En: nameEn,
+                    description_En: descEn,
+                    name_Zh: nameZh,
+                    description_Zh: descZh,
+                    category: (() => {
+                        const catEl = document.getElementById('poiCategory');
+                        const otherEl = document.getElementById('poiCategoryOther');
+                        if (!catEl) return null;
+                        if (catEl.value === 'other') {
+                            const v = otherEl?.value?.trim();
+                            return v || null;
+                        }
+                        return catEl.value || null;
+                    })(),
+                    openingHoursText: hoursPayload.openingHoursText || null,
+                    openingHours: hoursPayload.openingHours || null,
+                    phoneNumber: document.getElementById('phone').value || null,
+                    averagePrice: Number.isNaN(avgPriceValue) ? null : avgPriceValue,
+                    signatureDish: specialtyText || null,
+                    signatureDishes: specialties.length ? specialties : null,
+                    specialties: specialties.length ? specialties : null,
+                    tags: tags.length ? tags : null,
+                    imageUrl: currentImageUrl || null
+                };
+
+                const zoneTypeValue = document.getElementById('zoneType')?.value;
+                if (zoneTypeValue) data.zoneType = zoneTypeValue;
+
+                const triggerRadiusValue = parseInt(document.getElementById('geofenceRadius').value || '', 10);
+                if (!Number.isNaN(triggerRadiusValue)) data.triggerRadius = triggerRadiusValue;
+
+                const priorityValue = parseInt(document.getElementById('priority').value || '', 10);
+                if (!Number.isNaN(priorityValue)) data.priority = priorityValue;
+
+                const cooldownValue = parseInt(document.getElementById('cooldownMinutes').value || '', 10);
+                if (!Number.isNaN(cooldownValue)) data.cooldownMinutes = cooldownValue;
+
+                const maxPlaysValue = parseInt(document.getElementById('maxPlaysPerSession').value || '', 10);
+                if (!Number.isNaN(maxPlaysValue)) data.maxPlaysPerSession = maxPlaysValue;
+
+                const parentZoneValue = parseInt(document.getElementById('parentZoneId').value || '', 10);
+                if (!Number.isNaN(parentZoneValue)) data.parentZoneId = parentZoneValue;
+
+                const funFactValue = document.getElementById('funFact').value.trim();
+                if (funFactValue) data.funFact = funFactValue;
+
+                const audioUrlVi = document.getElementById('audioUrlVi').value.trim();
+                if (audioUrlVi) data.audioUrl_Vi = audioUrlVi;
+                const audioUrlEn = document.getElementById('audioUrlEn').value.trim();
+                if (audioUrlEn) data.audioUrl_En = audioUrlEn;
+                const audioUrlZh = document.getElementById('audioUrlZh').value.trim();
+                if (audioUrlZh) data.audioUrl_Zh = audioUrlZh;
+
+                const scriptVi = document.getElementById('scriptVi').value.trim();
+                if (scriptVi) data.script_Vi = scriptVi;
+                const scriptEn = document.getElementById('scriptEn').value.trim();
+                if (scriptEn) data.script_En = scriptEn;
+                const scriptZh = document.getElementById('scriptZh').value.trim();
+                if (scriptZh) data.script_Zh = scriptZh;
+
+                if (isAdmin) {
+                    const selectedVendorId = parseInt(document.getElementById('vendorSelect').value || '', 10);
+                    data.address = document.getElementById('poiAddress').value;
+                    data.latitude = parseFloat(document.getElementById('latitude').value);
+                    data.longitude = parseFloat(document.getElementById('longitude').value);
+                    data.vendorId = selectedVendorId;
+                    data.isActive = currentStatus;
+                } else {
+                    const lat = parseFloat(document.getElementById('vendorLat').value);
+                    const lng = parseFloat(document.getElementById('vendorLng').value);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        data.latitude = lat;
+                        data.longitude = lng;
+                    }
+
+                    const myVendorId = parseInt((currentVendorProfile?.vendorId ?? currentVendorProfile?.VendorId ?? ''), 10);
+                    if (!Number.isNaN(myVendorId)) {
+                        data.vendorId = myVendorId;
+                    }
+
+                    // Vendor sửa thì tự tắt để Admin bật lại khi cần.
+                    data.isActive = false;
+                }
+
                 await api.updatePOI(currentPoiId, data);
-                alert('POI đã được cập nhật thành công!');
+                showToast('POI đã được cập nhật thành công!', 'success');
             } catch (error) {
-                alert('Lỗi khi lưu POI: ' + error.message);
+                showToast('Lỗi khi lưu POI: ' + error.message, 'error');
+            } finally {
+                event.target.innerHTML = btnHtml;
+                event.target.disabled = false;
             }
         }
 
@@ -1985,6 +2114,21 @@
 
                 initMap(data.latitude, data.longitude);
 
+                // Reverse geocode to fill address fields
+                try {
+                    const rev = await fetch(`/api/Geocode/reverse?lat=${data.latitude}&lng=${data.longitude}`);
+                    if (rev.ok) {
+                        const revData = await rev.json();
+                        const display = revData.display_name || '';
+                        if (display) {
+                            const addrInput = document.getElementById('poiAddress');
+                            const searchInput = document.getElementById('mapSearchInput');
+                            if (addrInput) addrInput.value = display;
+                            if (searchInput) searchInput.value = display;
+                        }
+                    }
+                } catch { /* ignore */ }
+
                 statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Đã lấy tọa độ thành công!';
                 statusDiv.style.color = 'var(--success)';
             } catch (err) {
@@ -2048,6 +2192,9 @@
 
         initOpeningHoursEditor();
         applyRoleUi();
+        const gpsModeEl = document.getElementById('gpsMode');
+        if (gpsModeEl) gpsModeEl.addEventListener('change', applyGpsMode);
+        applyGpsMode();
         window.addEventListener('load', loadPoi);
     </script>
 </body>

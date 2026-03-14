@@ -41,7 +41,7 @@
   margin: 0; padding: 0; box-sizing: border-box;
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; font-size: 80%; }
 
 body {
   font-family: 'DM Sans', sans-serif;
@@ -50,6 +50,7 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  zoom: 0.6;
 }
 
 a { text-decoration: none; color: inherit; }

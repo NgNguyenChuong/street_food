@@ -23,7 +23,7 @@
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'DM Sans', sans-serif; background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%); color: var(--dark); overflow-x: hidden; }
-        .main-content { margin-left: 130px; padding: 2rem; min-height: 100vh; transition: margin-left 0.3s; }
+        .main-content { margin-left: 0; padding: 2rem; min-height: 100vh; transition: margin-left 0.3s; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; animation: fadeIn 0.6s ease-out; }
         .page-title { font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .header-actions { display: flex; gap: 1rem; align-items: center; }
@@ -214,10 +214,14 @@
 
     async function loadDashboard() {
         try {
-            const [poisData, audioData] = await Promise.all([
-                POIApi.list({ page: 1, pageSize: 50 }),
+            const tasks = [
+                POIApi.list({ page: 1, pageSize: 200 }),
                 AudioApi.list({ page: 1, pageSize: 100 })
-            ]);
+            ];
+
+            const results = await Promise.all(tasks);
+            const poisData = results[0];
+            const audioData = results[1];
 
             const pois = poisData.data || [];
             document.getElementById('totalPOIs').textContent = poisData.total || 0;
@@ -239,12 +243,15 @@
                     </tr>
                 `).join('');
             }
-
-            // Load translations count
-            try {
-                const transStats = await TranslationsApi.stats();
-                document.getElementById('totalTranslations').textContent = transStats.total || 0;
-            } catch (e) {}
+            // Load translations count (admin only) - based on POI translated fields
+            if (!isVendor) {
+                const totalTransEl = document.getElementById('totalTranslations');
+                if (totalTransEl) {
+                    const translatedEn = pois.filter(p => typeof p.name_En === 'string' && p.name_En.trim() !== '').length;
+                    const translatedZh = pois.filter(p => typeof p.name_Zh === 'string' && p.name_Zh.trim() !== '').length;
+                    totalTransEl.textContent = Math.max(translatedEn, translatedZh);
+                }
+            }
 
             // Activity feed
             const feed = document.getElementById('activityFeed');

@@ -16,6 +16,11 @@ public class AudioController : ControllerBase
     private readonly MongoDbContext _db;
     private readonly MongoSequenceService _sequence;
     private readonly IWebHostEnvironment _env;
+    private static readonly HashSet<string> AllowedAudioExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mp3", ".wav", ".m4a"
+    };
+    private const long MaxAudioBytes = 25L * 1024 * 1024; // 25 MB
 
     public AudioController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env)
     {
@@ -49,6 +54,18 @@ public class AudioController : ControllerBase
         }
 
         var filter = Builders<AudioContent>.Filter.Empty;
+
+        // Anonymous users should only see published + active + not deleted
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            filter &= Builders<AudioContent>.Filter.Eq(a => a.Status, AudioStatuses.Published)
+                   & Builders<AudioContent>.Filter.Eq(a => a.IsActive, true)
+                   & Builders<AudioContent>.Filter.Eq(a => a.IsDeleted, false);
+        }
+        else if (!User.IsInRole("Admin") && !User.IsInRole("Vendor"))
+        {
+            return Forbid();
+        }
 
         if (!string.IsNullOrEmpty(language))
         {
@@ -94,7 +111,9 @@ public class AudioController : ControllerBase
             filter &= Builders<AudioContent>.Filter.In(a => a.POI_ID, matchedPoiIds);
         }
 
-        if (!string.IsNullOrWhiteSpace(status))
+        // Only allow status filtering for authenticated users (Admin/Vendor).
+        // Anonymous is already hard-limited to Published above.
+        if (!string.IsNullOrWhiteSpace(status) && User.Identity?.IsAuthenticated == true)
         {
             var normalizedStatus = status.Trim().ToLowerInvariant();
             if (normalizedStatus == AudioStatuses.Published)
@@ -189,6 +208,28 @@ public class AudioController : ControllerBase
             return NotFound(new { message = "Audio not found" });
         }
 
+        // Anonymous users can only access published, active, non-deleted audio
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            var normalized = NormalizeStatus(audio.Status);
+            if (normalized != AudioStatuses.Published || audio.IsActive != true || audio.IsDeleted == true)
+            {
+                return NotFound(new { message = "Audio not found" });
+            }
+        }
+        else if (IsVendor())
+        {
+            var vendor = await GetVendorProfileAsync();
+            if (vendor == null || !await VendorOwnsPoiAsync(vendor.VendorId, audio.POI_ID))
+            {
+                return Forbid();
+            }
+        }
+        else if (!User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
         var poi = await _db.POIs.Find(p => p.POI_ID == audio.POI_ID && p.DeletedAt == null).FirstOrDefaultAsync();
         if (poi != null)
         {
@@ -279,6 +320,33 @@ public class AudioController : ControllerBase
             var role = GetPrimaryRole();
             var status = role == "Admin" ? AudioStatuses.Published : AudioStatuses.Draft;
 
+            // If file is in temp uploads, move it to final audio folder before saving
+            if (!string.IsNullOrWhiteSpace(model.FilePath) && IsTempAudioPath(model.FilePath))
+            {
+                var fileName = string.IsNullOrWhiteSpace(model.FileName)
+                    ? Path.GetFileName(model.FilePath)
+                    : model.FileName;
+
+                if (!string.IsNullOrWhiteSpace(fileName))
+                {
+                    var tempPath = GetTempAudioPhysicalPath(model.FilePath, fileName);
+                    var finalDir = Path.Combine(_env.ContentRootPath, "Uploads", "audio");
+                    Directory.CreateDirectory(finalDir);
+                    var finalPath = Path.Combine(finalDir, fileName);
+
+                    if (System.IO.File.Exists(tempPath))
+                    {
+                        if (System.IO.File.Exists(finalPath))
+                        {
+                            System.IO.File.Delete(finalPath);
+                        }
+                        System.IO.File.Move(tempPath, finalPath);
+                        model.FilePath = $"/uploads/audio/{fileName}";
+                        model.FileName = fileName;
+                    }
+                }
+            }
+
             // Create audio record
             var audio = new AudioContent
             {
@@ -336,6 +404,17 @@ public class AudioController : ControllerBase
             return BadRequest(new { message = "No file uploaded" });
         }
 
+        if (model.AudioFile.Length > MaxAudioBytes)
+        {
+            return BadRequest(new { message = $"File size exceeds {(MaxAudioBytes / (1024 * 1024))}MB limit" });
+        }
+
+        var extension = Path.GetExtension(model.AudioFile.FileName)?.ToLowerInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedAudioExtensions.Contains(extension))
+        {
+            return BadRequest(new { message = "Only MP3, WAV, and M4A audio files are allowed" });
+        }
+
         // Check POI exists
         var poi = await _db.POIs.Find(p => p.POI_ID == model.POI_ID && p.DeletedAt == null).FirstOrDefaultAsync();
         if (poi == null)
@@ -352,14 +431,12 @@ public class AudioController : ControllerBase
             }
         }
 
-        // Create uploads directory if not exists
-        var uploadsPath = Path.Combine(_env.WebRootPath, "uploads", "audio");
-        Directory.CreateDirectory(uploadsPath);
+        // Save under ContentRoot/Uploads/audio (served via /uploads static mapping in Program.cs)
+        var finalDir = Path.Combine(_env.ContentRootPath, "Uploads", "audio");
+        Directory.CreateDirectory(finalDir);
 
-        // Generate unique filename
-        var extension = Path.GetExtension(model.AudioFile.FileName);
         var fileName = $"{Guid.NewGuid()}{extension}";
-        var filePath = Path.Combine(uploadsPath, fileName);
+        var filePath = Path.Combine(finalDir, fileName);
 
         // Save file
         using (var stream = new FileStream(filePath, FileMode.Create))
@@ -381,7 +458,7 @@ public class AudioController : ControllerBase
                 AudioUrl = $"/uploads/audio/{fileName}",
                 FileSize = model.AudioFile.Length,
                 TTSText = model.TTSText,
-                Format = Path.GetExtension(model.AudioFile.FileName)?.TrimStart('.').ToLowerInvariant(),
+                Format = extension.TrimStart('.'),
                 POI_ID = model.POI_ID,
                 VendorId = poi.VendorId,
                 Status = status,
@@ -409,6 +486,17 @@ public class AudioController : ControllerBase
             return BadRequest(new { message = "No file uploaded" });
         }
 
+        if (model.AudioFile.Length > MaxAudioBytes)
+        {
+            return BadRequest(new { message = $"File size exceeds {(MaxAudioBytes / (1024 * 1024))}MB limit" });
+        }
+
+        var extension = Path.GetExtension(model.AudioFile.FileName)?.ToLowerInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedAudioExtensions.Contains(extension))
+        {
+            return BadRequest(new { message = "Only MP3, WAV, and M4A audio files are allowed" });
+        }
+
         var audio = await _db.AudioContents.Find(a => a.AudioContent_ID == id).FirstOrDefaultAsync();
         if (audio == null)
         {
@@ -431,9 +519,8 @@ public class AudioController : ControllerBase
         }
 
         // Delete old file if exists
-        if (!string.IsNullOrEmpty(audio.AudioUrl))
+        if (!string.IsNullOrEmpty(audio.AudioUrl) && TryGetAudioPhysicalPath(audio.AudioUrl, out var oldPath))
         {
-            var oldPath = Path.Combine(_env.WebRootPath, audio.AudioUrl.TrimStart('/'));
             if (System.IO.File.Exists(oldPath))
             {
                 System.IO.File.Delete(oldPath);
@@ -441,18 +528,17 @@ public class AudioController : ControllerBase
         }
 
         // Save new file
-        var uploadsPath = Path.Combine(_env.WebRootPath, "uploads", "audio");
-        Directory.CreateDirectory(uploadsPath);
-        var extension = Path.GetExtension(model.AudioFile.FileName);
+        var finalDir = Path.Combine(_env.ContentRootPath, "Uploads", "audio");
+        Directory.CreateDirectory(finalDir);
         var fileName = $"{Guid.NewGuid()}{extension}";
-        var filePath = Path.Combine(uploadsPath, fileName);
+        var filePath = Path.Combine(finalDir, fileName);
         using (var stream = new FileStream(filePath, FileMode.Create))
         {
             await model.AudioFile.CopyToAsync(stream);
         }
 
         var audioUrl = $"/uploads/audio/{fileName}";
-        var format = Path.GetExtension(model.AudioFile.FileName)?.TrimStart('.').ToLowerInvariant();
+        var format = extension.TrimStart('.');
         var updatedAt = DateTime.UtcNow;
 
         var update = Builders<AudioContent>.Update
@@ -476,6 +562,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Get POIs without audio for a specific language
     /// </summary>
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpGet("pois-without-audio")]
     public async Task<ActionResult<List<POIWithoutAudioDto>>> GetPOIsWithoutAudio([FromQuery] string language = "vi-VN")
     {
@@ -610,9 +697,8 @@ public class AudioController : ControllerBase
         }
 
         // Delete physical file
-        if (!string.IsNullOrEmpty(audio.AudioUrl))
+        if (!string.IsNullOrEmpty(audio.AudioUrl) && TryGetAudioPhysicalPath(audio.AudioUrl, out var filePath))
         {
-            var filePath = Path.Combine(_env.WebRootPath, audio.AudioUrl.TrimStart('/'));
             if (System.IO.File.Exists(filePath))
             {
                 System.IO.File.Delete(filePath);
@@ -885,14 +971,6 @@ public class AudioController : ControllerBase
         var tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_text_{Guid.NewGuid()}.txt");
         var normalizedText = TtsTextPreprocessor.NormalizePlainText(text, audio.Language);
         var ttsText = TtsTextPreprocessor.BuildSsmlIfNeeded(normalizedText, audio.Language);
-        
-        // ═══ DEBUG LOG ═══
-        Console.WriteLine($"🔍 AUDIO DEBUG - AudioContent_ID: {audio.AudioContent_ID}");
-        Console.WriteLine($"🔍 AUDIO DEBUG - POI_ID: {audio.POI_ID}");
-        Console.WriteLine($"🔍 AUDIO DEBUG - Original TTSText from DB: {text}");
-        Console.WriteLine($"🔍 AUDIO DEBUG - Normalized: {normalizedText}");
-        Console.WriteLine($"🔍 AUDIO DEBUG - Final SSML: {ttsText}");
-        
         await System.IO.File.WriteAllTextAsync(tempTextFile, ttsText, System.Text.Encoding.UTF8);
 
         try
@@ -951,6 +1029,45 @@ public class AudioController : ControllerBase
         return Path.Combine(_env.ContentRootPath, "Uploads", "audio", fileName);
     }
 
+    private bool TryGetAudioPhysicalPath(string audioUrl, out string physicalPath)
+    {
+        physicalPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(audioUrl))
+        {
+            return false;
+        }
+
+        // Only allow deleting files under /uploads/audio/
+        if (!audioUrl.StartsWith("/uploads/audio/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var fileName = Path.GetFileName(audioUrl);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        // Primary location (new): ContentRoot/Uploads/audio
+        var contentRootPath = Path.Combine(_env.ContentRootPath, "Uploads", "audio", fileName);
+        if (contentRootPath.Contains(".."))
+        {
+            return false;
+        }
+
+        physicalPath = contentRootPath;
+        if (System.IO.File.Exists(physicalPath))
+        {
+            return true;
+        }
+
+        // Legacy location (older uploads): wwwroot/uploads/audio
+        var legacyPath = Path.Combine(_env.WebRootPath, "uploads", "audio", fileName);
+        physicalPath = legacyPath;
+        return true;
+    }
+
     private static string NormalizeLanguage(string? language)
     {
         if (string.IsNullOrWhiteSpace(language))
@@ -966,6 +1083,18 @@ public class AudioController : ControllerBase
         if (lang.StartsWith("ko")) return "ko";
         if (lang.StartsWith("zh")) return "zh";
         return "vi";
+    }
+
+    private static bool IsTempAudioPath(string raw)
+    {
+        return raw.StartsWith("/uploads/audio-temp/", StringComparison.OrdinalIgnoreCase)
+            || raw.StartsWith("/uploads/temp/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetTempAudioPhysicalPath(string raw, string fileName)
+    {
+        var subDir = raw.StartsWith("/uploads/audio-temp/", StringComparison.OrdinalIgnoreCase) ? "audio-temp" : "temp";
+        return Path.Combine(_env.ContentRootPath, "Uploads", subDir, fileName);
     }
 
     private static string NormalizeStatus(string? status)

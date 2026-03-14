@@ -14,6 +14,12 @@ public interface ITTSService
     /// <param name="poiId">ID POI — dùng để tìm file audio đã tải trước. Để null nếu không biết.</param>
     Task<bool> SpeakAsync(string text, string languageCode, string? voiceName = null,
         int? poiId = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Test trực tiếp native TTS fallback (bỏ qua API/server).
+    /// Dùng để kiểm tra nhanh trên thiết bị khi nghi ngờ lỗi giọng hoặc mạng.
+    /// </summary>
+    Task<bool> SpeakNativeFallbackAsync(string text, string languageCode, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Lấy danh sách giọng nói cho ngôn ngữ

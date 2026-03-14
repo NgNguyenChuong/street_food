@@ -58,6 +58,8 @@
                 <span class="role-badge ${roleBadgeClass}">${roleLabel}</span>
             </div>
 
+            <div id="vendorApprovalNotice" class="vendor-approval-notice" style="display:none"></div>
+
             <nav>
                 <ul class="nav-menu">
                     ${isAdmin ? `
@@ -235,6 +237,23 @@
                 border: 1px solid rgba(34, 197, 94, 0.3);
             }
 
+            .vendor-approval-notice {
+                margin: 0 1rem 1rem;
+                padding: 0.75rem 0.9rem;
+                border-radius: 12px;
+                font-size: 0.8rem;
+                line-height: 1.45;
+                border: 1px solid rgba(251, 191, 36, 0.35);
+                background: rgba(251, 191, 36, 0.12);
+                color: #fde68a;
+            }
+
+            .vendor-approval-notice.rejected {
+                border-color: rgba(248, 113, 113, 0.35);
+                background: rgba(248, 113, 113, 0.12);
+                color: #fecaca;
+            }
+
             .logo {
                 font-family: 'Playfair Display', serif;
                 font-size: 1.5rem;
@@ -348,8 +367,16 @@
                 color: #fff;
             }
 
+            .nav-link.disabled,
+            .nav-sublink.disabled {
+                opacity: 0.4;
+                pointer-events: none;
+                cursor: not-allowed;
+                transform: none !important;
+            }
+
             body {
-                 margin-left: 200px !important;
+                 margin-left: 280px !important;
             }
 
             @media (max-width: 768px) {
@@ -443,30 +470,113 @@
         });
 
         hydrateAppSettings();
+        applyVendorApprovalGate();
+    }
+
+    async function applyVendorApprovalGate() {
+        if (!isVendor) return;
+        if (!window.api || !window.TokenManager || !TokenManager.isAuthenticated()) return;
+
+        let status = 'pending';
+        try {
+            const profile = await api.getVendorMe();
+            status = String(profile?.verificationStatus || profile?.VerificationStatus || 'pending').toLowerCase();
+        } catch {
+            status = 'pending';
+        }
+
+        if (status === 'approved') return;
+
+        const note = document.getElementById('vendorApprovalNotice');
+        if (note) {
+            note.style.display = 'block';
+            note.classList.toggle('rejected', status === 'rejected');
+            note.textContent = status === 'rejected'
+                ? 'Tài khoản Vendor của bạn đang bị từ chối. Vui lòng liên hệ Admin để được hỗ trợ và duyệt lại.'
+                : 'Tài khoản Vendor của bạn đang chờ Admin duyệt. Một số chức năng quản lý nội dung tạm thời bị khóa.';
+        }
+
+        const allowList = new Set(['/index.html', 'dashboard.html']);
+        const links = document.querySelectorAll('.nav-link, .nav-sublink');
+
+        links.forEach(link => {
+            const href = link.getAttribute('href') || '';
+            const normalized = (href || '').split('?')[0].split('#')[0];
+            if (!allowList.has(normalized)) {
+                link.classList.add('disabled');
+                link.setAttribute('aria-disabled', 'true');
+                link.setAttribute('title', 'Tài khoản Vendor đang chờ duyệt');
+            }
+        });
     }
 
     window.applyAppSettings = applyAppSettings;
 
+    function ensureConfirmModal() {
+        if (document.getElementById('appConfirmModal')) return;
+        const style = document.createElement('style');
+        style.textContent = `
+        .app-confirm-overlay{position:fixed;inset:0;background:rgba(26,26,46,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9999;padding:1rem}
+        .app-confirm-overlay.active{display:flex}
+        .app-confirm{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-width:420px;width:100%;overflow:hidden}
+        .app-confirm-header{padding:1rem 1.25rem;border-bottom:1px solid #eee;font-weight:700}
+        .app-confirm-body{padding:1.1rem 1.25rem;color:#333;line-height:1.5}
+        .app-confirm-actions{display:flex;justify-content:flex-end;gap:.5rem;padding:1rem 1.25rem;border-top:1px solid #eee;background:#fafafa}
+        .app-confirm-btn{padding:.55rem .9rem;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:600}
+        .app-confirm-btn.primary{background:linear-gradient(135deg,#FF6B35 0%,#004E89 100%);border:none;color:#fff}
+        `;
+        document.head.appendChild(style);
+        const overlay = document.createElement('div');
+        overlay.id = 'appConfirmModal';
+        overlay.className = 'app-confirm-overlay';
+        overlay.innerHTML = `
+            <div class="app-confirm" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle">
+                <div class="app-confirm-header" id="appConfirmTitle">Xác nhận</div>
+                <div class="app-confirm-body" id="appConfirmMessage"></div>
+                <div class="app-confirm-actions">
+                    <button class="app-confirm-btn" id="appConfirmCancel">Hủy</button>
+                    <button class="app-confirm-btn primary" id="appConfirmOk">Đồng ý</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+
+    function showConfirm(message, onConfirm) {
+        ensureConfirmModal();
+        const overlay = document.getElementById('appConfirmModal');
+        const msg = document.getElementById('appConfirmMessage');
+        const okBtn = document.getElementById('appConfirmOk');
+        const cancelBtn = document.getElementById('appConfirmCancel');
+        msg.textContent = message || '';
+        const close = () => overlay.classList.remove('active');
+        const handleOk = () => { close(); onConfirm && onConfirm(); };
+        const handleCancel = () => { close(); };
+        okBtn.onclick = handleOk;
+        cancelBtn.onclick = handleCancel;
+        overlay.onclick = (e) => { if (e.target === overlay) handleCancel(); };
+        overlay.classList.add('active');
+    }
+
     window.logout = function() {
-        if (!confirm('Báº¡n cÃ³ cháº¯c muá»‘n Ä‘Äƒng xuáº¥t?')) {
-            return;
-        }
-        if (window.TokenManager && typeof window.TokenManager.logout === 'function') {
-            window.TokenManager.logout();
-            return;
-        }
-        localStorage.removeItem('jwt_token_admin');
-        localStorage.removeItem('user_admin');
-        localStorage.removeItem('jwt_token_vendor');
-        localStorage.removeItem('user_vendor');
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('authToken');
-        sessionStorage.removeItem('authToken');
-        localStorage.removeItem('userSession');
-        sessionStorage.removeItem('userSession');
-        sessionStorage.removeItem('activeRole');
-        window.location.href = '/index.html';
+        showConfirm('Bạn có chắc muốn đăng xuất?', () => {
+            if (window.TokenManager && typeof window.TokenManager.logout === 'function') {
+                window.TokenManager.logout();
+                return;
+            }
+            localStorage.removeItem('jwt_token_admin');
+            localStorage.removeItem('user_admin');
+            localStorage.removeItem('jwt_token_vendor');
+            localStorage.removeItem('user_vendor');
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('authToken');
+            sessionStorage.removeItem('authToken');
+            localStorage.removeItem('userSession');
+            sessionStorage.removeItem('userSession');
+            sessionStorage.removeItem('activeRole');
+            window.location.href = '/index.html';
+        });
     };
 })();
 

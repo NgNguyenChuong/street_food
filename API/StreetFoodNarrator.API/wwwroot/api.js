@@ -1,4 +1,4 @@
-// API Base URL (auto-detect; allow override)
+﻿// API Base URL (auto-detect; allow override)
 function resolveApiBaseUrl() {
     const override = window.__API_BASE_URL || localStorage.getItem('API_BASE_URL');
     if (override) return override;
@@ -51,6 +51,21 @@ function parseJwtRoles(token) {
 
 
 // Token Management
+
+function setAuthCookie(token) {
+    if (!token) return;
+    const maxAge = 60 * 60 * 24 * 7; // 7 days
+    document.cookie = `auth_token=${encodeURIComponent(token)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
+function clearAuthCookie() {
+    document.cookie = 'auth_token=; path=/; Max-Age=0; SameSite=Lax';
+}
+
+function ensureAuthCookie() {
+    const token = TokenManager.getToken();
+    if (token) setAuthCookie(token);
+}
 
 const TokenManager = {
     roleKeys: {
@@ -160,12 +175,14 @@ const TokenManager = {
         const normalized = this.normalizeRole(role) || this.getRoleContext();
         if (!normalized) return;
         localStorage.setItem(this.roleKeys[normalized].token, token);
+        setAuthCookie(token);
     },
 
     removeToken(role) {
         const normalized = this.normalizeRole(role) || this.getRoleContext();
         if (!normalized) return;
         localStorage.removeItem(this.roleKeys[normalized].token);
+        clearAuthCookie();
     },
 
     isAuthenticated(role) {
@@ -223,12 +240,14 @@ const TokenManager = {
         sessionStorage.removeItem('userSession');
         localStorage.removeItem('activeRole');
         sessionStorage.removeItem('activeRole');
+        clearAuthCookie();
 
         window.location.href = loginUrl;
     }
 };
 
 TokenManager.initializeRoleContext();
+ensureAuthCookie();
 
 
 
@@ -318,6 +337,8 @@ class API {
                     } else if (data.message) {
 
                         errorMsg = data.message;
+                        // Append underlying detail (e.g. edge-tts stderr) when available
+                        if (data.error) errorMsg += '\n\nChi tiáº¿t: ' + data.error;
 
                     } else if (data.title) {
 
@@ -453,9 +474,6 @@ class API {
 
         if (isActive !== null) query += `&isActive=${isActive}`;
         if (category) query += `&category=${encodeURIComponent(category)}`;
-
-        
-
         return this.request(`/POIs?${query}`);
 
     }
@@ -502,6 +520,13 @@ class API {
 
     }
 
+    async reviewPOI(id, status, note = null) {
+        return this.request(`/POIs/${id}/review`, {
+            method: 'POST',
+            body: JSON.stringify({ status, note })
+        });
+    }
+
     
 
     async deletePOI(id) {
@@ -519,6 +544,30 @@ class API {
     async getPOIStats() {
         return this.request('/POIs/stats');
     }
+
+    // Menu Items APIs
+    async getMenuItems(poiId, page = 1, pageSize = 50) {
+        let query = `page=${page}&pageSize=${pageSize}`;
+        if (poiId) query += `&poiId=${poiId}`;
+        return this.request(`/MenuItems?${query}`);
+    }
+
+    async getMenuItem(id) {
+        return this.request(`/MenuItems/${id}`);
+    }
+
+    async createMenuItem(data) {
+        return this.request('/MenuItems', { method: 'POST', body: JSON.stringify(data) });
+    }
+
+    async updateMenuItem(id, data) {
+        return this.request(`/MenuItems/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    }
+
+    async deleteMenuItem(id) {
+        return this.request(`/MenuItems/${id}`, { method: 'DELETE' });
+    }
+
 
     // Vendor APIs
     async getVendors(search = '', status = '', sort = '') {
@@ -538,6 +587,14 @@ class API {
         return this.request('/Vendors/stats');
     }
     
+
+    // Auto Translate API
+    async autoTranslate(text, targetLangs = ['en', 'zh-CN']) {
+        return this.request('/AutoTranslate', { 
+            method: 'POST', 
+            body: JSON.stringify({ text, targetLangs })
+        });
+    }
 
     // Audio APIs
 
@@ -973,7 +1030,8 @@ function formatDate(dateString) {
 
 function formatFileSize(bytes) {
 
-    if (!bytes) return 'N/A';
+    if (bytes === null || bytes === undefined || Number.isNaN(Number(bytes))) return '0 KB';
+    if (Number(bytes) === 0) return '0 KB';
 
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
 
@@ -982,4 +1040,5 @@ function formatFileSize(bytes) {
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 
 }
+
 

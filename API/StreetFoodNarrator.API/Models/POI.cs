@@ -151,6 +151,15 @@ public class POI
     
     public bool IsActive { get; set; } = true;
 
+    // Review status for admin workflow
+    [MaxLength(20)]
+    public string ReviewStatus { get; set; } = "pending"; // approved | pending | rejected
+    [MaxLength(500)]
+    public string? ReviewNote { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+    [MaxLength(100)]
+    public string? ReviewedBy { get; set; }
+
     // Vendor relationship
     public int? VendorId { get; set; }
     [BsonIgnore]

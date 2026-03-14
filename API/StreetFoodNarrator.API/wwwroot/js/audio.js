@@ -225,7 +225,6 @@ async function runAIGenerate() {
       ttsVoice: voice,
       ttsProvider: 'GoogleTTS',
       ttsSpeed: 1.0,
-      ttsPitch: 1.0,
     };
     const audio = await AudioApi.create(createData);
     if(!audio || !audio.id) throw new Error('Failed to create audio record');

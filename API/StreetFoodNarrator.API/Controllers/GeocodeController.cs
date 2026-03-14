@@ -47,6 +47,33 @@ public class GeocodeController : ControllerBase
         }
     }
 
+    [HttpGet("reverse")]
+    public async Task<IActionResult> Reverse([FromQuery] double lat, [FromQuery] double lng)
+    {
+        if (double.IsNaN(lat) || double.IsNaN(lng))
+        {
+            return BadRequest(new { message = "Missing lat/lng" });
+        }
+
+        try
+        {
+            var url = $"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}&lon={lng.ToString(System.Globalization.CultureInfo.InvariantCulture)}&addressdetails=1";
+            using var resp = await Client.GetAsync(url);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return StatusCode((int)resp.StatusCode, new { message = "Reverse geocode failed" });
+            }
+
+            var json = await resp.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<JsonElement>(json);
+            return Ok(data);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
+
     private static HttpClient CreateClient()
     {
         var client = new HttpClient();

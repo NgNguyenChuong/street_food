@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using StreetFoodNarrator.App.Core.Models;
 using Plugin.Maui.Audio;
+using System.Text.Json;
 
 namespace StreetFoodNarrator.App.Core.Services.Implementations;
 
@@ -10,6 +11,10 @@ namespace StreetFoodNarrator.App.Core.Services.Implementations;
 /// </summary>
 public class TextToSpeechService : ITTSService
 {
+    // Với POI, ưu tiên audio được upload sẵn; nếu không có thì fallback native,
+    // tránh auto-generate từ server gây giọng đọc không đồng nhất.
+    private const bool EnablePoiServerTtsFallback = false;
+
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
     private readonly IAudioManager _audioManager;
@@ -28,6 +33,12 @@ public class TextToSpeechService : ITTSService
 
     public bool IsAvailable => true;
 
+    public async Task<bool> SpeakNativeFallbackAsync(string text, string languageCode, CancellationToken cancellationToken = default)
+    {
+        await StopAsync();
+        return await NativeSpeakAsync(text, languageCode, cancellationToken);
+    }
+
     /// <summary>
     /// Phát text với ngôn ngữ và voice được chỉ định.
     /// Thứ tự ưu tiên:
@@ -44,9 +55,13 @@ public class TextToSpeechService : ITTSService
             // Dừng bất kỳ lượt phát hiện tại
             await StopAsync();
 
+            var playbackMode = GetPlaybackMode();
+            var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
+
             // Ưu tiên 1: file audio đã tải trước (offline)
             if (poiId.HasValue && _audioCache != null)
             {
+                // 1) Luôn ưu tiên cache local nếu có
                 var cachedStream = await _audioCache.GetCachedStreamAsync(poiId.Value, languageCode);
                 if (cachedStream != null)
                 {
@@ -56,23 +71,52 @@ public class TextToSpeechService : ITTSService
                     return true;
                 }
 
-                // Ưu tiên 2: Stream audio từ server (online, không cần tải về)
-                var audioUrl = await _audioCache.GetAudioUrlAsync(poiId.Value, languageCode, cancellationToken);
-                if (!string.IsNullOrEmpty(audioUrl))
+                // 2) Download mode: bắt buộc tải về local trước khi phát
+                if (playbackMode == AudioPlaybackModes.Download)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[TTS] 🌐 Stream audio online: POI {poiId} → {audioUrl}");
-                    
-                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    timeoutCts.CancelAfter(TimeSpan.FromSeconds(10)); // Timeout cho việc tải audio
+                    if (!isOnline)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[TTS] Download mode + offline: không thể tải mới, thử fallback local/native");
+                    }
 
-                    var audioBytes = await _httpClient.GetByteArrayAsync(audioUrl, timeoutCts.Token);
-                    var audioStream = new MemoryStream(audioBytes);
-                    _currentPlayer = _audioManager.CreatePlayer(audioStream);
-                    _currentPlayer.Play();
-                    return true;
+                    var ensuredStream = await _audioCache.GetOrDownloadCachedStreamAsync(poiId.Value, languageCode, cancellationToken);
+                    if (ensuredStream != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[TTS] ⬇️ Download mode: đã tải local và phát cache cho POI {poiId}");
+                        _currentPlayer = _audioManager.CreatePlayer(ensuredStream);
+                        _currentPlayer.Play();
+                        return true;
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[TTS] Download mode: không có audio cache/tải mới cho POI {poiId}, fallback TTS");
+                }
+
+                // 3) Stream mode hoặc Auto (khi có mạng): stream online, không lưu local
+                if (playbackMode != AudioPlaybackModes.Download && isOnline)
+                {
+                    var audioUrl = await _audioCache.GetAudioUrlAsync(poiId.Value, languageCode, cancellationToken);
+                    if (!string.IsNullOrEmpty(audioUrl))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[TTS] 🌐 Stream audio online: POI {poiId} → {audioUrl}");
+
+                        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        timeoutCts.CancelAfter(TimeSpan.FromSeconds(10)); // Timeout cho việc tải audio
+
+                        var audioBytes = await _httpClient.GetByteArrayAsync(audioUrl, timeoutCts.Token);
+                        var audioStream = new MemoryStream(audioBytes);
+                        _currentPlayer = _audioManager.CreatePlayer(audioStream);
+                        _currentPlayer.Play();
+                        return true;
+                    }
                 }
 
                 System.Diagnostics.Debug.WriteLine($"[TTS] ℹ️ POI {poiId} không có audio published → fallback TTS");
+
+                if (!EnablePoiServerTtsFallback)
+                {
+                    System.Diagnostics.Debug.WriteLine("[TTS] POI fallback mode: dùng native TTS, bỏ qua /api/tts/generate");
+                    return await NativeSpeakAsync(text, languageCode, cancellationToken);
+                }
             }
             
             // Ưu tiên 3: TTS API (generate mới)
@@ -132,6 +176,35 @@ public class TextToSpeechService : ITTSService
         }
     }
 
+    private static string GetPlaybackMode()
+    {
+        try
+        {
+            var json = Preferences.Get("UserSettings", string.Empty);
+            if (string.IsNullOrWhiteSpace(json))
+                return AudioPlaybackModes.Auto;
+
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("TTS", out var ttsObj))
+                return AudioPlaybackModes.Auto;
+
+            if (!ttsObj.TryGetProperty("AudioPlaybackMode", out var modeProp))
+                return AudioPlaybackModes.Auto;
+
+            var mode = modeProp.GetString()?.Trim().ToLowerInvariant();
+            return mode switch
+            {
+                AudioPlaybackModes.Stream => AudioPlaybackModes.Stream,
+                AudioPlaybackModes.Download => AudioPlaybackModes.Download,
+                _ => AudioPlaybackModes.Auto
+            };
+        }
+        catch
+        {
+            return AudioPlaybackModes.Auto;
+        }
+    }
+
     /// <summary>
     /// Fallback: MAUI native TTS — Android TextToSpeech / iOS AVSpeechSynthesizer.
     /// Works fully offline.
@@ -165,8 +238,8 @@ public class TextToSpeechService : ITTSService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[TTS] Native TTS error: {ex.Message}");
-            return false;
+            System.Diagnostics.Debug.WriteLine($"[TTS] Error: {ex.Message} — falling back to native TTS");
+            return await NativeSpeakAsync(text, languageCode, cancellationToken);
         }
     }
 

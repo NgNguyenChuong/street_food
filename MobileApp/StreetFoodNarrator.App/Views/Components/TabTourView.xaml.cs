@@ -76,12 +76,15 @@ public partial class TabTourView : ContentView
             ? Height
             : DeviceDisplay.MainDisplayInfo.Height / DeviceDisplay.MainDisplayInfo.Density;
 
-        _collapsedHeight     = Math.Max(h * 0.34, 280);
+        // Peek compact hơn để giống layout mong muốn ở trạng thái collapse.
+        _collapsedHeight     = Math.Max(h * 0.24, 220);
         _expandedHeight      = h * 0.70;
         _sheetMaxTranslation = _expandedHeight - _collapsedHeight;
 
         PlayerPanel.HeightRequest  = _expandedHeight;
         PlayerPanel.TranslationY   = _sheetMaxTranslation;
+        SyncApproachingBannerToSheet();
+        UpdateExpandedStateVisuals();
 
         PanelToolbarControls.IsVisible = false;
         ExpandedContent.IsVisible      = false;
@@ -211,6 +214,7 @@ public partial class TabTourView : ContentView
             case GestureStatus.Running:
                 var newY = Math.Clamp(_panStartY + e.TotalY, 0, _sheetMaxTranslation);
                 PlayerPanel.TranslationY = newY;
+                SyncApproachingBannerToSheet();
 
                 // Hiện ExpandedContent sớm khi user bắt đầu kéo lên
                 if (!ExpandedContent.IsVisible && newY < _sheetMaxTranslation * 0.8)
@@ -240,6 +244,8 @@ public partial class TabTourView : ContentView
             PlayerPanel.TranslateTo(0, 0, 260, Easing.CubicOut),
             ExpandedContent.FadeTo(1, 220, Easing.CubicOut)
         );
+        UpdateExpandedStateVisuals();
+        SyncApproachingBannerToSheet();
     }
 
     private async Task CollapsePanel()
@@ -250,11 +256,28 @@ public partial class TabTourView : ContentView
             PlayerPanel.TranslateTo(0, _sheetMaxTranslation, 260, Easing.CubicOut),
             ExpandedContent.FadeTo(0, 180, Easing.CubicIn)
         );
+        UpdateExpandedStateVisuals();
+        SyncApproachingBannerToSheet();
 
         ExpandedContent.IsVisible      = false;
         PanelToolbarControls.IsVisible = false;
 
         // Reset scroll lên đầu
         // (ScrollView không có tên — nếu cần đặt x:Name="ExpandedScroll" rồi gọi ScrollToAsync)
+    }
+
+    private void SyncApproachingBannerToSheet()
+    {
+        // Banner "nổi" phía trên mép sheet và bám theo lúc kéo.
+        const double gap = 10;
+        ApproachingBanner.TranslationY = -_expandedHeight + PlayerPanel.TranslationY - gap;
+    }
+
+    private void UpdateExpandedStateVisuals()
+    {
+        // Khi full expanded: ẩn block tóm tắt ở phần cố định và ẩn banner nổi bên ngoài.
+        CollapsedSummarySection.IsVisible = !_isExpanded;
+        ApproachingBanner.Opacity = _isExpanded ? 0 : 1;
+        ApproachingBanner.InputTransparent = _isExpanded;
     }
 }

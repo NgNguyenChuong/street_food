@@ -57,6 +57,7 @@ public partial class MainViewModel : ObservableObject
             {
                 if (zone != null)
                 {
+                    PrimaryZone = zone;
                     PrimaryZoneName = zone.Name_Vi ?? "—";
                     PrimaryZoneType = zone.ZoneType ?? "";
                     PrimaryZoneDesc = zone.Description_Vi ?? "Không có mô tả.";

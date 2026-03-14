@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -111,7 +111,7 @@
 
         .filter-grid {
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
             gap: 1rem;
             align-items: end;
         }
@@ -235,7 +235,6 @@
             border-collapse: separate;
             border-spacing: 0;
             table-layout: fixed;
-            min-width: 1100px;
         }
 
         thead {
@@ -358,10 +357,6 @@
             color: var(--danger);
         }
 
-        .status-badge.pending {
-            background: rgba(255, 210, 63, 0.15);
-            color: #E0A800;
-        }
 
         .status-dot {
             width: 7px;
@@ -372,7 +367,6 @@
 
         .status-dot.active { background: var(--success); }
         .status-dot.inactive { background: var(--danger); }
-        .status-dot.pending { background: #E0A800; }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -413,6 +407,15 @@
             background: rgba(239, 71, 111, 0.1);
             color: var(--danger);
         }
+
+        .app-confirm-overlay{position:fixed;inset:0;background:rgba(26,26,46,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9999;padding:1rem}
+        .app-confirm-overlay.active{display:flex}
+        .app-confirm{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-width:420px;width:100%;overflow:hidden}
+        .app-confirm-header{padding:1rem 1.25rem;border-bottom:1px solid #eee;font-weight:700}
+        .app-confirm-body{padding:1.1rem 1.25rem;color:#333;line-height:1.5}
+        .app-confirm-actions{display:flex;justify-content:flex-end;gap:.5rem;padding:1rem 1.25rem;border-top:1px solid #eee;background:#fafafa}
+        .app-confirm-btn{padding:.55rem .9rem;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:600}
+        .app-confirm-btn.primary{background:linear-gradient(135deg,#FF6B35 0%,#004E89 100%);border:none;color:#fff}
 
         .btn-icon.view:hover {
             background: rgba(255, 107, 53, 0.1);
@@ -552,10 +555,6 @@
                 <div class="stat-label">Đang hoạt động</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="pendingPOIsStat">0</div>
-                <div class="stat-label">Chờ duyệt</div>
-            </div>
-            <div class="stat-item">
                 <div class="stat-value" id="inactivePOIsStat">0</div>
                 <div class="stat-label">Đã tắt</div>
             </div>
@@ -576,24 +575,14 @@
                     <label class="filter-label">Danh mục</label>
                     <select class="filter-select" id="categoryFilter">
                         <option value="">Tất cả</option>
-                        <option value="pho">Phở</option>
-                        <option value="banh-mi">Bánh Mì</option>
-                        <option value="com-tam">Cơm Tấm</option>
-                        <option value="bun">Bún</option>
-                        <option value="che">Chè</option>
-                        <option value="seafood">Hải sản</option>
-                        <option value="breakfast">Ăn sáng</option>
-                        <option value="snack">Đồ ăn vặt</option>
-                        <option value="hotpot">Lẩu</option>
                     </select>
                 </div>
 
                 <div class="filter-group">
-                    <label class="filter-label">Trạng thái</label>
+                    <label class="filter-label">Trạng thái hoạt động</label>
                     <select class="filter-select" id="statusFilter">
                         <option value="">Tất cả</option>
-                        <option value="active">Hoạt động</option>
-                        <option value="pending">Chờ duyệt</option>
+                        <option value="active">Đang hoạt động</option>
                         <option value="inactive">Đã tắt</option>
                     </select>
                 </div>
@@ -692,11 +681,13 @@
         let currentPageSize = 6;
         let currentSearch = '';
         let currentStatus = null;
+        let currentSort = 'newest';
         let currentCategory = null;
         let selectedPOIs = new Set();
         let allPOIs = [];
         let vendorAllPOIs = [];
         let vendorContext = null;
+        let categoryCache = [];
 
         async function ensureVendorContext() {
             if (!isVendor) return null;
@@ -729,9 +720,10 @@
                     if (vendorId === null) {
                         vendorAllPOIs = [];
                     } else {
-                        const raw = await api.getPOIs(1, 5000, currentSearch, currentStatus, currentCategory);
-                        const all = raw.data || [];
-                        vendorAllPOIs = all.filter(p => p.vendorId === vendorId);
+                    const raw = await api.getPOIs(1, 5000, currentSearch, currentStatus, currentCategory);
+                    const all = raw.data || [];
+                    vendorAllPOIs = all.filter(p => p.vendorId === vendorId);
+                    vendorAllPOIs = sortPois(vendorAllPOIs, currentSort);
                     }
                     const total = vendorAllPOIs.length;
                     const totalPages = Math.max(1, Math.ceil(total / currentPageSize));
@@ -741,11 +733,21 @@
                     const paged = vendorAllPOIs.slice(start, start + currentPageSize);
                     data = { data: paged, totalPages, page: safePage };
                 } else {
-                    data = await api.getPOIs(currentPage, currentPageSize, currentSearch, currentStatus, currentCategory);
+                    const raw = await api.getPOIs(1, 5000, currentSearch, currentStatus, currentCategory);
+                    const all = sortPois(raw.data || [], currentSort);
+                    const total = all.length;
+                    const totalPages = Math.max(1, Math.ceil(total / currentPageSize));
+                    const safePage = Math.min(Math.max(1, currentPage), totalPages);
+                    currentPage = safePage;
+                    const start = (safePage - 1) * currentPageSize;
+                    const paged = all.slice(start, start + currentPageSize);
+                    data = { data: paged, totalPages, page: safePage };
                     vendorAllPOIs = [];
+                    updateCategoryFilter(all);
                 }
 
                 allPOIs = data.data || [];
+                if (isVendor) updateCategoryFilter(data.data || []);
                 renderTable(allPOIs);
                 renderPagination(data.totalPages, data.page);
                 await loadPOIStats();
@@ -775,7 +777,6 @@
                     document.getElementById('totalPOIsStat').textContent = total;
                     document.getElementById('activePOIsStat').textContent = active;
                     document.getElementById('inactivePOIsStat').textContent = inactive;
-                    document.getElementById('pendingPOIsStat').textContent = 0;
                     return;
                 }
 
@@ -783,7 +784,6 @@
                 document.getElementById('totalPOIsStat').textContent = stats.totalPOIs ?? 0;
                 document.getElementById('activePOIsStat').textContent = stats.activePOIs ?? 0;
                 document.getElementById('inactivePOIsStat').textContent = stats.inactivePOIs ?? 0;
-                document.getElementById('pendingPOIsStat').textContent = stats.pendingPOIs ?? 0;
             } catch (error) {
                 console.error('Error loading POI stats:', error);
             }
@@ -826,10 +826,7 @@
                     <td>${poi.phoneNumber || '-'}</td>
                     <td><span class="truncate" title="${formatPriceRating(poi)}">${formatPriceRating(poi)}</span></td>
                     <td>
-                        <span class="status-badge ${poi.isActive ? 'active' : 'inactive'}">
-                            <span class="status-dot ${poi.isActive ? 'active' : 'inactive'}"></span>
-                            ${poi.isActive ? 'Hoạt động' : 'Đã tắt'}
-                        </span>
+                        ${formatReviewBadge(poi)}
                     </td>
                     <td>
                         <div class="action-buttons">
@@ -933,7 +930,7 @@
 
         // Actions
         function viewPOI(id) {
-            window.location.href = `poi-edit.html?id=${id}`;
+            window.location.href = `poi-detail.html?id=${id}`;
         }
 
         function editPOI(id) {
@@ -941,48 +938,108 @@
         }
 
         async function deletePOI(id) {
-            if (!confirm('Bạn có chắc muốn xóa POI này?')) return;
-            
-            try {
-                await api.deletePOI(id);
-                alert('Đã xóa POI thành công!');
-                loadPOIs();
-            } catch (error) {
-                alert('Lỗi khi xóa POI: ' + error.message);
-            }
+            showConfirm('B?n c? ch?c mu?n x?a POI n?y?', async () => {
+                try {
+                    await api.deletePOI(id);
+                    showAlert('?? x?a POI th?nh c?ng!');
+                    loadPOIs();
+                } catch (error) {
+                    showAlert('L?i khi x?a POI: ' + error.message);
+                }
+            });
         }
 
         async function bulkDelete() {
-            if (!confirm(`Bạn có chắc muốn xóa ${selectedPOIs.size} POI đã chọn?`)) return;
-            
-            try {
-                for (const id of selectedPOIs) {
-                    await api.deletePOI(id);
+            showConfirm(`B?n c? ch?c mu?n x?a ${selectedPOIs.size} POI ?? ch?n?`, async () => {
+                try {
+                    for (const id of selectedPOIs) {
+                        await api.deletePOI(id);
+                    }
+                    showAlert(`?? x?a ${selectedPOIs.size} POI th?nh c?ng!`);
+                    selectedPOIs.clear();
+                    updateBulkActions();
+                    loadPOIs();
+                } catch (error) {
+                    showAlert('L?i khi x?a POI: ' + error.message);
                 }
-                alert(`Đã xóa ${selectedPOIs.size} POI thành công!`);
-                selectedPOIs.clear();
-                updateBulkActions();
-                loadPOIs();
-            } catch (error) {
-                alert('Lỗi khi xóa POI: ' + error.message);
-            }
+            });
+        }
+
+        function ensureConfirmModal() {
+            if (document.getElementById('appConfirmModal')) return;
+            const overlay = document.createElement('div');
+            overlay.id = 'appConfirmModal';
+            overlay.className = 'app-confirm-overlay';
+            overlay.innerHTML = `
+                <div class="app-confirm" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle">
+                    <div class="app-confirm-header" id="appConfirmTitle">X?c nh?n</div>
+                    <div class="app-confirm-body" id="appConfirmMessage"></div>
+                    <div class="app-confirm-actions">
+                        <button class="app-confirm-btn" id="appConfirmCancel">H?y</button>
+                        <button class="app-confirm-btn primary" id="appConfirmOk">??ng ?</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        function showConfirm(message, onConfirm) {
+            ensureConfirmModal();
+            const overlay = document.getElementById('appConfirmModal');
+            const msg = document.getElementById('appConfirmMessage');
+            const okBtn = document.getElementById('appConfirmOk');
+            const cancelBtn = document.getElementById('appConfirmCancel');
+            msg.textContent = message || '';
+            const close = () => overlay.classList.remove('active');
+            const handleOk = () => { close(); onConfirm && onConfirm(); };
+            const handleCancel = () => { close(); };
+            okBtn.onclick = handleOk;
+            cancelBtn.onclick = handleCancel;
+            overlay.onclick = (e) => { if (e.target === overlay) handleCancel(); };
+            overlay.classList.add('active');
+        }
+
+        function showAlert(message) {
+            showConfirm(message, null);
+            const okBtn = document.getElementById('appConfirmOk');
+            const cancelBtn = document.getElementById('appConfirmCancel');
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            if (okBtn) okBtn.textContent = 'OK';
         }
 
         function applyFilters() {
             currentSearch = document.getElementById('searchInput').value;
             const statusFilter = document.getElementById('statusFilter').value;
             currentCategory = document.getElementById('categoryFilter').value || null;
-            
-            if (!statusFilter || statusFilter === 'all') {
+            currentSort = document.getElementById('sortFilter').value || 'newest';
+
+            if (!statusFilter) {
                 currentStatus = null;
             } else if (statusFilter === 'active') {
                 currentStatus = true;
             } else if (statusFilter === 'inactive') {
                 currentStatus = false;
             }
-            
+
             currentPage = 1;
             loadPOIs();
+        }
+
+        function sortPois(list, sortKey) {
+            const arr = (list || []).slice();
+            switch (sortKey) {
+                case 'oldest':
+                    return arr.sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+                case 'name-asc':
+                    return arr.sort((a,b) => String(a.name_Vi||a.name||'').localeCompare(String(b.name_Vi||b.name||''), 'vi'));
+                case 'name-desc':
+                    return arr.sort((a,b) => String(b.name_Vi||b.name||'').localeCompare(String(a.name_Vi||a.name||''), 'vi'));
+                case 'views':
+                    return arr.sort((a,b) => (b.viewCount||0) - (a.viewCount||0));
+                case 'newest':
+                default:
+                    return arr.sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            }
         }
 
         function formatPriceRating(poi) {
@@ -990,20 +1047,73 @@
             return rating || '-';
         }
 
+        function formatReviewBadge(poi) {
+            const isActive = poi.isActive ?? poi.IsActive ?? true;
+            return `
+                <span class="status-badge ${isActive ? 'active' : 'inactive'}">
+                    <span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>
+                    ${isActive ? 'Hoạt động' : 'Đã tắt'}
+                </span>
+            `;
+        }
+
         function formatCategory(category) {
             if (!category) return '-';
+            const key = String(category).trim().toLowerCase();
             const map = {
-                'seafood': 'Hải sản',
-                'breakfast': 'Ăn sáng',
-                'snack': 'Đồ ăn vặt',
-                'hotpot': 'Lẩu',
+                // Vietnamese-coded values
+                'oc': 'Ốc',
                 'pho': 'Phở',
-                'banh-mi': 'Bánh mì',
-                'com-tam': 'Cơm tấm',
                 'bun': 'Bún',
-                'che': 'Chè'
+                'banh-mi': 'Bánh mì',
+                'com': 'Cơm',
+                'com-tam': 'Cơm tấm',
+                'lau': 'Lẩu',
+                'hotpot': 'Lẩu',
+                'nuong': 'Nướng',
+                'hai-san': 'Hải sản',
+                'seafood': 'Hải sản',
+                'do-uong': 'Đồ uống',
+                'trang-mieng': 'Tráng miệng',
+                'snack': 'Đồ ăn vặt',
+                'breakfast': 'Ăn sáng',
+                'che': 'Chè',
+                'khac': 'Khác',
+                'other': 'Khác',
+
+                // English categories from seed data
+                'street entrance': 'Cổng vào phố ẩm thực',
+                'snails restaurant': 'Quán ốc',
+                'hot pot restaurant': 'Quán lẩu',
+                'bbq & hot pot': 'Nướng & lẩu',
+                'vietnamese traditional food': 'Ẩm thực truyền thống Việt',
+                'vietnamese beef steak': 'Bò né',
+                'late night dining': 'Ăn khuya',
+                'late night seafood': 'Hải sản đêm',
+                'vietnamese rice & noodles': 'Cơm & bún Việt',
+                'vietnamese-chinese bbq': 'Nướng Trung - Việt'
             };
-            return map[category] || category;
+            return map[key] || (/[^\x00-\x7F]/.test(category) ? category : 'Khác');
+        }
+
+        function updateCategoryFilter(pois) {
+            const select = document.getElementById('categoryFilter');
+            if (!select) return;
+            const set = new Set(categoryCache);
+            (pois || []).forEach(p => {
+                const raw = p.category || '';
+                if (raw) set.add(raw);
+            });
+            const list = Array.from(set).filter(Boolean);
+            list.sort((a,b) => formatCategory(a).localeCompare(formatCategory(b), 'vi'));
+            categoryCache = list;
+
+            const current = select.value || '';
+            select.innerHTML = '<option value="">Tất cả</option>' + list.map(c => {
+                const label = formatCategory(c);
+                return `<option value="${String(c).replace(/"/g,'&quot;')}">${label}</option>`;
+            }).join('');
+            select.value = current;
         }
 
         function formatOpeningHours(openingHoursText, openingHoursList) {

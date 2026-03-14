@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý Audio - Street Food Narrator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Be+Vietnam+Pro:wght@400;500&family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="sidebar.js"></script>
     <style>
@@ -151,6 +151,12 @@
             margin-bottom: 2rem;
             animation: fadeInUp 0.6s ease-out 0.1s backwards;
         }
+        .bulk-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            margin: -1rem 0 2rem;
+        }
 
         .filter-grid {
             display: grid;
@@ -285,11 +291,98 @@
 
         /* Audio Player */
         .audio-player {
-            background: #F6F7F9;
-            border-radius: 18px;
-            padding: 0.75rem 1rem;
             margin-bottom: 1.25rem;
         }
+
+        /* Audio Bar */
+        .audio-bar {
+            width: 100%;
+            background: #fef3e0;
+            border-radius: 14px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            border-top: 4px solid #c0392b;
+        }
+        .audio-bar .play-btn {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 38% 32%, #e74c3c, #8b1a0a);
+            border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 3px 10px rgba(192,57,43,0.5);
+            transition: transform 0.1s, box-shadow 0.15s;
+        }
+        .audio-bar .play-btn:hover { transform: scale(1.07); box-shadow: 0 5px 16px rgba(192,57,43,0.7); }
+        .audio-bar .play-btn:active { transform: scale(0.95); }
+        .audio-bar .middle { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+        .audio-bar .progress-wrap {
+            background: #5d3a1a;
+            padding: 3px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .audio-bar .progress-track {
+            height: 10px;
+            background: #c8a878;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+        .audio-bar .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #c0392b, #e67e22, #f39c12);
+            border-radius: 2px;
+            transition: width 0.15s linear;
+            position: relative;
+        }
+        .audio-bar .progress-fill::after {
+            content: '🔥';
+            font-size: 13px;
+            position: absolute;
+            right: -9px; top: 50%;
+            transform: translateY(-52%);
+            animation: fw 0.4s ease-in-out infinite alternate;
+        }
+        @keyframes fw {
+            from { transform: translateY(-52%) rotate(-6deg); }
+            to   { transform: translateY(-60%) rotate(6deg) scale(1.1); }
+        }
+        .audio-bar .time-row {
+            display: flex; justify-content: space-between;
+            font-family: 'Baloo 2', cursive;
+            font-size: 12px; font-weight: 700;
+            color: #7a4f25;
+        }
+        .audio-bar .vol-wrap {
+            display: flex; align-items: center; gap: 6px;
+            flex-shrink: 0;
+        }
+        .audio-bar .vol-icon {
+            color: #7a4f25;
+            display: flex; align-items: center;
+            cursor: pointer;
+        }
+        .audio-bar input[type=range] {
+            -webkit-appearance: none;
+            width: 64px; height: 4px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #c0392b var(--val, 70%), #c8a878 var(--val, 70%));
+            outline: none; cursor: pointer;
+        }
+        .audio-bar input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #c0392b;
+            box-shadow: 0 0 4px rgba(192,57,43,0.6);
+            transition: transform 0.1s;
+        }
+        .audio-bar input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
 
         .player-controls {
             display: flex;
@@ -565,6 +658,26 @@
             width: auto;
         }
 
+        /* Confirm popup */
+        .confirm-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 3000;
+            backdrop-filter: blur(2px);
+        }
+        .confirm-dialog {
+            background: #fff;
+            border-radius: 18px;
+            padding: 1.5rem 1.75rem;
+            width: 420px;
+            max-width: 92vw;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+        }
+        .confirm-title { font-weight: 800; margin-bottom: 0.4rem; }
+        .confirm-msg { color: #475569; margin-bottom: 1rem; }
+        .confirm-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+
         /* Animations */
         @keyframes fadeInDown {
             from {
@@ -643,6 +756,12 @@
                     <span>Upload Audio</span>
                 </button>
             </div>
+        </div>
+        <div class="bulk-actions">
+            <button class="btn btn-outline" onclick="deleteAllFiltered()">
+                <i class="fas fa-trash"></i>
+                <span>Xóa tất cả</span>
+            </button>
         </div>
 
         <!-- Stats Bar -->
@@ -808,11 +927,14 @@
     const isAdmin = user?.roles?.includes('Admin');
     const isVendor = user?.roles?.includes('Vendor');
 
-    let currentPage = 1;
-    let pageSize = 6;
+    let currentPage     = 1;
+    let groupsPerPage   = 6;   // Number of POI cards shown per page
     let currentLanguage = '';
     let currentPoiQuery = '';
-    let currentStatus = '';
+    let currentStatus   = '';
+    let allGroups       = [];  // All POI groups fetched (used for frontend pagination)
+    let totalBackendPages = 1;
+    let backendFetchPage  = 1;
 
     async function loadAudios() {
         const grid = document.getElementById('audioGrid');
@@ -820,11 +942,15 @@
 
         try {
             const poiInput = currentPoiQuery.trim();
-            const poiId = poiInput && /^\d+$/.test(poiInput) ? parseInt(poiInput, 10) : null;
-            const poiName = poiInput && !poiId ? poiInput : null;
+            const poiId    = poiInput && /^\d+$/.test(poiInput) ? parseInt(poiInput, 10) : null;
+            const poiName  = poiInput && !poiId ? poiInput : null;
+
+            // Fetch a large batch so we can group by POI and paginate groups on frontend.
+            // Use up to groupsPerPage * 4 records (each POI may have ≤3 languages + buffer).
+            const fetchSize = groupsPerPage * 4;
             const data = await api.getAudioList(
-                currentPage,
-                pageSize,
+                backendFetchPage,
+                fetchSize,
                 currentLanguage || null,
                 poiId,
                 currentStatus || null,
@@ -833,24 +959,47 @@
             const audios = data.data || [];
 
             await updateStats(audios, data.total || audios.length);
-            updatePagination(data.page || currentPage, data.totalPages || 1);
 
             if (audios.length === 0) {
-                grid.innerHTML = '<div class="empty">Chưa có audio nào.</div>';
+                allGroups = [];
+                renderPage();
                 return;
             }
 
-            const grouped = groupAudiosByPoi(audios);
-            window.__audioGroupStore = grouped.reduce((acc, g) => {
+            // Group all fetched audios by POI
+            allGroups = groupAudiosByPoi(audios);
+            window.__audioGroupStore = allGroups.reduce((acc, g) => {
                 acc[g.key] = g.items;
                 return acc;
             }, {});
-            grid.innerHTML = grouped.map(group => renderAudioCard(group)).join('');
-            wireLanguageSwitch();
+
+            renderPage();
         } catch (error) {
             console.error('Error loading audios:', error);
             grid.innerHTML = `<div class="empty">Không thể tải audio: ${error.message}</div>`;
         }
+    }
+
+    function renderPage() {
+        const grid = document.getElementById('audioGrid');
+        const totalGroups = allGroups.length;
+        const totalPages  = Math.max(1, Math.ceil(totalGroups / groupsPerPage));
+        // Clamp currentPage
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const start  = (currentPage - 1) * groupsPerPage;
+        const slice  = allGroups.slice(start, start + groupsPerPage);
+
+        if (slice.length === 0) {
+            grid.innerHTML = '<div class="empty">Chưa có audio nào.</div>';
+        } else {
+            grid.innerHTML = slice.map(group => renderAudioCard(group)).join('');
+            wireLanguageSwitch();
+            initAudioBars();
+        }
+
+        updatePagination(currentPage, totalPages);
     }
 
     async function updateStats(audios, total) {
@@ -879,15 +1028,16 @@
     function applyFilters() {
         currentLanguage = document.getElementById('languageFilter').value;
         currentPoiQuery = document.getElementById('poiFilter').value.trim();
-        pageSize = parseInt(document.getElementById('pageSizeFilter').value, 10) || 6;
-        currentStatus = document.getElementById('statusFilter').value;
-        currentPage = 1;
+        groupsPerPage   = parseInt(document.getElementById('pageSizeFilter').value, 10) || 6;
+        currentStatus   = document.getElementById('statusFilter').value;
+        currentPage     = 1;
+        backendFetchPage = 1;
         loadAudios();
     }
 
     function changePage(delta) {
         currentPage = Math.max(1, currentPage + delta);
-        loadAudios();
+        renderPage();
     }
 
     function updatePagination(page, totalPages) {
@@ -1099,17 +1249,17 @@
                 </div>
 
                 <div class="audio-player">
-                    ${audioUrl ? `<audio controls src="${audioUrl}"></audio>` : '<div class="empty">Chưa có file audio</div>'}
+                    ${renderAudioPlayer(audioUrl, selected.audioContent_ID)}
                 </div>
 
                 <div class="audio-actions">
-                    ${renderActionButtons(selected, audioUrl)}
+                    ${renderActionButtons(selected, audioUrl, group.key)}
                 </div>
             </div>
         `;
     }
 
-    function renderActionButtons(audio, audioUrl) {
+    function renderActionButtons(audio, audioUrl, groupKey) {
         const status = (audio.status || 'published').toLowerCase();
         const canSubmit = isVendor && (status === 'draft' || status === 'rejected');
         const canApprove = isAdmin && status === 'pending';
@@ -1126,6 +1276,12 @@
                 <button class="btn-icon btn-generate" data-action="replace" data-id="${audio.audioContent_ID}">
                     <i class="fas fa-pen-to-square"></i>
                     <span>Đổi file</span>
+                </button>
+            ` : ''}
+            ${canDelete ? `
+                <button class="btn-icon btn-delete" data-action="delete-poi" data-group-key="${groupKey}">
+                    <i class="fas fa-trash"></i>
+                    <span>Xóa theo POI</span>
                 </button>
             ` : ''}
             ${canSubmit ? `
@@ -1204,6 +1360,10 @@
                 if (action === 'approve') return approveAudio(id);
                 if (action === 'reject') return rejectAudio(id);
                 if (action === 'delete') return deleteAudio(id);
+                if (action === 'delete-poi') {
+                    const key = btn.getAttribute('data-group-key');
+                    return deletePoiAudios(key);
+                }
             };
         });
     }
@@ -1229,12 +1389,50 @@
         card.querySelector('.audio-lang').textContent = audio.language || 'N/A';
 
         const player = card.querySelector('.audio-player');
-        player.innerHTML = audioUrl ? `<audio controls src="${audioUrl}"></audio>` : '<div class="empty">Chưa có file audio</div>';
+        player.innerHTML = renderAudioPlayer(audioUrl, audio.audioContent_ID);
 
         const actions = card.querySelector('.audio-actions');
-        actions.innerHTML = renderActionButtons(audio, audioUrl);
+        actions.innerHTML = renderActionButtons(audio, audioUrl, card.getAttribute('data-group-key'));
 
         wireLanguageSwitch();
+        initAudioBars();
+    }
+
+    function renderAudioPlayer(audioUrl, audioId) {
+        if (!audioUrl) return '<div class="empty">Chưa có file audio</div>';
+        return `
+            <div class="audio-bar" data-audio-url="${audioUrl}" data-audio-id="${audioId}">
+                <button class="play-btn" type="button" aria-label="Play/Pause">
+                    <svg class="icon" width="13" height="15" viewBox="0 0 10 12" fill="white">
+                        <polygon points="1,0 10,6 1,12"></polygon>
+                    </svg>
+                </button>
+
+                <div class="middle">
+                       <div class="time-row">
+                        <span class="cur">0:00</span>
+                        <span class="tot">0:00</span>
+                    </div>
+                    <div class="progress-wrap">
+                        <div class="progress-track">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                 
+                </div>
+
+                <div class="vol-wrap">
+                    <div class="vol-icon" aria-label="Mute">
+                        <svg class="vol-svg" width="15" height="13" viewBox="0 0 20 16" fill="none" stroke="#7a4f25" stroke-width="1.8">
+                            <path d="M3 5H1v6h2l5 4V1L3 5z"/>
+                            <path class="v1" d="M15 1c2.4 1.5 4 4.1 4 7s-1.6 5.5-4 7"/>
+                            <path class="v2" d="M12 4c1.2.8 2 2.2 2 3.8s-.8 3-2 3.8"/>
+                        </svg>
+                    </div>
+                    <input class="vol" type="range" min="0" max="100" value="70">
+                </div>
+            </div>
+        `;
     }
 
     function bindUploadModal() {
@@ -1402,6 +1600,190 @@
         } catch (error) {
             alert('Lỗi khi xóa audio: ' + error.message);
         }
+    }
+
+    async function deletePoiAudios(groupKey) {
+        if (!groupKey) return;
+        const store = window.__audioGroupStore || {};
+        const list = store[groupKey] || [];
+        if (!list.length) return;
+        const ok = await showConfirm('Xóa tất cả audio của POI này?');
+        if (!ok) return;
+        for (const a of list) {
+            try { await api.deleteAudio(a.audioContent_ID); } catch {}
+        }
+        loadAudios();
+    }
+
+    async function deleteAllFiltered() {
+        const ok = await showConfirm('Xóa tất cả audio theo bộ lọc hiện tại?');
+        if (!ok) return;
+        try {
+            const poiInput = currentPoiQuery.trim();
+            const poiId = poiInput && /^\d+$/.test(poiInput) ? parseInt(poiInput, 10) : null;
+            const poiName = poiInput && !poiId ? poiInput : null;
+            const first = await api.getAudioList(
+                1,
+                pageSize,
+                currentLanguage || null,
+                poiId,
+                currentStatus || null,
+                poiName
+            );
+            const total = first.total || (first.data || []).length;
+            const full = await api.getAudioList(
+                1,
+                total || 1000,
+                currentLanguage || null,
+                poiId,
+                currentStatus || null,
+                poiName
+            );
+            const all = full.data || [];
+            for (const a of all) {
+                try { await api.deleteAudio(a.audioContent_ID); } catch {}
+            }
+            loadAudios();
+        } catch (error) {
+            showConfirm('Lỗi khi xóa tất cả: ' + error.message, true);
+        }
+    }
+
+    function showConfirm(message, infoOnly = false) {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-dialog">
+                    <div class="confirm-title">${infoOnly ? 'Thông báo' : 'Xác nhận'}</div>
+                    <div class="confirm-msg">${message}</div>
+                    <div class="confirm-actions">
+                        ${infoOnly ? '' : '<button class="btn btn-outline" id="confirmNo">Hủy</button>'}
+                        <button class="btn btn-primary" id="confirmYes">${infoOnly ? 'Đóng' : 'Đồng ý'}</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const cleanup = (val) => { overlay.remove(); resolve(val); };
+            if (!infoOnly) {
+                document.getElementById('confirmNo').onclick = () => cleanup(false);
+            }
+            document.getElementById('confirmYes').onclick = () => cleanup(infoOnly ? true : true);
+        });
+    }
+
+    const audioBarState = {
+        players: new Map(),
+        currentId: null
+    };
+
+    function updateCardDuration(card, seconds) {
+        if (!card || !Number.isFinite(seconds) || seconds <= 0) return;
+        const mm = Math.floor(seconds / 60);
+        const ss = String(Math.floor(seconds % 60)).padStart(2, '0');
+        const label = `${mm}:${ss}`;
+        const meta = card.querySelector('.audio-duration');
+        if (meta) meta.textContent = label;
+    }
+
+    function initAudioBars() {
+        document.querySelectorAll('.audio-bar').forEach(bar => {
+            if (bar.dataset.inited === '1') return;
+            bar.dataset.inited = '1';
+
+            const url = bar.getAttribute('data-audio-url');
+            if (!url) return;
+
+            const audioId = bar.getAttribute('data-audio-id') || url;
+            const audio = new Audio(url);
+            audio.preload = 'metadata';
+            audio.volume = 0.7;
+
+            audioBarState.players.set(audioId, { audio, bar });
+
+            const playBtn = bar.querySelector('.play-btn');
+            const icon = bar.querySelector('.icon');
+            const fill = bar.querySelector('.progress-fill');
+            const cur = bar.querySelector('.cur');
+            const tot = bar.querySelector('.tot');
+            const progressWrap = bar.querySelector('.progress-wrap');
+            const vol = bar.querySelector('.vol');
+            const volIcon = bar.querySelector('.vol-icon');
+            const v1 = bar.querySelector('.v1');
+            const v2 = bar.querySelector('.v2');
+
+            const fmt = s => {
+                if (!Number.isFinite(s)) return '0:00';
+                return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+            };
+
+            const update = () => {
+                const duration = audio.duration || 0;
+                const pct = duration ? (audio.currentTime / duration) * 100 : 0;
+                fill.style.width = `${pct}%`;
+                cur.textContent = fmt(audio.currentTime);
+                tot.textContent = fmt(duration);
+            };
+
+            audio.addEventListener('loadedmetadata', () => {
+                update();
+                const card = bar.closest('.audio-card');
+                updateCardDuration(card, audio.duration);
+            });
+            audio.addEventListener('timeupdate', update);
+            audio.addEventListener('ended', () => {
+                audio.currentTime = 0;
+                audio.pause();
+                icon.innerHTML = '<polygon points="1,0 10,6 1,12" fill="white"></polygon>';
+                update();
+            });
+
+            playBtn.addEventListener('click', () => {
+                if (audioBarState.currentId && audioBarState.currentId !== audioId) {
+                    const other = audioBarState.players.get(audioBarState.currentId);
+                    if (other) {
+                        other.audio.pause();
+                        const otherIcon = other.bar.querySelector('.icon');
+                        otherIcon.innerHTML = '<polygon points="1,0 10,6 1,12" fill="white"></polygon>';
+                    }
+                }
+                if (audio.paused) {
+                    audio.play();
+                    audioBarState.currentId = audioId;
+                    icon.innerHTML = '<rect x="0" y="0" width="3.5" height="12" fill="white"></rect><rect x="6" y="0" width="3.5" height="12" fill="white"></rect>';
+                } else {
+                    audio.pause();
+                    icon.innerHTML = '<polygon points="1,0 10,6 1,12" fill="white"></polygon>';
+                }
+            });
+
+            progressWrap.addEventListener('click', (e) => {
+                const rect = progressWrap.getBoundingClientRect();
+                const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                audio.currentTime = (audio.duration || 0) * ratio;
+                update();
+            });
+
+            vol.addEventListener('input', () => {
+                const value = parseInt(vol.value, 10) || 0;
+                const pct = Math.max(0, Math.min(100, value));
+                vol.style.setProperty('--val', pct + '%');
+                vol.style.background = `linear-gradient(90deg, #c0392b ${pct}%, #c8a878 ${pct}%)`;
+                audio.volume = pct / 100;
+                audio.muted = pct === 0;
+                v1.style.opacity = audio.muted ? '0.2' : '1';
+                v2.style.opacity = audio.muted ? '0.2' : '1';
+            });
+
+            volIcon.addEventListener('click', () => {
+                audio.muted = !audio.muted;
+                v1.style.opacity = audio.muted ? '0.2' : '1';
+                v2.style.opacity = audio.muted ? '0.2' : '1';
+            });
+
+            update();
+            vol.dispatchEvent(new Event('input'));
+        });
     }
 
     window.addEventListener('load', function() {

@@ -10,6 +10,8 @@ public static class DbInitializer
 {
     public static async Task Initialize(IServiceProvider serviceProvider)
     {
+        await EnsureIndexes(serviceProvider);
+
         var roleManager = serviceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
@@ -43,7 +45,30 @@ public static class DbInitializer
 
         await SeedPois(serviceProvider);
         await SeedVendors(serviceProvider, userManager);
+        // Keep vendor-POI ownership mapping in sync for existing datasets.
+        await LinkExistingPoisToVendors(serviceProvider);
         await SeedTours(serviceProvider);
+        await SeedAnalyticsData(serviceProvider, userManager);
+    }
+
+    private static async Task EnsureIndexes(IServiceProvider serviceProvider)
+    {
+        var db = serviceProvider.GetRequiredService<MongoDbContext>();
+
+        var poiIdIndex = new CreateIndexModel<POI>(
+            Builders<POI>.IndexKeys.Ascending(p => p.POI_ID),
+            new CreateIndexOptions { Unique = true, Name = "ux_poi_poi_id" });
+
+        var poiVendorIndex = new CreateIndexModel<POI>(
+            Builders<POI>.IndexKeys.Ascending(p => p.VendorId),
+            new CreateIndexOptions { Name = "ix_poi_vendor_id" });
+
+        var vendorIdIndex = new CreateIndexModel<VendorProfile>(
+            Builders<VendorProfile>.IndexKeys.Ascending(v => v.VendorId),
+            new CreateIndexOptions { Unique = true, Name = "ux_vendor_profile_vendor_id" });
+
+        await db.POIs.Indexes.CreateManyAsync(new[] { poiIdIndex, poiVendorIndex });
+        await db.VendorProfiles.Indexes.CreateOneAsync(vendorIdIndex);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -200,6 +225,64 @@ public static class DbInitializer
         Console.WriteLine($"✅ Seeded {createdCount} vendors (tất cả status: pending, password: Vendor@123).");
     }
 
+    /// <summary>
+    /// One-off utility: link existing POIs to VendorProfiles using the seed email → POI_ID mapping.
+    /// Useful when vendors already exist but POIs were imported separately.
+    /// </summary>
+    public static async Task LinkExistingPoisToVendors(IServiceProvider serviceProvider)
+    {
+        var db = serviceProvider.GetRequiredService<MongoDbContext>();
+
+        var mappings = new List<(string Email, int PoiId)>
+        {
+            ("ocvu@streetfood.vn",       2),
+            ("octhao@streetfood.vn",     3),
+            ("ocsaunor@streetfood.vn",   4),
+            ("ocoanh@streetfood.vn",     5),
+            ("afat@streetfood.vn",       6),
+            ("chilli@streetfood.vn",     7),
+            ("comchay@streetfood.vn",    8),
+            ("bonephuong@streetfood.vn", 9),
+            ("lang@streetfood.vn",       10),
+            ("ocdem@streetfood.vn",      11),
+            ("ahien@streetfood.vn",      12),
+            ("ocphat@streetfood.vn",     13),
+            ("shaokao@streetfood.vn",    14),
+        };
+
+        var updated = 0;
+        var missingVendors = new List<string>();
+        var missingPois = new List<int>();
+
+        foreach (var (email, poiId) in mappings)
+        {
+            var vendor = await db.VendorProfiles.Find(v => v.ContactEmail == email).FirstOrDefaultAsync();
+            if (vendor == null)
+            {
+                missingVendors.Add(email);
+                continue;
+            }
+
+            var result = await db.POIs.UpdateOneAsync(
+                p => p.POI_ID == poiId,
+                Builders<POI>.Update.Set(p => p.VendorId, vendor.VendorId));
+
+            if (result.MatchedCount == 0)
+            {
+                missingPois.Add(poiId);
+                continue;
+            }
+
+            if (result.ModifiedCount > 0) updated++;
+        }
+
+        Console.WriteLine($"✅ Linked POIs: updated={updated}");
+        if (missingVendors.Count > 0)
+            Console.WriteLine($"⚠️ Missing vendors: {string.Join(", ", missingVendors)}");
+        if (missingPois.Count > 0)
+            Console.WriteLine($"⚠️ Missing POIs: {string.Join(", ", missingPois)}");
+    }
+
     // ─────────────────────────────────────────────────────────────
     // SEED TOURS (3 tours theo nhóm đặc điểm)
     // ─────────────────────────────────────────────────────────────
@@ -281,6 +364,149 @@ public static class DbInitializer
         await db.POITours.InsertManyAsync(poiTourVeKhuya);
 
         Console.WriteLine("✅ Seeded 3 tours: 'Tour Ốc Huyền Thoại', 'Tour Lẩu & Nướng Đặc Sắc', 'Tour Ẩm Thực Về Khuya'.");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SEED ANALYTICS DATA (for history.html)
+    // ─────────────────────────────────────────────────────────────
+    private static async Task SeedAnalyticsData(IServiceProvider serviceProvider, UserManager<ApplicationUser> userManager)
+    {
+        var db = serviceProvider.GetRequiredService<MongoDbContext>();
+        var sequence = serviceProvider.GetRequiredService<MongoSequenceService>();
+
+        var now = DateTime.UtcNow;
+        var rng = new Random(20260314);
+
+        var pois = await db.POIs
+            .Find(p => p.DeletedAt == null && p.IsActive)
+            .SortBy(p => p.POI_ID)
+            .ToListAsync();
+
+        if (pois.Count == 0)
+        {
+            Console.WriteLine("⚠️ Skip analytics seed: no active POIs.");
+            return;
+        }
+
+        var devices = await SeedDevicesIfEmpty(db, sequence, now, rng);
+        await SeedNarrationLogsIfEmpty(db, sequence, userManager, pois, devices, now, rng);
+    }
+
+    private static async Task<List<DeviceInfo>> SeedDevicesIfEmpty(
+        MongoDbContext db,
+        MongoSequenceService sequence,
+        DateTime now,
+        Random rng)
+    {
+        var existingDevices = await db.Devices.CountDocumentsAsync(Builders<DeviceInfo>.Filter.Empty);
+        if (existingDevices > 0)
+        {
+            return await db.Devices
+                .Find(Builders<DeviceInfo>.Filter.Empty)
+                .SortByDescending(d => d.LastSeen)
+                .Limit(50)
+                .ToListAsync();
+        }
+
+        var templates = new List<(string platform, string model, string osVersion, string appVersion, string lang)>
+        {
+            ("iOS", "iPhone 15 Pro", "17.4", "1.2.0", "vi"),
+            ("iOS", "iPhone 13", "16.7", "1.1.8", "en"),
+            ("iOS", "iPhone 12", "16.6", "1.1.5", "vi"),
+            ("iOS", "iPad Air 5", "17.2", "1.2.1", "zh"),
+            ("Android", "Samsung Galaxy S23", "Android 14", "1.2.0", "vi"),
+            ("Android", "Google Pixel 8", "Android 14", "1.1.9", "en"),
+            ("Android", "Xiaomi 13T", "Android 14", "1.1.7", "vi"),
+            ("Android", "OPPO Reno11", "Android 14", "1.1.8", "vi"),
+            ("Android", "Vivo V30", "Android 14", "1.1.6", "en"),
+            ("Android", "Samsung Galaxy A54", "Android 13", "1.1.4", "vi")
+        };
+
+        var devicesToInsert = new List<DeviceInfo>();
+        for (var i = 0; i < templates.Count; i++)
+        {
+            var t = templates[i];
+            var firstSeen = now.AddDays(-rng.Next(15, 120)).AddHours(-rng.Next(0, 23));
+            var lastSeen = now.AddHours(-rng.Next(0, 200));
+            if (lastSeen < firstSeen)
+            {
+                lastSeen = firstSeen.AddHours(rng.Next(1, 240));
+            }
+
+            var device = new DeviceInfo
+            {
+                Device_ID = await sequence.GetNextAsync("Device_ID"),
+                DeviceId = $"sfn-{t.platform.ToLowerInvariant()}-{Guid.NewGuid().ToString("N")[..12]}",
+                Platform = t.platform,
+                Model = t.model,
+                OsVersion = t.osVersion,
+                AppVersion = t.appVersion,
+                PreferredLanguage = t.lang,
+                FirstSeen = firstSeen,
+                LastSeen = lastSeen,
+                TotalSessions = rng.Next(4, 52),
+                TotalPOIsViewed = rng.Next(12, 220),
+                TotalAudioPlayed = rng.Next(8, 180)
+            };
+
+            devicesToInsert.Add(device);
+        }
+
+        await db.Devices.InsertManyAsync(devicesToInsert);
+        Console.WriteLine($"✅ Seeded {devicesToInsert.Count} devices for analytics.");
+        return devicesToInsert;
+    }
+
+    private static async Task SeedNarrationLogsIfEmpty(
+        MongoDbContext db,
+        MongoSequenceService sequence,
+        UserManager<ApplicationUser> userManager,
+        List<POI> pois,
+        List<DeviceInfo> devices,
+        DateTime now,
+        Random rng)
+    {
+        var existingLogs = await db.NarrationLogs.CountDocumentsAsync(Builders<NarrationLog>.Filter.Empty);
+        if (existingLogs > 0) return;
+
+        var logs = new List<NarrationLog>();
+        var triggerTypes = new[] { "Auto", "Manual", "Proximity" };
+        var userIds = userManager.Users.Select(u => u.Id.ToString()).Take(20).ToList();
+
+        var totalLogs = Math.Clamp((devices.Count > 0 ? devices.Count * 18 : 120), 120, 300);
+        for (var i = 0; i < totalLogs; i++)
+        {
+            var poi = pois[rng.Next(pois.Count)];
+            var poiLat = poi.Location?.Latitude ?? 10.762;
+            var poiLon = poi.Location?.Longitude ?? 106.682;
+
+            var minutesAgo = rng.Next(20, 60 * 24 * 21); // ~21 days
+            var triggeredAt = now.AddMinutes(-minutesAgo);
+
+            var hasUserId = userIds.Count > 0 && rng.NextDouble() > 0.28;
+            var userId = hasUserId ? userIds[rng.Next(userIds.Count)] : null;
+
+            var userLat = poiLat + (rng.NextDouble() - 0.5) * 0.0012;
+            var userLon = poiLon + (rng.NextDouble() - 0.5) * 0.0012;
+
+            logs.Add(new NarrationLog
+            {
+                Log_ID = await sequence.GetNextAsync("Log_ID"),
+                POI_ID = poi.POI_ID,
+                UserId = userId,
+                TriggeredAt = triggeredAt,
+                TriggerType = triggerTypes[rng.Next(triggerTypes.Length)],
+                UserLatitude = (decimal)userLat,
+                UserLongitude = (decimal)userLon,
+                WasPlayed = rng.NextDouble() > 0.18
+            });
+        }
+
+        if (logs.Count > 0)
+        {
+            await db.NarrationLogs.InsertManyAsync(logs.OrderByDescending(l => l.TriggeredAt));
+            Console.WriteLine($"✅ Seeded {logs.Count} narration logs for analytics history.");
+        }
     }
 }
 

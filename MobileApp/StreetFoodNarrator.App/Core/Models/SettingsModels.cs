@@ -30,6 +30,14 @@ public class TTSSettings
     public double Pitch { get; set; } = 1.0;
     public int Volume { get; set; } = 80;
     public bool AutoPlay { get; set; } = false;
+    public string AudioPlaybackMode { get; set; } = AudioPlaybackModes.Auto;
+}
+
+public static class AudioPlaybackModes
+{
+    public const string Auto = "auto";
+    public const string Stream = "stream";
+    public const string Download = "download";
 }
 
 public class LocationSettings
@@ -65,6 +73,7 @@ public class TTSSettingsUpdateDto
     public double? Pitch { get; set; }
     public int? Volume { get; set; }
     public bool? AutoPlay { get; set; }
+    public string? AudioPlaybackMode { get; set; }
 }
 
 public class LocationSettingsUpdateDto

@@ -844,6 +844,20 @@
                     </div>
                 </div>
 
+                <div class="form-group" id="adminVendorGroup" style="display: none;">
+                    <label class="form-label">
+                        Chủ sở hữu gian hàng (Vendor)
+                        <span class="required">*</span>
+                    </label>
+                    <select class="form-select" id="vendorSelect">
+                        <option value="">Đang tải danh sách vendor...</option>
+                    </select>
+                    <div class="form-help" id="vendorSelectHelp">
+                        <i class="fas fa-user-tie"></i>
+                        Admin phải chọn vendor để POI không bị mồ côi.
+                    </div>
+                </div>
+
                 <!-- Admin Only: Coordinates -->
                 <div class="form-group admin-only">
                     <label class="form-label">Link bản đồ Google hoặc Tọa độ GPS</label>
@@ -1168,20 +1182,76 @@
 
         const isAdmin = user?.roles?.includes('Admin');
         const isVendor = user?.roles?.includes('Vendor');
+        let currentVendorProfile = null;
 
         // Apply role-based UI
         function applyRoleUi() {
             const body = document.body;
+            const adminVendorGroup = document.getElementById('adminVendorGroup');
 
             if (isAdmin) {
                 // Admin can toggle between simple and advanced mode
                 body.classList.add('admin-mode');
                 document.querySelectorAll('.vendor-only').forEach(el => el.style.display = 'none');
+                if (adminVendorGroup) adminVendorGroup.style.display = 'block';
             } else {
                 // Vendor always sees simple mode
                 body.classList.add('vendor-mode');
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.vendor-only').forEach(el => el.style.display = 'block');
+                if (adminVendorGroup) adminVendorGroup.style.display = 'none';
+            }
+        }
+
+        async function loadVendorContext() {
+            if (!isVendor) return;
+            try {
+                currentVendorProfile = await api.getVendorMe();
+            } catch (error) {
+                console.error('Cannot load vendor profile:', error);
+                currentVendorProfile = null;
+            }
+        }
+
+        async function loadAdminVendorOptions() {
+            if (!isAdmin) return;
+
+            const select = document.getElementById('vendorSelect');
+            const help = document.getElementById('vendorSelectHelp');
+            if (!select) return;
+
+            try {
+                const response = await api.getVendors('', 'approved', 'name-asc');
+                const vendors = Array.isArray(response?.data) ? response.data : [];
+
+                if (!vendors.length) {
+                    select.innerHTML = '<option value="">Không có vendor đã duyệt</option>';
+                    if (help) {
+                        help.innerHTML = '<i class="fas fa-exclamation-circle"></i> Hiện chưa có vendor ở trạng thái approved để gán POI.';
+                        help.style.color = 'var(--danger)';
+                    }
+                    return;
+                }
+
+                const options = vendors.map(v => {
+                    const id = v.vendorId ?? v.VendorId;
+                    const contact = v.contactName ?? v.ContactName ?? 'N/A';
+                    const business = v.businessName ?? v.BusinessName ?? '';
+                    return `<option value="${id}">#${id} - ${contact}${business ? ` (${business})` : ''}</option>`;
+                }).join('');
+
+                select.innerHTML = `<option value="">Chọn vendor sở hữu POI</option>${options}`;
+                if (help) {
+                    help.innerHTML = '<i class="fas fa-user-tie"></i> POI sẽ được gán đúng chủ sở hữu ngay khi tạo.';
+                    help.style.color = '';
+                }
+            } catch (error) {
+                console.error('Error loading vendor options:', error);
+                select.innerHTML = '<option value="">Lỗi tải danh sách vendor</option>';
+                if (help) {
+                    help.innerHTML = '<i class="fas fa-exclamation-circle"></i> Không tải được danh sách vendor, vui lòng thử lại.';
+                    help.style.color = 'var(--danger)';
+                }
             }
         }
 
@@ -1533,6 +1603,21 @@
             };
         }
 
+        async function autoTranslateText(text) {
+            if (!text || !text.trim()) return {};
+            try {
+                return await api.autoTranslate(text, ['en', 'zh-CN']);
+            } catch (err) {
+                console.warn('AutoTranslate failed:', err);
+                return {};
+            }
+        }
+
+        function pickTranslation(map, key) {
+            if (!map) return null;
+            return map[key] || map[key.toLowerCase()] || map[key.toUpperCase()] || null;
+        }
+
         // Form submission
         document.getElementById('poiForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1565,6 +1650,16 @@
                 description_Vi = document.getElementById('description_Vi')?.value || null;
             }
 
+            const [nameTranslations, descTranslations] = await Promise.all([
+                autoTranslateText(name_Vi),
+                autoTranslateText(description_Vi)
+            ]);
+
+            const autoNameEn = pickTranslation(nameTranslations, 'en');
+            const autoNameZh = pickTranslation(nameTranslations, 'zh-CN') || pickTranslation(nameTranslations, 'zh');
+            const autoDescEn = pickTranslation(descTranslations, 'en');
+            const autoDescZh = pickTranslation(descTranslations, 'zh-CN') || pickTranslation(descTranslations, 'zh');
+
             const poiData = {
                 name_Vi: name_Vi,
                 description_Vi: description_Vi,
@@ -1575,8 +1670,43 @@
                 phoneNumber: document.getElementById('phone')?.value || null,
                 averagePrice: parseFloat(document.getElementById('avgPrice')?.value) || null,
                 signatureDish: document.getElementById('specialty')?.value || null,
-                isActive: true
+                isActive: isVendor ? false : true,
             };
+
+            if (isAdmin) {
+                const selectedVendorId = parseInt(document.getElementById('vendorSelect')?.value || '', 10);
+                if (Number.isNaN(selectedVendorId)) {
+                    errorDiv.textContent = '❌ Admin phải chọn Vendor trước khi tạo POI.';
+                    errorDiv.style.display = 'block';
+                    submitBtns.forEach(btn => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-check"></i> Tạo gian hàng';
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+                poiData.vendorId = selectedVendorId;
+            }
+
+            if (isVendor) {
+                if (!currentVendorProfile) {
+                    await loadVendorContext();
+                }
+
+                const myVendorId = parseInt((currentVendorProfile?.vendorId ?? currentVendorProfile?.VendorId ?? ''), 10);
+                if (Number.isNaN(myVendorId)) {
+                    errorDiv.textContent = '❌ Không xác định được Vendor hiện tại. Vui lòng vào lại tài khoản Vendor.';
+                    errorDiv.style.display = 'block';
+                    submitBtns.forEach(btn => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-check"></i> Tạo gian hàng';
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+
+                poiData.vendorId = myVendorId;
+            }
 
             const zoneType = document.getElementById('zoneType')?.value || 'Spot';
             poiData.zoneType = zoneType;
@@ -1615,16 +1745,25 @@
 
             // Add multilingual data if in advanced mode
             if (isAdvancedMode) {
-                poiData.name_En = document.getElementById('name_En')?.value || null;
-                poiData.name_Zh = document.getElementById('name_Zh')?.value || null;
-                poiData.description_En = document.getElementById('description_En')?.value || null;
-                poiData.description_Zh = document.getElementById('description_Zh')?.value || null;
+                const manualNameEn = document.getElementById('name_En')?.value?.trim();
+                const manualNameZh = document.getElementById('name_Zh')?.value?.trim();
+                const manualDescEn = document.getElementById('description_En')?.value?.trim();
+                const manualDescZh = document.getElementById('description_Zh')?.value?.trim();
+
+                poiData.name_En = manualNameEn || autoNameEn || null;
+                poiData.name_Zh = manualNameZh || autoNameZh || null;
+                poiData.description_En = manualDescEn || autoDescEn || null;
+                poiData.description_Zh = manualDescZh || autoDescZh || null;
 
                 const lat = parseFloat(document.getElementById('latitude')?.value);
                 const lng = parseFloat(document.getElementById('longitude')?.value);
                 if (!isNaN(lat)) poiData.latitude = lat;
                 if (!isNaN(lng)) poiData.longitude = lng;
             } else {
+                poiData.name_En = autoNameEn || null;
+                poiData.name_Zh = autoNameZh || null;
+                poiData.description_En = autoDescEn || null;
+                poiData.description_Zh = autoDescZh || null;
                 const lat = parseFloat(document.getElementById('vendorLat')?.value);
                 const lng = parseFloat(document.getElementById('vendorLng')?.value);
                 if (!isNaN(lat)) { poiData.latitude = lat; }
@@ -1650,7 +1789,7 @@
                 alert('✅ Tạo gian hàng thành công!\n\nBạn có thể thêm file thuyết minh tại trang Quản lý Audio.');
 
                 if (isVendor) {
-                    window.location.href = 'vendor-dashboard.html';
+                    window.location.href = 'dashboard.html';
                 } else {
                     window.location.href = 'poi-list.html';
                 }
@@ -1666,10 +1805,14 @@
         });
 
         // Initialize
-        applyRoleUi();
-        setupAddressSuggestions();
-        updateHoursPreview();
-        initAdminMap();
+        (async () => {
+            applyRoleUi();
+            await loadVendorContext();
+            await loadAdminVendorOptions();
+            setupAddressSuggestions();
+            updateHoursPreview();
+            initAdminMap();
+        })();
 
         const latInput = document.getElementById('latitude');
         const lngInput = document.getElementById('longitude');

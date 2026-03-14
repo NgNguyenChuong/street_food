@@ -39,7 +39,19 @@ public class VendorsController : ControllerBase
             return Unauthorized();
         }
 
+        var email = User.FindFirstValue(ClaimTypes.Email);
         var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+        if (vendor == null && !string.IsNullOrWhiteSpace(email))
+        {
+            vendor = await _db.VendorProfiles.Find(v => v.ContactEmail == email).FirstOrDefaultAsync();
+            if (vendor != null && string.IsNullOrWhiteSpace(vendor.UserId))
+            {
+                var update = Builders<VendorProfile>.Update
+                    .Set(v => v.UserId, userId)
+                    .Set(v => v.UpdatedAt, DateTime.UtcNow);
+                await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, update);
+            }
+        }
         if (vendor == null)
         {
             if (!User.IsInRole("Vendor"))
@@ -48,7 +60,6 @@ public class VendorsController : ControllerBase
             }
 
             var vendorId = await _sequence.GetNextAsync("vendor_id");
-            var email = User.FindFirstValue(ClaimTypes.Email);
             var name = User.FindFirstValue(ClaimTypes.Name);
             var fallbackName = !string.IsNullOrWhiteSpace(name)
                 ? name

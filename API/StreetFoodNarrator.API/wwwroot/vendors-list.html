@@ -33,7 +33,7 @@
         }
 
         .main-content {
-            margin-left: 130px;
+            margin-left: 0;
             padding: 2rem;
             min-height: 100vh;
             transition: margin-left 0.3s;
@@ -972,7 +972,11 @@
                         ${statusLabel(v.verificationStatus)}
                     </span>
                 </td>
-                <td><strong>${v.poiCount || 0}</strong></td>
+                <td>
+                    <button class="btn btn-outline btn-sm" onclick="viewVendor(${v.vendorId})" title="Xem danh sách POI">
+                        ${v.poiCount || 0} POI
+                    </button>
+                </td>
                 <td>${(v.viewCount || 0).toLocaleString()}</td>
                 <td>${formatDateShort(v.createdAt)}</td>
                 <td>
@@ -1036,9 +1040,46 @@
     }
 
     // ═══ View Detail ═══
+    function getPoiListFromVendor(vendor) {
+        if (!vendor || typeof vendor !== 'object') return [];
+
+        const unwrapList = (value) => {
+            if (Array.isArray(value)) return value;
+            if (!value || typeof value !== 'object') return [];
+            if (Array.isArray(value.$values)) return value.$values;
+            if (Array.isArray(value.items)) return value.items;
+            if (Array.isArray(value.data)) return value.data;
+            return [];
+        };
+
+        const direct =
+            vendor.pOIs ||
+            vendor.POIs ||
+            vendor.pois ||
+            vendor.poIs ||
+            vendor.Pois ||
+            vendor.POIS ||
+            vendor.poiList ||
+            vendor.poisList;
+        const directList = unwrapList(direct);
+        if (directList.length) return directList;
+
+        const key = Object.keys(vendor).find(k => k.toLowerCase() === 'pois');
+        if (key) {
+            const keyedList = unwrapList(vendor[key]);
+            if (keyedList.length) return keyedList;
+        }
+
+        const nestedDataList = unwrapList(vendor.data);
+        if (nestedDataList.length) return nestedDataList;
+
+        return [];
+    }
+
     async function viewVendor(vendorId) {
         try {
-            const v = await VendorApi.get(vendorId);
+            const raw = await VendorApi.get(vendorId);
+            const v = raw && raw.data ? raw.data : raw;
             document.getElementById('detailTitle').textContent = escapeHtml(v.businessName);
             document.getElementById('detailEmail').textContent = v.contactEmail || '—';
             document.getElementById('detailBusiness').textContent = v.businessName || '—';
@@ -1053,14 +1094,26 @@
             document.getElementById('detailStatus').innerHTML = statusHtml;
 
             const poisEl = document.getElementById('detailPOIs');
-            if (v.pois && v.pois.length) {
-                poisEl.innerHTML = v.pois.map(p => `
-                    <div class="poi-item">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <span>${escapeHtml(p.name)}</span>
-                        ${p.isActive ? '' : '<span style="color:var(--danger);font-size:0.8rem;">(Ẩn)</span>'}
-                    </div>
-                `).join('');
+            // API có thể trả về POIs, pOIs, hoặc pois tùy theo JSON serialization
+            const poiList = getPoiListFromVendor(v);
+            if (poiList.length) {
+                poisEl.innerHTML = poiList.map((p, idx) => {
+                    // Hỗ trợ nhiều cách đặt tên field từ backend
+                    const id = p.pOI_ID ?? p.poI_ID ?? p.POI_ID ?? p.poi_ID ?? p.poiId ?? p.id ?? '';
+                    const name = p.name_Vi || p.name || p.Name || '?';
+                    const isActive = p.isActive ?? p.IsActive ?? true;
+                    const link = id ? `poi-detail.html?id=${id}` : null;
+                    return `
+                        <div class="poi-item">
+                                                        <span style="color:#999;font-size:0.85rem;min-width:20px;">${idx + 1}.</span>
+                            ${link
+                                ? `<a href="${link}" style="color:#111;text-decoration:none;font-weight:600">${escapeHtml(name)}</a>`
+                                : `<span style="font-weight:600;">${escapeHtml(name)}</span>`
+                            }
+                            ${!isActive ? '<span style="color:var(--danger);font-size:0.8rem;margin-left:4px;">(Inactive)</span>' : ''}
+                        </div>
+                    `;
+                }).join('');
             } else {
                 poisEl.innerHTML = '<div style="color:#999;text-align:center;padding:1rem;">Chưa có POI</div>';
             }

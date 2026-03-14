@@ -6,6 +6,7 @@ using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -133,6 +134,68 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Protect admin HTML pages with JWT stored in auth_token cookie
+var publicHtmlPages = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "/",
+    "/index.html",
+    "/login.html",
+    "/register.html"
+};
+
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+
+    if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
+
+    if (!path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
+
+    if (publicHtmlPages.Contains(path))
+    {
+        await next();
+        return;
+    }
+
+    var token = context.Request.Cookies["auth_token"];
+    if (string.IsNullOrWhiteSpace(token))
+    {
+        context.Response.Redirect("/index.html");
+        return;
+    }
+
+    try
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var principal = handler.ValidateToken(token, new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        }, out _);
+
+        context.User = principal;
+        await next();
+    }
+    catch
+    {
+        context.Response.Redirect("/index.html");
+    }
+});
+
 app.UseDefaultFiles(); // Enable index.html as default landing
 app.UseStaticFiles(); // Serve static files from wwwroot
 

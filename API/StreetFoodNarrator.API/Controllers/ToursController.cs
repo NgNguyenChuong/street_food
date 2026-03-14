@@ -52,15 +52,53 @@ public class ToursController : ControllerBase
             .Limit(pageSize)
             .ToListAsync();
 
-        var tourDtos = tours.Select(t => new TourDto
+        // Collect all POI ObjectIds referenced across the returned tours
+        var allPoiIdStrings = tours.SelectMany(t => t.PoiIds ?? new()).Distinct().ToList();
+        var poiMap = new Dictionary<string, POI>();
+        if (allPoiIdStrings.Count > 0)
         {
-            Id = t.Id.ToString(),
-            Tour_ID = t.Tour_ID,
-            TourName = t.TourName,
-            Description = t.Description,
-            EstimatedDurationMinutes = t.EstimatedDurationMinutes,
-            IsActive = t.IsActive,
-            CreatedAt = t.CreatedAt
+            var objIds = allPoiIdStrings
+                .Where(s => MongoDB.Bson.ObjectId.TryParse(s, out _))
+                .Select(s => MongoDB.Bson.ObjectId.Parse(s))
+                .ToList();
+            if (objIds.Count > 0)
+            {
+                var pois = await _db.POIs
+                    .Find(Builders<POI>.Filter.In(p => p.Id, objIds))
+                    .ToListAsync();
+                poiMap = pois.ToDictionary(p => p.Id.ToString());
+            }
+        }
+
+        var tourDtos = tours.Select(t =>
+        {
+            var orderedPois = (t.PoiIds ?? new())
+                .Select(pid => poiMap.TryGetValue(pid, out var p) ? new TourPoiDto
+                {
+                    Id       = p.Id.ToString(),
+                    Name     = p.Name_Vi,
+                    Category = p.Category,
+                    Address  = p.Address,
+                    Latitude  = p.Location?.Latitude,
+                    Longitude = p.Location?.Longitude
+                } : null)
+                .Where(p => p != null)
+                .ToList();
+            return new TourDto
+            {
+                Id = t.Id.ToString(),
+                Tour_ID = t.Tour_ID,
+                TourName = t.TourName,
+                Description = t.Description,
+                EstimatedDurationMinutes = t.EstimatedDurationMinutes,
+                IsActive = t.IsActive,
+                CreatedAt = t.CreatedAt,
+                Themes = t.Themes ?? new(),
+                TimeSlots = t.TimeSlots ?? new(),
+                RouteType = t.RouteType ?? "ordered",
+                Pois = orderedPois!,
+                RouteGeometry = t.RouteGeometry
+            };
         }).ToList();
 
         return Ok(new TourListResponse
@@ -104,6 +142,11 @@ public class ToursController : ControllerBase
             Description = request.Description,
             EstimatedDurationMinutes = request.EstimatedDurationMinutes,
             IsActive = request.IsActive ?? true,
+            Themes = request.Themes ?? new(),
+            TimeSlots = request.TimeSlots ?? new(),
+            RouteType = request.RouteType ?? "ordered",
+            PoiIds = request.PoiIds ?? new(),
+            RouteGeometry = request.RouteGeometry,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -126,6 +169,11 @@ public class ToursController : ControllerBase
             .Set(t => t.Description, request.Description)
             .Set(t => t.EstimatedDurationMinutes, request.EstimatedDurationMinutes)
             .Set(t => t.IsActive, request.IsActive)
+            .Set(t => t.Themes, request.Themes ?? new())
+            .Set(t => t.TimeSlots, request.TimeSlots ?? new())
+            .Set(t => t.RouteType, request.RouteType ?? "ordered")
+            .Set(t => t.PoiIds, request.PoiIds ?? new())
+            .Set(t => t.RouteGeometry, request.RouteGeometry)
             .Set(t => t.UpdatedAt, DateTime.UtcNow);
 
         var result = await _db.Tours.UpdateOneAsync(t => t.Id == objectId, update);
@@ -157,15 +205,21 @@ public class ToursController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<TourStatsResponse>> GetStats()
     {
-        var total = await _db.Tours.CountDocumentsAsync(Builders<Tour>.Filter.Empty);
+        var total  = await _db.Tours.CountDocumentsAsync(Builders<Tour>.Filter.Empty);
         var active = await _db.Tours.CountDocumentsAsync(t => t.IsActive);
-        var draft = await _db.Tours.CountDocumentsAsync(t => !t.IsActive);
+        var draft  = await _db.Tours.CountDocumentsAsync(t => !t.IsActive);
+        var routed = await _db.Tours.CountDocumentsAsync(
+            Builders<Tour>.Filter.And(
+                Builders<Tour>.Filter.Exists("RouteGeometry"),
+                Builders<Tour>.Filter.Ne<GeoJsonLineString?>("RouteGeometry", null)
+            ));
 
         return Ok(new TourStatsResponse
         {
-            Total = (int)total,
+            Total  = (int)total,
             Active = (int)active,
-            Draft = (int)draft
+            Draft  = (int)draft,
+            Routed = (int)routed
         });
     }
 }
@@ -180,6 +234,22 @@ public class TourDto
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+    // v2 fields
+    public List<string> Themes { get; set; } = new();
+    public List<string> TimeSlots { get; set; } = new();
+    public string RouteType { get; set; } = "ordered";
+    public List<TourPoiDto> Pois { get; set; } = new();
+    public GeoJsonLineString? RouteGeometry { get; set; }
+}
+
+public class TourPoiDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Category { get; set; }
+    public string? Address { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 }
 
 public class TourListResponse
@@ -197,6 +267,12 @@ public class CreateTourRequest
     public string? Description { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool? IsActive { get; set; }
+    // v2 fields
+    public List<string>? Themes { get; set; }
+    public List<string>? TimeSlots { get; set; }
+    public string? RouteType { get; set; }
+    public List<string>? PoiIds { get; set; }
+    public GeoJsonLineString? RouteGeometry { get; set; }
 }
 
 public class UpdateTourRequest
@@ -205,6 +281,12 @@ public class UpdateTourRequest
     public string? Description { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; }
+    // v2 fields
+    public List<string>? Themes { get; set; }
+    public List<string>? TimeSlots { get; set; }
+    public string? RouteType { get; set; }
+    public List<string>? PoiIds { get; set; }
+    public GeoJsonLineString? RouteGeometry { get; set; }
 }
 
 public class TourStatsResponse
@@ -212,4 +294,5 @@ public class TourStatsResponse
     public int Total { get; set; }
     public int Active { get; set; }
     public int Draft { get; set; }
+    public int Routed { get; set; }
 }

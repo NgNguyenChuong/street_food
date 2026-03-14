@@ -54,12 +54,14 @@
                 </Grid>
             </Grid>
 
-            <!-- ════════════════════════ APPROACHING BANNER ════════════════════ -->
+            <!-- Banner nổi phía trên mép top của bottom sheet -->
             <Border x:Name="ApproachingBanner"
-                    HorizontalOptions="Center" VerticalOptions="Start"
-                    Margin="0,116,0,0" WidthRequest="340"
-                    StrokeShape="RoundRectangle 16" Padding="3"
-                    IsVisible="{Binding IsApproaching}">
+                    IsVisible="{Binding IsApproaching}"
+                    HorizontalOptions="Fill"
+                    VerticalOptions="End"
+                    Margin="12,0,12,0"
+                    StrokeShape="RoundRectangle 14"
+                    Padding="3">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                         <GradientStop Color="#0F241DEE" Offset="0"/>
@@ -100,7 +102,6 @@
                     </Border>
                 </Grid>
             </Border>
-
 
             <!--  Chú thích bản đồ (góc trái, dưới header) -->
             <AbsoluteLayout AbsoluteLayout.LayoutBounds="0,0,1,1"
@@ -206,7 +207,7 @@
                         <VerticalStackLayout.GestureRecognizers>
                             <PanGestureRecognizer PanUpdated="OnBottomSheetPan"/>
                         </VerticalStackLayout.GestureRecognizers>
-                        
+
                         <!-- Drag handle + toolbar -->
                         <BoxView WidthRequest="40" HeightRequest="5" BackgroundColor="#22C55E"
                                  Opacity="0.45" CornerRadius="2.5"
@@ -258,7 +259,7 @@
                         <BoxView HeightRequest="1" BackgroundColor="#1C3024" Margin="0,10,0,0"/>
 
                         <!-- BƯNG AREA NÀY RA NGOÀI SCROLLVIEW ĐỂ KHÔNG BỊ SCROLL CUT OFF -->
-                        <VerticalStackLayout Spacing="0" Padding="14,12,14,0">
+                        <VerticalStackLayout x:Name="CollapsedSummarySection" Spacing="0" Padding="14,12,14,0">
 
                             <!-- POI Header — top row với badge + tên bên trái, counter + rating bên phải -->
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,0,0,12">
@@ -463,6 +464,53 @@
                         <VerticalStackLayout x:Name="ExpandedContent"
                                              IsVisible="False" Spacing="0"
                                              Padding="14,0,14,32">
+
+                            <!-- Banner ĐANG TIẾN ĐẾN – hiện ở đầu expanded sheet thay cho floating banner -->
+                            <Border IsVisible="{Binding IsApproaching}"
+                                    StrokeShape="RoundRectangle 14"
+                                    Margin="0,12,0,0" Padding="3">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#0F241DEE" Offset="0"/>
+                                        <GradientStop Color="#0F2820EE" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Border.Stroke>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#F9731666" Offset="0"/>
+                                        <GradientStop Color="#FBBF2466" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Stroke>
+                                <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="10" Padding="10,10">
+                                    <Border Grid.Column="0" StrokeShape="RoundRectangle 11"
+                                            BackgroundColor="#F9731618" WidthRequest="36" HeightRequest="36">
+                                        <Label Text="&#xF034E;" FontFamily="MDI" FontSize="17" TextColor="#F97316"
+                                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                                    </Border>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                        <Label Text="ĐANG TIẾN ĐẾN" FontSize="9" FontAttributes="Bold"
+                                               TextColor="#F97316" CharacterSpacing="1.2"/>
+                                        <Label Text="{Binding ApproachingZoneName}"
+                                               FontSize="14" FontAttributes="Bold" TextColor="White"
+                                               LineBreakMode="TailTruncation"/>
+                                    </VerticalStackLayout>
+                                    <Border Grid.Column="2" StrokeShape="RoundRectangle 10" Padding="10,6">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Color="#F97316" Offset="0"/>
+                                                <GradientStop Color="#EA580C" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <VerticalStackLayout Spacing="0" HorizontalOptions="Center">
+                                            <Label Text="{Binding ApproachingDistance}"
+                                                   FontSize="15" FontAttributes="Bold" TextColor="White"
+                                                   HorizontalTextAlignment="Center"/>
+                                            <Label Text="mét" FontSize="9" TextColor="#FECACA"
+                                                   HorizontalTextAlignment="Center"/>
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </Grid>
+                            </Border>
 
                             <!-- Divider -->
                             <BoxView HeightRequest="1" BackgroundColor="#1E3828" Margin="0,13,0,13"/>

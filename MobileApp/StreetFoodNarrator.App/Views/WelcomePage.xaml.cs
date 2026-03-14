@@ -197,7 +197,7 @@ public partial class WelcomePage : ContentPage
 
         var btnDownload = new Button
         {
-            Text = "\uF0552  Tải xuống ngay",
+            Text = "Tải xuống ngay",
             FontFamily = "MDI",
             BackgroundColor = Color.FromArgb("#22C55E"),
             TextColor = Colors.White,

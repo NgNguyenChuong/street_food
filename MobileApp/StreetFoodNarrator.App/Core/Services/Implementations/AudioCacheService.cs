@@ -69,6 +69,31 @@ public class AudioCacheService : IAudioCacheService
     }
 
     /// <inheritdoc/>
+    public async Task<Stream?> GetOrDownloadCachedStreamAsync(int poiId, string language, CancellationToken ct = default)
+    {
+        var key = CacheKey(poiId, language);
+        var path = CachePath(key);
+
+        if (File.Exists(path))
+            return File.OpenRead(path);
+
+        // Không có mạng thì không thể tải về mới.
+        if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+        {
+            Debug.WriteLine($"[AudioCache] Offline: bỏ qua download POI {poiId} ({language})");
+            return null;
+        }
+
+        var audioUrl = await GetAudioUrlAsync(poiId, language, ct);
+        if (string.IsNullOrWhiteSpace(audioUrl))
+            return null;
+
+        await DownloadAndSaveAsync(audioUrl, key, ct);
+
+        return File.Exists(path) ? File.OpenRead(path) : null;
+    }
+
+    /// <inheritdoc/>
     public bool IsCached(int poiId, string language)
         => _cachedKeys.Contains(CacheKey(poiId, language));
 
@@ -130,17 +155,16 @@ public class AudioCacheService : IAudioCacheService
     /// <inheritdoc/>
     public async Task<string?> GetAudioUrlAsync(int poiId, string language, CancellationToken ct = default)
     {
+        var normalizedLang = language.ToLowerInvariant() switch
+        {
+            "vi" or "vi-vn" => "vi-VN",
+            "en" or "en-us" => "en-US",
+            "zh" or "zh-cn" => "zh-CN",
+            _ => language
+        };
+
         try
         {
-            // Normalize language code
-            var normalizedLang = language.ToLowerInvariant() switch
-            {
-                "vi" or "vi-vn" => "vi-VN",
-                "en" or "en-us" => "en-US",
-                "zh" or "zh-cn" => "zh-CN",
-                _ => language
-            };
-
             // Call endpoint mới để lấy chính xác 1 audio
             var url = $"{_baseUrl}/api/audio/poi/{poiId}/{normalizedLang}";
             var audio = await _http.GetFromJsonAsync<AudioDto>(url, ct);
@@ -158,14 +182,22 @@ public class AudioCacheService : IAudioCacheService
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            Debug.WriteLine($"[AudioCache] POI {poiId} không có audio {language} trên server");
-            return null;
+            Debug.WriteLine($"[AudioCache] POI {poiId} không có audio published {normalizedLang}, thử fallback từ POI.AudioUrl_*");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AudioCache] Lỗi lấy URL: {ex.Message}");
-            return null;
+            Debug.WriteLine($"[AudioCache] Lỗi lấy URL audio published: {ex.Message}");
         }
+
+        // Fallback: lấy URL audio trực tiếp từ POI (AudioUrl_Vi/En/Zh)
+        var poiAudioUrl = await TryGetPoiAudioUrlAsync(poiId, normalizedLang, ct);
+        if (!string.IsNullOrWhiteSpace(poiAudioUrl))
+        {
+            Debug.WriteLine($"[AudioCache] 🌐 URL fallback từ POI {poiId} ({normalizedLang}) → {poiAudioUrl}");
+            return poiAudioUrl;
+        }
+
+        return null;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -225,6 +257,55 @@ public class AudioCacheService : IAudioCacheService
             Debug.WriteLine($"[AudioCache] ✓ Đã lưu {key}.mp3 ({bytes.Length / 1024} KB)");
         }
         finally { _lock.Release(); }
+    }
+
+    private async Task<string?> TryGetPoiAudioUrlAsync(int poiId, string language, CancellationToken ct)
+    {
+        try
+        {
+            var url = $"{_baseUrl}/api/POIs/{poiId}";
+            using var response = await _http.GetAsync(url, ct);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            await using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(stream, cancellationToken: ct);
+            var root = doc.RootElement;
+
+            string? vi = GetJsonString(root, "audioUrl_Vi", "audioUrlVi", "AudioUrl_Vi", "AudioUrlVi");
+            string? en = GetJsonString(root, "audioUrl_En", "audioUrlEn", "AudioUrl_En", "AudioUrlEn");
+            string? zh = GetJsonString(root, "audioUrl_Zh", "audioUrlZh", "AudioUrl_Zh", "AudioUrlZh");
+
+            var selected = language.ToLowerInvariant() switch
+            {
+                "en-us" => en ?? vi,
+                "zh-cn" => zh ?? en ?? vi,
+                _ => vi
+            };
+
+            if (string.IsNullOrWhiteSpace(selected))
+                return null;
+
+            return selected.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? selected
+                : $"{_baseUrl}{selected}";
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AudioCache] Fallback POI audio lỗi: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static string? GetJsonString(System.Text.Json.JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (root.TryGetProperty(name, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String)
+                return value.GetString();
+        }
+
+        return null;
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────
