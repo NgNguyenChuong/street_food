@@ -1,0 +1,263 @@
+<!-- Shared Sidebar Component -->
+<style>
+    /* Sidebar Styles */
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 280px;
+        height: 100vh;
+        background: linear-gradient(180deg, #1A1A2E 0%, #2D2D44 100%);
+        padding: 2rem 0;
+        z-index: 1000;
+        box-shadow: 4px 0 20px rgba(26, 26, 46, 0.08);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .logo-section {
+        padding: 0 2rem 2rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .logo {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.5rem;
+        font-weight: 900;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .logo-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #FF6B35 0%, #004E89 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .nav-menu {
+        list-style: none;
+        padding: 0 1rem;
+    }
+
+    .nav-item {
+        margin-bottom: 0.5rem;
+    }
+
+    .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.5rem;
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        border-radius: 12px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 500;
+        position: relative;
+        width: 100%;
+        background: transparent;
+        border: none;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .nav-link::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 4px;
+        height: 100%;
+        background: #FF6B35;
+        transform: scaleY(0);
+        transition: transform 0.3s ease;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+        background: rgba(255, 107, 53, 0.15);
+        color: white;
+        transform: translateX(4px);
+    }
+
+    .nav-link.active::before {
+        transform: scaleY(1);
+    }
+
+    .nav-icon {
+        font-size: 1.25rem;
+        width: 24px;
+        text-align: center;
+    }
+
+    .nav-caret {
+        margin-left: auto;
+        font-size: 0.85rem;
+        transition: transform 0.2s ease;
+    }
+
+    .nav-item.has-submenu.open .nav-caret {
+        transform: rotate(180deg);
+    }
+
+    .submenu {
+        list-style: none;
+        padding-left: 2.5rem;
+        margin-top: 0.35rem;
+        display: none;
+    }
+
+    .nav-item.has-submenu.open .submenu {
+        display: block;
+    }
+
+    .nav-sublink {
+        display: block;
+        padding: 0.6rem 1rem;
+        color: rgba(255, 255, 255, 0.65);
+        text-decoration: none;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+    }
+
+    .nav-sublink:hover,
+    .nav-sublink.active {
+        background: rgba(255, 107, 53, 0.12);
+        color: #fff;
+    }
+
+    /* Adjust body for sidebar */
+    body {
+        margin-left: 280px;
+    }
+
+    .container {
+        max-width: calc(100% - 4rem);
+    }
+
+    @media (max-width: 768px) {
+        body {
+            margin-left: 0;
+        }
+        .sidebar {
+            transform: translateX(-100%);
+        }
+    }
+</style>
+
+<aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+        <div class="logo">
+            <div class="logo-icon">
+                <i class="fas fa-utensils"></i>
+            </div>
+            <span>Street Food</span>
+        </div>
+    </div>
+
+    <nav>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="admin-dashboard.html" class="nav-link">
+                    <i class="nav-icon fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="poi-list.html" class="nav-link">
+                    <i class="nav-icon fas fa-map-marker-alt"></i>
+                    <span>POI Management</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="vendors-list.html" class="nav-link">
+                    <i class="nav-icon fas fa-store"></i>
+                    <span>Vendors</span>
+                </a>
+            </li>
+            <li class="nav-item has-submenu">
+                <button type="button" class="nav-link nav-toggle">
+                    <i class="nav-icon fas fa-microphone"></i>
+                    <span>Audio Content</span>
+                    <i class="nav-caret fas fa-chevron-down"></i>
+                </button>
+                <ul class="submenu">
+                    <li><a href="audio-list.html" class="nav-sublink">Danh sách âm thanh</a></li>
+                    <li><a href="audio-bulk-generate.html" class="nav-sublink">TTS hàng loạt</a></li>
+                    <li><a href="audio-list.html#upload" class="nav-sublink">Upload audio</a></li>
+                </ul>
+            </li>
+            <li class="nav-item">
+                <a href="analytics.html" class="nav-link">
+                    <i class="nav-icon fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="settings.html" class="nav-link">
+                    <i class="nav-icon fas fa-cog"></i>
+                    <span>Cài đặt</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/index.html" class="nav-link" onclick="logout(); return false;">
+                    <i class="nav-icon fas fa-sign-out-alt"></i>
+                    <span>Đăng Xuất</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</aside>
+
+<script>
+    // Set active link based on current page
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentPage = window.location.pathname.split('/').pop();
+        const normalizeHref = (href) => (href || '').split('?')[0].split('#')[0];
+
+        const links = document.querySelectorAll('.nav-link');
+        links.forEach(link => {
+            const href = link.getAttribute('href') || '';
+            if (normalizeHref(href) === currentPage && !/[?#]/.test(href)) {
+                link.classList.add('active');
+            }
+        });
+
+        const sublinks = document.querySelectorAll('.nav-sublink');
+        sublinks.forEach(link => {
+            const href = link.getAttribute('href') || '';
+            if (normalizeHref(href) === currentPage && !/[?#]/.test(href)) {
+                link.classList.add('active');
+            }
+            if (normalizeHref(href) === currentPage) {
+                const parent = link.closest('.nav-item.has-submenu');
+                if (parent) parent.classList.add('open');
+            }
+        });
+
+        const toggles = document.querySelectorAll('.nav-toggle');
+        toggles.forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                const parent = toggle.closest('.nav-item.has-submenu');
+                if (parent) parent.classList.toggle('open');
+            });
+        });
+    });
+
+    function logout() {
+        if (confirm('Bạn có chắc muốn đăng xuất?')) {
+            localStorage.removeItem('userSession');
+            sessionStorage.removeItem('userSession');
+            localStorage.removeItem('authToken');
+            sessionStorage.removeItem('authToken');
+            window.location.href = '/index.html';
+        }
+    }
+</script>

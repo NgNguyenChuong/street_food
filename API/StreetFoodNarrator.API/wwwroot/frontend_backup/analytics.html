@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thống kê & Phân tích - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            color: #666;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Date Range Selector */
+        .filter-section {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: auto 1fr 1fr auto 1fr auto;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .filter-select,
+        .filter-input {
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-select:focus,
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out backwards;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px var(--shadow);
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.1s; }
+        .stat-card:nth-child(2) { animation-delay: 0.2s; }
+        .stat-card:nth-child(3) { animation-delay: 0.3s; }
+        .stat-card:nth-child(4) { animation-delay: 0.4s; }
+        .stat-card:nth-child(5) { animation-delay: 0.5s; }
+        .stat-card:nth-child(6) { animation-delay: 0.6s; }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+        }
+
+        .stat-icon.primary {
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.15) 0%, rgba(255, 107, 53, 0.05) 100%);
+            color: var(--primary);
+        }
+
+        .stat-icon.success {
+            background: linear-gradient(135deg, rgba(6, 214, 160, 0.15) 0%, rgba(6, 214, 160, 0.05) 100%);
+            color: var(--success);
+        }
+
+        .stat-icon.secondary {
+            background: linear-gradient(135deg, rgba(0, 78, 137, 0.15) 0%, rgba(0, 78, 137, 0.05) 100%);
+            color: var(--secondary);
+        }
+
+        .stat-icon.accent {
+            background: linear-gradient(135deg, rgba(255, 210, 63, 0.15) 0%, rgba(255, 210, 63, 0.05) 100%);
+            color: #E0A800;
+        }
+
+        .stat-icon.danger {
+            background: linear-gradient(135deg, rgba(239, 71, 111, 0.15) 0%, rgba(239, 71, 111, 0.05) 100%);
+            color: var(--danger);
+        }
+
+        .stat-icon.purple {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%);
+            color: #8B5CF6;
+        }
+
+        .stat-trend {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .stat-trend.up {
+            background: rgba(6, 214, 160, 0.1);
+            color: var(--success);
+        }
+
+        .stat-trend.down {
+            background: rgba(239, 71, 111, 0.1);
+            color: var(--danger);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .stat-sublabel {
+            color: #999;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Charts */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-section {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .chart-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .chart-title i {
+            color: var(--primary);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+
+        /* Top Items */
+        .top-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .top-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .top-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.25rem;
+            background: var(--light);
+            border-radius: 14px;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .top-item:hover {
+            background: rgba(255, 107, 53, 0.05);
+            border-color: rgba(255, 107, 53, 0.2);
+            transform: translateX(4px);
+        }
+
+        .rank {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.15rem;
+            flex-shrink: 0;
+        }
+
+        .rank.gold {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        }
+
+        .rank.silver {
+            background: linear-gradient(135deg, #C0C0C0 0%, #808080 100%);
+        }
+
+        .rank.bronze {
+            background: linear-gradient(135deg, #CD7F32 0%, #8B4513 100%);
+        }
+
+        .item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .item-meta {
+            font-size: 0.85rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .item-meta i {
+            color: var(--primary);
+            font-size: 0.75rem;
+        }
+
+        .item-value {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        /* Language Distribution */
+        .lang-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .lang-stat {
+            padding: 1rem;
+            background: var(--light);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .lang-flag {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .lang-count {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .lang-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        /* Category Distribution */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .category-item {
+            padding: 1.25rem;
+            background: var(--light);
+            border-radius: 14px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .category-item:hover {
+            background: rgba(255, 107, 53, 0.05);
+            border-color: rgba(255, 107, 53, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .category-icon {
+            font-size: 2rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .category-count {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .category-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        /* Empty State */
+        .empty {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+        }
+
+        .empty i {
+            font-size: 3rem;
+            color: #ddd;
+            margin-bottom: 1rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+
+            .top-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .category-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                width: 100%;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Thống kê & Phân tích</h1>
+                <p class="page-subtitle">Khu vực ẩm thực Vĩnh Khánh - Quận 4, TP.HCM</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="window.location.reload()">
+                    <i class="fas fa-sync-alt"></i>
+                    Làm mới
+                </button>
+                <button class="btn btn-primary" onclick="exportReport()">
+                    <i class="fas fa-file-pdf"></i>
+                    Xuất báo cáo
+                </button>
+            </div>
+        </div>
+
+        <!-- Date Range Filter -->
+        <div class="filter-section">
+            <div class="filter-grid">
+                <label class="filter-label">
+                    <i class="fas fa-calendar-alt"></i>
+                    Thời gian:
+                </label>
+                <select class="filter-select" id="periodSelect" onchange="applyFilters()">
+                    <option value="7">7 ngày qua</option>
+                    <option value="30" selected>30 ngày qua</option>
+                    <option value="90">3 tháng qua</option>
+                    <option value="custom">Tùy chỉnh</option>
+                </select>
+                <input type="date" class="filter-input" id="startDate" value="2025-01-01">
+                <span class="filter-label">đến</span>
+                <input type="date" class="filter-input" id="endDate" value="2025-02-02">
+                <button class="btn btn-primary" onclick="applyFilters()">
+                    <i class="fas fa-filter"></i>
+                    Áp dụng
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon primary">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="totalPoisStat">0</div>
+                <div class="stat-label">Tổng số quán ăn (POI)</div>
+                <div class="stat-sublabel">Đã được thêm vào hệ thống</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon success">
+                        <i class="fas fa-microphone"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="totalAudiosStat">0</div>
+                <div class="stat-label">Tổng file thuyết minh</div>
+                <div class="stat-sublabel">Đã được tạo và phê duyệt</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon secondary">
+                        <i class="fas fa-store"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="vendorsStat">0</div>
+                <div class="stat-label">Chủ quán (Vendors)</div>
+                <div class="stat-sublabel">Đang quản lý nội dung</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon accent">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="completePoisStat">0</div>
+                <div class="stat-label">POI hoàn chỉnh</div>
+                <div class="stat-sublabel">Có đủ audio đa ngôn ngữ</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="incompletePoisStat">0</div>
+                <div class="stat-label">POI thiếu audio</div>
+                <div class="stat-sublabel">Cần tạo thuyết minh</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon purple">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="languagesStat">0</div>
+                <div class="stat-label">Ngôn ngữ hỗ trợ</div>
+                <div class="stat-sublabel">Đang phục vụ du khách</div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="charts-row">
+            <div class="chart-section">
+                <h2 class="chart-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Số lượng audio theo POI (Top 10)
+                </h2>
+                <div class="chart-container">
+                    <canvas id="poisAudioChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <h2 class="chart-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Phân bố theo danh mục
+                </h2>
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Language Distribution -->
+        <div class="chart-section">
+            <h2 class="chart-title">
+                <i class="fas fa-language"></i>
+                Phân bố theo ngôn ngữ
+            </h2>
+            <div class="lang-stats" id="languageStats"></div>
+        </div>
+
+        <!-- Top Lists -->
+        <div class="top-section">
+            <div class="chart-section">
+                <h2 class="chart-title">
+                    <i class="fas fa-trophy"></i>
+                    Top 5 quán có nhiều audio nhất
+                </h2>
+                <div class="top-list" id="topPoisList"></div>
+            </div>
+
+            <div class="chart-section">
+                <h2 class="chart-title">
+                    <i class="fas fa-star"></i>
+                    Top 5 vendor tích cực nhất
+                </h2>
+                <div class="top-list" id="topVendorsList"></div>
+            </div>
+        </div>
+
+        <!-- Category Distribution -->
+        <div class="chart-section">
+            <h2 class="chart-title">
+                <i class="fas fa-utensils"></i>
+                Thống kê theo loại hình ẩm thực
+            </h2>
+            <div class="category-grid" id="categoryGrid"></div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        const user = TokenManager.getUser();
+        if (!user || !user.roles?.includes('Admin')) {
+            window.location.href = '/index.html';
+        }
+
+        let allPois = [];
+        let allAudios = [];
+        let allVendors = [];
+
+        async function loadAnalytics() {
+            try {
+                // Load all data
+                const [poisResp, audiosResp, vendorsResp] = await Promise.all([
+                    api.getPOIs(1, 1000),
+                    api.getAudioList(1, 5000),
+                    api.getVendors('', '', 'name-asc')
+                ]);
+
+                allPois = poisResp.data || [];
+                allAudios = audiosResp.data || [];
+                allVendors = vendorsResp.data || [];
+
+                updateMainStats();
+                updateLanguageStats();
+                updateTopPois();
+                updateTopVendors();
+                updateCategoryStats();
+                renderCharts();
+            } catch (error) {
+                console.error('Analytics error:', error);
+            }
+        }
+
+        function updateMainStats() {
+            const totalPois = allPois.length;
+            const totalAudios = allAudios.length;
+            const totalVendors = allVendors.length;
+
+            // Count POIs with audio
+            const poisWithAudio = new Set(allAudios.map(a => a.poi_ID || a.poiId));
+            const completePois = allPois.filter(p => {
+                const poiAudios = allAudios.filter(a => (a.poi_ID || a.poiId) === p.poI_ID);
+                const languages = new Set(poiAudios.map(a => a.language));
+                return languages.size >= 3; // At least 3 languages
+            }).length;
+            const incompletePois = totalPois - poisWithAudio.size;
+
+            // Count unique languages
+            const uniqueLanguages = new Set(allAudios.map(a => a.language).filter(Boolean));
+
+            document.getElementById('totalPoisStat').textContent = totalPois;
+            document.getElementById('totalAudiosStat').textContent = totalAudios;
+            document.getElementById('vendorsStat').textContent = totalVendors;
+            document.getElementById('completePoisStat').textContent = completePois;
+            document.getElementById('incompletePoisStat').textContent = incompletePois;
+            document.getElementById('languagesStat').textContent = uniqueLanguages.size;
+        }
+
+        function updateLanguageStats() {
+            const langCounts = {};
+            const langLabels = {
+                'vi-VN': { flag: '🇻🇳', name: 'Tiếng Việt' },
+                'en-US': { flag: '🇬🇧', name: 'English' },
+                'zh-CN': { flag: '🇨🇳', name: '中文' }
+            };
+
+            allAudios.forEach(a => {
+                const lang = a.language || 'unknown';
+                langCounts[lang] = (langCounts[lang] || 0) + 1;
+            });
+
+            const container = document.getElementById('languageStats');
+            container.innerHTML = Object.entries(langCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([lang, count]) => {
+                    const info = langLabels[lang] || { flag: '🌐', name: lang };
+                    return `
+                        <div class="lang-stat">
+                            <div class="lang-flag">${info.flag}</div>
+                            <div class="lang-count">${count}</div>
+                            <div class="lang-label">${info.name}</div>
+                        </div>
+                    `;
+                }).join('');
+        }
+
+        function updateTopPois() {
+            const container = document.getElementById('topPoisList');
+            
+            // Count audios per POI
+            const poiAudioCounts = {};
+            allAudios.forEach(a => {
+                const poiId = a.poi_ID || a.poiId;
+                if (poiId) {
+                    poiAudioCounts[poiId] = (poiAudioCounts[poiId] || 0) + 1;
+                }
+            });
+
+            // Sort POIs by audio count
+            const sortedPois = allPois
+                .map(p => ({
+                    ...p,
+                    audioCount: poiAudioCounts[p.poI_ID] || 0
+                }))
+                .sort((a, b) => b.audioCount - a.audioCount)
+                .slice(0, 5);
+
+            if (sortedPois.length === 0) {
+                container.innerHTML = '<div class="empty"><i class="fas fa-inbox"></i><p>Chưa có dữ liệu</p></div>';
+                return;
+            }
+
+            container.innerHTML = sortedPois.map((p, idx) => {
+                let rankClass = '';
+                if (idx === 0) rankClass = 'gold';
+                else if (idx === 1) rankClass = 'silver';
+                else if (idx === 2) rankClass = 'bronze';
+
+                return `
+                    <div class="top-item">
+                        <div class="rank ${rankClass}">${idx + 1}</div>
+                        <div class="item-info">
+                            <div class="item-name">${p.name_Vi || 'POI #' + p.poI_ID}</div>
+                            <div class="item-meta">
+                                <i class="fas fa-map-marker-alt"></i>
+                                ${p.address || 'Chưa có địa chỉ'}
+                            </div>
+                        </div>
+                        <div class="item-value">${p.audioCount}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateTopVendors() {
+            const container = document.getElementById('topVendorsList');
+            
+            // Count POIs per vendor
+            const vendorPoiCounts = {};
+            allPois.forEach(p => {
+                const vendorId = p.vendorId;
+                if (vendorId) {
+                    vendorPoiCounts[vendorId] = (vendorPoiCounts[vendorId] || 0) + 1;
+                }
+            });
+
+            // Sort vendors by POI count
+            const sortedVendors = allVendors
+                .map(v => ({
+                    ...v,
+                    poiCount: vendorPoiCounts[v.vendorId] || 0
+                }))
+                .sort((a, b) => b.poiCount - a.poiCount)
+                .slice(0, 5);
+
+            if (sortedVendors.length === 0) {
+                container.innerHTML = '<div class="empty"><i class="fas fa-inbox"></i><p>Chưa có dữ liệu</p></div>';
+                return;
+            }
+
+            container.innerHTML = sortedVendors.map((v, idx) => {
+                let rankClass = '';
+                if (idx === 0) rankClass = 'gold';
+                else if (idx === 1) rankClass = 'silver';
+                else if (idx === 2) rankClass = 'bronze';
+
+                return `
+                    <div class="top-item">
+                        <div class="rank ${rankClass}">${idx + 1}</div>
+                        <div class="item-info">
+                            <div class="item-name">${v.businessName || v.contactName || 'Vendor #' + v.vendorId}</div>
+                            <div class="item-meta">
+                                <i class="fas fa-envelope"></i>
+                                ${v.contactEmail || 'Chưa có email'}
+                            </div>
+                        </div>
+                        <div class="item-value">${v.poiCount}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateCategoryStats() {
+            const container = document.getElementById('categoryGrid');
+            
+            const categoryCounts = {};
+            const categoryIcons = {
+                'pho': '🍜',
+                'banh-mi': '🥖',
+                'com-tam': '🍚',
+                'bun': '🍝',
+                'che': '🍨',
+                'seafood': '🦐',
+                'breakfast': '☕',
+                'snack': '🍿',
+                'hotpot': '🍲',
+                'other': '🍽️'
+            };
+
+            const categoryLabels = {
+                'pho': 'Phở',
+                'banh-mi': 'Bánh Mì',
+                'com-tam': 'Cơm Tấm',
+                'bun': 'Bún',
+                'che': 'Chè',
+                'seafood': 'Hải sản',
+                'breakfast': 'Ăn sáng',
+                'snack': 'Đồ ăn vặt',
+                'hotpot': 'Lẩu',
+                'other': 'Khác'
+            };
+
+            allPois.forEach(p => {
+                const cat = p.category || 'other';
+                categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+            });
+
+            container.innerHTML = Object.entries(categoryCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([cat, count]) => `
+                    <div class="category-item">
+                        <div class="category-icon">${categoryIcons[cat] || '🍽️'}</div>
+                        <div class="category-count">${count}</div>
+                        <div class="category-label">${categoryLabels[cat] || cat}</div>
+                    </div>
+                `).join('');
+        }
+
+        function renderCharts() {
+            // POIs Audio Chart
+            const poiAudioCounts = {};
+            allAudios.forEach(a => {
+                const poiId = a.poi_ID || a.poiId;
+                if (poiId) {
+                    poiAudioCounts[poiId] = (poiAudioCounts[poiId] || 0) + 1;
+                }
+            });
+
+            const topPois = allPois
+                .map(p => ({
+                    name: p.name_Vi || 'POI #' + p.poI_ID,
+                    count: poiAudioCounts[p.poI_ID] || 0
+                }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+
+            const ctx1 = document.getElementById('poisAudioChart');
+            if (ctx1) {
+                new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: topPois.map(p => p.name),
+                        datasets: [{
+                            label: 'Số lượng audio',
+                            data: topPois.map(p => p.count),
+                            backgroundColor: 'rgba(255, 107, 53, 0.8)',
+                            borderColor: 'rgba(255, 107, 53, 1)',
+                            borderWidth: 2,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12,
+                                titleFont: { size: 14, weight: 'bold' },
+                                bodyFont: { size: 13 }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { precision: 0 }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Category Chart
+            const categoryCounts = {};
+            allPois.forEach(p => {
+                const cat = p.category || 'other';
+                categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+            });
+
+            const ctx2 = document.getElementById('categoryChart');
+            if (ctx2) {
+                const colors = [
+                    '#FF6B35', '#004E89', '#06D6A0', '#FFD23F', 
+                    '#EF476F', '#8B5CF6', '#10B981', '#F59E0B'
+                ];
+
+                new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(categoryCounts),
+                        datasets: [{
+                            data: Object.values(categoryCounts),
+                            backgroundColor: colors,
+                            borderWidth: 3,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 15,
+                                    font: { size: 12, weight: '600' }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function applyFilters() {
+            // Reload with filters (implement later)
+            loadAnalytics();
+        }
+
+        function exportReport() {
+            alert('Chức năng xuất báo cáo đang được phát triển');
+        }
+
+        window.addEventListener('load', loadAnalytics);
+    </script>
+</body>
+</html>

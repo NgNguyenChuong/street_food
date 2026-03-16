@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_OK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Common_Continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Common_Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Welcome_AppTitle" xml:space="preserve">
+    <value>Street Food Narrator</value>
+  </data>
+  <data name="Welcome_Subtitle" xml:space="preserve">
+    <value>Explore Vinh Khanh
+Food Journey</value>
+  </data>
+  <data name="Welcome_StartTour" xml:space="preserve">
+    <value>🚀  Start Tour</value>
+  </data>
+  <data name="Welcome_Feature_Auto_Title" xml:space="preserve">
+    <value>Auto play</value>
+  </data>
+  <data name="Welcome_Feature_Auto_Desc" xml:space="preserve">
+    <value>GPS detection</value>
+  </data>
+  <data name="Welcome_Feature_Offline_Title" xml:space="preserve">
+    <value>Download ahead</value>
+  </data>
+  <data name="Welcome_Feature_Offline_Desc" xml:space="preserve">
+    <value>Listen offline anytime</value>
+  </data>
+  <data name="Welcome_Feature_Local_Title" xml:space="preserve">
+    <value>Local stories</value>
+  </data>
+  <data name="Welcome_Feature_Local_Desc" xml:space="preserve">
+    <value>Hear hidden food stories from locals</value>
+  </data>
+  <data name="Status_Downloading_Metadata_Title" xml:space="preserve">
+    <value>Loading places...</value>
+  </data>
+  <data name="Status_Downloading_Metadata_Detail" xml:space="preserve">
+    <value>Metadata • Map</value>
+  </data>
+  <data name="Status_Downloading_Offline_Title" xml:space="preserve">
+    <value>Downloading offline data...</value>
+  </data>
+  <data name="Status_Downloading_Offline_Detail" xml:space="preserve">
+    <value>7 places • Audio • Images • ~2.4 MB</value>
+  </data>
+  <data name="Status_Ready_Title" xml:space="preserve">
+    <value>✅ Offline ready</value>
+  </data>
+  <data name="Status_Ready_Detail" xml:space="preserve">
+    <value>7 places • 2.4 MB • Ben Thanh Food Street</value>
+  </data>
+  <data name="Status_NeedInternet_Title" xml:space="preserve">
+    <value>Internet required</value>
+  </data>
+  <data name="Status_NeedInternet_Detail" xml:space="preserve">
+    <value>Connect WiFi/4G to download data the first time</value>
+  </data>
+  <data name="Status_Error_Title" xml:space="preserve">
+    <value>Failed to load data</value>
+  </data>
+  <data name="Status_Error_Detail" xml:space="preserve">
+    <value>Please check your connection and try again</value>
+  </data>
+  <data name="Button_DownloadOfflineNow" xml:space="preserve">
+    <value>📥💾 Download offline now</value>
+  </data>
+  <data name="Button_ContinueOnline" xml:space="preserve">
+    <value>🌐☁️ Continue online</value>
+  </data>
+  <data name="Button_TryAgain" xml:space="preserve">
+    <value>🔄🔁  Retry</value>
+  </data>
+  <data name="Info_Offline_Title" xml:space="preserve">
+    <value>📡📴 Offline mode</value>
+  </data>
+  <data name="Info_Offline_Message" xml:space="preserve">
+    <value>The app is running in ONLINE mode (requires continuous internet).
+
+💡⭐ Recommended: Download offline data for the best experience (no internet needed, faster audio).</value>
+  </data>
+  <data name="Info_DontShowAgain" xml:space="preserve">
+    <value>☑️✓ Don&#x27;t show again</value>
+  </data>
+  <data name="Alert_NeedInternet_Title" xml:space="preserve">
+    <value>📶🌐 Internet required</value>
+  </data>
+  <data name="Alert_NeedInternet_Message" xml:space="preserve">
+    <value>Please connect to WiFi or 4G to download data the first time.
+
+After downloading, you can use the app fully offline.</value>
+  </data>
+  <data name="Alert_NoNetwork_Title" xml:space="preserve">
+    <value>❌📵 No internet</value>
+  </data>
+  <data name="Alert_NoNetwork_Message" xml:space="preserve">
+    <value>WiFi or 4G is required to download data.</value>
+  </data>
+  <data name="Alert_UsingCellular_Title" xml:space="preserve">
+    <value>📱4G Using cellular</value>
+  </data>
+  <data name="Alert_UsingCellular_Message" xml:space="preserve">
+    <value>Downloading will use about 2.4 MB of data.
+
+WiFi is recommended.
+
+Continue on cellular?</value>
+  </data>
+  <data name="Alert_DownloadDone_Title" xml:space="preserve">
+    <value>✅ Download complete!</value>
+  </data>
+  <data name="Alert_DownloadDone_Message" xml:space="preserve">
+    <value>Data has been downloaded.
+
+You can use the app fully offline.</value>
+  </data>
+  <data name="Alert_ManualBrowse_Title" xml:space="preserve">
+    <value>Manual browse</value>
+  </data>
+  <data name="Alert_ManualBrowse_Message" xml:space="preserve">
+    <value>This feature is under development</value>
+  </data>
+  <data name="Alert_GoogleLogin_Message" xml:space="preserve">
+    <value>Google sign-in is under development.</value>
+  </data>
+  <data name="Alert_Tts_Message" xml:space="preserve">
+    <value>Voice selection is under development.</value>
+  </data>
+  <data name="Alert_CheckOffline_Message" xml:space="preserve">
+    <value>Checking offline data...</value>
+  </data>
+  <data name="Alert_DeleteOffline_Title" xml:space="preserve">
+    <value>Delete data?</value>
+  </data>
+  <data name="Alert_DeleteOffline_Message" xml:space="preserve">
+    <value>You&#x27;ll need to download again next time.</value>
+  </data>
+  <data name="Alert_DeleteOffline_Done" xml:space="preserve">
+    <value>Offline data deleted</value>
+  </data>
+  <data name="Alert_Success_Title" xml:space="preserve">
+    <value>Success</value>
+  </data>
+  <data name="Alert_Notice_Title" xml:space="preserve">
+    <value>Notice</value>
+  </data>
+  <data name="Progress_ConnectingMongo" xml:space="preserve">
+    <value>Connecting to MongoDB...</value>
+  </data>
+  <data name="Progress_DownloadingList" xml:space="preserve">
+    <value>Downloading place list...</value>
+  </data>
+  <data name="Progress_DownloadingAudio" xml:space="preserve">
+    <value>Downloading audio files...</value>
+  </data>
+  <data name="Progress_SavingOffline" xml:space="preserve">
+    <value>Saving offline...</value>
+  </data>
+  <data name="Progress_Done" xml:space="preserve">
+    <value>Done!</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings_General" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="Settings_LoginGoogle" xml:space="preserve">
+    <value>Sign in with Google</value>
+  </data>
+  <data name="Settings_TourExperience" xml:space="preserve">
+    <value>Tour Experience</value>
+  </data>
+  <data name="Settings_Tts" xml:space="preserve">
+    <value>Voice (TTS)</value>
+  </data>
+  <data name="Settings_TtsSubtitle" xml:space="preserve">
+    <value>Selected voice</value>
+  </data>
+  <data name="Settings_AutoPlay" xml:space="preserve">
+    <value>Auto play audio</value>
+  </data>
+  <data name="Settings_AutoPlayDesc" xml:space="preserve">
+    <value>When near a location</value>
+  </data>
+  <data name="Settings_Volume" xml:space="preserve">
+    <value>Guide volume</value>
+  </data>
+  <data name="Settings_VolumeShort" xml:space="preserve">
+    <value>Vol</value>
+  </data>
+  <data name="Settings_Sensitivity" xml:space="preserve">
+    <value>Location sensitivity</value>
+  </data>
+  <data name="Settings_SensitivityShort" xml:space="preserve">
+    <value>Radius</value>
+  </data>
+  <data name="Settings_SensitivityNear" xml:space="preserve">
+    <value>Precise (Near)</value>
+  </data>
+  <data name="Settings_SensitivityFar" xml:space="preserve">
+    <value>Wide (Far)</value>
+  </data>
+  <data name="Settings_Data" xml:space="preserve">
+    <value>Data</value>
+  </data>
+  <data name="Settings_CheckOffline" xml:space="preserve">
+    <value>Check offline data</value>
+  </data>
+  <data name="Settings_LastUpdated" xml:space="preserve">
+    <value>Last updated: Today, 18:30</value>
+  </data>
+  <data name="Settings_PrivacyTerms" xml:space="preserve">
+    <value>Privacy Policy &amp; Terms</value>
+  </data>
+  <data name="Settings_Version" xml:space="preserve">
+    <value>Version 1.2.0 (Build 45)</value>
+  </data>
+  <data name="Nav_Map" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="Nav_Tour" xml:space="preserve">
+    <value>Tour</value>
+  </data>
+  <data name="Nav_Saved" xml:space="preserve">
+    <value>Saved</value>
+  </data>
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+</root>

@@ -1,0 +1,644 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Tour - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --primary-soft: rgba(255,107,53,0.10);
+            --secondary: #004E89;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow-sm: 0 2px 8px rgba(26,26,46,0.06);
+            --shadow: 0 4px 20px rgba(26,26,46,0.09);
+            --shadow-lg: 0 14px 44px rgba(26,26,46,0.15);
+            --gradient: linear-gradient(135deg,#FF6B35 0%,#004E89 100%);
+            --radius: 18px;
+            --radius-sm: 11px;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'DM Sans',sans-serif;background:#EFF3F8;color:var(--dark);overflow-x:hidden}
+        .main-content{padding:2rem;min-height:100vh}
+
+        /* HEADER */
+        .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2rem;animation:fadeIn .5s}
+        .page-eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);margin-bottom:.3rem}
+        .page-title{font-family:'Playfair Display',serif;font-size:2.3rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
+        .btn{padding:.72rem 1.4rem;border:none;border-radius:var(--radius-sm);font-weight:700;cursor:pointer;transition:all .25s;display:inline-flex;align-items:center;gap:.5rem;font-size:.88rem;font-family:'DM Sans',sans-serif}
+        .btn-primary{background:var(--gradient);color:white}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,107,53,.35)}
+        .btn-outline{background:white;border:2px solid var(--border);color:var(--dark)}
+        .btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+        .btn-sm{padding:.48rem .9rem;font-size:.8rem}
+
+        /* STATS */
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;margin-bottom:2rem}
+        .stat-card{background:white;padding:1.4rem 1.5rem;border-radius:var(--radius);box-shadow:var(--shadow-sm);border:1px solid var(--border);transition:all .3s;position:relative;overflow:hidden;animation:fadeInUp .5s backwards}
+        .stat-card:nth-child(1){animation-delay:.05s}.stat-card:nth-child(2){animation-delay:.1s}.stat-card:nth-child(3){animation-delay:.15s}.stat-card:nth-child(4){animation-delay:.2s}
+        .stat-card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+        .stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--gradient);opacity:0;transition:.3s}
+        .stat-card:hover::after{opacity:1}
+        .stat-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:.8rem}
+        .si-o{background:rgba(255,107,53,.12);color:var(--primary)}
+        .si-g{background:rgba(6,214,160,.12);color:var(--success)}
+        .si-y{background:rgba(255,210,63,.12);color:#c9a000}
+        .si-b{background:rgba(0,78,137,.12);color:var(--secondary)}
+        .stat-value{font-size:1.9rem;font-weight:700;color:var(--dark)}
+        .stat-label{font-size:.8rem;color:#999;margin-top:.15rem}
+
+        /* TOOLBAR */
+        .toolbar{display:flex;gap:.65rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
+        .search-wrap{flex:1;min-width:230px;position:relative}
+        .search-wrap i{position:absolute;left:.9rem;top:50%;transform:translateY(-50%);color:#ccc;font-size:.82rem}
+        .search-wrap input{width:100%;padding:.68rem 1rem .68rem 2.3rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.87rem;font-family:'DM Sans',sans-serif;background:white;color:var(--dark);transition:.25s}
+        .search-wrap input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+        .chip-filter{padding:.42rem .85rem;border:1.5px solid var(--border);border-radius:50px;font-size:.78rem;font-weight:700;cursor:pointer;background:white;color:#888;transition:all .18s;white-space:nowrap;font-family:'DM Sans',sans-serif}
+        .chip-filter:hover{border-color:var(--primary);color:var(--primary)}
+        .chip-filter.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-dark)}
+
+        /* GRID */
+        .tours-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.5rem}
+
+        /* CARD */
+        .tour-card{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;overflow:hidden;transition:all .3s;animation:fadeInUp .5s backwards}
+        .tour-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg);border-color:rgba(255,107,53,.22)}
+
+        .card-map{height:158px;background:#e4eaf0;position:relative;overflow:hidden;cursor:pointer}
+        .card-map-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:.4rem;background:rgba(26,26,46,.32);color:white;font-size:.8rem;font-weight:700;opacity:0;transition:.22s;z-index:10;letter-spacing:.04em}
+        .tour-card:hover .card-map-overlay{opacity:1}
+        .route-badge{position:absolute;top:8px;right:8px;z-index:11;padding:.22rem .6rem;border-radius:7px;font-size:.68rem;font-weight:700;display:flex;align-items:center;gap:.3rem;backdrop-filter:blur(4px)}
+        .rb-ok{background:rgba(6,214,160,.88);color:#024034}
+        .rb-no{background:rgba(255,210,63,.9);color:#6b4c00}
+
+        .card-body{padding:1rem 1.25rem .8rem}
+        .card-tags{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.55rem}
+        .badge{display:inline-flex;align-items:center;gap:.25rem;padding:.16rem .58rem;border-radius:50px;font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+        .b-on{background:rgba(6,214,160,.13);color:#04836b}
+        .b-off{background:rgba(255,210,63,.14);color:#a07000}
+        .b-theme{background:rgba(255,107,53,.11);color:#bf4020}
+        .b-time{background:rgba(0,78,137,.1);color:#003d70}
+
+        .card-name{font-family:'Playfair Display',serif;font-size:1.12rem;font-weight:700;line-height:1.3;margin-bottom:.42rem}
+        .card-desc{font-size:.85rem;color:#888;line-height:1.58;margin-bottom:.7rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .card-meta{display:flex;gap:.9rem;font-size:.78rem;color:#aaa;font-weight:600}
+        .card-meta i{color:var(--primary);font-size:.72rem;margin-right:.22rem}
+
+        .card-pois{display:flex;flex-wrap:wrap;gap:.32rem;padding:.7rem 1.25rem;border-top:1px solid var(--border)}
+        .poi-chip{font-size:.71rem;padding:.16rem .52rem;background:#F4F6FA;border:1px solid var(--border);border-radius:5px;color:#666;font-weight:500}
+        .poi-chip-more{font-size:.71rem;color:#ccc}
+
+        .card-footer{padding:.72rem 1.25rem;background:#FAFBFC;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .footer-btns{display:flex;gap:.35rem}
+        .icon-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.18s;background:white;color:#999;font-size:.76rem}
+        .icon-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+        .icon-btn.del:hover{border-color:var(--danger);color:var(--danger);background:rgba(239,71,111,.07)}
+        .btn-recalc{font-size:.74rem;font-weight:700;color:var(--secondary);background:rgba(0,78,137,.08);border:1px solid rgba(0,78,137,.18);border-radius:7px;padding:.28rem .68rem;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:.3rem;font-family:'DM Sans',sans-serif}
+        .btn-recalc:hover{background:rgba(0,78,137,.16)}
+        .btn-recalc.loading i{animation:spin .7s linear infinite}
+
+        /* MODAL */
+        .modal-overlay{position:fixed;inset:0;background:rgba(26,26,46,.52);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:2000;padding:1rem}
+        .modal-overlay.active{display:flex;animation:fadeIn .2s}
+        .modal{background:white;width:100%;max-width:700px;border-radius:24px;box-shadow:0 28px 80px rgba(0,0,0,.22);display:flex;flex-direction:column;max-height:94vh;overflow:hidden;animation:slideUp .3s cubic-bezier(.34,1.56,.64,1)}
+        .modal-header{padding:1.4rem 1.8rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+        .modal-title{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700}
+        .modal-close{width:30px;height:30px;border:none;background:none;border-radius:8px;cursor:pointer;color:#bbb;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:.2s}
+        .modal-close:hover{background:rgba(239,71,111,.1);color:var(--danger)}
+        .modal-body{padding:1.5rem 1.8rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:1.15rem}
+        .modal-footer{padding:1.1rem 1.8rem;background:#FAFBFC;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+
+        /* form */
+        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+        .form-group{display:flex;flex-direction:column;gap:.38rem}
+        .form-group.full{grid-column:1/-1}
+        .form-label{font-weight:700;font-size:.78rem;color:#666;text-transform:uppercase;letter-spacing:.05em}
+        .req{color:var(--primary)}
+        .form-control{padding:.7rem 1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.89rem;font-family:'DM Sans',sans-serif;color:var(--dark);background:white;transition:.22s}
+        .form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+        textarea.form-control{resize:vertical;min-height:74px}
+        .sec-title{font-size:.7rem;font-weight:700;color:#ccc;text-transform:uppercase;letter-spacing:.08em;padding-bottom:.45rem;border-bottom:1px solid var(--border)}
+
+        /* chips */
+        .chip-group{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.55rem}
+        .chip-opt{padding:.32rem .8rem;border:1.5px solid var(--border);border-radius:50px;font-size:.78rem;font-weight:700;cursor:pointer;background:white;color:#888;transition:all .16s;user-select:none;font-family:'DM Sans',sans-serif}
+        .chip-opt:hover{border-color:var(--primary);color:var(--primary)}
+        .chip-opt.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-dark)}
+        .chip-opt.time.active{border-color:var(--secondary);background:rgba(0,78,137,.1);color:var(--secondary)}
+
+        /* POI selector */
+        .poi-search-box{position:relative}
+        .poi-search-box i{position:absolute;left:.82rem;top:50%;transform:translateY(-50%);color:#ccc;font-size:.78rem}
+        .poi-search-box input{width:100%;padding:.62rem 1rem .62rem 2.1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.86rem;font-family:'DM Sans',sans-serif;transition:.22s}
+        .poi-search-box input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+        .poi-list{border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-height:185px;overflow-y:auto;margin-top:.5rem}
+        .poi-item{padding:.58rem 1rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;font-size:.86rem}
+        .poi-item:last-child{border-bottom:none}
+        .poi-item:hover{background:#fdf7f5}
+        .poi-item.sel{background:rgba(255,107,53,.05)}
+        .poi-left{display:flex;align-items:center;gap:.55rem}
+        .order-dot{width:20px;height:20px;border-radius:50%;background:var(--primary);color:white;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0;transition:.15s}
+        .poi-item.sel .order-dot{opacity:1}
+        .poi-name{font-weight:600;color:var(--dark)}
+        .poi-cat{font-size:.73rem;color:#bbb}
+        .poi-item.sel .poi-name{color:var(--primary-dark)}
+        .poi-chk{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.62rem;color:white;flex-shrink:0;transition:.16s}
+        .poi-item.sel .poi-chk{background:var(--primary);border-color:var(--primary)}
+        .sel-wrap{display:flex;flex-wrap:wrap;gap:.35rem;min-height:26px;align-items:center;margin-top:.5rem}
+        .sel-tag{display:inline-flex;align-items:center;gap:.28rem;padding:.2rem .55rem;background:white;border:1px solid var(--border);border-radius:6px;font-size:.76rem;font-weight:600;color:var(--dark)}
+        .sel-tag .num{width:15px;height:15px;border-radius:50%;background:var(--primary);color:white;font-size:.58rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+        .sel-tag button{background:none;border:none;cursor:pointer;color:#ccc;font-size:.72rem;padding:0;margin-left:1px}
+        .sel-tag button:hover{color:var(--danger)}
+        .empty-sel{font-size:.8rem;color:#ccc}
+
+        /* route preview */
+        .route-preview{border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+        #previewMap{height:210px}
+        .route-bar{padding:.6rem 1rem;background:#FAFBFC;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:.8rem}
+        .route-msg{display:flex;align-items:center;gap:.38rem;font-weight:600}
+        .rm-none{color:#ccc}.rm-pending{color:#c9a000}.rm-ok{color:var(--success)}
+
+        /* toggle */
+        .toggle-row{display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;background:var(--light);border:1px solid var(--border);border-radius:var(--radius-sm)}
+        .tl{font-weight:700;font-size:.88rem;color:var(--dark);margin-bottom:.12rem}
+        .ts{font-size:.76rem;color:#aaa}
+        .switch{position:relative;display:inline-block;width:44px;height:23px}
+        .switch input{opacity:0;width:0;height:0}
+        .slider{position:absolute;cursor:pointer;inset:0;background:#ddd;border-radius:23px;transition:.28s}
+        .slider:before{position:absolute;content:'';height:15px;width:15px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.28s}
+        input:checked+.slider{background:var(--gradient)}
+        input:checked+.slider:before{transform:translateX(21px)}
+
+        /* empty */
+        .empty{grid-column:1/-1;text-align:center;padding:4rem 2rem;background:white;border-radius:var(--radius);border:2px dashed var(--border);color:#ccc}
+        .empty h3{color:#bbb;margin:.75rem 0 .35rem}
+
+        /* toast */
+        .toast-wrap{position:fixed;bottom:2rem;right:2rem;z-index:9999;display:flex;flex-direction:column;gap:.45rem}
+        .toast{background:#1A1A2E;color:white;padding:.7rem 1.1rem;border-radius:var(--radius-sm);font-size:.83rem;font-weight:500;display:flex;align-items:center;gap:.45rem;box-shadow:var(--shadow-lg);animation:slideR .3s}
+        .toast.ok{background:#04332b;border-left:3px solid var(--success)}
+        .toast.err{background:#3f0b1e;border-left:3px solid var(--danger)}
+
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes slideR{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        @media(max-width:860px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:580px){.main-content{padding:1rem}.form-grid{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+<main class="main-content" id="mainContent">
+
+    <header class="header">
+        <div>
+            <div class="page-eyebrow"><i class="fas fa-route"></i> Street Food Narrator</div>
+            <h1 class="page-title">Quản lý Tour</h1>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">
+            <i class="fas fa-plus"></i> Tạo Tour mới
+        </button>
+    </header>
+
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon si-o"><i class="fas fa-route"></i></div><div class="stat-value" id="stat-total">—</div><div class="stat-label">Tổng số Tour</div></div>
+        <div class="stat-card"><div class="stat-icon si-g"><i class="fas fa-check-circle"></i></div><div class="stat-value" id="stat-active">—</div><div class="stat-label">Đang hoạt động</div></div>
+        <div class="stat-card"><div class="stat-icon si-y"><i class="fas fa-pencil-alt"></i></div><div class="stat-value" id="stat-draft">—</div><div class="stat-label">Bản nháp</div></div>
+        <div class="stat-card"><div class="stat-icon si-b"><i class="fas fa-map-marked-alt"></i></div><div class="stat-value" id="stat-routed">—</div><div class="stat-label">Đã có đường đi</div></div>
+    </div>
+
+    <div class="toolbar">
+        <div class="search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Tìm kiếm tên tour, mô tả..." oninput="filterTours()">
+        </div>
+        <button class="chip-filter active" data-filter="all"    onclick="setFilter(this)">Tất cả</button>
+        <button class="chip-filter" data-filter="oc"     onclick="setFilter(this)">🐌 Ốc</button>
+        <button class="chip-filter" data-filter="lau"    onclick="setFilter(this)">🍲 Lẩu</button>
+        <button class="chip-filter" data-filter="nuong"  onclick="setFilter(this)">🔥 Nướng</button>
+        <button class="chip-filter" data-filter="khuya"  onclick="setFilter(this)">🌙 Khuya</button>
+        <button class="chip-filter" data-filter="sang"   onclick="setFilter(this)">☀️ Sáng sớm</button>
+        <button class="chip-filter" data-filter="routed" onclick="setFilter(this)">🗺️ Có đường đi</button>
+    </div>
+
+    <div class="tours-grid" id="toursGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:4rem;color:#ccc">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+        </div>
+    </div>
+</main>
+
+<!-- ══ MODAL ══ -->
+<div class="modal-overlay" id="tourModal">
+  <div class="modal">
+    <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">Tạo Tour mới</h2>
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+        <input type="hidden" id="tourId">
+
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label">Tên Tour <span class="req">*</span></label>
+                <input type="text" id="tourName" class="form-control" placeholder="vd: Tour Ốc Huyền Thoại Phố Vĩnh Khánh">
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Mô tả</label>
+                <textarea id="tourDesc" class="form-control" placeholder="Khám phá các quán nổi tiếng nhất..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Thời lượng (phút)</label>
+                <input type="number" id="tourDuration" class="form-control" value="90" min="1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Kiểu hành trình</label>
+                <select id="tourRouteType" class="form-control">
+                    <option value="ordered">Theo thứ tự địa lý</option>
+                    <option value="free">Tự do</option>
+                    <option value="theme">Theo chủ đề</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <div class="sec-title">Chủ đề / Thể loại</div>
+            <div class="chip-group" id="themeChips">
+                <span class="chip-opt" data-val="oc">🐌 Ốc</span>
+                <span class="chip-opt" data-val="lau">🍲 Lẩu</span>
+                <span class="chip-opt" data-val="nuong">🔥 Nướng</span>
+                <span class="chip-opt" data-val="haisan">🦐 Hải sản</span>
+                <span class="chip-opt" data-val="mi">🍜 Mì &amp; Phở</span>
+                <span class="chip-opt" data-val="com">🍱 Cơm</span>
+                <span class="chip-opt" data-val="douong">🧋 Đồ uống</span>
+                <span class="chip-opt" data-val="banh">🥐 Bánh</span>
+            </div>
+        </div>
+
+        <div>
+            <div class="sec-title">Khung giờ</div>
+            <div class="chip-group" id="timeChips">
+                <span class="chip-opt time" data-val="sang">🌅 Sáng sớm (5–9h)</span>
+                <span class="chip-opt time" data-val="trua">☀️ Trưa (10–14h)</span>
+                <span class="chip-opt time" data-val="chieu">🌆 Chiều (15–18h)</span>
+                <span class="chip-opt time" data-val="khuya">🌙 Khuya (20h–2h)</span>
+            </div>
+        </div>
+
+        <div>
+            <div class="sec-title">Chọn POI / Quán <span style="font-weight:400;color:#ccc;text-transform:none;font-size:.72rem">(chọn theo thứ tự tour)</span></div>
+            <div class="poi-search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="poiSearch" placeholder="Tìm quán theo tên, địa chỉ..." oninput="filterPOIs()">
+            </div>
+            <div class="poi-list" id="poiList"></div>
+            <div style="font-size:.73rem;color:#ccc;margin:.4rem 0 .2rem">Đã chọn (thứ tự trong tour):</div>
+            <div class="sel-wrap" id="selWrap"><span class="empty-sel">Chưa chọn quán nào</span></div>
+        </div>
+
+        <!-- ROUTE PREVIEW -->
+        <div>
+            <div class="sec-title">Xem trước đường đi</div>
+            <div id="previewMap" style="height:210px;border-radius:var(--radius-sm);overflow:hidden;border:1.5px solid var(--border)"></div>
+        </div>
+
+        <div class="toggle-row">
+            <div>
+                <div class="tl">Trạng thái hoạt động</div>
+                <div class="ts">Bật để người dùng nhìn thấy và tải tour này</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="tourActive"><span class="slider"></span></label>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <div></div>
+        <div style="display:flex;gap:.7rem">
+            <button class="btn btn-outline" onclick="closeModal()">Hủy</button>
+            <button class="btn btn-primary" onclick="saveTour()"><i class="fas fa-save"></i> Lưu Tour</button>
+        </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="api.js"></script>
+<script>
+/* ─── CONSTANTS ─── */
+const THEME_MAP = {
+    oc:'🐌 Ốc', lau:'🍲 Lẩu', nuong:'🔥 Nướng', haisan:'🦐 Hải sản',
+    mi:'🍜 Mì & Phở', com:'🍱 Cơm', douong:'🧋 Đồ uống', banh:'🥐 Bánh'
+};
+const TIME_MAP = {
+    sang:'🌅 Sáng sớm', trua:'☀️ Trưa', chieu:'🌆 Chiều', khuya:'🌙 Khuya'
+};
+const HCM_LL = [10.762, 106.682];
+
+/* ─── STATE ─── */
+let allTours = [], allPOIs = [];
+let selPOIs  = [];   // ordered array of id strings
+let activeFilter = 'all';
+let pMap = null, pRoute = null, pMarkers = [];
+let savedRouteGeom = null;   // stored routeGeometry from DB
+const cardMapRefs = {};
+
+/* ─── INIT ─── */
+document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof requireAuth === 'function' && !requireAuth()) return;
+    const role = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
+    if (role && role !== 'admin') { window.location.href = 'dashboard.html'; return; }
+    document.querySelectorAll('.chip-opt').forEach(c => c.addEventListener('click', function(){ this.classList.toggle('active'); }));
+    await Promise.all([loadTours(), loadPOIs()]);
+});
+
+/* ─── LOAD ─── */
+async function loadTours() {
+    try {
+        grid('<div style="grid-column:1/-1;text-align:center;padding:4rem;color:#ccc"><i class="fas fa-spinner fa-spin fa-2x"></i></div>');
+        const [tr, sr] = await Promise.all([ToursApi.list({page:1,pageSize:100}), ToursApi.stats()]);
+        allTours = tr.data || [];
+        const routed = allTours.filter(t => t.routeGeometry).length;
+        set('stat-total',  sr.total   || allTours.length);
+        set('stat-active', sr.active  || allTours.filter(t=>t.isActive).length);
+        set('stat-draft',  sr.draft   || allTours.filter(t=>!t.isActive).length);
+        set('stat-routed', sr.routed  != null ? sr.routed : routed);
+        renderTours(filtered());
+    } catch(e) {
+        grid('<div class="empty"><i class="fas fa-exclamation-triangle fa-2x" style="color:var(--danger)"></i><h3>Lỗi tải dữ liệu</h3><p>Vui lòng thử lại.</p></div>');
+    }
+}
+
+async function loadPOIs() {
+    try {
+        const r = typeof POIApi !== 'undefined'
+            ? await POIApi.list({page:1,pageSize:500})
+            : await fetch('/api/pois?pageSize=500').then(x=>x.json());
+        allPOIs = r.data || r.items || r || [];
+    } catch(e) { allPOIs = []; }
+    renderPOIList('');
+}
+
+/* ─── RENDER CARDS ─── */
+function renderTours(data) {
+    if (!data.length) {
+        grid('<div class="empty"><i class="fas fa-map fa-2x"></i><h3>Chưa có Tour nào</h3><p>Hãy tạo tour mới để bắt đầu.</p></div>');
+        return;
+    }
+    grid(data.map((t,i) => {
+        const pois = t.pois || t.poiList || [];
+        const hasRoute = !!t.routeGeometry;
+        const themes = (t.themes||[]).map(v=>`<span class="badge b-theme">${THEME_MAP[v]||v}</span>`).join('');
+        const times  = (t.timeSlots||[]).map(v=>`<span class="badge b-time">${TIME_MAP[v]||v}</span>`).join('');
+        const status = t.isActive
+            ? `<span class="badge b-on"><i class="fas fa-circle" style="font-size:.42rem"></i> Bật</span>`
+            : `<span class="badge b-off"><i class="fas fa-circle" style="font-size:.42rem"></i> Nháp</span>`;
+        const rb = hasRoute
+            ? `<span class="route-badge rb-ok"><i class="fas fa-route"></i> Đường đi OK</span>`
+            : `<span class="route-badge rb-no"><i class="fas fa-clock"></i> Chưa có đường</span>`;
+        const poisHtml = pois.length
+            ? pois.slice(0,4).map(p=>`<span class="poi-chip">${esc(p.name||p)}</span>`).join('')
+              + (pois.length>4?`<span class="poi-chip-more">+${pois.length-4} nữa</span>`:'')
+            : '<span class="poi-chip-more">Chưa có quán</span>';
+        return `
+        <div class="tour-card" style="animation-delay:${i*.05}s">
+            <div class="card-map" id="cm-${t.id}" onclick="editTour('${t.id}')">
+                ${rb}
+                <div class="card-map-overlay"><i class="fas fa-edit"></i> Chỉnh sửa Tour</div>
+            </div>
+            <div class="card-body">
+                <div class="card-tags">${status}${themes}${times}</div>
+                <div class="card-name">${esc(t.tourName)}</div>
+                <p class="card-desc">${t.description?esc(t.description):'<em style="color:#ddd">Không có mô tả</em>'}</p>
+                <div class="card-meta">
+                    <span><i class="far fa-clock"></i>${t.estimatedDurationMinutes||0} phút</span>
+                    <span><i class="fas fa-map-marker-alt"></i>${pois.length} quán</span>
+                    ${t.routeType?`<span><i class="fas fa-route"></i>${rtLabel(t.routeType)}</span>`:''}
+                </div>
+            </div>
+            <div class="card-pois">${poisHtml}</div>
+            <div class="card-footer">
+                <div></div>
+                <div class="footer-btns">
+                    <button class="icon-btn" onclick="editTour('${t.id}')" title="Sửa"><i class="fas fa-edit"></i></button>
+                    <button class="icon-btn del" onclick="delTour('${t.id}')" title="Xóa"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join(''));
+    requestAnimationFrame(() => data.forEach(t => buildCardMap(t)));
+}
+
+/* ─── MINI MAP ─── */
+function buildCardMap(t) {
+    const el = document.getElementById(`cm-${t.id}`);
+    if (!el) return;
+    const div = document.createElement('div');
+    div.style.cssText = 'width:100%;height:100%';
+    el.insertBefore(div, el.querySelector('.card-map-overlay'));
+    const m = L.map(div, {zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,keyboard:false,boxZoom:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(m);
+    m.setView(HCM_LL, 15);
+    cardMapRefs[t.id] = m;
+    const pois = (t.pois||t.poiList||[]).filter(p=>p.latitude&&p.longitude);
+    if (!pois.length) return;
+    const bounds = pois.map(p=>[p.latitude,p.longitude]);
+    pois.forEach((p) => {
+        L.circleMarker([p.latitude,p.longitude],{radius:6,color:'#FF6B35',fillColor:'#FF6B35',fillOpacity:.85,weight:2}).addTo(m);
+    });
+    if (t.routeGeometry?.coordinates) {
+        const coords = t.routeGeometry.coordinates.map(([lng,lat])=>[lat,lng]);
+        L.polyline(coords,{color:'#FF6B35',weight:3,opacity:.8}).addTo(m);
+    } else if (bounds.length>1) {
+        L.polyline(bounds,{color:'#FF6B35',weight:2,opacity:.45,dashArray:'5 5'}).addTo(m);
+    }
+    try { m.fitBounds(bounds,{padding:[14,14]}); } catch(e){}
+}
+
+/* ─── FILTER ─── */
+function filtered() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    return allTours.filter(t => {
+        const mQ = !q || (t.tourName||'').toLowerCase().includes(q) || (t.description||'').toLowerCase().includes(q);
+        let mF = true;
+        if (activeFilter==='routed') mF=!!t.routeGeometry;
+        else if (activeFilter!=='all') mF=(t.themes||[]).includes(activeFilter)||(t.timeSlots||[]).includes(activeFilter);
+        return mQ && mF;
+    });
+}
+function filterTours() { renderTours(filtered()); }
+function setFilter(btn) {
+    document.querySelectorAll('.chip-filter').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    filterTours();
+}
+
+/* ─── MODAL ─── */
+function openModal(t) {
+    const isEdit = !!t;
+    set2('modalTitle', isEdit ? 'Chỉnh sửa Tour' : 'Tạo Tour mới');
+    val('tourId',        isEdit ? t.id : '');
+    val('tourName',      isEdit ? (t.tourName||'') : '');
+    val('tourDesc',      isEdit ? (t.description||'') : '');
+    val('tourDuration',  isEdit ? (t.estimatedDurationMinutes||90) : 90);
+    val('tourRouteType', isEdit ? (t.routeType||'ordered') : 'ordered');
+    document.getElementById('tourActive').checked = isEdit ? !!t.isActive : false;
+    resetChips('themeChips', isEdit ? (t.themes||[]) : []);
+    resetChips('timeChips',  isEdit ? (t.timeSlots||[]) : []);
+    selPOIs = isEdit ? (t.pois||[]).map(p=>p.id||p) : [];
+    savedRouteGeom = isEdit ? (t.routeGeometry||null) : null;
+    val('poiSearch','');
+    renderPOIList('');
+    renderSel();
+    document.getElementById('tourModal').classList.add('active');
+    setTimeout(()=>initPreview(isEdit?t:null), 100);
+}
+
+function closeModal() {
+    document.getElementById('tourModal').classList.remove('active');
+    if (pMap) { pMap.remove(); pMap=null; }
+    pRoute=null; pMarkers=[];
+}
+
+function editTour(id) { openModal(allTours.find(x=>x.id===id)); }
+
+/* ─── PREVIEW MAP ─── */
+function initPreview(t) {
+    if (pMap) pMap.remove();
+    pMap = L.map('previewMap',{zoomControl:true,attributionControl:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(pMap);
+    pMap.setView(HCM_LL, 15);
+    if (t) redrawPreview();
+}
+
+function redrawPreview() {
+    if (!pMap) return;
+    pMarkers.forEach(m=>m.remove()); pMarkers=[];
+    if (pRoute) { pRoute.remove(); pRoute=null; }
+    const pois = selPOIs.map(id=>allPOIs.find(p=>p.id===id)).filter(p=>p?.latitude&&p?.longitude);
+    if (!pois.length) return;
+    const bounds = pois.map((p,i)=>{
+        const ll=[p.latitude,p.longitude];
+        const mk = L.marker(ll,{icon:L.divIcon({
+            html:`<div style="width:26px;height:26px;border-radius:50%;background:#FF6B35;color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.28)">${i+1}</div>`,
+            className:'',iconSize:[26,26],iconAnchor:[13,13]
+        })}).bindTooltip(p.name_Vi||p.name||'').addTo(pMap);
+        pMarkers.push(mk);
+        return ll;
+    });
+    if (savedRouteGeom?.coordinates) {
+        const coords = savedRouteGeom.coordinates.map(([lng,lat])=>[lat,lng]);
+        pRoute = L.polyline(coords,{color:'#FF6B35',weight:4,opacity:.85}).addTo(pMap);
+    } else if (bounds.length>1) {
+        pRoute = L.polyline(bounds,{color:'#FF6B35',weight:3,opacity:.45,dashArray:'7 5'}).addTo(pMap);
+    }
+    try { pMap.fitBounds(bounds,{padding:[28,28]}); } catch(e){}
+}
+
+/* ─── POI LIST ─── */
+function renderPOIList(q) {
+    const list = document.getElementById('poiList');
+    const visible = allPOIs.filter(p=>!q||(p.name_Vi||p.name||'').toLowerCase().includes(q.toLowerCase())||(p.address||'').toLowerCase().includes(q.toLowerCase()));
+    if (!visible.length) {
+        list.innerHTML='<div style="padding:.9rem;text-align:center;color:#ccc;font-size:.83rem">Không tìm thấy quán</div>';
+        return;
+    }
+    list.innerHTML = visible.map(p=>{
+        const idx=selPOIs.indexOf(p.id), sel=idx!==-1;
+        return `<div class="poi-item${sel?' sel':''}" onclick="togglePOI('${p.id}')">
+            <div class="poi-left">
+                <div class="order-dot">${sel?idx+1:''}</div>
+                <div>
+                    <div class="poi-name">${esc(p.name_Vi||p.name||'')}</div>
+                    <div class="poi-cat">${esc(p.category||'')}${p.address?' · '+esc(p.address):''}</div>
+                </div>
+            </div>
+            <div class="poi-chk">${sel?'<i class="fas fa-check" style="font-size:.58rem"></i>':''}</div>
+        </div>`;
+    }).join('');
+}
+function filterPOIs() { renderPOIList(document.getElementById('poiSearch').value); }
+
+function togglePOI(id) {
+    const idx=selPOIs.indexOf(id);
+    if (idx!==-1) selPOIs.splice(idx,1); else selPOIs.push(id);
+    savedRouteGeom=null;
+    renderPOIList(document.getElementById('poiSearch').value);
+    renderSel(); redrawPreview();
+}
+
+function renderSel() {
+    const w=document.getElementById('selWrap');
+    if (!selPOIs.length) { w.innerHTML='<span class="empty-sel">Chưa chọn quán nào</span>'; return; }
+    w.innerHTML = selPOIs.map((id,i)=>{
+        const p=allPOIs.find(x=>x.id===id);
+        return `<span class="sel-tag"><span class="num">${i+1}</span>${esc(p?(p.name_Vi||p.name||id):id)}<button onclick="togglePOI('${id}')"><i class="fas fa-times"></i></button></span>`;
+    }).join('');
+}
+
+/* ─── CHIPS ─── */
+function resetChips(cid, vals) {
+    document.querySelectorAll(`#${cid} .chip-opt`).forEach(c=>c.classList.toggle('active',vals.includes(c.dataset.val)));
+}
+function getChips(cid) { return [...document.querySelectorAll(`#${cid} .chip-opt.active`)].map(c=>c.dataset.val); }
+
+/* ─── SAVE ─── */
+async function saveTour() {
+    const id=document.getElementById('tourId').value;
+    const name=document.getElementById('tourName').value.trim();
+    if (!name) { toast('Tên Tour không được để trống!','err'); return; }
+    const data = {
+        tourName: name,
+        description: document.getElementById('tourDesc').value.trim(),
+        estimatedDurationMinutes: parseInt(document.getElementById('tourDuration').value)||90,
+        routeType: document.getElementById('tourRouteType').value,
+        themes: getChips('themeChips'),
+        timeSlots: getChips('timeChips'),
+        poiIds: [...selPOIs],
+        isActive: document.getElementById('tourActive').checked,
+        routeGeometry: savedRouteGeom
+    };
+    try {
+        if (id) await ToursApi.update(id,data); else await ToursApi.create(data);
+        toast(id ? 'Tour đã được cập nhật!' : 'Tour mới đã được tạo!','ok');
+        closeModal(); loadTours();
+    } catch(e) { toast('Lỗi lưu: '+e.message,'err'); }
+}
+
+/* ─── DELETE ─── */
+async function delTour(id) {
+    if (!confirm('Bạn có chắc muốn xóa tour này?')) return;
+    try { await ToursApi.delete(id); toast('Đã xóa tour.','ok'); loadTours(); }
+    catch(e) { toast('Lỗi xóa: '+e.message,'err'); }
+}
+
+/* ─── UTILS ─── */
+function rtLabel(v){ return {ordered:'Địa lý',free:'Tự do',theme:'Chủ đề'}[v]||v; }
+function esc(s){ return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''; }
+function grid(h){ document.getElementById('toursGrid').innerHTML=h; }
+function set(id,v){ document.getElementById(id).textContent=v; }
+function set2(id,v){ document.getElementById(id).textContent=v; }
+function val(id,v){ document.getElementById(id).value=v; }
+function toast(msg,type='info'){
+    const w=document.getElementById('toastWrap');
+    const t=document.createElement('div');
+    t.className=`toast ${type}`;
+    const ic=type==='ok'?'check-circle':type==='err'?'exclamation-circle':'info-circle';
+    t.innerHTML=`<i class="fas fa-${ic}"></i> ${msg}`;
+    w.appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+</script>
+</body>
+</html>

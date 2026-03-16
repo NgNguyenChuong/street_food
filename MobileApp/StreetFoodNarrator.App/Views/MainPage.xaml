@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    MainPage.xaml  –  Tab Bản đồ (trong AppShell)
+    Chứa: OSM map + markers + overlays (TabMapView) + PinPopup
+    Bottom nav giờ do Shell quản lý
+-->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             xmlns:mapsui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
+             xmlns:components="clr-namespace:StreetFoodNarrator.App.Views.Components"
+             x:Class="StreetFoodNarrator.App.Views.MainPage"
+             x:DataType="vm:MainViewModel"
+             BackgroundColor="#0A1612"
+             Shell.NavBarIsVisible="False">
+
+    <AbsoluteLayout Padding="0" Margin="0">
+
+        <!-- ── Layer 0: Bản đồ OSM (luôn visible, làm nền) ────────────── -->
+        <mapsui:MapControl x:Name="MapView"
+                           AbsoluteLayout.LayoutBounds="0,0,1,1"
+                           AbsoluteLayout.LayoutFlags="All"
+                           BackgroundColor="#0A1612"/>
+
+        <!-- ── Layer 1: Map overlays (ZIndex 120) ─────────────────────── -->
+        <components:TabMapView x:Name="TabMapComponent"
+                               AbsoluteLayout.LayoutBounds="0,0,1,1"
+                               AbsoluteLayout.LayoutFlags="All"
+                               ZIndex="120"/>
+
+        <!-- ── Layer 2: Pin popup (ZIndex 150) ────────────────────────── -->
+        <components:PinPopupView x:Name="PinPopupComponent"
+                                 AbsoluteLayout.LayoutBounds="0,1,1,-1"
+                                 AbsoluteLayout.LayoutFlags="WidthProportional,PositionProportional"
+                                 IsVisible="False"
+                                 ZIndex="150"/>
+
+    </AbsoluteLayout>
+</ContentPage>

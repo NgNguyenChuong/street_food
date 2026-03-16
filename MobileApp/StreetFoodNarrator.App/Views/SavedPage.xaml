@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    SavedPage.xaml – Tab Đã lưu
+    Gộp Browse + Bookmarks với segment control bên trong
+    Offline Ready
+-->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             xmlns:components="clr-namespace:StreetFoodNarrator.App.Views.Components"
+             x:Class="StreetFoodNarrator.App.Views.SavedPage"
+             x:DataType="vm:MainViewModel"
+             BackgroundColor="#0A1612"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Segment: Danh sách / Đã lưu -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="16,12" ColumnSpacing="8">
+            <Border Grid.Column="0" StrokeShape="RoundRectangle 12"
+                    BackgroundColor="#1C3024" Padding="0,10">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSegmentBrowseTapped"/>
+                </Border.GestureRecognizers>
+                <Label x:Name="LabelBrowse" Text="Danh sách" FontSize="12"
+                       TextColor="#6B7280" HorizontalOptions="Center"/>
+            </Border>
+            <Border Grid.Column="1" StrokeShape="RoundRectangle 12"
+                    BackgroundColor="#F5A623" Padding="0,10">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSegmentSavedTapped"/>
+                </Border.GestureRecognizers>
+                <Label x:Name="LabelSaved" Text="Đã lưu" FontSize="12" FontAttributes="Bold"
+                       TextColor="White" HorizontalOptions="Center"/>
+            </Border>
+        </Grid>
+
+        <!-- Content segment -->
+        <Grid Grid.Row="1">
+            <!-- Browse content (TabMenuView) - default HIDDEN -->
+            <components:TabMenuView x:Name="BrowseContent" IsVisible="False"/>
+            
+            <!-- Saved content (TabSavedView) - default VISIBLE -->
+            <components:TabSavedView x:Name="SavedContent" IsVisible="True"/>
+        </Grid>
+
+    </Grid>
+</ContentPage>

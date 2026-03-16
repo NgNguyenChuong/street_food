@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    PinPopupView.xaml  –  Popup khi nhấn pin trên bản đồ
+    Chứa: thông tin POI + nút Phát audio / Dẫn đường / Lưu
+    Binding: SelectedPinPOI từ MainViewModel
+    Sự kiện: PlayAudioRequested, NavigateRequested, SaveRequested
+-->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             x:DataType="vm:MainViewModel"
+             x:Class="StreetFoodNarrator.App.Views.Components.PinPopupView">
+
+    <Border StrokeShape="RoundRectangle 20,20,0,0"
+            Stroke="#1C3024" BackgroundColor="#0E1E17">
+
+        <Grid RowDefinitions="Auto,Auto" Padding="16,14,16,16" RowSpacing="12">
+
+            <!-- POI info row -->
+            <Grid Grid.Row="0" ColumnDefinitions="56,*,Auto" ColumnSpacing="12">
+                <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                        BackgroundColor="#1A3426" WidthRequest="56" HeightRequest="56">
+                    <Image Source="{Binding SelectedPinPOI.DisplayImageUrl, FallbackValue='dotnet_bot.png'}"
+                           Aspect="AspectFill" WidthRequest="56" HeightRequest="56"/>
+                </Border>
+                <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                    <Label Text="{Binding SelectedPinPOI.Name_Vi, FallbackValue='—'}"
+                           FontSize="16" FontAttributes="Bold" TextColor="White"/>
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="{Binding SelectedPinPOI.DistanceFromUser, StringFormat='{0:F0}m'}"
+                               FontSize="12" TextColor="#22C55E"/>
+                        <Label FontSize="12" TextColor="#F59E0B">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="⭐ "/>
+                                    <Span Text="{Binding SelectedPinPOI.Rating, StringFormat='{0:F1}', FallbackValue='—'}"/>
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </HorizontalStackLayout>
+                    <Label Text="{Binding SelectedPinPOI.SignatureDish}"
+                           FontSize="12" TextColor="#9CA3AF" LineBreakMode="TailTruncation"/>
+                </VerticalStackLayout>
+                <Border Grid.Column="2" StrokeShape="RoundRectangle 10"
+                        BackgroundColor="#1C3024" Stroke="Transparent"
+                        WidthRequest="36" HeightRequest="36" VerticalOptions="Start">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCloseTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label Text="&#xF0156;" FontFamily="MDI" FontSize="15"
+                           TextColor="#6B7280" HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Border>
+            </Grid>
+
+            <!-- Action buttons row -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <Border Grid.Column="0" StrokeShape="RoundRectangle 12" Padding="0,12">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#22C55E" Offset="0"/>
+                            <GradientStop Color="#16A34A" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnViewDetailsTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label Text="Xem thêm" FontSize="13" FontAttributes="Bold"
+                           TextColor="White" HorizontalOptions="Center"/>
+                </Border>
+                <Border Grid.Column="1" StrokeShape="RoundRectangle 12"
+                        BackgroundColor="{Binding SelectedPinPOI.IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#1AEF4444:#1AF97316', FallbackValue='#1AF97316'}"
+                        Stroke="{Binding SelectedPinPOI.IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#40EF4444:#F9731430', FallbackValue='#F9731430'}"
+                        WidthRequest="46" Padding="0,12">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSaveTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="18"
+                           TextColor="{Binding SelectedPinPOI.IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#EF4444:#FFFFFF', FallbackValue='#FFFFFF'}"
+                           HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Border>
+            </Grid>
+
+        </Grid>
+    </Border>
+</ContentView>

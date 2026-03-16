@@ -1,0 +1,131 @@
+{
+  "app": {
+    "name": "Street Food Narrator",
+    "tagline": "Khám phá ẩm thực Vĩnh Khánh qua âm thanh"
+  },
+  "common": {
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "retry": "Thử lại",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "save": "Lưu",
+    "close": "Đóng",
+    "back": "Quay lại",
+    "next": "Tiếp theo",
+    "done": "Hoàn thành",
+    "yes": "Có",
+    "no": "Không"
+  },
+  "tour": {
+    "startTour": "Bắt đầu Tour",
+    "pauseTour": "Tạm dừng",
+    "resumeTour": "Tiếp tục",
+    "stopTour": "Dừng Tour",
+    "autoMode": "Tự động phát",
+    "manualMode": "Chế độ thủ công",
+    "nearbyPOIs": "Điểm gần đây",
+    "currentLocation": "Vị trí hiện tại",
+    "distance": "Khoảng cách",
+    "priority": "Ưu tiên"
+  },
+  "audio": {
+    "play": "Phát",
+    "pause": "Tạm dừng",
+    "stop": "Dừng",
+    "replay": "Phát lại",
+    "volume": "Âm lượng",
+    "speed": "Tốc độ phát",
+    "loading": "Đang tải âm thanh...",
+    "error": "Không thể phát âm thanh",
+    "noAudio": "Không có âm thanh",
+    "useTTS": "Sử dụng giọng đọc"
+  },
+  "location": {
+    "requesting": "Đang yêu cầu vị trí...",
+    "denied": "Quyền truy cập vị trí bị từ chối",
+    "unavailable": "Vị trí không khả dụng",
+    "timeout": "Hết thời gian chờ",
+    "enableLocation": "Bật định vị",
+    "accuracy": "Độ chính xác",
+    "lastUpdate": "Cập nhật lần cuối"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "language": "Ngôn ngữ",
+    "volume": "Âm lượng",
+    "autoMode": "Tự động phát",
+    "geofenceRadius": "Bán kính kích hoạt",
+    "ttsEnabled": "Giọng đọc tự động",
+    "ttsRate": "Tốc độ đọc",
+    "ttsPitch": "Cao độ giọng",
+    "mapType": "Loại bản đồ",
+    "showVisitedPOIs": "Hiện điểm đã thăm",
+    "batteryOptimization": "Tối ưu pin"
+  },
+  "history": {
+    "title": "Lịch sử",
+    "visited": "Đã thăm",
+    "notVisited": "Chưa thăm",
+    "visitedAt": "Thăm lúc",
+    "clear": "Xóa lịch sử",
+    "empty": "Chưa có lịch sử"
+  },
+  "map": {
+    "title": "Bản đồ",
+    "zoomIn": "Phóng to",
+    "zoomOut": "Thu nhỏ",
+    "centerMap": "Về vị trí hiện tại",
+    "fullscreen": "Toàn màn hình",
+    "layers": "Lớp bản đồ"
+  },
+  "poi": {
+    "details": "Chi tiết",
+    "signatureDish": "Món đặc trưng",
+    "funFact": "Điều thú vị",
+    "estimatedHours": "Giờ mở cửa",
+    "directions": "Chỉ đường",
+    "playAudio": "Nghe thuyết minh",
+    "viewOnMap": "Xem trên bản đồ"
+  },
+  "offline": {
+    "status": "Ngoại tuyến",
+    "ready": "Sẵn sàng sử dụng ngoại tuyến",
+    "syncing": "Đang đồng bộ...",
+    "syncComplete": "Đã đồng bộ",
+    "cacheSize": "Dung lượng bộ nhớ đệm",
+    "clearCache": "Xóa bộ nhớ đệm"
+  },
+  "battery": {
+    "level": "Mức pin",
+    "charging": "Đang sạc",
+    "notCharging": "Không sạc",
+    "lowPowerMode": "Chế độ tiết kiệm pin",
+    "recommendation": "Khuyến nghị",
+    "warning": "Pin yếu! Một số tính năng có thể bị giới hạn."
+  },
+  "speed": {
+    "stationary": "Đang đứng yên",
+    "walking": "Đang đi bộ",
+    "jogging": "Đang chạy bộ nhẹ",
+    "running": "Đang chạy",
+    "vehicle": "Đang di chuyển bằng xe",
+    "tooFast": "Bạn đang di chuyển quá nhanh! Vui lòng đi bộ để trải nghiệm tốt nhất."
+  },
+  "errors": {
+    "generic": "Đã xảy ra lỗi",
+    "network": "Lỗi kết nối mạng",
+    "locationDenied": "Bạn cần cấp quyền truy cập vị trí để sử dụng tính năng này",
+    "audioPlayback": "Không thể phát âm thanh. Vui lòng thử lại.",
+    "storageQuota": "Bộ nhớ đã đầy. Vui lòng xóa một số dữ liệu.",
+    "unsupported": "Trình duyệt của bạn không hỗ trợ tính năng này"
+  },
+  "welcome": {
+    "title": "Chào mừng đến Street Food Narrator!",
+    "description": "Khám phá ẩm thực phố Vĩnh Khánh với thuyết minh âm thanh tự động",
+    "step1": "Bật định vị GPS",
+    "step2": "Di chuyển đến phố Vĩnh Khánh",
+    "step3": "Thuyết minh tự động phát khi gần điểm ăn uống",
+    "getStarted": "Bắt đầu"
+  }
+}

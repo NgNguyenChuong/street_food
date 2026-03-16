@@ -1,0 +1,15 @@
+<svg width="456" height="456" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo đơn giản với emoji -->
+  <g transform="translate(78, 78) scale(1.0)">
+    <circle cx="150" cy="150" r="145" fill="#22C55E" opacity="0.2"/>
+    <circle cx="150" cy="150" r="130" fill="#1C3D2F"/>
+    
+    <!-- Emoji 🍜 -->
+    <text x="150" y="190" 
+          font-size="120" 
+          text-anchor="middle" 
+          font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif">
+      🍜
+    </text>
+  </g>
+</svg>

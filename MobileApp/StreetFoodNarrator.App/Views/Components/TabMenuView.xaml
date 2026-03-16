@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    TabMenuView.xaml  –  Tab 2: Menu quán ăn
+    Chứa: SearchBar + Filter chips + CollectionView danh sách POI
+    Tự quản lý filter chips (logic trong TabMenuView.xaml.cs)
+    Binding: FilteredPOIs, SearchQuery từ MainViewModel (kế thừa BindingContext)
+-->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             xmlns:models="clr-namespace:StreetFoodNarrator.App.Core.Models"
+             x:DataType="vm:MainViewModel"
+             x:Class="StreetFoodNarrator.App.Views.Components.TabMenuView"
+             x:Name="Root"
+             BackgroundColor="#0A1612">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
+
+        <!-- Search bar -->
+        <Border Grid.Row="0" BackgroundColor="#0A1612" Padding="14,52,14,8">
+            <SearchBar Placeholder="Tìm kiếm quán ăn..."
+                       Text="{Binding SearchQuery}"
+                       BackgroundColor="#0E1E17" TextColor="White"
+                       PlaceholderColor="#6B7280"/>
+        </Border>
+
+        <!-- Offline banner -->
+        <Border Grid.Row="1"
+                Margin="0,0,0,8"
+                IsVisible="{Binding IsOffline}"
+                BackgroundColor="#D97706" Padding="12,8" StrokeThickness="0">
+            <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                <Label Text="&#xF1AF0;" FontFamily="MDI" TextColor="White" FontSize="18" VerticalOptions="Center"/>
+                <Label Text="Đang ngoại tuyến. Một số chức năng bị hạn chế." TextColor="White" FontSize="13" FontAttributes="Bold" VerticalOptions="Center"/>
+            </HorizontalStackLayout>
+        </Border>
+
+        <!-- Filter chips -->
+        <ScrollView Grid.Row="2" Orientation="Horizontal" Padding="14,0,14,8">
+            <HorizontalStackLayout Spacing="8">
+                <Border x:Name="FilterChipAll" x:FieldModifier="public"
+                        StrokeShape="RoundRectangle 20" Padding="14,7"
+                        BackgroundColor="#22C55E" Stroke="Transparent">
+                    <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterAll"/></Border.GestureRecognizers>
+                    <Label Text="Tất cả" FontSize="12" TextColor="White" FontAttributes="Bold"/>
+                </Border>
+                <Border x:Name="FilterChipPho" x:FieldModifier="public"
+                        StrokeShape="RoundRectangle 20" Padding="14,7"
+                        BackgroundColor="#0E1E17" Stroke="#1C3024">
+                    <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterPho"/></Border.GestureRecognizers>
+                    <Label Text="Phở" FontSize="12" TextColor="#9CA3AF"/>
+                </Border>
+                <Border x:Name="FilterChipBanhMi" x:FieldModifier="public"
+                        StrokeShape="RoundRectangle 20" Padding="14,7"
+                        BackgroundColor="#0E1E17" Stroke="#1C3024">
+                    <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterBanhMi"/></Border.GestureRecognizers>
+                    <Label Text="Bánh mì" FontSize="12" TextColor="#9CA3AF"/>
+                </Border>
+                <Border x:Name="FilterChipCom" x:FieldModifier="public"
+                        StrokeShape="RoundRectangle 20" Padding="14,7"
+                        BackgroundColor="#0E1E17" Stroke="#1C3024">
+                    <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterCom"/></Border.GestureRecognizers>
+                    <Label Text="Cơm" FontSize="12" TextColor="#9CA3AF"/>
+                </Border>
+                <Border x:Name="FilterChipChe" x:FieldModifier="public"
+                        StrokeShape="RoundRectangle 20" Padding="14,7"
+                        BackgroundColor="#0E1E17" Stroke="#1C3024">
+                    <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnFilterChe"/></Border.GestureRecognizers>
+                    <Label Text="Chè" FontSize="12" TextColor="#9CA3AF"/>
+                </Border>
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Danh sách POI -->
+        <CollectionView Grid.Row="3" ItemsSource="{Binding FilteredPOIs}" Margin="0,0,0,72">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
+                    <Label Text="&#xF0349;" FontFamily="MDI" FontSize="42"
+                           TextColor="#4B5563" HorizontalOptions="Center"/>
+                    <Label Text="Không tìm thấy quán nào" FontSize="15"
+                           TextColor="#6B7280" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:POI">
+                    <Border Margin="14,0,14,10" StrokeShape="RoundRectangle 16"
+                            BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12">
+                        <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12">
+                            <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                                    BackgroundColor="#1A3426" WidthRequest="64" HeightRequest="64">
+                                <Image Source="{Binding DisplayImageUrl}" Aspect="AspectFill"
+                                       WidthRequest="64" HeightRequest="64" />
+                            </Border>
+                            <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                <Label Text="{Binding Name_Vi, Converter={StaticResource StringFallbackConverter}, ConverterParameter='Tên quán đang cập nhật'}" FontSize="14"
+                                       FontAttributes="Bold" TextColor="White"/>
+                                <Label Text="{Binding SignatureDish, Converter={StaticResource StringFallbackConverter}, ConverterParameter='Món đang cập nhật'}" FontSize="12"
+                                       TextColor="#9CA3AF" LineBreakMode="TailTruncation"/>
+                                <Label Text="{Binding DistanceFromUser, StringFormat='{0:F0}m'}"
+                                       FontSize="11" TextColor="#22C55E"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="2" Spacing="8" VerticalOptions="Center">
+                                <!-- Detail button: tap → POIDetailPage -->
+                                <Border StrokeShape="RoundRectangle 10" BackgroundColor="#22C55E18"
+                                        Stroke="#22C55E30" WidthRequest="40" HeightRequest="36">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnDetailTapped"/>
+                                    </Border.GestureRecognizers>
+                                    <Label Text="&#xF04E4;" FontFamily="MDI" FontSize="16"
+                                           TextColor="#22C55E" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                </Border>
+                                <!-- Heart icon: white when not liked, red when liked -->
+                                <Border StrokeShape="RoundRectangle 10"
+                                        BackgroundColor="{Binding IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#1AEF4444:#0E1E1718'}"
+                                        Stroke="{Binding IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#EF4444:#1C3024'}"
+                                        WidthRequest="40" HeightRequest="36">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnSaveTapped"/>
+                                    </Border.GestureRecognizers>
+                                    <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="18"
+                                           TextColor="{Binding IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#EF4444:#FFFFFF'}"
+                                           HorizontalOptions="Center" VerticalOptions="Center"/>
+                                </Border>
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentView>

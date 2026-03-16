@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Exclude runtime-generated TTS audio from StaticWebAssets fingerprinting to avoid file-lock errors -->
+  <ItemGroup>
+    <Content Remove="wwwroot\uploads\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
+    <PackageReference Include="AspNetCore.Identity.MongoDbCore" Version="3.1.0" />
+    <PackageReference Include="MongoDB.Driver" Version="2.25.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.1" />
+  </ItemGroup>
+
+</Project>
