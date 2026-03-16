@@ -18,6 +18,7 @@ using MapsBrush = Mapsui.Styles.Brush;
 using StreetFoodNarrator.App.Core.Services;
 using NetTopologySuite.Geometries;
 using Mapsui.Nts;
+using System.Text.Json;
 
 namespace StreetFoodNarrator.App.Views;
 
@@ -25,7 +26,10 @@ public partial class MainPage
 {
     // ── Map state ──────────────────────────────────────────────────────────────
     private MemoryLayer? _pinsLayer;
+    private MemoryLayer? _routeLayer;
     private const int DefaultMapZoomLevel = (int)AppConfig.DefaultZoom + 1;
+    // Dedicated HttpClient for OSRM road routing (short timeout, not reused for audio)
+    private readonly HttpClient _routeHttpClient = new() { Timeout = TimeSpan.FromSeconds(6) };
 
     private void ZoomToDefaultLevel()
     {
@@ -99,6 +103,10 @@ public partial class MainPage
         darkOverlay.Features = new[] { new GeometryFeature { Geometry = overlayPolygon } };
         MapView.Map.Layers.Add(darkOverlay);
         Console.WriteLine("[Map] ✓ Dark overlay added (between OSM and Pins)");
+
+        // Layer route (đường đi) - OVERLAY NHƯNG DƯỚI PINS
+        _routeLayer = new MemoryLayer("RouteLayer");
+        MapView.Map.Layers.Add(_routeLayer);
 
         // Layer pins cho user + POI markers - ADD CUỐI CÙNG để ở trên cùng
         _pinsLayer = new MemoryLayer("Pins");
@@ -248,6 +256,129 @@ public partial class MainPage
         Console.WriteLine($"[Map] ✓ UpdateZonePins completed: Drew {features.Count} features (1 user + {spotCount} POI pins)");
     }
 
+    public async Task DrawNavigationRouteAsync()
+    {
+        if (_routeLayer == null || MapView?.Map == null) return;
+
+        var features = new List<IFeature>();
+        var target = _vm.NavigationTarget;
+
+        if (target != null && _vm.CurrentLat != 0)
+        {
+            var (startPx, startPy) = SphericalMercator.FromLonLat(_vm.CurrentLon, _vm.CurrentLat);
+            var (endPx, endPy) = SphericalMercator.FromLonLat(target.Longitude, target.Latitude);
+
+            // Lấy route theo đường đi thực (OSRM) nếu có mạng và không phải Virtual mode
+            Coordinate[] routeCoords;
+            var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
+                           Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
+
+            if (isOnline && !_vm.IsVirtualNavigation)
+            {
+                var osrmCoords = await FetchOsrmRouteAsync(
+                    _vm.CurrentLon, _vm.CurrentLat, target.Longitude, target.Latitude);
+                routeCoords = osrmCoords ?? new[]
+                {
+                    new Coordinate(startPx, startPy),
+                    new Coordinate(endPx, endPy)
+                };
+            }
+            else
+            {
+                routeCoords = new[]
+                {
+                    new Coordinate(startPx, startPy),
+                    new Coordinate(endPx, endPy)
+                };
+            }
+
+            var lineString = new NetTopologySuite.Geometries.LineString(routeCoords);
+            var feature = new GeometryFeature(lineString);
+            feature.Styles.Add(new VectorStyle
+            {
+                Line = new Pen(new MapsColor(59, 130, 246), 4)
+                {
+                    PenStyle = _vm.IsVirtualNavigation ? PenStyle.Dash : PenStyle.Solid
+                }
+            });
+            features.Add(feature);
+
+            if (_vm.IsVirtualNavigation)
+            {
+                MapView.Map.Navigator.CenterOn(new MPoint(endPx, endPy));
+                ZoomToDefaultLevel();
+            }
+            else
+            {
+                double midPx = (startPx + endPx) / 2.0;
+                double midPy = (startPy + endPy) / 2.0;
+                double maxDiff = Math.Max(Math.Abs(endPx - startPx), Math.Abs(endPy - startPy));
+
+                if (maxDiff <= 800)
+                {
+                    MapView.Map.Navigator.CenterOn(new MPoint(endPx, endPy));
+                    MapView.Map.Navigator.ZoomToLevel(19);
+                }
+                else
+                {
+                    int zoomLevel = DefaultMapZoomLevel;
+                    if (maxDiff > 20000) zoomLevel = 10;
+                    else if (maxDiff > 10000) zoomLevel = 12;
+                    else if (maxDiff > 3000) zoomLevel = 13;
+                    else if (maxDiff > 1000) zoomLevel = 14;
+                    else if (maxDiff > 500) zoomLevel = 16;
+                    else zoomLevel = 17;
+                    MapView.Map.Navigator.CenterOn(new MPoint(midPx, midPy));
+                    MapView.Map.Navigator.ZoomToLevel(zoomLevel);
+                }
+            }
+        }
+
+        _routeLayer.Features = features;
+        _routeLayer.DataHasChanged();
+        MapView.RefreshGraphics();
+    }
+
+    /// <summary>
+    /// Gọi OSRM demo server lấy tuyến đi bộ giữa 2 điểm.
+    /// Trả về Coordinate[] (Web Mercator) hoặc null nếu lỗi/offline.
+    /// </summary>
+    private async Task<Coordinate[]?> FetchOsrmRouteAsync(
+        double srcLon, double srcLat, double dstLon, double dstLat)
+    {
+        try
+        {
+            var ic = System.Globalization.CultureInfo.InvariantCulture;
+            var url = $"https://router.project-osrm.org/route/v1/walking/" +
+                      $"{srcLon.ToString(ic)},{srcLat.ToString(ic)};" +
+                      $"{dstLon.ToString(ic)},{dstLat.ToString(ic)}" +
+                      $"?geometries=geojson&overview=full";
+
+            var json = await _routeHttpClient.GetStringAsync(url);
+            using var doc = JsonDocument.Parse(json);
+
+            var coords = doc.RootElement
+                .GetProperty("routes")[0]
+                .GetProperty("geometry")
+                .GetProperty("coordinates")
+                .EnumerateArray()
+                .Select(c =>
+                {
+                    var (x, y) = SphericalMercator.FromLonLat(c[0].GetDouble(), c[1].GetDouble());
+                    return new Coordinate(x, y);
+                })
+                .ToArray();
+
+            Console.WriteLine($"[Map] OSRM route: {coords.Length} điểm theo đường đi");
+            return coords.Length >= 2 ? coords : null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Map] OSRM fallback (đường thẳng): {ex.Message}");
+            return null;
+        }
+    }
+
     private void UpdateUserPin()
     {
         UpdateZonePins();
@@ -258,9 +389,15 @@ public partial class MainPage
 
     // ─── Header buttons ───────────────────────────────────────────────────────
 
-    private async void OnBackClicked(object? sender, EventArgs e)
+    private void OnBackClicked(object? sender, EventArgs e)
     {
-        try { await Navigation.PopAsync(); }
+        try
+        {
+            if (Application.Current?.Windows.Count > 0)
+            {
+                Application.Current.Windows[0].Page = new NavigationPage(new WelcomePage());
+            }
+        }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Map] OnBackClicked: {ex}"); }
     }
 

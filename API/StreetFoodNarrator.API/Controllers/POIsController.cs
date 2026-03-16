@@ -92,9 +92,9 @@ public class POIsController : ControllerBase
         }
         else if (User.Identity?.IsAuthenticated != true)
         {
-            // Public: only approved + active
-            filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
-                      Builders<POI>.Filter.Eq(p => p.IsActive, true);
+            // Public: only active (ReviewStatus disabled temporarily)
+            // filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
+            filter &= Builders<POI>.Filter.Eq(p => p.IsActive, true);
         }
 
         var total = await _db.POIs.CountDocumentsAsync(filter);
@@ -124,7 +124,7 @@ public class POIsController : ControllerBase
     public async Task<ActionResult<POISyncResponse>> SyncPOIs([FromQuery] long sinceVersion = 0)
     {
         var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
-                     Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
+                     // Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
                      Builders<POI>.Filter.Eq(p => p.IsActive, true);
 
         var latest = await _db.POIs
@@ -223,9 +223,9 @@ public class POIsController : ControllerBase
             return NotFound(new { message = "POI not found" });
         }
 
-        // Public access: only approved + active
+        // Public access: only active (ReviewStatus temporarily disabled)
         if (User.Identity?.IsAuthenticated != true &&
-            (poi.ReviewStatus != "approved" || !poi.IsActive))
+            !poi.IsActive) // && (poi.ReviewStatus != "approved" || !poi.IsActive))
         {
             return NotFound(new { message = "POI not found" });
         }

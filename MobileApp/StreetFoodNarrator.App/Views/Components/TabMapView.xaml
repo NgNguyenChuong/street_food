@@ -38,21 +38,47 @@
                            HorizontalOptions="Center" VerticalOptions="Center"/>
                 </Border>
 
-                <!-- Title chip -->
+                <!-- Title chip (contains network status sub-line) -->
                 <Border Grid.Column="1"
                         StrokeShape="RoundRectangle 14" BackgroundColor="#0E1E17"
                         Stroke="#1C3024" StrokeThickness="1"
-                        Padding="14,0" HeightRequest="48" VerticalOptions="Center">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" HorizontalOptions="Center">
-                        <BoxView Grid.Column="0" WidthRequest="8" HeightRequest="8"
-                                 BackgroundColor="#22C55E" CornerRadius="4" VerticalOptions="Center"/>
-                        <Label Grid.Column="1"
-                               Text="🍜 Phố ẩm thực Vĩnh Khánh"
-                               FontSize="13" FontAttributes="Bold" TextColor="White"
-                               VerticalTextAlignment="Center"
-                               HorizontalTextAlignment="Center"
-                               LineBreakMode="TailTruncation"/>
-                    </Grid>
+                        Padding="14,9" VerticalOptions="Center">
+                    <Border.Shadow><Shadow Brush="#22C55E" Opacity="0.12" Radius="8" Offset="0,2"/></Border.Shadow>
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsOffline}" Value="True">
+                            <Setter Property="Stroke" Value="#F9731655"/>
+                        </DataTrigger>
+                    </Border.Triggers>
+                    <VerticalStackLayout Spacing="3" HorizontalOptions="Center">
+
+                        <!-- Tour name row -->
+                        <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                            <BoxView WidthRequest="8" HeightRequest="8"
+                                     BackgroundColor="#22C55E" CornerRadius="4" VerticalOptions="Center"/>
+                            <Label Text="🍜 Phố ẩm thực Vĩnh Khánh"
+                                   FontSize="13" FontAttributes="Bold" TextColor="White"
+                                   VerticalTextAlignment="Center"
+                                   HorizontalTextAlignment="Center"
+                                   LineBreakMode="TailTruncation"/>
+                        </HorizontalStackLayout>
+
+                        <!-- Network status: Online -->
+                        <HorizontalStackLayout Spacing="4" HorizontalOptions="Center"
+                                               IsVisible="{Binding IsOffline, Converter={StaticResource InvertedBoolConverter}}">
+                            <BoxView WidthRequest="5" HeightRequest="5" CornerRadius="2.5"
+                                     BackgroundColor="#22C55E" VerticalOptions="Center"/>
+                            <Label Text="Online" FontSize="10" TextColor="#86EFAC" VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+
+                        <!-- Network status: Offline -->
+                        <HorizontalStackLayout Spacing="4" HorizontalOptions="Center"
+                                               IsVisible="{Binding IsOffline}">
+                            <BoxView WidthRequest="5" HeightRequest="5" CornerRadius="2.5"
+                                     BackgroundColor="#F97316" VerticalOptions="Center"/>
+                            <Label Text="Ngoại tuyến" FontSize="10" TextColor="#FCA36E" VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+
+                    </VerticalStackLayout>
                 </Border>
 
                 <!-- Spacer cân bằng -->
@@ -60,23 +86,6 @@
 
             </Grid>
         </Grid>
-
-        <!-- ── Offline badge — hiện khi dùng dữ liệu cache/bundled ── -->
-        <Border AbsoluteLayout.LayoutBounds="0.5,0,-1,-1"
-                AbsoluteLayout.LayoutFlags="PositionProportional"
-                Margin="0,108,0,0"
-                IsVisible="{Binding IsOffline}"
-                StrokeShape="RoundRectangle 12"
-                BackgroundColor="#CC3A1A00" Stroke="#F97316" StrokeThickness="1"
-                Padding="14,5">
-            <Border.Shadow>
-                <Shadow Brush="#F97316" Opacity="0.20" Radius="8" Offset="0,2"/>
-            </Border.Shadow>
-            <Label Text="{Binding DataSourceLabel}"
-                   FontSize="11" FontAttributes="Bold"
-                   TextColor="#F97316"
-                   HorizontalOptions="Center" VerticalOptions="Center"/>
-        </Border>
 
         <!-- ── Chú thích bản đồ (góc trái, dưới top bar) ── -->
         <AbsoluteLayout AbsoluteLayout.LayoutBounds="0,0,1,1"
@@ -92,11 +101,6 @@
                            TextColor="#6B7280" CharacterSpacing="1" HorizontalOptions="Center"/>
                     <HorizontalStackLayout Spacing="7">
                         <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
-                                 BackgroundColor="#22C55E" VerticalOptions="Center"/>
-                        <Label Text="Chưa ghé" FontSize="10" TextColor="#D1D5DB" VerticalOptions="Center"/>
-                    </HorizontalStackLayout>
-                    <HorizontalStackLayout Spacing="7">
-                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
                                  BackgroundColor="#3B82F6" VerticalOptions="Center"/>
                         <Label Text="Gần đây" FontSize="10" TextColor="#D1D5DB" VerticalOptions="Center"/>
                     </HorizontalStackLayout>
@@ -109,6 +113,11 @@
                         <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
                                  BackgroundColor="#FBBF24" VerticalOptions="Center"/>
                         <Label Text="Đã lưu" FontSize="10" TextColor="#D1D5DB" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="7">
+                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
+                                 BackgroundColor="#F97316" VerticalOptions="Center"/>
+                        <Label Text="Chưa ghé" FontSize="10" TextColor="#D1D5DB" VerticalOptions="Center"/>
                     </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Border>

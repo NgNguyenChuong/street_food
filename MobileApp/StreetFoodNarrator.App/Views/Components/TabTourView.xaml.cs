@@ -12,6 +12,8 @@
 
 namespace StreetFoodNarrator.App.Views.Components;
 
+public enum VirtualTourState { Idle, Running, Choice }
+
 public partial class TabTourView : ContentView
 {
     // ── Events ra ngoài ──────────────────────────────────────────────────────
@@ -21,12 +23,22 @@ public partial class TabTourView : ContentView
     public event EventHandler? ZoomInRequested;
     public event EventHandler? ZoomOutRequested;
     public event EventHandler? PlayPauseRequested;
-    public event EventHandler? SeekBarDragCompleted;
+    public event EventHandler<double>? SeekBarDragCompleted;
     public event EventHandler? ShareRequested;
+    public event EventHandler<bool>? MuteChangeRequested;
+    public event EventHandler<double>? SpeedChangeRequested;
+    public event EventHandler<double>? VolumeChangeRequested;
+
+    // Virtual tour events
+    public event EventHandler? StartVirtualTourRequested;
+    public event EventHandler? StopVirtualTourRequested;
+    public event EventHandler? ContinueVirtualTourRequested;
+    public event EventHandler? RestartVirtualTourRequested;
 
     // ── Audio state ───────────────────────────────────────────────────────────
     private int    _speedIndex      = 0;
     private bool   _isMuted         = false;
+    private double _volume          = 1.0;
     private bool   _isDescExpanded  = false;
     private CancellationTokenSource? _waveCts;
     private CancellationTokenSource? _miniWaveCts;
@@ -96,7 +108,7 @@ public partial class TabTourView : ContentView
     public void SetPlayState(bool isPlaying)
     {
         // MDI glyph: play = F040A, pause = F03E4
-        var mdiIcon = isPlaying ? "\uF03E4" : "\uF040A";
+        var mdiIcon = isPlaying ? "⏹️" : "▶️";
         PlayPauseIcon.Text     = mdiIcon;
         MiniPlayPauseIcon.Text = mdiIcon;
     }
@@ -152,6 +164,34 @@ public partial class TabTourView : ContentView
         }, token);
     }
 
+    // ─── Virtual Tour public API ──────────────────────────────────────────────
+
+    public void SetVirtualTourState(VirtualTourState state, string? stopLabel = null)
+    {
+        VTIdlePanel.IsVisible   = state == VirtualTourState.Idle;
+        VTActivePanel.IsVisible = state != VirtualTourState.Idle;
+
+        VirtualTourControlBox.Stroke = state == VirtualTourState.Idle
+            ? new SolidColorBrush(Color.FromArgb("#22C55E"))
+            : new SolidColorBrush(Color.FromArgb("#EF4444"));
+    }
+
+    public void UpdateVirtualTourStopLabel(string label) { /* no-op: counter moved to bottom sheet */ }
+
+    // ─── Virtual Tour button handlers ────────────────────────────────────────
+
+    private void OnVirtualTourStartTapped(object sender, EventArgs e)
+        => StartVirtualTourRequested?.Invoke(this, e);
+
+    private void OnVirtualTourStopTapped(object sender, EventArgs e)
+        => StopVirtualTourRequested?.Invoke(this, e);
+
+    private void OnVirtualTourContinueTapped(object sender, EventArgs e)
+        => ContinueVirtualTourRequested?.Invoke(this, e);
+
+    private void OnVirtualTourRestartTapped(object sender, EventArgs e)
+        => RestartVirtualTourRequested?.Invoke(this, e);
+
     // ─── Header ──────────────────────────────────────────────────────────────
 
     private void OnHeaderBackTapped(object sender, EventArgs e)
@@ -172,18 +212,48 @@ public partial class TabTourView : ContentView
         => PlayPauseRequested?.Invoke(this, e);
 
     private void OnSeekBarDragCompleted(object sender, EventArgs e)
-        => SeekBarDragCompleted?.Invoke(this, e);
+        => SeekBarDragCompleted?.Invoke(this, AudioSeekBar.Value);
 
     private void OnSpeedTapped(object sender, EventArgs e)
     {
         _speedIndex     = (_speedIndex + 1) % _speeds.Length;
         SpeedLabel.Text = _speedLabels[_speedIndex];
+        SpeedChangeRequested?.Invoke(this, _speeds[_speedIndex]);
     }
 
     private void OnMuteTapped(object sender, EventArgs e)
     {
         _isMuted      = !_isMuted;
-        MuteIcon.Text = _isMuted ? "\uF0580" : "\uF057E"; // MDI volume-off / volume-high
+        MuteIcon.Text = _isMuted ? "\uF057E" : "\uF057D";
+        // Sync slider: muted → 0, unmuted → restore previous volume
+        VolumeSlider.Value = _isMuted ? 0 : _volume;
+        MuteChangeRequested?.Invoke(this, _isMuted);
+    }
+
+    private void OnVolumeDownTapped(object sender, EventArgs e)
+    {
+        _volume = Math.Max(0.0, _volume - 0.1);
+        _isMuted = _volume == 0;
+        MuteIcon.Text = _isMuted ? "\uF057E" : "\uF057D";
+        VolumeSlider.Value = _volume;
+        VolumeChangeRequested?.Invoke(this, _volume);
+    }
+
+    private void OnVolumeUpTapped(object sender, EventArgs e)
+    {
+        _volume = Math.Min(1.0, _volume + 0.1);
+        _isMuted = false;
+        MuteIcon.Text = "\uF057D";
+        VolumeSlider.Value = _volume;
+        VolumeChangeRequested?.Invoke(this, _volume);
+    }
+
+    private void OnVolumeSliderDragCompleted(object sender, EventArgs e)
+    {
+        _volume = VolumeSlider.Value;
+        _isMuted = _volume == 0;
+        MuteIcon.Text = _isMuted ? "\uF057E" : "\uF057D";
+        VolumeChangeRequested?.Invoke(this, _volume);
     }
 
     private void OnShareTapped(object sender, EventArgs e)

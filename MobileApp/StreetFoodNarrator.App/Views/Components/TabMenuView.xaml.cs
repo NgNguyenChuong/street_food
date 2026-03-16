@@ -5,6 +5,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using StreetFoodNarrator.App.ViewModels;
+using StreetFoodNarrator.App.Core.Models;
+using StreetFoodNarrator.App.Views;
 
 namespace StreetFoodNarrator.App.Views.Components;
 
@@ -13,6 +15,8 @@ public partial class TabMenuView : ContentView
     public TabMenuView()
     {
         InitializeComponent();
+        if (BindingContext == null)
+            BindingContext = MauiProgram.Services.GetRequiredService<MainViewModel>();
     }
 
     // ─── Filter chip style ───────────────────────────────────────────────────
@@ -59,5 +63,22 @@ public partial class TabMenuView : ContentView
     {
         if (BindingContext is MainViewModel vm) { vm.SearchQuery = "chè"; vm.ApplyFilter(); }
         ApplyChipStyle(FilterChipChe);
+    }
+
+    private void OnSaveTapped(object sender, EventArgs e)
+    {
+        if (BindingContext is not MainViewModel vm) return;
+        if (sender is not BindableObject bindable) return;
+        if (bindable.BindingContext is not POI poi) return;
+
+        vm.ToggleSavePOICommand.Execute(poi);
+        // Rebuild FilteredPOIs so heart color updates immediately
+        vm.ApplyFilter();
+    }
+
+    private async void OnDetailTapped(object sender, EventArgs e)
+    {
+        if (sender is BindableObject bindable && bindable.BindingContext is POI poi)
+            await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi));
     }
 }

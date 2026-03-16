@@ -66,6 +66,12 @@ public partial class SettingsPage : ContentPage
         LoadSettingsAndVoices();
         WireUpSliders();
     }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await UpdateOfflineStats();
+    }
     
     private void SetupCustomLangPicker()
     {
@@ -372,7 +378,6 @@ public partial class SettingsPage : ContentPage
     {        
         TitleLabel.Text = AppStrings.Settings_Title;
         GeneralSectionLabel.Text = AppStrings.Settings_General;
-        GoogleLoginLabel.Text = AppStrings.Settings_LoginGoogle;
         TourSectionLabel.Text = AppStrings.Settings_TourExperience;
         TtsTitleLabel.Text = AppStrings.Settings_Tts;
         TtsSubtitleLabel.Text = AppStrings.Settings_TtsSubtitle;
@@ -427,14 +432,7 @@ public partial class SettingsPage : ContentPage
         }
     }
 
-    private async void OnGoogleLoginClicked(object sender, EventArgs e)
-    {
-        await CustomAlert.ShowAsync(
-            AppStrings.Alert_Notice_Title,
-            AppStrings.Alert_GoogleLogin_Message,
-            AppStrings.Common_OK,
-            AlertType.Info);
-    }
+
 
     private void OnTtsClicked(object sender, EventArgs e)
     {
@@ -578,6 +576,16 @@ public partial class SettingsPage : ContentPage
     {
         if (sender is not Button button) return;
         
+        var isWifi = Connectivity.Current.ConnectionProfiles.Contains(ConnectionProfile.WiFi);
+        if (!isWifi)
+        {
+            var confirm = await DisplayAlert(
+                AppStrings.Alert_UsingCellular_Title,
+                AppStrings.Alert_UsingCellular_Message,
+                AppStrings.Common_Continue, AppStrings.Common_Cancel);
+            if (!confirm) return;
+        }
+
         // Show loading state
         button.IsEnabled = false;
         var originalText = button.Text;
@@ -585,29 +593,60 @@ public partial class SettingsPage : ContentPage
         
         try
         {
-            // Simulate data check (replace with real implementation)
-            await Task.Delay(1500);
+            var repo = MauiProgram.Services.GetRequiredService<IZoneRepository>();
+            var db = MauiProgram.Services.GetRequiredService<ILocalDatabaseService>();
+            var audioCache = MauiProgram.Services.GetRequiredService<IAudioCacheService>();
+
+            button.Text = "⏳ Đang tải POI...";
+            await repo.SyncFromMongoAsync();
+            await repo.LoadLocalAsync();
+            var poiIds = repo.GetAllActiveZones().Select(p => p.Id).ToList();
+            
+            button.Text = "⏳ Đang tải Menu...";
+            using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            foreach (var id in poiIds)
+            {
+                try {
+                    var menuUrl = $"{AppConfig.ApiBaseUrl}api/MenuItems?poiId={id}&page=1&pageSize=50";
+                    var response = await client.GetAsync(menuUrl);
+                    if (response.IsSuccessStatusCode) {
+                        var content = await response.Content.ReadAsStringAsync();
+                        var result = JsonSerializer.Deserialize<MenuItemResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (result?.Data != null && result.Data.Any()) {
+                            await db.SaveMenuItemsAsync(result.Data);
+                        }
+                    }
+                } catch { /* ignore individual failures */ }
+            }
+
+            var progress = new Progress<(int done, int total)>(p =>
+                MainThread.BeginInvokeOnMainThread(() =>
+                    button.Text = $"⏳ Đang tải audio {p.done}/{p.total}..."));
+
+            await audioCache.PreloadAllAsync(poiIds, progress);
             
             // Reset button
             button.IsEnabled = true;
             button.Text = originalText;
             
+            Preferences.Set("LastSyncTime", DateTime.Now.ToString("dd/MM HH:mm"));
+            await UpdateOfflineStats();
+            
             // Show success result
             await CustomAlert.ShowAsync(
                 "Đã cập nhật",
-                "Dữ liệu offline đã được cập nhật lên phiên bản mới nhất.\n\n" +
-                "7 địa điểm • 2.4 MB • Cập nhật lúc 18:30",
+                "Dữ liệu offline đã được cập nhật phiên bản mới nhất.",
                 "OK",
                 AlertType.Success);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             button.IsEnabled = true;
             button.Text = originalText;
             
             await CustomAlert.ShowAsync(
-                "Lỗi kiểm tra",
-                "Không thể kiểm tra dữ liệu offline. Vui lòng thử lại sau.",
+                "Lỗi cập nhật",
+                $"Không thể tải dữ liệu offline.\nChi tiết: {ex.Message}",
                 "OK",
                 AlertType.Error);
         }
@@ -616,8 +655,8 @@ public partial class SettingsPage : ContentPage
     private async void OnDeleteDataClicked(object sender, EventArgs e)
     {
         var confirm = await CustomAlert.ShowConfirmAsync(
-            "Xóa dữ liệu offline?",
-            "Bạn sẽ cần tải lại dữ liệu để sử dụng offline.\n\n" +
+            "Xóa Audio Offline?",
+            "Việc xóa này sẽ chỉ xóa tập tin âm thanh tải về, giải phóng bộ nhớ. " +
             "Bạn có chắc chắn muốn xóa không?",
             "Xóa",
             "Hủy",
@@ -625,16 +664,51 @@ public partial class SettingsPage : ContentPage
         
         if (confirm)
         {
-            // TODO: Clear offline data implementation
-            await Task.Delay(500); // Simulate deletion
-            
-            await CustomAlert.ShowAsync(
-                "Đã xóa",
-                "Dữ liệu offline đã được xóa.\n\n" +
-                "Vào Cài đặt > Tải dữ liệu offline để tải lại.",
-                "OK",
-                AlertType.Success);
+            try
+            {
+                var audioCache = MauiProgram.Services.GetRequiredService<IAudioCacheService>();
+                await audioCache.ClearAsync();
+                
+                await UpdateOfflineStats();
+
+                await CustomAlert.ShowAsync(
+                    "Đã xóa",
+                    "Dữ liệu audio offline đã được xóa.\n\n" +
+                    "Vào Cài đặt > Tải dữ liệu offline để tải lại.",
+                    "OK",
+                    AlertType.Success);
+            }
+            catch (Exception ex)
+            {
+                await CustomAlert.ShowAsync(
+                    "Lỗi",
+                    $"Lỗi khi xóa: {ex.Message}",
+                    "OK",
+                    AlertType.Error);
+            }
         }
+    }
+
+    private async Task UpdateOfflineStats()
+    {
+        try
+        {
+            var repo = MauiProgram.Services.GetRequiredService<IZoneRepository>();
+            var audioCache = MauiProgram.Services.GetRequiredService<IAudioCacheService>();
+            
+            var poiCount = repo.GetAllActiveZones().Count();
+            var cacheSizeBytes = audioCache.GetCacheSizeBytes();
+            var cacheSizeMb = cacheSizeBytes / (1024 * 1024.0);
+            
+            // Lấy thời gian cập nhật cuối từ Preferences (giả sử repo lưu lại)
+            var lastSyncStr = Preferences.Get("LastSyncTime", "Chưa rõ");
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                OfflineDataInfoLabel.Text = $"{poiCount} quán • {cacheSizeMb:F1} MB • Cập nhật: {lastSyncStr}";
+            });
+        }
+        catch { /* Silent fail */ }
     }
 }
 

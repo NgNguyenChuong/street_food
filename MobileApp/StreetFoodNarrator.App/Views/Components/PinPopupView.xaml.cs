@@ -14,6 +14,7 @@ public partial class PinPopupView : ContentView
     public event EventHandler? NavigateRequested;
     public event EventHandler? SaveRequested;
     public event EventHandler? ViewDetailsRequested; // Xem thêm chi tiết POI
+    public event EventHandler? CloseRequested;      // Đóng popup
 
     public PinPopupView()
     {
@@ -25,6 +26,7 @@ public partial class PinPopupView : ContentView
     private void OnPlayAudioTapped(object sender, EventArgs e) => PlayAudioRequested?.Invoke(this, e);
     private void OnNavigateTapped(object sender, EventArgs e)  => NavigateRequested?.Invoke(this, e);
     private void OnSaveTapped(object sender, EventArgs e)      => SaveRequested?.Invoke(this, e);
+    private void OnCloseTapped(object sender, EventArgs e)     => CloseRequested?.Invoke(this, e);
     
     private void OnViewDetailsTapped(object sender, EventArgs e)
     {

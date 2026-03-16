@@ -42,6 +42,11 @@ public interface ILocalDatabaseService
     Task SavePOIAsync(POI poi);
     Task SavePOIsAsync(List<POI> pois);
     Task DeleteAllPOIsAsync();
+    Task<List<POI>> GetLikedPOIsAsync();
+    Task<List<MenuItemDto>> GetMenuItemsByPoiAsync(int poiId);
+    Task SaveMenuItemsAsync(List<MenuItemDto> menuItems);
+    Task<List<ZoneHistory>> GetAllZoneHistoriesAsync();
+    Task<ZoneHistory?> GetZoneHistoryAsync(string sessionId, int poiId);
     Task<List<ZoneHistory>> GetZoneHistoriesForSessionAsync(string sessionId);
     Task SaveZoneHistoryAsync(ZoneHistory history);
     Task ClearZoneHistoryAsync();

@@ -6,6 +6,8 @@ namespace StreetFoodNarrator.App.Core.Models;
 /// </summary>
 public class UserSession
 {
+    public string SessionId { get; private set; } = CreateSessionId();
+
     private readonly HashSet<int> _playedThisSession = new();
     private readonly Dictionary<int, DateTime> _cooldowns = new();
     private readonly Dictionary<int, double> _audioPositions = new();
@@ -64,4 +66,13 @@ public class UserSession
         _cooldowns.Clear();
         _audioPositions.Clear();
     }
+
+    public void StartNewSession()
+    {
+        Reset();
+        SessionId = CreateSessionId();
+    }
+
+    private static string CreateSessionId()
+        => $"S-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}";
 }

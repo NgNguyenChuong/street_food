@@ -1497,6 +1497,33 @@
             updateCircle(lat, lng);
         }
 
+        function extractPoiLatLng(poi) {
+            if (!poi) return { lat: null, lng: null };
+            const latRaw = poi.latitude ?? poi.Latitude ?? poi.lat ?? poi.Lat;
+            const lngRaw = poi.longitude ?? poi.Longitude ?? poi.lng ?? poi.Lng;
+            if (Number.isFinite(Number(latRaw)) && Number.isFinite(Number(lngRaw))) {
+                return { lat: Number(latRaw), lng: Number(lngRaw) };
+            }
+
+            const loc = poi.location ?? poi.Location ?? {};
+            const coords = loc.coordinates ?? loc.Coordinates;
+            if (Array.isArray(coords) && coords.length >= 2) {
+                const lon = Number(coords[0]);
+                const lat = Number(coords[1]);
+                if (Number.isFinite(lat) && Number.isFinite(lon)) {
+                    return { lat, lng: lon };
+                }
+            }
+
+            const locLat = loc.latitude ?? loc.Latitude;
+            const locLng = loc.longitude ?? loc.Longitude;
+            if (Number.isFinite(Number(locLat)) && Number.isFinite(Number(locLng))) {
+                return { lat: Number(locLat), lng: Number(locLng) };
+            }
+
+            return { lat: null, lng: null };
+        }
+
         function useMyLocation() {
             if (!navigator.geolocation) {
                 alert('Trình duyệt không hỗ trợ định vị.');
@@ -1765,12 +1792,13 @@
                 if (mapSearchEl) mapSearchEl.value = poi.address || '';
                 const latEl = document.getElementById('latitude');
                 const lngEl = document.getElementById('longitude');
-                if (latEl) latEl.value = poi.latitude ?? '';
-                if (lngEl) lngEl.value = poi.longitude ?? '';
+                const coords = extractPoiLatLng(poi);
+                if (latEl) latEl.value = coords.lat ?? '';
+                if (lngEl) lngEl.value = coords.lng ?? '';
                 const vLatEl = document.getElementById('vendorLat');
                 const vLngEl = document.getElementById('vendorLng');
-                if (vLatEl) vLatEl.value = poi.latitude ?? '';
-                if (vLngEl) vLngEl.value = poi.longitude ?? '';
+                if (vLatEl) vLatEl.value = coords.lat ?? '';
+                if (vLngEl) vLngEl.value = coords.lng ?? '';
 
                 document.getElementById('geofenceRadius').value = poi.triggerRadius ?? '';
                 const zoneTypeValue = poi.zoneType || 'Spot';
@@ -1839,7 +1867,7 @@
                     }
                 }
 
-                initMap(poi.latitude, poi.longitude);
+                initMap(coords.lat, coords.lng);
 
                 setStatus(poi.isActive ? 'active' : 'inactive');
 

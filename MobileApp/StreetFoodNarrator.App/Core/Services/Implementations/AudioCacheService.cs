@@ -127,7 +127,7 @@ public class AudioCacheService : IAudioCacheService
     {
         try
         {
-            // Lấy tất cả audio đã published (tối đa 500 bản ghi)
+            // Lấy tất cả audio đã published
             var url = $"{_baseUrl}/api/audio?status=published&pageSize=500";
             var result = await _http.GetFromJsonAsync<AudioListResult>(url, ct);
             if (result?.Data == null) return 0;
@@ -136,10 +136,23 @@ public class AudioCacheService : IAudioCacheService
             foreach (var audio in result.Data)
             {
                 if (string.IsNullOrWhiteSpace(audio.AudioUrl)) continue;
+
                 var lang = NormalizeLanguage(audio.Language);
-                var key  = CacheKey(audio.AudioContentId, lang);
+
+                // ⚠️ File cache được lưu theo poiId_lang.mp3, không phải AudioContentId_lang.mp3
+                // Nên phải dùng PoiId để build cache key cho đúng.
+                if (audio.PoiId <= 0) continue;
+
+                var key = CacheKey(audio.PoiId, lang);
                 if (!_cachedKeys.Contains(key))
-                    newCount++;
+                {
+                    // Kiểm tra thêm bằng File.Exists để đảm bảo
+                    var path = CachePath(key);
+                    if (!File.Exists(path))
+                        newCount++;
+                    else
+                        _cachedKeys.Add(key); // Cập nhật lại in-memory set nếu file đã có
+                }
             }
 
             Debug.WriteLine($"[AudioCache] Kiểm tra cập nhật: {newCount} audio mới chưa tải.");
@@ -343,6 +356,9 @@ public class AudioCacheService : IAudioCacheService
     {
         [JsonPropertyName("audioContent_ID")]
         public int AudioContentId { get; set; }
+
+        [JsonPropertyName("poI_ID")]
+        public int PoiId { get; set; }
 
         [JsonPropertyName("audioUrl")]
         public string? AudioUrl { get; set; }

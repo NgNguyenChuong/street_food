@@ -14,6 +14,8 @@
             <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
             <converters:GenderToEmojiConverter x:Key="GenderToEmojiConverter" />
             <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
+            <converters:StringFallbackConverter x:Key="StringFallbackConverter" />
+            <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

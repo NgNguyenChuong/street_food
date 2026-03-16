@@ -292,6 +292,60 @@ public class AudioController : ControllerBase
     }
 
     /// <summary>
+    /// Debug: check audio file path and existence for a POI + language
+    /// </summary>
+    [HttpGet("poi/{poiId}/{language}/debug")]
+    public async Task<ActionResult> GetAudioForPoiDebug(int poiId, string language)
+    {
+        var normalizedLang = NormalizeLanguage(language);
+        var filter = Builders<AudioContent>.Filter.And(
+            Builders<AudioContent>.Filter.Eq(a => a.POI_ID, poiId),
+            Builders<AudioContent>.Filter.Eq(a => a.Language, normalizedLang),
+            Builders<AudioContent>.Filter.Eq(a => a.Status, AudioStatuses.Published),
+            Builders<AudioContent>.Filter.Eq(a => a.IsActive, true),
+            Builders<AudioContent>.Filter.Eq(a => a.IsDeleted, false)
+        );
+
+        var audio = await _db.AudioContents
+            .Find(filter)
+            .SortByDescending(a => a.Version)
+            .ThenByDescending(a => a.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (audio == null)
+        {
+            return NotFound(new
+            {
+                message = "No published audio found for this POI and language",
+                poiId,
+                language = normalizedLang
+            });
+        }
+
+        var audioUrl = audio.AudioUrl ?? string.Empty;
+        var isRemote = audioUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase);
+        var physicalPath = string.Empty;
+        var hasPath = !isRemote && TryGetAudioPhysicalPath(audioUrl, out physicalPath);
+        var exists = hasPath && System.IO.File.Exists(physicalPath);
+        long? fileSize = null;
+        if (exists)
+        {
+            try { fileSize = new FileInfo(physicalPath).Length; } catch { }
+        }
+
+        return Ok(new
+        {
+            poiId,
+            language = normalizedLang,
+            audioUrl,
+            isRemote,
+            physicalPath = hasPath ? physicalPath : null,
+            exists,
+            fileSize
+        });
+    }
+
+    /// <summary>
     /// Create audio content record (for TTS-generated files)
     /// </summary>
     [Authorize(Roles = "Admin,Vendor")]

@@ -59,6 +59,7 @@ public class LocalDatabaseService : ILocalDatabaseService
 
             // Create tables
             await _database.CreateTableAsync<POI>();
+            await _database.CreateTableAsync<MenuItemDto>();
             await _database.CreateTableAsync<ZoneHistory>();
 
             // Migrate from JSON if exists
@@ -183,17 +184,26 @@ public class LocalDatabaseService : ILocalDatabaseService
     public async Task SavePOIsAsync(List<POI> pois)
     {
         await InitializeInternalAsync();
-        
+
         if (_database == null)
             return;
 
         await _lock.WaitAsync();
         try
         {
+            // Preserve user's liked status before bulk overwrite
+            var likedIds = (await _database.Table<POI>()
+                .Where(p => p.IsLikedByUser)
+                .ToListAsync())
+                .Select(p => p.Id)
+                .ToHashSet();
+
             foreach (var poi in pois)
             {
                 poi.UpdatedAt = DateTime.Now;
-                
+                if (likedIds.Contains(poi.Id))
+                    poi.IsLikedByUser = true;
+
                 if (poi.Id > 0)
                 {
                     await _database.InsertOrReplaceAsync(poi);
@@ -215,7 +225,7 @@ public class LocalDatabaseService : ILocalDatabaseService
     public async Task DeleteAllPOIsAsync()
     {
         await InitializeInternalAsync();
-        
+
         if (_database == null)
             return;
 
@@ -224,6 +234,58 @@ public class LocalDatabaseService : ILocalDatabaseService
         {
             await _database.DeleteAllAsync<POI>();
             System.Diagnostics.Debug.WriteLine("LocalDatabaseService: All POIs deleted");
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task<List<POI>> GetLikedPOIsAsync()
+    {
+        await InitializeInternalAsync();
+        if (_database == null) return new List<POI>();
+        return await _database.Table<POI>()
+            .Where(p => p.IsLikedByUser && p.IsActive)
+            .ToListAsync();
+    }
+
+    public async Task<List<MenuItemDto>> GetMenuItemsByPoiAsync(int poiId)
+    {
+        await InitializeInternalAsync();
+        
+        if (_database == null)
+            return new List<MenuItemDto>();
+
+        return await _database.Table<MenuItemDto>()
+            .Where(m => m.POI_ID == poiId)
+            .ToListAsync();
+    }
+    
+    public async Task SaveMenuItemsAsync(List<MenuItemDto> menuItems)
+    {
+        await InitializeInternalAsync();
+        
+        if (_database == null || !menuItems.Any())
+            return;
+
+        await _lock.WaitAsync();
+        try
+        {
+            var poiId = menuItems.First().POI_ID;
+            
+            // Delete existing menu items for this POI to avoid orphans
+            var existing = await _database.Table<MenuItemDto>().Where(m => m.POI_ID == poiId).ToListAsync();
+            foreach (var item in existing)
+            {
+                await _database.DeleteAsync(item);
+            }
+
+            foreach (var item in menuItems)
+            {
+                await _database.InsertOrReplaceAsync(item);
+            }
+            Console.WriteLine($"[LocalDatabaseService] SaveMenuItemsAsync: ✓ Saved {menuItems.Count} MenuItems for POI {poiId}");
         }
         finally
         {
@@ -241,6 +303,30 @@ public class LocalDatabaseService : ILocalDatabaseService
         return await _database.Table<ZoneHistory>()
             .Where(h => h.SessionId == sessionId)
             .ToListAsync();
+    }
+
+    public async Task<List<ZoneHistory>> GetAllZoneHistoriesAsync()
+    {
+        await InitializeInternalAsync();
+
+        if (_database == null)
+            return new List<ZoneHistory>();
+
+        return await _database.Table<ZoneHistory>()
+            .OrderByDescending(h => h.LastTriggeredAt)
+            .ToListAsync();
+    }
+
+    public async Task<ZoneHistory?> GetZoneHistoryAsync(string sessionId, int poiId)
+    {
+        await InitializeInternalAsync();
+
+        if (_database == null)
+            return null;
+
+        return await _database.Table<ZoneHistory>()
+            .Where(h => h.SessionId == sessionId && h.POI_ID == poiId)
+            .FirstOrDefaultAsync();
     }
     
     public async Task SaveZoneHistoryAsync(ZoneHistory history)

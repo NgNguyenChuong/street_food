@@ -35,4 +35,22 @@ public interface ITTSService
     /// Kiểm tra TTS có sẵn không
     /// </summary>
     bool IsAvailable { get; }
+
+    /// <summary>Lấy thời lượng audio hiện tại (giây). 0 nếu chưa phát.</summary>
+    double GetDuration();
+
+    /// <summary>Lấy vị trí phát hiện tại (giây). 0 nếu chưa phát.</summary>
+    double GetCurrentPosition();
+
+    /// <summary>Đặt âm lượng phát (0.0–1.0).</summary>
+    void SetVolume(double volume);
+
+    /// <summary>Đặt tốc độ phát (ví dụ: 0.75, 1.0, 1.25, 1.5).</summary>
+    void SetSpeed(double speed);
+
+    /// <summary>Seek đến vị trí cụ thể (giây).</summary>
+    void Seek(double positionSeconds);
+
+    /// <summary>Ẩn khi audio phát xong. Không fire khi gọi StopAsync.</summary>
+    event Action? OnPlaybackEnded;
 }

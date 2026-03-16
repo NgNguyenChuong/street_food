@@ -6,6 +6,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="StreetFoodNarrator.App.Views.ProfilePage"
+             x:Name="ProfilePageRoot"
              BackgroundColor="#0A1612"
              Shell.NavBarIsVisible="False">
 
@@ -33,9 +34,76 @@
                 </Grid>
             </Border>
 
-            <!-- Other profile sections (placeholder) -->
+            <!-- Tour history -->
             <Label Text="Lịch sử tour" FontSize="16" FontAttributes="Bold" TextColor="White" Margin="0,12,0,0"/>
-            <Label Text="Chức năng đang phát triển..." FontSize="12" TextColor="#6B7280"/>
+
+            <CollectionView ItemsSource="{Binding TourHistories}"
+                            SelectionMode="None"
+                            Margin="0,4,0,0">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Spacing="8" Padding="0,10,0,10">
+                        <Label Text="Chưa có lịch sử tour" FontSize="13" TextColor="#6B7280"/>
+                        <Label Text="Hãy bắt đầu một tour để lưu lại hành trình của bạn"
+                               FontSize="11" TextColor="#4B5563"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border StrokeShape="RoundRectangle 14"
+                                BackgroundColor="#0E1E17" Stroke="#1C3024"
+                                Padding="12" Margin="0,0,0,10">
+                            <VerticalStackLayout Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="{Binding Title}" FontSize="13" FontAttributes="Bold" TextColor="White"/>
+                                        <Label Text="{Binding Summary}" FontSize="11" TextColor="#9CA3AF"/>
+                                    </VerticalStackLayout>
+                                    <Button Grid.Column="1"
+                                            Text="Đi lại tour"
+                                            FontSize="11"
+                                            Padding="10,6"
+                                            CornerRadius="10"
+                                            BackgroundColor="#22C55E"
+                                            TextColor="White"
+                                            Command="{Binding Source={x:Reference ProfilePageRoot}, Path=ReplayTourCommand}"
+                                            CommandParameter="{Binding .}"/>
+                                </Grid>
+
+                                <Expander>
+                                    <Expander.Header>
+                                        <Label Text="Xem chi tiết" FontSize="11" TextColor="#6B9E7E"/>
+                                    </Expander.Header>
+                                    <VerticalStackLayout Spacing="8" Padding="0,6,0,0">
+                                        <Label Text="Điểm đã ghé" FontSize="12" FontAttributes="Bold" TextColor="White"/>
+                                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Stops}" Spacing="6">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                        <Label Text="{Binding Name}" FontSize="11" TextColor="#D1D5DB"/>
+                                                        <Label Grid.Column="1" Text="{Binding TimeText}" FontSize="10" TextColor="#6B7280"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </VerticalStackLayout>
+
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalOptions="Center">
+                                            <Label Text="Đánh giá" FontSize="11" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                                            <Slider Grid.Column="1" Minimum="0" Maximum="5"
+                                                    Value="{Binding Rating, Mode=TwoWay}"/>
+                                        </Grid>
+                                        <Entry Text="{Binding Note, Mode=TwoWay}"
+                                               Placeholder="Ghi chú nhanh về tour này"
+                                               FontSize="11"
+                                               TextColor="#D1D5DB"
+                                               PlaceholderColor="#6B7280"
+                                               BackgroundColor="#0B1A14"/>
+                                    </VerticalStackLayout>
+                                </Expander>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
 
         </VerticalStackLayout>
     </ScrollView>

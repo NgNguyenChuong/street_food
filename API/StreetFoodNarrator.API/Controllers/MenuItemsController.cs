@@ -51,6 +51,37 @@ public class MenuItemsController : ControllerBase
         });
     }
 
+    // GET /api/MenuItems/count?poiId=5
+    // Quick check to verify data exists in DB
+    [HttpGet("count")]
+    public async Task<ActionResult> GetMenuItemCount([FromQuery] int? poiId = null)
+    {
+        var filter = Builders<MenuItem>.Filter.Eq(m => m.IsDeleted, false);
+        if (poiId.HasValue)
+            filter &= Builders<MenuItem>.Filter.Eq(m => m.POI_ID, poiId.Value);
+
+        var total = await _db.MenuItems.CountDocumentsAsync(filter);
+        var sample = await _db.MenuItems
+            .Find(filter)
+            .SortBy(m => m.MenuItemId)
+            .Limit(3)
+            .Project(m => new
+            {
+                m.MenuItemId,
+                m.POI_ID,
+                m.Name_Vi,
+                m.Price
+            })
+            .ToListAsync();
+
+        return Ok(new
+        {
+            total = (int)total,
+            poiId,
+            sample
+        });
+    }
+
     // GET /api/MenuItems/{id}
     [HttpGet("{id}")]
     public async Task<ActionResult<MenuItem>> GetMenuItem(int id)

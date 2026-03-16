@@ -41,6 +41,8 @@ public class LocationService : ILocationService
         {
             while (!_cts.Token.IsCancellationRequested)
             {
+                int delayMs = 15000; // Default 15s nếu ở gần
+
                 try
                 {
                     var loc = await Geolocation.GetLocationAsync(new GeolocationRequest
@@ -50,7 +52,19 @@ public class LocationService : ILocationService
                     }, _cts.Token);
 
                     if (loc != null)
+                    {
                         OnLocationUpdated?.Invoke(loc);
+                        
+                        // Tính khoảng cách tới cổng Vĩnh Khánh
+                        var gateLocation = new Microsoft.Maui.Devices.Sensors.Location(
+                            StreetFoodNarrator.App.AppConfig.DefaultLatitude, 
+                            StreetFoodNarrator.App.AppConfig.DefaultLongitude);
+                        
+                        var distanceKm = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(loc, gateLocation, DistanceUnits.Kilometers);
+                        
+                        // Nếu cách > 1km -> delay 75s (1m15s). Nếu ở gần -> delay 15s.
+                        delayMs = distanceKm > 1.0 ? 75000 : 15000;
+                    }
                 }
                 catch (FeatureNotEnabledException)
                 {
@@ -66,7 +80,7 @@ public class LocationService : ILocationService
                     System.Diagnostics.Debug.WriteLine($"[GPS] Error: {ex.Message}");
                 }
 
-                await Task.Delay(7500, _cts.Token); // 7.5s — GPS accuracy budget
+                await Task.Delay(delayMs, _cts.Token);
             }
 
             _isRunning = false;

@@ -6,7 +6,7 @@ using StreetFoodNarrator.App;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
-
+using StreetFoodNarrator.App.Core.Models;
 namespace StreetFoodNarrator.App.Views;
 
 public partial class WelcomePage : ContentPage
@@ -126,15 +126,8 @@ public partial class WelcomePage : ContentPage
             {
                 await Task.Delay(2500); // Đợi UI ổn định trước
                 var count = await _audioCache.CheckForUpdatesAsync();
-                if (count <= 0) return;
 
-                _newAudioCount = count;
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    BellButton.IsVisible   = true;
-                    BellBadge.IsVisible    = true;
-                    BellBadgeCount.Text    = count > 99 ? "99+" : count.ToString();
-                });
+                MainThread.BeginInvokeOnMainThread(() => SetUpdateBadge(count));
             }
             catch (Exception ex)
             {
@@ -143,11 +136,43 @@ public partial class WelcomePage : ContentPage
         });
     }
 
-    private async void OnBellClicked(object sender, EventArgs e)
+    private async void OnUpdateClicked(object sender, EventArgs e)
     {
-        var result = await ShowAudioUpdateDialogAsync(_newAudioCount);
-        if (result == "download")
-            await DownloadNewAudioAsync();
+        if (_audioCache == null)
+        {
+            await DisplayAlert("Thông báo", "Tính năng cập nhật audio chưa sẵn sàng.", "OK");
+            return;
+        }
+
+        if (!IsOnline())
+        {
+            await DisplayAlert(
+                AppStrings.Alert_NoNetwork_Title,
+                AppStrings.Alert_NoNetwork_Message,
+                AppStrings.Common_OK);
+            return;
+        }
+
+        UpdateButton.IsEnabled = false;
+        try
+        {
+            var count = await _audioCache.CheckForUpdatesAsync();
+            SetUpdateBadge(count);
+
+            if (count <= 0)
+            {
+                await ShowNoUpdateDialogAsync();
+                return;
+            }
+
+            var result = await ShowAudioUpdateDialogAsync(count);
+            if (result == "download")
+                await DownloadUpdatesAsync();
+        }
+        finally
+        {
+            UpdateButton.IsEnabled = true;
+        }
     }
 
     private async Task<string> ShowAudioUpdateDialogAsync(int count)
@@ -157,7 +182,7 @@ public partial class WelcomePage : ContentPage
 
         var dialog = new Border
         {
-            BackgroundColor  = Color.FromArgb("#14251F"),
+            BackgroundColor  = Color.FromArgb("#111E18"),
             Stroke           = Color.FromArgb("#1E3D2A"),
             StrokeThickness  = 1,
             Padding          = new Thickness(24),
@@ -168,14 +193,14 @@ public partial class WelcomePage : ContentPage
             StrokeShape      = new RoundRectangle { CornerRadius = new CornerRadius(20) }
         };
 
-        var stack = new VerticalStackLayout { Spacing = 16 };
+        var stack = new VerticalStackLayout { Spacing = 14 };
 
         // Icon + Tiêu đề
         var titleRow = new HorizontalStackLayout { Spacing = 10 };
         titleRow.Add(new Label
         {
-            Text = "\uF009A", FontFamily = "MDI", FontSize = 28,
-            TextColor = Color.FromArgb("#F97316"),
+            Text = "🪧", FontSize = 22, FontAttributes = FontAttributes.Bold,
+            // TextColor = Color.FromArgb("#F97316"),
             VerticalOptions = LayoutOptions.Center
         });
         titleRow.Add(new Label
@@ -198,11 +223,10 @@ public partial class WelcomePage : ContentPage
         var btnDownload = new Button
         {
             Text = "Tải xuống ngay",
-            FontFamily = "MDI",
             BackgroundColor = Color.FromArgb("#22C55E"),
             TextColor = Colors.White,
             FontAttributes = FontAttributes.Bold,
-            CornerRadius = 12, HeightRequest = 48
+            CornerRadius = 12, HeightRequest = 50
         };
         btnDownload.Clicked += (s, e) => { tcs.TrySetResult("download"); overlay.IsVisible = false; };
         stack.Add(btnDownload);
@@ -229,7 +253,70 @@ public partial class WelcomePage : ContentPage
         return result;
     }
 
-    private async Task DownloadNewAudioAsync()
+    private async Task ShowNoUpdateDialogAsync()
+    {
+        var tcs     = new TaskCompletionSource<bool>();
+        var overlay = new Grid { BackgroundColor = Color.FromArgb("#80000000") };
+
+        var dialog = new Border
+        {
+            BackgroundColor  = Color.FromArgb("#111E18"),
+            Stroke           = Color.FromArgb("#1E3D2A"),
+            StrokeThickness  = 1,
+            Padding          = new Thickness(22),
+            Margin           = new Thickness(32),
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions   = LayoutOptions.Center,
+            MaximumWidthRequest = 320,
+            StrokeShape      = new RoundRectangle { CornerRadius = new CornerRadius(20) }
+        };
+
+        var stack = new VerticalStackLayout { Spacing = 12 };
+
+        var titleRow = new HorizontalStackLayout { Spacing = 10 };
+        titleRow.Add(new Label
+        {
+            Text = "🪧", FontSize = 20, FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#F97316"),
+            VerticalOptions = LayoutOptions.Center
+        });
+        titleRow.Add(new Label
+        {
+            Text = "Không có cập nhật",
+            FontSize = 18, FontAttributes = FontAttributes.Bold,
+            TextColor = Colors.White, VerticalOptions = LayoutOptions.Center
+        });
+        stack.Add(titleRow);
+
+        stack.Add(new Label
+        {
+            Text = "Không có audio mới trên server.",
+            FontSize = 13,
+            TextColor = Color.FromArgb("#94A3B8"),
+            LineBreakMode = LineBreakMode.WordWrap
+        });
+
+        var btnOk = new Button
+        {
+            Text = "OK",
+            BackgroundColor = Color.FromArgb("#22C55E"),
+            TextColor = Colors.White,
+            FontAttributes = FontAttributes.Bold,
+            CornerRadius = 12, HeightRequest = 46
+        };
+        btnOk.Clicked += (s, e) => { tcs.TrySetResult(true); overlay.IsVisible = false; };
+        stack.Add(btnOk);
+
+        dialog.Content = stack;
+        overlay.Children.Add(dialog);
+        var mainGrid = (Grid)this.Content;
+        mainGrid.Children.Add(overlay);
+
+        await tcs.Task;
+        mainGrid.Children.Remove(overlay);
+    }
+
+    private async Task DownloadUpdatesAsync()
     {
         if (_audioCache == null) return;
 
@@ -244,33 +331,56 @@ public partial class WelcomePage : ContentPage
             if (!confirm) return;
         }
 
-        // Khóa nút, hiển tiến trình quà badge
-        BellButton.IsEnabled = false;
-        BellBadgeCount.Text  = "...";
+        // Khóa nút, ẩn dot badge trong lúc đồng bộ
+        UpdateButton.IsEnabled = false;
 
         try
         {
+            // 1. Sync POIs
+            System.Diagnostics.Debug.WriteLine("[Sync] Bước 1: Sync POIs...");
+            await _repository.SyncFromMongoAsync();
+            await _repository.LoadLocalAsync();
+            
             var poiIds = _repository.GetAllActiveZones().Select(p => p.Id).ToList();
+            
+            // 2. Sync Menu Items
+            System.Diagnostics.Debug.WriteLine("[Sync] Bước 2: Sync Menu...");
+            var db = MauiProgram.Services.GetRequiredService<ILocalDatabaseService>();
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            
+            foreach (var id in poiIds)
+            {
+                try {
+                    var menuUrl = $"{AppConfig.ApiBaseUrl}api/MenuItems?poiId={id}&page=1&pageSize=50";
+                    var response = await client.GetAsync(menuUrl);
+                    if (response.IsSuccessStatusCode) {
+                        var content = await response.Content.ReadAsStringAsync();
+                        var result = System.Text.Json.JsonSerializer.Deserialize<MenuItemResponse>(content, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (result?.Data != null && result.Data.Any()) {
+                            await db.SaveMenuItemsAsync(result.Data);
+                        }
+                    }
+                } catch { /* ignore menu error for individual POI */ }
+            }
+
+            // 3. Sync Audio
+            System.Diagnostics.Debug.WriteLine("[Sync] Bước 3: Sync Audio...");
             var progress = new Progress<(int done, int total)>(p =>
-                MainThread.BeginInvokeOnMainThread(() =>
-                    BellBadgeCount.Text = $"{p.done}/{p.total}"));
+                System.Diagnostics.Debug.WriteLine($"[Sync] Audio {p.done}/{p.total}"));
 
             await _audioCache.PreloadAllAsync(poiIds, progress);
 
             // Tải xong → ẩn chuông
-            BellButton.IsVisible = false;
-            BellBadge.IsVisible  = false;
-            _newAudioCount       = 0;
-
+            SetUpdateBadge(0);
+            Preferences.Set("LastSyncTime", DateTime.Now.ToString("dd/MM HH:mm"));
             await DisplayAlert("✅ Hoàn tất",
-                "Tải xuống xong! Audio sẽ phát offline ngay cả khi không có mạng.",
+                "Đồng bộ hoàn tất! Dữ liệu quán, menu và audio đã sẵn sàng dùng offline.",
                 "OK");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[WelcomePage] DownloadNewAudio lỗi: {ex.Message}");
-            BellButton.IsEnabled = true;
-            BellBadgeCount.Text  = _newAudioCount.ToString();
+            System.Diagnostics.Debug.WriteLine($"[WelcomePage] DownloadUpdates lỗi: {ex.Message}");
+            UpdateButton.IsEnabled = true;
         }
     }
 
@@ -367,7 +477,7 @@ public partial class WelcomePage : ContentPage
             StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(20) }
         };
 
-        var stack = new VerticalStackLayout { Spacing = 16 };
+        var stack = new VerticalStackLayout { Spacing = 14 };
 
         // Icon + Title
         stack.Add(new Label
@@ -978,11 +1088,6 @@ public partial class WelcomePage : ContentPage
         }
     }
 
-    private async void OnManualBrowseClicked(object sender, EventArgs e)
-    {
-        await DisplayAlert(AppStrings.Alert_ManualBrowse_Title, AppStrings.Alert_ManualBrowse_Message, AppStrings.Common_OK);
-    }
-
     private async void OnSettingsClicked(object sender, EventArgs e)
     {
         await Navigation.PushAsync(new SettingsPage());
@@ -1029,8 +1134,18 @@ public partial class WelcomePage : ContentPage
     // HELPERS
     // ══════════════════════════════════════════════════════════════
     
-    private static bool IsOnline() => 
-        Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
+    private void SetUpdateBadge(int count)
+    {
+        _newAudioCount = Math.Max(0, count);
+        UpdateBadge.IsVisible = _newAudioCount > 0;
+        // Dot chỉ hiện/ẩn, không cần text số nữa
+    }
+
+    private static bool IsOnline()
+    {
+        var access = Connectivity.Current.NetworkAccess;
+        return access == NetworkAccess.Internet || access == NetworkAccess.ConstrainedInternet;
+    }
 
     private void EnableStartButton()
     {

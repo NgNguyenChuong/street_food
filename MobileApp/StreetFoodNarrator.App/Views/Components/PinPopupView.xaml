@@ -20,8 +20,8 @@
             <Grid Grid.Row="0" ColumnDefinitions="56,*,Auto" ColumnSpacing="12">
                 <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
                         BackgroundColor="#1A3426" WidthRequest="56" HeightRequest="56">
-                    <Label Text="&#xF034E;" FontFamily="MDI" FontSize="24"
-                           TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                    <Image Source="{Binding SelectedPinPOI.DisplayImageUrl, FallbackValue='dotnet_bot.png'}"
+                           Aspect="AspectFill" WidthRequest="56" HeightRequest="56"/>
                 </Border>
                 <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
                     <Label Text="{Binding SelectedPinPOI.Name_Vi, FallbackValue='—'}"
@@ -45,7 +45,7 @@
                         BackgroundColor="#1C3024" Stroke="Transparent"
                         WidthRequest="36" HeightRequest="36" VerticalOptions="Start">
                     <Border.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding ClosePinPopupCommand}"/>
+                        <TapGestureRecognizer Tapped="OnCloseTapped"/>
                     </Border.GestureRecognizers>
                     <Label Text="&#xF0156;" FontFamily="MDI" FontSize="15"
                            TextColor="#6B7280" HorizontalOptions="Center" VerticalOptions="Center"/>
@@ -68,13 +68,15 @@
                            TextColor="White" HorizontalOptions="Center"/>
                 </Border>
                 <Border Grid.Column="1" StrokeShape="RoundRectangle 12"
-                        BackgroundColor="#F9731618" Stroke="#F9731430"
+                        BackgroundColor="{Binding SelectedPinPOI.IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#1AEF4444:#1AF97316', FallbackValue='#1AF97316'}"
+                        Stroke="{Binding SelectedPinPOI.IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#40EF4444:#F9731430', FallbackValue='#F9731430'}"
                         WidthRequest="46" Padding="0,12">
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnSaveTapped"/>
                     </Border.GestureRecognizers>
                     <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="18"
-                           TextColor="#F97316" HorizontalOptions="Center" VerticalOptions="Center"/>
+                           TextColor="{Binding SelectedPinPOI.IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#EF4444:#FFFFFF', FallbackValue='#FFFFFF'}"
+                           HorizontalOptions="Center" VerticalOptions="Center"/>
                 </Border>
             </Grid>
 

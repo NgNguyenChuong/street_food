@@ -73,9 +73,13 @@ public partial class MainPage
 
     private void OnPinSave(object? sender, EventArgs e)
     {
-        if (_vm.SelectedPinPOI != null)
-            _vm.ToggleSavePOICommand.Execute(_vm.SelectedPinPOI);
-        UpdateZonePins(); // cập nhật màu pin ngay sau khi lưu/bỏ lưu
+        var poi = _vm.SelectedPinPOI;
+        if (poi == null) return;
+        _vm.ToggleSavePOICommand.Execute(poi);
+        // POI không có INPC → reassign để BoolToColorConverter re-evaluate ngay
+        _vm.SelectedPinPOI = null;
+        _vm.SelectedPinPOI = poi;
+        UpdateZonePins();
     }
 
     private async void OnPinViewDetails(object? sender, EventArgs e)
@@ -102,10 +106,10 @@ public partial class MainPage
             var detailPage = new POIDetailPage(poi);
             
             Console.WriteLine($"[MainPage] OnPinViewDetails - Navigation exists: {Navigation != null}");
-            Console.WriteLine("[MainPage] OnPinViewDetails - Calling PushAsync...");
-            
-            await Navigation.PushAsync(detailPage);
-            
+            Console.WriteLine("[MainPage] OnPinViewDetails - Calling PushModalAsync...");
+
+            await Shell.Current.Navigation.PushModalAsync(detailPage);
+
             Console.WriteLine("[MainPage] OnPinViewDetails - Navigation SUCCESS!");
         }
         catch (Exception ex)

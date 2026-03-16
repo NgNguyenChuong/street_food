@@ -11,17 +11,23 @@ public partial class MainViewModel : ObservableObject
     private readonly IGeofenceService _geofence;
     private readonly ILocationService _location;
     private readonly IZoneRepository _repository;
+    private readonly ILocalDatabaseService _db;
     private readonly SimulatedLocationService? _simulator;
+    private readonly SimulatedLocationService _fallbackSimulator;
+    private bool _isUsingFallback = false;
 
     public MainViewModel(
         IGeofenceService geofence,
         ILocationService location,
-        IZoneRepository repository)
+        IZoneRepository repository,
+        ILocalDatabaseService db)
     {
         _geofence = geofence;
         _repository = repository;
         _location = location;
+        _db = db;
         _simulator = location as SimulatedLocationService;
+        _fallbackSimulator = new SimulatedLocationService();
 
         // Default to AppConfig location until GPS/sim updates arrive
         if (CurrentLat == 0 && CurrentLon == 0)
@@ -71,25 +77,44 @@ public partial class MainViewModel : ObservableObject
                     };
                     PrimaryZoneRating = (zone.Rating ?? 4.5).ToString("F1");
 
-                    // Tính current spot index
-                    var spots = AllPOIs.Where(p => p.ZoneType == "Spot").ToList();
+                    // Tính current spot index (sắp xếp theo Id để thứ tự nhất quán)
+                    var spots = AllPOIs.Where(p => p.ZoneType == "Spot").OrderBy(p => p.Id).ToList();
                     int idx = spots.FindIndex(p => p.Id == zone.Id);
                     if (idx >= 0)
                     {
-                        CurrentStopBadge = $"{idx + 1}/{spots.Count}";  // Format: "3/8"
-                        
-                        // Next stops
+                        CurrentStopIndex = idx + 1;
+                        CurrentStopBadge = $"{idx + 1}/{spots.Count}";
+
+                        // Distance from user to current spot
+                        var curDist = HaversineDistance(CurrentLat, CurrentLon, zone.Latitude, zone.Longitude);
+                        CurrentDistText = curDist < 1000 ? $"{curDist:F0}m" : $"{curDist / 1000:F1}km";
+                        CurrentWalkTimeText = $"~{Math.Max(1, (int)Math.Ceiling(curDist / 80.0))} phút";
+
+                        // Info chips from zone data
+                        ChipCategory = $"🍽️ {zone.Category ?? zone.Type ?? "Ẩm thực"}";
+                        CategoryName = zone.Category ?? zone.Type ?? "Ẩm thực";
+                        var hours = zone.EstimatedHours ?? zone.OpeningHoursText;
+                        HasOpenHours = !string.IsNullOrEmpty(hours);
+                        ChipOpenHours = HasOpenHours ? $"🕐 {hours}" : "";
+                        HasPrice = zone.AveragePrice.HasValue;
+                        ChipPrice = HasPrice ? $"💰 {zone.AveragePrice:N0}đ" : "";
+
+                        // Next stops with real distances
                         if (idx + 1 < spots.Count)
                         {
                             var next1 = spots[idx + 1];
+                            NextStop1Index = idx + 2;
                             NextStop1Name = next1.Name_Vi ?? "Điểm tiếp theo";
-                            NextStop1Dist = "~150m • 2 phút"; // Todo formula
+                            var d1 = HaversineDistance(CurrentLat, CurrentLon, next1.Latitude, next1.Longitude);
+                            NextStop1Dist = $"~{d1:F0}m • {Math.Max(1, (int)Math.Ceiling(d1 / 80.0))} phút";
                         }
                         if (idx + 2 < spots.Count)
                         {
                             var next2 = spots[idx + 2];
+                            NextStop2Index = idx + 3;
                             NextStop2Name = next2.Name_Vi ?? "Điểm kế";
-                            NextStop2Dist = "~300m • 4 phút";
+                            var d2 = HaversineDistance(CurrentLat, CurrentLon, next2.Latitude, next2.Longitude);
+                            NextStop2Dist = $"~{d2:F0}m • {Math.Max(1, (int)Math.Ceiling(d2 / 80.0))} phút";
                         }
                     }
                 }
@@ -103,6 +128,17 @@ public partial class MainViewModel : ObservableObject
                     PrimaryZoneEmoji = "🗺️";
                     PrimaryZoneRating = "—";
                     CurrentStopBadge = "—";
+                    CurrentStopIndex = 0;
+                    NextStop1Index = 0;
+                    NextStop2Index = 0;
+                    CurrentDistText = "—";
+                    CurrentWalkTimeText = "—";
+                    ChipCategory = "🍽️ Ẩm thực";
+                    CategoryName = "Ẩm thực";
+                    HasOpenHours = false;
+                    ChipOpenHours = "";
+                    HasPrice = false;
+                    ChipPrice = "";
                     NextStop1Name = "—";
                     NextStop2Name = "—";
                 }
@@ -129,20 +165,44 @@ public partial class MainViewModel : ObservableObject
                 LatestStatus = msg;
             });
 
-        _location.OnLocationUpdated += loc =>
+        Action<Microsoft.Maui.Devices.Sensors.Location> onLocationUpdateSync = loc =>
+        {
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 CurrentLat = loc.Latitude;
                 CurrentLon = loc.Longitude;
                 CoordDisplay = $"{loc.Latitude:F6}, {loc.Longitude:F6}";
-                if (_simulator != null)
-                    SimStepLabel = $"Bước {_simulator.CurrentStep}/{_simulator.TotalSteps}: {_simulator.CurrentLabel}";
+                var actSim = _isUsingFallback ? _fallbackSimulator : _simulator;
+                if (actSim != null)
+                    SimStepLabel = $"Bước {actSim.CurrentStep}/{actSim.TotalSteps}: {actSim.CurrentLabel}";
             });
+        };
 
-        _location.OnLocationUpdated += async loc =>
+        Func<Microsoft.Maui.Devices.Sensors.Location, Task> onLocationUpdateAsync = async loc =>
         {
             try
             {
+                // Kiểm tra xem có cần Fallback sang Xem Ảo không (chỉ check nếu chưa dùng simulated nào)
+                if (!_isUsingFallback && _simulator == null)
+                {
+                    var gate = new Microsoft.Maui.Devices.Sensors.Location(AppConfig.DefaultLatitude, AppConfig.DefaultLongitude);
+                    var dist = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(loc, gate, DistanceUnits.Kilometers);
+                    
+                    if (dist > 1.0)
+                    {
+                        _isUsingFallback = true;
+                        MainThread.BeginInvokeOnMainThread(async () =>
+                        {
+                            await _location.StopAsync();
+                            IsSimulated = true;
+                            LatestStatus = "Đã bật chế độ Xem Ảo (Tour Giả lập) vì khoảng cách > 1km";
+                            await DisplayAlertAsync("Chuyển sang Xem Ảo", "Bạn đang ở ngoài khu vực Phố ẩm thực Vĩnh Khánh. Tính năng Tour đã được tự động chuyển sang chế độ Xem Ảo.", "OK");
+                            await _fallbackSimulator.StartAsync();
+                        });
+                        return; // Bỏ qua tọa độ thực tế này
+                    }
+                }
+
                 await _geofence.OnLocationChangedAsync(loc);
             }
             catch (Exception ex)
@@ -150,6 +210,32 @@ public partial class MainViewModel : ObservableObject
                 System.Diagnostics.Debug.WriteLine($"[Geofence] Unhandled error: {ex.Message}");
             }
         };
+
+        // Gắn event cho cả location thường và fallback simulator
+        _location.OnLocationUpdated += onLocationUpdateSync;
+        _location.OnLocationUpdated += async loc => await onLocationUpdateAsync(loc);
+
+        _fallbackSimulator.OnLocationUpdated += onLocationUpdateSync;
+        _fallbackSimulator.OnLocationUpdated += async loc => await onLocationUpdateAsync(loc);
+    }
+
+    private Task DisplayAlertAsync(string title, string msg, string cancel)
+    {
+        if (Application.Current?.MainPage != null)
+            return Application.Current.MainPage.DisplayAlert(title, msg, cancel);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Tính khoảng cách (mét) giữa 2 toạ độ theo công thức Haversine.</summary>
+    private static double HaversineDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371000;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLon = (lon2 - lon1) * Math.PI / 180;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+              + Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180)
+              * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
     // ── Observable Properties ─────────────────────────────────
@@ -178,10 +264,10 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string audioTimeElapsed = "0:00";
     [ObservableProperty] private string audioDuration = "0:00";
     [ObservableProperty] private string tourName = "Phố ẩm thực Vĩnh Khánh";
-    [ObservableProperty] private bool isApproaching = true;
-    [ObservableProperty] private string approachingZoneName = "Quán Ốc X - Sắp phát";
-    [ObservableProperty] private string approachingDistance = "50";
-    [ObservableProperty] private string currentStopBadge = "3/8";
+    [ObservableProperty] private bool isApproaching = false;
+    [ObservableProperty] private string approachingZoneName = "";
+    [ObservableProperty] private string approachingDistance = "0";
+    [ObservableProperty] private string currentStopBadge = "—";
     [ObservableProperty] private string primaryZoneAddress = "Đang cập nhật";
     [ObservableProperty] private string primaryZoneRating = "4.8";
     [ObservableProperty] private string nextStop1Name = "Điểm kế 1";
@@ -189,6 +275,23 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string nextStop2Name = "Điểm kế 2";
     [ObservableProperty] private string nextStop2Dist = "~200m • 4 phút";
     [ObservableProperty] private bool isTourUiVisible = false;
+
+    // Stop index numbers (1-based) for bottom sheet list
+    [ObservableProperty] private int currentStopIndex = 0;
+    [ObservableProperty] private int nextStop1Index = 0;
+    [ObservableProperty] private int nextStop2Index = 0;
+
+    // Info cards (collapsed sheet)
+    [ObservableProperty] private string currentDistText = "—";
+    [ObservableProperty] private string currentWalkTimeText = "—";
+
+    // Info chips (expanded sheet)
+    [ObservableProperty] private string chipCategory = "🍽️ Ẩm thực";
+    [ObservableProperty] private string categoryName = "Ẩm thực";   // collapsed card (no emoji prefix)
+    [ObservableProperty] private string chipOpenHours = "";
+    [ObservableProperty] private bool hasOpenHours = false;
+    [ObservableProperty] private string chipPrice = "";
+    [ObservableProperty] private bool hasPrice = false;
 
     [ObservableProperty] private bool isCooldownActive = false;
     [ObservableProperty] private string cooldownMessage = "";
@@ -208,6 +311,15 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private POI? selectedPinPOI;
     [ObservableProperty] private bool isPinPopupVisible = false;
 
+    // ── Navigation routing ───────────────────────────────────────────────
+    [ObservableProperty] private POI? navigationTarget;
+    [ObservableProperty] private bool isVirtualNavigation = false;
+    [ObservableProperty] private bool isVirtualTourActive = false;
+    [ObservableProperty] private string virtualTourStatus = "";
+    [ObservableProperty] private bool autoStartRequestedTour = false;
+
+    public List<POI>? RequestedTourStops { get; set; }
+
     // Visited/saved sets (non-observable — used for map pin coloring)
     public HashSet<int> VisitedPOIIds { get; } = new();
     public HashSet<int> SavedPOIIds   { get; } = new();
@@ -225,17 +337,19 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task ToggleTrackingAsync()
     {
+        var activeLoc = _isUsingFallback ? _fallbackSimulator : _location;
+
         if (!IsTracking)
         {
-            await _location.StartAsync();
+            await activeLoc.StartAsync();
             IsTracking = true;
-            LatestStatus = "📡 GPS đang chạy...";
+            LatestStatus = _isUsingFallback ? "👣 Xem Ảo đang chạy..." : "📡 GPS đang chạy...";
         }
         else
         {
-            await _location.StopAsync();
+            await activeLoc.StopAsync();
             IsTracking = false;
-            LatestStatus = "⏹ GPS đã dừng.";
+            LatestStatus = "⏹ Đã dừng theo dõi.";
         }
     }
 
@@ -266,14 +380,18 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void StepSimulator()
     {
-        _simulator?.StepForward();
+        var activeSim = _isUsingFallback ? _fallbackSimulator : _simulator;
+        activeSim?.StepForward();
     }
 
     [RelayCommand]
     private async Task ResetSessionAsync()
     {
         _simulator?.Reset();
-        await _location.StopAsync();
+        _fallbackSimulator.Reset();
+        if (_isUsingFallback) await _fallbackSimulator.StopAsync();
+        else await _location.StopAsync();
+        
         IsTracking = false;
         StatusLog.Clear();
         ActiveZones.Clear();
@@ -348,16 +466,13 @@ public partial class MainViewModel : ObservableObject
     {
         Console.WriteLine("[MainViewModel] 🔄 LoadAllPoisAsync started...");
         
-        // Đọc SQLite trước
+        // Đọc SQLite trước để UI hiện nhanh
         await _repository.LoadLocalAsync();
 
-        // Nếu SQLite trống (lần đầu chạy / chưa sync bao giờ),
-        // gọi sync để seed dữ liệu: thử API → bundled JSON → mock
-        if (_repository.GetAllActiveZones().Count == 0)
-        {
-            Console.WriteLine("[MainViewModel] SQLite empty, calling SyncFromMongoAsync...");
-            await _repository.SyncFromMongoAsync();
-        }
+        // Luôn sync từ API để cập nhật dữ liệu và trạng thái kết nối.
+        // SyncFromMongoAsync tự kiểm tra version → không tải thừa nếu dữ liệu chưa đổi.
+        Console.WriteLine("[MainViewModel] Calling SyncFromMongoAsync to refresh data + connection state...");
+        await _repository.SyncFromMongoAsync();
 
         var zones = _repository.GetAllActiveZones();
         Console.WriteLine($"[MainViewModel] Got {zones.Count} zones from repository");
@@ -370,7 +485,10 @@ public partial class MainViewModel : ObservableObject
 
         // Cập nhật badge offline theo nguồn dữ liệu
         RefreshDataSourceState();
-        
+
+        // Load liked POIs từ SQLite để hiển thị SavedPOIs
+        await LoadSavedPOIsAsync();
+
         Console.WriteLine($"[MainViewModel] ✓ LoadAllPoisAsync completed! Final AllPOIs.Count={AllPOIs.Count}");
     }
 
@@ -385,26 +503,47 @@ public partial class MainViewModel : ObservableObject
             (string.IsNullOrEmpty(q) ||
              (p.Name_Vi?.ToLower().Contains(q) == true) ||
              (p.SignatureDish?.ToLower().Contains(q) == true) ||
+             (p.SignatureDishesJson?.ToLower().Contains(q) == true) ||
+             (p.Description_Vi?.ToLower().Contains(q) == true) ||
              (p.Type?.ToLower().Contains(q) == true)));
         FilteredPOIs.Clear();
         foreach (var p in results) FilteredPOIs.Add(p);
     }
 
+    public async Task LoadSavedPOIsAsync()
+    {
+        var liked = await _db.GetLikedPOIsAsync();
+        SavedPOIs.Clear();
+        SavedPOIIds.Clear();
+        foreach (var poi in liked)
+        {
+            SavedPOIs.Add(poi);
+            SavedPOIIds.Add(poi.Id);
+        }
+    }
+
     [RelayCommand]
-    private void ToggleSavePOI(POI poi)
+    private async Task ToggleSavePOIAsync(POI poi)
     {
         if (poi == null) return;
-        if (SavedPOIIds.Contains(poi.Id))
+        poi.IsLikedByUser = !poi.IsLikedByUser;
+        await _db.SavePOIAsync(poi);
+
+        if (poi.IsLikedByUser)
         {
-            SavedPOIIds.Remove(poi.Id);
-            var item = SavedPOIs.FirstOrDefault(p => p.Id == poi.Id);
-            if (item != null) SavedPOIs.Remove(item);
+            if (!SavedPOIs.Any(p => p.Id == poi.Id))
+                SavedPOIs.Add(poi);
+            SavedPOIIds.Add(poi.Id);
         }
         else
         {
-            SavedPOIIds.Add(poi.Id);
-            SavedPOIs.Add(poi);
+            var item = SavedPOIs.FirstOrDefault(p => p.Id == poi.Id);
+            if (item != null) SavedPOIs.Remove(item);
+            SavedPOIIds.Remove(poi.Id);
         }
+
+        // Rebuild FilteredPOIs so heart colors reflect the new liked state
+        MainThread.BeginInvokeOnMainThread(ApplyFilter);
     }
 
     [RelayCommand]

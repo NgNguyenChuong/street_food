@@ -5,7 +5,7 @@ namespace StreetFoodNarrator.App.Views;
 public partial class SavedPage : ContentPage
 {
     private readonly MainViewModel _vm;
-    private bool _isBrowseSegment = true;
+    private bool _isBrowseSegment = false;
 
     public SavedPage()
     {
@@ -36,7 +36,7 @@ public partial class SavedPage : ContentPage
         SavedContent.IsVisible = false;
         
         // Update UI
-        var browseBorder = (Border)((Label)sender).Parent;
+        var browseBorder = (Border)sender;
         var savedBorder = (Border)LabelSaved.Parent;
         
         browseBorder.BackgroundColor = Color.FromArgb("#F5A623");
@@ -58,7 +58,7 @@ public partial class SavedPage : ContentPage
         
         // Update UI
         var browseBorder = (Border)LabelBrowse.Parent;
-        var savedBorder = (Border)((Label)sender).Parent;
+        var savedBorder = (Border)sender;
         
         browseBorder.BackgroundColor = Color.FromArgb("#1C3024");
         LabelBrowse.FontAttributes = FontAttributes.None;

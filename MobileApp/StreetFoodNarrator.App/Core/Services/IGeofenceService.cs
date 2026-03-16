@@ -18,6 +18,7 @@ public class GeofenceService : IGeofenceService
     private readonly IZoneRepository _repository;
     private readonly IAudioService _audio;
     private readonly UserSession _session;
+    private readonly ILocalDatabaseService _db;
 
     // ── State ─────────────────────────────────────────────────────
     private Microsoft.Maui.Devices.Sensors.Location? _lastLocation;
@@ -30,11 +31,12 @@ public class GeofenceService : IGeofenceService
     public event Action<POI?>? OnPrimaryZoneChanged;
     public event Action<string>? OnStatusMessage;
 
-    public GeofenceService(IZoneRepository repository, IAudioService audio, UserSession session)
+    public GeofenceService(IZoneRepository repository, IAudioService audio, UserSession session, ILocalDatabaseService db)
     {
         _repository = repository;
         _audio = audio;
         _session = session;
+        _db = db;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -185,6 +187,36 @@ public class GeofenceService : IGeofenceService
 
         _session.MarkPlayedThisSession(zone.Id);
         _session.SetCooldown(zone.Id, zone.CooldownMinutes);
+
+        try
+        {
+            var now = DateTime.UtcNow;
+            var sessionId = _session.SessionId;
+            var history = await _db.GetZoneHistoryAsync(sessionId, zone.Id);
+            if (history == null)
+            {
+                history = new ZoneHistory
+                {
+                    POI_ID = zone.Id,
+                    FirstPlayedAt = now,
+                    LastTriggeredAt = now,
+                    PlayCount = 1,
+                    Language = "vi",
+                    SessionId = sessionId
+                };
+            }
+            else
+            {
+                history.LastTriggeredAt = now;
+                history.PlayCount += 1;
+            }
+
+            await _db.SaveZoneHistoryAsync(history);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Geofence] Save history error: {ex.Message}");
+        }
     }
 
     private void LogEntry(POI zone)

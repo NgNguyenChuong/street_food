@@ -92,9 +92,11 @@ public class ZoneRepository : IZoneRepository
 
         try
         {
-            if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+            var netAccess = Connectivity.Current.NetworkAccess;
+            if (netAccess != NetworkAccess.Internet && netAccess != NetworkAccess.ConstrainedInternet)
             {
-                // Offline: fall back to bundled JSON so the app works without internet
+                // Offline: fall back to SQLite cache or bundled JSON so the app always works
+                if (!_isLoaded) await LoadLocalAsync();
                 if (!_hasData) await SeedFromBundledJsonAsync();
                 else if (CurrentDataSource == DataSourceKind.Unknown) CurrentDataSource = DataSourceKind.SqliteCache;
                 return;
@@ -109,51 +111,74 @@ public class ZoneRepository : IZoneRepository
             var data = JsonSerializer.Deserialize<PoiSyncResponse>(json, ApiJsonOptions);
             if (data == null)
             {
+                if (!_isLoaded) await LoadLocalAsync();
                 if (_zones.Count == 0) await SeedFromBundledJsonAsync();
                 return;
             }
 
             if (data.DataVersion <= currentVersion || data.Data.Count == 0)
             {
+                // No new data from server – keep using what's in SQLite.
+                // But we DID reach the API, so mark as LiveApi (online).
                 if (!_isLoaded)
                     await LoadLocalAsync();
 
-                // Nếu SQLite cũng trống (API trả về rỗng), rơi về bundled JSON / mock
                 if (_zones.Count == 0)
                 {
                     await SeedFromBundledJsonAsync();
                     return;
                 }
 
-                CurrentDataSource = DataSourceKind.SqliteCache;
+                CurrentDataSource = DataSourceKind.LiveApi;
                 return;
             }
 
             var items = data.Data ?? new List<PoiDto>();
-
             var mapped = items.Select(MapToPoi).ToList();
-            Console.WriteLine($"[ZoneRepository] API returned {mapped.Count} POIs, saving to SQLite...");
-            await _localDb.DeleteAllPOIsAsync();
+            var incomingIds = new HashSet<int>(mapped.Select(p => p.Id));
+
+            Console.WriteLine($"[ZoneRepository] API returned {mapped.Count} POIs, upserting into SQLite...");
+
+            // ── SAFE UPSERT: never delete existing data before new data is confirmed saved ──
+            // Step 1: Upsert all received POIs (insert or replace)
             await _localDb.SavePOIsAsync(mapped);
+
+            // Step 2: Soft-delete POIs that were removed from the server
+            //         (set IsActive=false rather than physically deleting them)
+            var existingPois = await _localDb.GetAllActivePOIsAsync();
+            var toDeactivate = existingPois
+                .Where(p => !incomingIds.Contains(p.Id))
+                .ToList();
+            if (toDeactivate.Count > 0)
+            {
+                foreach (var poi in toDeactivate)
+                {
+                    poi.IsActive = false;
+                    await _localDb.SavePOIAsync(poi);
+                }
+                Console.WriteLine($"[ZoneRepository] Soft-deleted {toDeactivate.Count} POIs no longer on server");
+            }
+
+            // Step 3: Commit the new data version only AFTER everything is persisted
             Preferences.Set(AppConfig.DataVersionKey, data.DataVersion);
 
             _zones = mapped.Where(z => z.IsActive).ToList();
             _hasData = _zones.Count > 0;
             _isLoaded = true;
             CurrentDataSource = DataSourceKind.LiveApi;
-            Console.WriteLine($"[ZoneRepository] ✓ Synced {_zones.Count} active POIs from API and saved to SQLite");
-            if (_zones.Count > 0)
-            {
-                Console.WriteLine($"[ZoneRepository] Sample POIs: {string.Join(", ", _zones.Take(3).Select(p => p.Name_Vi ?? p.Name_En))}");
-            }
+            Console.WriteLine($"[ZoneRepository] ✓ Upserted {mapped.Count} POIs ({_zones.Count} active). Source: LiveApi");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[ZoneRepository] ❌ SyncFromMongo FAILED: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"[ZoneRepository] NetworkAccess={Connectivity.Current.NetworkAccess}, ApiUrl={AppConfig.ApiBaseUrl}");
             System.Diagnostics.Debug.WriteLine($"[Repository] Sync failed: {ex.Message}");
-            if (_zones.Count == 0)
-                await SeedFromBundledJsonAsync();
+            // On error, keep whatever we have in SQLite; do NOT clear it
+            if (!_isLoaded) await LoadLocalAsync();
+            if (_zones.Count == 0) await SeedFromBundledJsonAsync();
         }
     }
+
 
     private static POI MapToPoi(PoiDto dto)
     {

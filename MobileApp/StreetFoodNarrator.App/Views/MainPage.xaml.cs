@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // MainPage.xaml.cs  -  Core: fields, constructor, lifecycle
 //
 // Logic is split across partial class files:
@@ -47,6 +47,12 @@ public partial class MainPage : ContentPage
 
         // Vẽ test pin ngay lập tức (không chờ data load)
         Dispatcher.Dispatch(() => UpdateZonePins());
+
+        // Nếu đã có mục tiêu điều hướng (từ màn khác), vẽ tuyến đường ngay khi map sẵn sàng.
+        if (_vm.NavigationTarget != null)
+        {
+            _ = DrawNavigationRouteAsync();
+        }
 
         _ = _vm.LoadAllPoisAsync().ContinueWith(t =>
         {
@@ -108,6 +114,14 @@ public partial class MainPage : ContentPage
         PinPopupComponent.NavigateRequested  += OnPinNavigate;
         PinPopupComponent.SaveRequested      += OnPinSave;
         PinPopupComponent.ViewDetailsRequested += OnPinViewDetails; // Xem thêm
+        PinPopupComponent.CloseRequested     += OnPinClose;        // Đóng popup
+    }
+
+    private void OnPinClose(object? sender, EventArgs e)
+    {
+        _vm.IsPinPopupVisible = false;
+        _vm.SelectedPinPOI    = null;
+        PinPopupComponent.IsVisible = false;
     }
 
     // ─── ViewModel property changes ───────────────────────────────────────────
@@ -118,11 +132,19 @@ public partial class MainPage : ContentPage
             e.PropertyName == nameof(MainViewModel.CurrentLon))
         {
             UpdateUserPin();
+            if (_vm.NavigationTarget != null)
+            {
+                _ = DrawNavigationRouteAsync();
+            }
         }
         else if (e.PropertyName == nameof(MainViewModel.ActiveZoneCount))
         {
             // Fires once after ActiveZones is fully populated (not N+1 times via CollectionChanged)
             UpdateZonePins();
+        }
+        else if (e.PropertyName == nameof(MainViewModel.NavigationTarget))
+        {
+            _ = DrawNavigationRouteAsync();
         }
         // IsApproaching: ApproachingBanner visibility is handled by binding inside TabTourView.
     }

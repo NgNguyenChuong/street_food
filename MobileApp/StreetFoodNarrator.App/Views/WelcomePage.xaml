@@ -26,49 +26,6 @@
         </BoxView> 
 
         <!-- ═══ Nút chuông thông báo audio mới (góc trên phải) ═══ -->
-        <Grid HorizontalOptions="End"
-              VerticalOptions="Start"
-              Margin="0,48,20,0"
-              WidthRequest="48"
-              HeightRequest="48">
-
-            <!-- Nút chuông -->
-            <Button x:Name="BellButton"
-                    Text="&#xF009A;"
-                    FontFamily="MDI"
-                    FontSize="22"
-                    BackgroundColor="#0F1F17"
-                    TextColor="#94A3B8"
-                    BorderColor="#1E3D2A"
-                    BorderWidth="1"
-                    WidthRequest="44"
-                    HeightRequest="44"
-                    CornerRadius="22"
-                    IsVisible="False"
-                    Clicked="OnBellClicked" />
-
-            <!-- Badge đỏ hiển thị số audio mới -->
-            <Border x:Name="BellBadge"
-                    BackgroundColor="#EF4444"
-                    WidthRequest="18"
-                    HeightRequest="18"
-                    HorizontalOptions="End"
-                    VerticalOptions="Start"
-                    Margin="0,2,2,0"
-                    IsVisible="False"
-                    InputTransparent="True">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="9" />
-                </Border.StrokeShape>
-                <Label x:Name="BellBadgeCount"
-                       Text="0"
-                       FontSize="9"
-                       FontAttributes="Bold"
-                       TextColor="White"
-                       HorizontalOptions="Center"
-                       VerticalOptions="Center" />
-            </Border>
-        </Grid>
         <Grid RowDefinitions="*,Auto"
               Padding="28,56,28,36">
 
@@ -260,18 +217,40 @@
 
                 <!-- Secondary (horizontal, equal width) -->
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                    <Button Grid.Column="0"
-                            x:Name="ManualButton"
-                            Text="&#xF0390;"
-                            FontFamily="MDI"
-                            FontSize="18"
-                            BackgroundColor="#0F1F17"
-                            TextColor="#94A3B8"
-                            BorderColor="#1E3D2A"
-                            BorderWidth="1"
-                            CornerRadius="14"
-                            HeightRequest="48"
-                            Clicked="OnManualBrowseClicked" />
+                    <!-- Update audio button (replaces manual browse + bell) -->
+                    <Grid Grid.Column="0">
+                        <Button x:Name="UpdateButton"
+                                Text="&#xF0453;"
+                                FontFamily="MDI"
+                                FontSize="18"
+                                BackgroundColor="#0F1F17"
+                                TextColor="#94A3B8"
+                                BorderColor="#1E3D2A"
+                                BorderWidth="1"
+                                CornerRadius="14"
+                                HeightRequest="48"
+                                Clicked="OnUpdateClicked" />
+                        <!-- Dot thông báo (không số, chỉ chấm sáng) -->
+                        <Grid x:Name="UpdateBadge"
+                              WidthRequest="16"
+                              HeightRequest="16"
+                              HorizontalOptions="End"
+                              VerticalOptions="Start"
+                              Margin="0,4,4,0"
+                              IsVisible="False"
+                              InputTransparent="True">
+                            <!-- Vòng glow ngoài -->
+                            <Ellipse Fill="#4DEF4444"
+                                     HorizontalOptions="Fill"
+                                     VerticalOptions="Fill"/>
+                            <!-- Chấm đỏ trong -->
+                            <Ellipse Fill="#EF4444"
+                                     WidthRequest="8"
+                                     HeightRequest="8"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center"/>
+                        </Grid>
+                    </Grid>
                     <Button Grid.Column="1"
                             x:Name="SettingsButton"
                             Text="&#xF0493;"

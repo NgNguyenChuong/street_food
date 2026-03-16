@@ -88,6 +88,20 @@ public class POI
     // ============================================
     
     public string? ImageUrl { get; set; }
+
+    [Ignore]
+    public string DisplayImageUrl
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(ImageUrl)) return "dotnet_bot.png";
+            if (ImageUrl.StartsWith("http://") || ImageUrl.StartsWith("https://"))
+                return ImageUrl;
+            // Relative path from API → prefix with API base URL
+            var baseUrl = AppConfig.ApiBaseUrl.TrimEnd('/');
+            return $"{baseUrl}/{ImageUrl.TrimStart('/')}";
+        }
+    }
     
     /// <summary>
     /// Món ăn đặc trưng
@@ -160,6 +174,31 @@ public class POI
         }
     }
     
+    [Ignore]
+    public List<string> DisplaySignatureDishes
+    {
+        get
+        {
+            var list = SignatureDishes;
+            if (list.Count > 0) return list;
+            if (!string.IsNullOrWhiteSpace(SignatureDish)) return new List<string> { SignatureDish };
+            return new List<string> { "Menu đang cập nhật..." };
+        }
+    }
+
+    /// <summary>
+    /// Comma-separated signature dishes for display in card labels
+    /// </summary>
+    [Ignore]
+    public string DisplaySignatureDishText
+    {
+        get
+        {
+            var list = DisplaySignatureDishes;
+            return string.Join(" • ", list.Take(3));
+        }
+    }
+    
     // ============================================
     // COMPUTED PROPERTIES (not stored in DB)
     // ============================================
@@ -181,6 +220,11 @@ public class POI
     
     [Indexed]
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// User đã tim/lưu quán này (local only, không sync với server)
+    /// </summary>
+    public bool IsLikedByUser { get; set; } = false;
     
     // ============================================
     // TIMESTAMPS

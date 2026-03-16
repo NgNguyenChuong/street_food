@@ -22,6 +22,35 @@ public class TextToSpeechService : ITTSService
     private IAudioPlayer? _currentPlayer;
 
     private CancellationTokenSource? _nativeTtsCts;
+    private bool _manualStop = false;
+
+    // Native TTS progress simulation
+    private bool _isNativeTts = false;
+    private double _nativeTtsDuration = 0;
+    private DateTime _nativeTtsStartTime;
+
+    public event Action? OnPlaybackEnded;
+
+    public bool IsAvailable => true;
+
+    // ─── New control methods ──────────────────────────────────────────────────
+    public double GetDuration()
+    {
+        if (_currentPlayer != null) return _currentPlayer.Duration;
+        return _isNativeTts ? _nativeTtsDuration : 0;
+    }
+
+    public double GetCurrentPosition()
+    {
+        if (_currentPlayer != null) return _currentPlayer.CurrentPosition;
+        if (_isNativeTts && _nativeTtsDuration > 0)
+            return Math.Min((DateTime.Now - _nativeTtsStartTime).TotalSeconds, _nativeTtsDuration);
+        return 0;
+    }
+
+    public void SetVolume(double volume) { if (_currentPlayer != null) _currentPlayer.Volume = Math.Clamp(volume, 0.0, 1.0); }
+    public void SetSpeed(double speed)  { try { if (_currentPlayer != null) _currentPlayer.Speed = Math.Max(0.1, speed); } catch { } }
+    public void Seek(double positionSeconds) { try { _currentPlayer?.Seek(positionSeconds); } catch { } }
 
     public TextToSpeechService(HttpClient httpClient, IAudioCacheService? audioCache = null)
     {
@@ -31,7 +60,16 @@ public class TextToSpeechService : ITTSService
         _audioManager = AudioManager.Current;
     }
 
-    public bool IsAvailable => true;
+    // ─── Helper: create player + wire PlaybackEnded ───────────────────────────
+    private IAudioPlayer CreateAndWirePlayer(Stream stream)
+    {
+        var player = _audioManager.CreatePlayer(stream);
+        player.PlaybackEnded += (_, _) =>
+        {
+            if (!_manualStop) OnPlaybackEnded?.Invoke();
+        };
+        return player;
+    }
 
     public async Task<bool> SpeakNativeFallbackAsync(string text, string languageCode, CancellationToken cancellationToken = default)
     {
@@ -66,7 +104,7 @@ public class TextToSpeechService : ITTSService
                 if (cachedStream != null)
                 {
                     System.Diagnostics.Debug.WriteLine($"[TTS] 💾 Phát file cache offline: POI {poiId}");
-                    _currentPlayer = _audioManager.CreatePlayer(cachedStream);
+                    _currentPlayer = CreateAndWirePlayer(cachedStream);
                     _currentPlayer.Play();
                     return true;
                 }
@@ -83,7 +121,7 @@ public class TextToSpeechService : ITTSService
                     if (ensuredStream != null)
                     {
                         System.Diagnostics.Debug.WriteLine($"[TTS] ⬇️ Download mode: đã tải local và phát cache cho POI {poiId}");
-                        _currentPlayer = _audioManager.CreatePlayer(ensuredStream);
+                        _currentPlayer = CreateAndWirePlayer(ensuredStream);
                         _currentPlayer.Play();
                         return true;
                     }
@@ -104,7 +142,7 @@ public class TextToSpeechService : ITTSService
 
                         var audioBytes = await _httpClient.GetByteArrayAsync(audioUrl, timeoutCts.Token);
                         var audioStream = new MemoryStream(audioBytes);
-                        _currentPlayer = _audioManager.CreatePlayer(audioStream);
+                        _currentPlayer = CreateAndWirePlayer(audioStream);
                         _currentPlayer.Play();
                         return true;
                     }
@@ -117,6 +155,13 @@ public class TextToSpeechService : ITTSService
                     System.Diagnostics.Debug.WriteLine("[TTS] POI fallback mode: dùng native TTS, bỏ qua /api/tts/generate");
                     return await NativeSpeakAsync(text, languageCode, cancellationToken);
                 }
+            }
+            
+            // Nếu Offline và không có cache -> Fallback ngay lập tức sang Native TTS
+            if (!isOnline)
+            {
+                System.Diagnostics.Debug.WriteLine("[TTS] Offline và không có cache -> Dùng Native TTS ngay lập tức");
+                return await NativeSpeakAsync(text, languageCode, cancellationToken);
             }
             
             // Ưu tiên 3: TTS API (generate mới)
@@ -154,7 +199,7 @@ public class TextToSpeechService : ITTSService
             
             var audioBytes2 = await _httpClient.GetByteArrayAsync(audioUrl2, timeoutCts2.Token);
             var audioStream2 = new MemoryStream(audioBytes2);
-            _currentPlayer = _audioManager.CreatePlayer(audioStream2);
+            _currentPlayer = CreateAndWirePlayer(audioStream2);
             _currentPlayer.Play();
             
             return true;
@@ -219,6 +264,11 @@ public class TextToSpeechService : ITTSService
             _nativeTtsCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var cts = _nativeTtsCts;
 
+            // Estimate duration for progress simulation (~12 chars/sec for Vietnamese)
+            _isNativeTts = true;
+            _nativeTtsDuration = Math.Max(2.0, text.Length / 12.0);
+            _nativeTtsStartTime = DateTime.Now;
+
             // Best-effort locale match; null = device default
             Locale? locale = null;
             try
@@ -234,12 +284,22 @@ public class TextToSpeechService : ITTSService
             var settings = new SpeechOptions { Volume = 1.0f, Pitch = 1.0f, Locale = locale };
             await TextToSpeech.Default.SpeakAsync(text, settings, cts.Token);
             System.Diagnostics.Debug.WriteLine("[TTS] Native TTS playback complete.");
+
+            if (!_manualStop) OnPlaybackEnded?.Invoke();
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[TTS] Error: {ex.Message} — falling back to native TTS");
-            return await NativeSpeakAsync(text, languageCode, cancellationToken);
+            System.Diagnostics.Debug.WriteLine($"[TTS] Native TTS error: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            _isNativeTts = false;
         }
     }
 
@@ -270,6 +330,7 @@ public class TextToSpeechService : ITTSService
     {
         try
         {
+            _manualStop = true;
             // Stop Plugin.Maui.Audio player if active
             if (_currentPlayer != null)
             {
@@ -280,6 +341,8 @@ public class TextToSpeechService : ITTSService
             // Cancel native TTS if a speak is in progress
             _nativeTtsCts?.Cancel();
             _nativeTtsCts = null;
+            _isNativeTts = false;
+            _manualStop = false;
             await Task.CompletedTask;
         }
         catch (Exception ex)
