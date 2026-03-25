@@ -9,12 +9,12 @@
              xmlns:models="clr-namespace:StreetFoodNarrator.App.Core.Models"
              xmlns:views="clr-namespace:StreetFoodNarrator.App.Views"
              x:Class="StreetFoodNarrator.App.Views.POIDetailPage"
-             BackgroundColor="#22C55E"
+             BackgroundColor="#0A1612"
              NavigationPage.HasNavigationBar="False"
              Shell.NavBarIsVisible="False">
 
     <Grid>
-        <ScrollView>
+        <ScrollView VerticalScrollBarVisibility="Never">
             <VerticalStackLayout Spacing="0">
 
             <!-- Header: Full-bleed restaurant image -->
@@ -77,7 +77,7 @@
                     
                     <!-- Header section with name, status and rating -->
                     <VerticalStackLayout Padding="24,24,24,16" Spacing="12">
-                        <Label Text="{Binding Name_Vi, FallbackValue='Ốc Oanh'}" 
+                        <Label Text="{Binding Name_Vi, TargetNullValue='Ốc Oanh'}" 
                                FontSize="28" FontAttributes="Bold"
                                TextColor="White" LineBreakMode="WordWrap"/>
                         
@@ -102,7 +102,7 @@
                                            VerticalOptions="Center">
                                         <Label.FormattedText>
                                             <FormattedString>
-                                                <Span Text="{Binding Rating, StringFormat='{0:F1}', FallbackValue='4.5'}"/>
+                                                <Span Text="{Binding Rating, StringFormat='{0:F1}', TargetNullValue='4.5'}"/>
                                                 <Span Text="(1,200+ đánh giá)" TextColor="#999999"/>
                                             </FormattedString>
                                         </Label.FormattedText>
@@ -126,7 +126,7 @@
                             <VerticalStackLayout Spacing="4" FlexLayout.Grow="1">
                                 <Label Text="ĐỊA CHỈ" FontSize="11" FontAttributes="Bold" 
                                        TextColor="#999999"/>
-                                <Label Text="{Binding Address, FallbackValue='534 Vĩnh Khánh, Phường 10, Quận 4, TP. Hồ Chí Minh'}"
+                                <Label Text="{Binding Address, TargetNullValue='534 Vĩnh Khánh, Phường 10, Quận 4, TP. Hồ Chí Minh'}"
                                        FontSize="14" TextColor="White" LineBreakMode="WordWrap"/>
                             </VerticalStackLayout>
                         </HorizontalStackLayout>
@@ -187,7 +187,7 @@
                                             <VerticalStackLayout Spacing="8" VerticalOptions="Center">
                                                 <Border StrokeShape="RoundRectangle 12"
                                                         WidthRequest="72" HeightRequest="72"
-                                                        BackgroundColor="#1A3426" IsClippedToBounds="True"
+                                                        BackgroundColor="#1A3426"
                                                         HorizontalOptions="Center">
                                                     <Image Source="{Binding DisplayImageUrl}" Aspect="AspectFill"
                                                            WidthRequest="72" HeightRequest="72"/>
@@ -241,8 +241,7 @@
                                 Stroke="#2A2A2A"
                                 StrokeThickness="1"
                                 HeightRequest="240"
-                                Padding="0"
-                                IsClippedToBounds="True">
+                                Padding="0">
                             <mapsui:MapControl x:Name="MapView"
                                               HorizontalOptions="Fill"
                                               VerticalOptions="Fill"

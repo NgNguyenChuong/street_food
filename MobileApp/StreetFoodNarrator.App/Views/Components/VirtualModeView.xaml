@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             xmlns:models="clr-namespace:StreetFoodNarrator.App.Core.Models"
+             x:Class="StreetFoodNarrator.App.Views.Components.VirtualModeView"
+             x:DataType="vm:MainViewModel"
+             BackgroundColor="#0A1612">
+
+    <!-- Root: Grid with 3 rows: scrollable content | audio player | nav -->
+    <Grid RowDefinitions="*,Auto,Auto">
+
+        <!-- ── Scrollable Content Area ─────────────────────────────────────── -->
+        <ScrollView Grid.Row="0"
+                    VerticalScrollBarVisibility="Never"
+                    BackgroundColor="#0A1612">
+            <VerticalStackLayout Spacing="0" Padding="0">
+
+                <!-- SECTION 1: Header Bar -->
+                <Grid ColumnDefinitions="Auto,*,Auto"
+                      BackgroundColor="#0A1612"
+                      Padding="20,16,20,16"
+                      ColumnSpacing="12">
+
+                    <!-- Back Button -->
+                    <Border Grid.Column="0"
+                            WidthRequest="44" HeightRequest="44"
+                            StrokeThickness="0"
+                            BackgroundColor="#16221E"
+                            StrokeShape="RoundRectangle 22">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnBackTapped"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="&#xF004D;" FontFamily="MDI"
+                               TextColor="#D8E6DF" FontSize="22"
+                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Border>
+
+                    <!-- Title -->
+                    <Label Grid.Column="1"
+                           Text="Virtual Food Tour"
+                           VerticalTextAlignment="Center"
+                           HorizontalOptions="Center"
+                           FontAttributes="Bold"
+                           FontSize="17"
+                           TextColor="#D8E6DF"
+                           CharacterSpacing="0.3"/>
+
+                    <!-- Header Settings -->
+                    <Border Grid.Column="2"
+                            WidthRequest="44" HeightRequest="44"
+                            StrokeThickness="0"
+                            BackgroundColor="#2B3733"
+                            StrokeShape="RoundRectangle 22">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHeaderSettingsTapped"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="&#xF0493;" FontFamily="MDI"
+                               TextColor="#4BE277" FontSize="22"
+                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Border>
+                </Grid>
+
+                <!-- SECTION 1b: Proximity Banner — shown when user is near / in food area -->
+                <Border x:Name="ProximityBanner"
+                        BackgroundColor="#22C55E"
+                        Padding="16,12"
+                        Margin="16,0,16,0"
+                        IsVisible="{Binding IsVirtualProximityBannerVisible}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 12">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer
+                            Command="{Binding SwitchToRealModeFromVirtualCommand}"/>
+                    </Border.GestureRecognizers>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <HorizontalStackLayout Grid.Column="0" Spacing="10" VerticalOptions="Center">
+                            <Label Text="🌍"
+                                   FontSize="18"
+                                   VerticalOptions="Center"/>
+                            <Label Text="Bạn đang ở khu ẩm thực. Khám phá ngay!"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                        <Label Grid.Column="1"
+                               Text="›"
+                               FontSize="22"
+                               TextColor="White"
+                               FontAttributes="Bold"
+                               VerticalOptions="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- SECTION 2: Progress Section -->
+                <VerticalStackLayout Padding="20,8,20,28" Spacing="10">
+
+                    <!-- Location Badge -->
+                    <HorizontalStackLayout Spacing="8">
+                        <BoxView WidthRequest="8" HeightRequest="8"
+                                 CornerRadius="4"
+                                 BackgroundColor="#4BE277"
+                                 VerticalOptions="Center"/>
+                        <Label Text="{Binding JournalZoneLabel, StringFormat='{0} • DISTRICT 4'}"
+                               FontAttributes="Bold"
+                               FontSize="11"
+                               TextColor="#4BE277"
+                               CharacterSpacing="1.5"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <!-- Tour Title -->
+                    <Label Text="Khám phá Vĩnh Khánh"
+                           FontSize="28"
+                           FontAttributes="Bold"
+                           TextColor="#D8E6DF"
+                           LineHeight="1.1"/>
+
+                    <!-- Progress Row -->
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,4,0,0">
+                        <!-- Progress Count (left) -->
+                        <VerticalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center">
+                            <Label Text="PROGRESS"
+                                   FontSize="10"
+                                   FontAttributes="Bold"
+                                   TextColor="#BCCBB9"
+                                   CharacterSpacing="2"/>
+                            <!-- Progress Bar with rounded background -->
+                            <Grid HeightRequest="6">
+                                <BoxView HeightRequest="6" CornerRadius="3" BackgroundColor="#2B3733"/>
+                                <ProgressBar Progress="{Binding JournalProgressFraction}"
+                                             ProgressColor="#4BE277"
+                                             HeightRequest="6"
+                                             BackgroundColor="Transparent"/>
+                            </Grid>
+                        </VerticalStackLayout>
+
+                        <!-- Progress Count (right) -->
+                        <VerticalStackLayout Grid.Column="1" HorizontalOptions="End" VerticalOptions="Center" Spacing="2">
+                            <Label Text="PROGRESS"
+                                   FontSize="10"
+                                   FontAttributes="Bold"
+                                   TextColor="#869585"
+                                   CharacterSpacing="1.5"
+                                   HorizontalOptions="End"/>
+                            <Label HorizontalOptions="End">
+                                <Label.FormattedText>
+                                    <FormattedString>
+                                        <Span Text="{Binding JournalCurrentCount}"
+                                              FontSize="22"
+                                              FontAttributes="Bold"
+                                              TextColor="#4BE277"/>
+                                        <Span Text=" / "
+                                              FontSize="18"
+                                              TextColor="#BCCBB9"/>
+                                        <Span Text="{Binding JournalTotalCount}"
+                                              FontSize="18"
+                                              FontAttributes="Bold"
+                                              TextColor="#D8E6DF"/>
+                                    </FormattedString>
+                                </Label.FormattedText>
+                            </Label>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                </VerticalStackLayout>
+
+                <!-- SECTION 3: Currently Playing Hero Card -->
+                <VerticalStackLayout Spacing="16" Padding="20,0,20,28">
+
+                    <!-- Section Header Row -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0"
+                               Text="CURRENTLY PLAYING"
+                               FontSize="11"
+                               FontAttributes="Bold"
+                               TextColor="#BCCBB9"
+                               CharacterSpacing="2"
+                               VerticalOptions="Center"/>
+
+                        <!-- Now Playing Badge -->
+                        <Border Grid.Column="1"
+                                StrokeThickness="0"
+                                BackgroundColor="#1A2820"
+                                StrokeShape="RoundRectangle 16"
+                                Padding="10,6,12,6">
+                            <HorizontalStackLayout Spacing="6">
+                                <BoxView WidthRequest="7" HeightRequest="7"
+                                         CornerRadius="3.5"
+                                         BackgroundColor="#4BE277"
+                                         VerticalOptions="Center"
+                                         IsVisible="{Binding IsAudioPlaying}"/>
+                                <BoxView WidthRequest="7" HeightRequest="7"
+                                         CornerRadius="3.5"
+                                         BackgroundColor="#869585"
+                                         VerticalOptions="Center"
+                                         IsVisible="{Binding IsAudioPlaying, Converter={StaticResource InvertedBoolConverter}}"/>
+                                <Label Text="🎧 Đang phát"
+                                       FontSize="10"
+                                       FontAttributes="Bold"
+                                       TextColor="#4BE277"
+                                       VerticalOptions="Center"/>
+                            </HorizontalStackLayout>
+                        </Border>
+                    </Grid>
+
+                    <!-- Hero Card with asymmetric corner -->
+                    <Border StrokeThickness="0"
+                            StrokeShape="RoundRectangle 48,16,16,16"
+                            BackgroundColor="#16221E"
+                            Padding="0"
+                            HeightRequest="230">
+                        <Grid>
+                            <!-- Hero Image -->
+                            <Image Source="{Binding JournalCurrentlyPlayingImage}"
+                                   Aspect="AspectFill"
+                                   HeightRequest="230"/>
+
+                            <!-- Gradient Overlay -->
+                            <BoxView VerticalOptions="Fill" HorizontalOptions="Fill">
+                                <BoxView.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#E60A1612" Offset="0.0"/>
+                                        <GradientStop Color="#660A1612" Offset="0.6"/>
+                                        <GradientStop Color="#000A1612" Offset="1.0"/>
+                                    </LinearGradientBrush>
+                                </BoxView.Background>
+                            </BoxView>
+
+                            <!-- Content Overlay -->
+                            <Grid VerticalOptions="Fill" HorizontalOptions="Fill" Padding="20,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left: Text -->
+                                <VerticalStackLayout Grid.Column="0" Spacing="6" VerticalOptions="End">
+                                    <!-- Legend Badge -->
+                                    <Border StrokeThickness="0"
+                                            BackgroundColor="#4BE27722"
+                                            StrokeShape="RoundRectangle 6"
+                                            Padding="8,3"
+                                            HorizontalOptions="Start">
+                                        <Label Text="LEGENDARY RECIPE"
+                                               FontSize="9"
+                                               FontAttributes="Bold"
+                                               TextColor="#4BE277"
+                                               CharacterSpacing="1"/>
+                                    </Border>
+                                    <!-- Dish Name -->
+                                    <Label Text="{Binding JournalCurrentlyPlayingName}"
+                                           FontSize="26"
+                                           FontAttributes="Bold"
+                                           TextColor="#D8E6DF"
+                                           LineBreakMode="WordWrap"/>
+                                    <!-- Description -->
+                                    <Label Text="{Binding JournalCurrentlyPlayingDesc}"
+                                           FontSize="12"
+                                           TextColor="#D8E6DF99"
+                                           LineHeight="1.4"
+                                           MaxLines="2"
+                                           LineBreakMode="TailTruncation"/>
+                                </VerticalStackLayout>
+
+                                <!-- Right: Xem thêm Button -->
+                                <Border Grid.Column="1"
+                                        WidthRequest="84" HeightRequest="36"
+                                        StrokeThickness="0"
+                                        BackgroundColor="#2B3733"
+                                        StrokeShape="RoundRectangle 18"
+                                        VerticalOptions="End"
+                                        Margin="0,0,0,4">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnCurrentlyPlayingSeeMoreTapped"/>
+                                    </Border.GestureRecognizers>
+                                    <Label Text="XEM THÊM"
+                                           FontSize="9"
+                                           FontAttributes="Bold"
+                                           TextColor="#4BE277"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"
+                                           CharacterSpacing="0.8"/>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                </VerticalStackLayout>
+
+                <!-- SECTION 4: Up Next Queue -->
+                <VerticalStackLayout Spacing="12" Padding="20,0,20,0">
+
+                    <Label Text="ĐỊA ĐIỂM TIẾP THEO"
+                           FontSize="11"
+                           FontAttributes="Bold"
+                           TextColor="#BCCBB9"
+                           CharacterSpacing="2"
+                           Margin="0,0,0,4"/>
+
+                    <!-- Queue Items List -->
+                    <CollectionView ItemsSource="{Binding JournalQueueItems}"
+                                    SelectionMode="None"
+                                    VerticalScrollBarVisibility="Never">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Vertical" ItemSpacing="14"/>
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:POI">
+                                <Border StrokeThickness="0"
+                                        BackgroundColor="#16221E"
+                                        StrokeShape="RoundRectangle 16"
+                                        Padding="14">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnQueueItemTapped" CommandParameter="{Binding}"/>
+                                    </Border.GestureRecognizers>
+                                    <Grid ColumnDefinitions="80,*,Auto" ColumnSpacing="14">
+                                        <!-- Thumbnail -->
+                                        <Border Grid.Column="0"
+                                                WidthRequest="80" HeightRequest="80"
+                                                StrokeThickness="0"
+                                                BackgroundColor="#2B3733"
+                                                StrokeShape="RoundRectangle 12">
+                                            <Image Source="{Binding DisplayImageUrl}"
+                                                   Aspect="AspectFill"
+                                                   WidthRequest="80" HeightRequest="80"/>
+                                        </Border>
+
+                                        <!-- Info -->
+                                        <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                            <!-- Tiếp theo label -->
+                                            <Label Text="ĐỊA ĐIỂM TIẾP THEO"
+                                                   FontSize="9"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#FFB690"
+                                                   CharacterSpacing="1.5"/>
+                                            <!-- Name -->
+                                            <Label Text="{Binding Name_Vi}"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#D8E6DF"/>
+                                            <!-- Address chip -->
+                                            <HorizontalStackLayout Spacing="4" Margin="0,2,0,0">
+                                                <Label Text="&#xF012C;" FontFamily="MDI"
+                                                       TextColor="#869585" FontSize="12"
+                                                       VerticalOptions="Center"/>
+                                                <Label Text="{Binding Address}"
+                                                       FontSize="11"
+                                                       TextColor="#869585"
+                                                       VerticalOptions="Center"
+                                                       MaxLines="1"
+                                                       LineBreakMode="TailTruncation"/>
+                                            </HorizontalStackLayout>
+                                        </VerticalStackLayout>
+
+                                        <!-- Xem thêm button -->
+                                        <Border Grid.Column="2"
+                                                WidthRequest="76" HeightRequest="32"
+                                                StrokeThickness="0"
+                                                BackgroundColor="#2B3733"
+                                                StrokeShape="RoundRectangle 16"
+                                                VerticalOptions="Center">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnQueueSeeMoreTapped" CommandParameter="{Binding}"/>
+                                            </Border.GestureRecognizers>
+                                            <Label Text="XEM THÊM"
+                                                   FontSize="9"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#4BE277"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center"
+                                                   CharacterSpacing="0.6"/>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                        <CollectionView.EmptyView>
+                            <Label Text="Không có địa điểm tiếp theo"
+                                   FontSize="13"
+                                   TextColor="#869585"
+                                   HorizontalOptions="Center"
+                                   Margin="0,20"/>
+                        </CollectionView.EmptyView>
+                    </CollectionView>
+
+                </VerticalStackLayout>
+
+                <!-- Bottom Safe Area Spacer -->
+                <BoxView HeightRequest="180" Color="Transparent"/>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- ── Sticky Audio Player ─────────────────────────────────────────── -->
+        <Grid Grid.Row="1" Margin="16,0,16,0" RowDefinitions="Auto,4" VerticalOptions="End">
+
+            <!-- Player Bar -->
+            <Border Grid.Row="0"
+                    StrokeThickness="0"
+                    BackgroundColor="#16221E"
+                    StrokeShape="RoundRectangle 20"
+                    Padding="16,14">
+                <Grid ColumnDefinitions="48,*,Auto" ColumnSpacing="12">
+
+                    <!-- Thumbnail -->
+                    <Border Grid.Column="0"
+                            WidthRequest="48" HeightRequest="48"
+                            StrokeThickness="1"
+                            BackgroundColor="#2B3733"
+                            StrokeShape="RoundRectangle 10"
+                            Stroke="#4BE277"
+                            VerticalOptions="Center">
+                        <Image Source="{Binding PrimaryZone.DisplayImageUrl}"
+                               Aspect="AspectFill"
+                               WidthRequest="48" HeightRequest="48"/>
+                    </Border>
+
+                    <!-- Track Info -->
+                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                        <Label Text="{Binding PrimaryZoneName}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="#D8E6DF"
+                               LineBreakMode="TailTruncation"/>
+                        <Label FontSize="10" TextColor="#869585">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="{Binding AudioDuration}"/>
+                                    <Span Text=" • Vĩnh Khánh St."/>
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </VerticalStackLayout>
+
+                    <!-- Controls -->
+                    <HorizontalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
+
+                        <!-- Rewind -->
+                        <Label FontFamily="MDI" Text="&#xF04AE;"
+                               TextColor="#D8E6DF" FontSize="24"
+                               VerticalOptions="Center">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnRewindTapped"/>
+                            </Label.GestureRecognizers>
+                        </Label>
+
+                        <!-- Play / Pause Button -->
+                        <Border WidthRequest="40" HeightRequest="40"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 20"
+                                VerticalOptions="Center">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#4BE277" Offset="0"/>
+                                    <GradientStop Color="#22C55E" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnPlayPauseTapped"/>
+                            </Border.GestureRecognizers>
+                            <Label FontFamily="MDI" TextColor="#003915" FontSize="22"
+                                   HorizontalOptions="Center" VerticalOptions="Center">
+                                <Label.Style>
+                                    <Style TargetType="Label">
+                                        <Setter Property="Text" Value="&#xF040A;"/>
+                                        <Style.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsAudioPlaying}" Value="True">
+                                                <Setter Property="Text" Value="&#xF03E4;"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Label.Style>
+                            </Label>
+                        </Border>
+
+                        <!-- Forward -->
+                        <Label FontFamily="MDI" Text="&#xF04AD;"
+                               TextColor="#D8E6DF" FontSize="24"
+                               VerticalOptions="Center">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnForwardTapped"/>
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </HorizontalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Progress Bar (below player) -->
+            <Grid Grid.Row="1" HeightRequest="4" Margin="0,4,0,0" InputTransparent="True">
+                <BoxView HeightRequest="4" CornerRadius="2" BackgroundColor="#2B3733"/>
+                <ProgressBar Progress="{Binding AudioProgress, FallbackValue=0}"
+                             ProgressColor="#4BE277"
+                             HeightRequest="4"
+                             BackgroundColor="Transparent"/>
+            </Grid>
+        </Grid>
+
+        <!-- ── Bottom Navigation Bar (old nav style) ───────────────────── -->
+        <Border Grid.Row="2"
+                StrokeShape="RoundRectangle 48,48,0,0"
+                StrokeThickness="0"
+                BackgroundColor="#EE16221E"
+                Padding="16,12,16,28"
+                VerticalOptions="End">
+            <Border.Shadow>
+                <Shadow Brush="#4BE277" Opacity="0.1" Radius="24" Offset="0,-4"/>
+            </Border.Shadow>
+
+            <Grid ColumnDefinitions="*,*,*">
+                <!-- Tab 1: Khám phá -->
+                <VerticalStackLayout Grid.Column="0" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnExploreNavTapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Grid WidthRequest="40" HeightRequest="40" HorizontalOptions="Center">
+                        <Label Text="&#xF034D;" FontFamily="MDI" FontSize="26"
+                               TextColor="#4BE277" HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Grid>
+                    <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                        <Label Text="Khám phá" FontSize="11" FontAttributes="Bold" TextColor="#4BE277" HorizontalTextAlignment="Center"/>
+                        <BoxView WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="True"/>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+
+                <!-- Tab 2: Đã lưu -->
+                <VerticalStackLayout Grid.Column="1" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSavedNavTapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Grid WidthRequest="40" HeightRequest="40" HorizontalOptions="Center">
+                        <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="26"
+                               TextColor="#92A89D" HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Grid>
+                    <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                        <Label Text="Đã lưu" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                        <BoxView WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+
+                <!-- Tab 3: Cá nhân -->
+                <VerticalStackLayout Grid.Column="2" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnProfileNavTapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Grid WidthRequest="40" HeightRequest="40" HorizontalOptions="Center">
+                        <Label Text="&#xF0004;" FontFamily="MDI" FontSize="26"
+                               TextColor="#92A89D" HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Grid>
+                    <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                        <Label Text="Cá nhân" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                        <BoxView WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Grid>
+        </Border>
+
+    </Grid>
+</ContentView>

@@ -1,10 +1,10 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// MainPage.Map.cs  –  Tab Bản đồ:
-//   • InitializeMap()   – khởi tạo tile OSM + layer pins
-//   • UpdateZonePins()  – vẽ lại tất cả pins theo trạng thái
-//   • UpdateUserPin()   – cập nhật vị trí người dùng + auto-center
-//   • Zoom & Header handlers (back, center, settings)
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// MainPage.Map.cs  -  Tab Ban do:
+//   - InitializeMap()   - khoi tao tile OSM + layer pins
+//   - UpdateZonePins()  - ve lai tat ca pins theo trang thai
+//   - UpdateUserPin()   - cap nhat vi tri nguoi dung + auto-center
+//   - Zoom & Header handlers (back, center, settings)
+// -----------------------------------------------------------------------------
 
 using Mapsui;
 using Mapsui.Layers;
@@ -13,8 +13,11 @@ using Mapsui.Styles;
 using Mapsui.Tiling;
 using Mapsui.Tiling.Layers;
 using BruTile.Predefined;
+using BruTile.Web;
+using System.Net.Http;
 using MapsColor = Mapsui.Styles.Color;
 using MapsBrush = Mapsui.Styles.Brush;
+using StreetFoodNarrator.App;
 using StreetFoodNarrator.App.Core.Services;
 using NetTopologySuite.Geometries;
 using Mapsui.Nts;
@@ -24,11 +27,13 @@ namespace StreetFoodNarrator.App.Views;
 
 public partial class MainPage
 {
-    // ── Map state ──────────────────────────────────────────────────────────────
     private MemoryLayer? _pinsLayer;
     private MemoryLayer? _routeLayer;
+    private MemoryLayer? _userPinLayer;  // ✅ Separate user pin layer (FIX 4)
+    private bool _isFirstLocation = true;
+    private DateTime _lastRouteRedraw = DateTime.MinValue;
+    private const int ROUTE_REDRAW_INTERVAL_MS = 3000;  // ✅ Debounce route redraw (FIX 4)
     private const int DefaultMapZoomLevel = (int)AppConfig.DefaultZoom + 1;
-    // Dedicated HttpClient for OSRM road routing (short timeout, not reused for audio)
     private readonly HttpClient _routeHttpClient = new() { Timeout = TimeSpan.FromSeconds(6) };
 
     private void ZoomToDefaultLevel()
@@ -43,240 +48,211 @@ public partial class MainPage
         MapView.Map.Navigator.ZoomToLevel(level);
     }
 
-    // ─── Khởi tạo bản đồ ────────────────────────────────────────────────────
-
     private void InitializeMap()
     {
-        Console.WriteLine("[Map] InitializeMap starting...");
-        
-        if (MapView?.Map == null)
-        {
-            Console.WriteLine("[Map] ❌ MapView or MapView.Map is null!");
-            return;
-        }
-
-        // Tile layer OSM – dùng SQLite cache để hỗ trợ offline
         try
         {
-            var cacheDir  = Path.Combine(FileSystem.AppDataDirectory, "tile_cache");
-            Directory.CreateDirectory(cacheDir);
-            var cacheDb   = Path.Combine(cacheDir, "osm.db");
-            var tileCache = new SqliteTileCache(cacheDb);
+            Console.WriteLine("[Map] InitializeMap starting...");
 
-            var tileSource = KnownTileSources.Create(
-                KnownTileSource.OpenStreetMap,
-                persistentCache: tileCache);
-            var osmLayer = new TileLayer(tileSource) { Name = "OSM" };
-            MapView.Map.Layers.Add(osmLayer);
-            Console.WriteLine("[Map] ✓ OSM tile layer added");
+            if (MapView?.Map == null)
+            {
+                Console.WriteLine("[Map] MapView or MapView.Map is null!");
+                return;
+            }
+
+            try
+            {
+                var cacheDb = Path.Combine(FileSystem.AppDataDirectory, "map_cache", "tiles.db");
+                var tileCache = new StreetFoodNarrator.App.Services.SimpleTileCache(cacheDb);
+
+                var tileSource = new HttpTileSource(
+                    new GlobalSphericalMercator(),
+                    "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+                    name: "Carto",
+                    persistentCache: tileCache
+                );
+                var baseLayer = new TileLayer(tileSource) { Name = "BaseMap" };
+                MapView.Map.Layers.Add(baseLayer);
+                Console.WriteLine("[Map] OSM tile layer added");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Map] OSM tile error (offline?): {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[Map] OSM tile error (offline?): {ex.Message}");
+            }
+
+            try
+            {
+                var darkOverlay = new MemoryLayer("DarkOverlay")
+                {
+                    Style = new VectorStyle
+                    {
+                        Fill = new MapsBrush(new MapsColor(8, 22, 12, 110)),
+                        Outline = null
+                    }
+                };
+                Console.WriteLine("[Map] Dark overlay layer created");
+
+                var worldExtent = new[]
+                {
+                    new MPoint(-20037508.34, -20037508.34),
+                    new MPoint(20037508.34, -20037508.34),
+                    new MPoint(20037508.34, 20037508.34),
+                    new MPoint(-20037508.34, 20037508.34),
+                    new MPoint(-20037508.34, -20037508.34)
+                };
+                var overlayPolygon = new Polygon(
+                    new LinearRing(worldExtent.Select(p => new Coordinate(p.X, p.Y)).ToArray()));
+                darkOverlay.Features = new[] { new GeometryFeature { Geometry = overlayPolygon } };
+                MapView.Map.Layers.Add(darkOverlay);
+                Console.WriteLine("[Map] Dark overlay added (between OSM and Pins)");
+
+                _routeLayer = new MemoryLayer("RouteLayer");
+                MapView.Map.Layers.Add(_routeLayer);
+
+                _userPinLayer = new MemoryLayer("UserPin");  // ✅ Separate user pin layer (FIX 4)
+                MapView.Map.Layers.Add(_userPinLayer);
+
+                _pinsLayer = new MemoryLayer("Pins");
+                MapView.Map.Layers.Add(_pinsLayer);
+                Console.WriteLine($"[Map] Pins layer added on top. Total layers: {MapView.Map.Layers.Count}");
+
+                MapView.Map.Widgets.Clear();
+                MapView.InputTransparent = false;
+                MapView.CascadeInputTransparent = false;
+                MapView.Info -= OnMapInfoTapped;
+                MapView.Info += OnMapInfoTapped;
+                MapView.Map.Navigator.RotationLock = true;
+                MapView.UseFling = true;
+
+                var (cx, cy) = SphericalMercator.FromLonLat(AppConfig.DefaultLongitude, AppConfig.DefaultLatitude);
+                MapView.Map.Navigator.CenterOn(new MPoint(cx, cy));
+                ZoomToDefaultLevel();
+                _isMapInitialized = true;
+                Console.WriteLine($"[Map] Centered on default location ({AppConfig.DefaultLatitude}, {AppConfig.DefaultLongitude})");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Map] Layer initialization error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[Map] Layer initialization error: {ex.Message}");
+                // Don't rethrow — still mark initialized if critical layers failed
+                _isMapInitialized = true;
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Map] ⚠️ OSM tile error (offline?): {ex.Message}");
-            System.Diagnostics.Debug.WriteLine($"[Map] OSM tile error (offline?): {ex.Message}");
-            // Tiếp tục không có tile nền — pins vẫn hoạt động
-        }
-
-        // ── Dark overlay layer - ADD NGAY SAU OSM để làm tối nền ──
-        var darkOverlay = new MemoryLayer("DarkOverlay")
-        {
-            Style = new VectorStyle
+            Console.WriteLine($"[Map] InitializeMap FATAL error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[Map] InitializeMap FATAL error: {ex}");
+            try
             {
-                Fill = new MapsBrush(new MapsColor(8, 22, 12, 180)), // Màu tối xanh lá 70% opacity
-                Outline = null
+                var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
+                File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [Map.InitializeMap] {ex.Message}\n{ex.StackTrace}\n\n");
             }
-        };
-        Console.WriteLine("[Map] ✓ Dark overlay layer created");
-
-        // Tạo một polygon phủ toàn bộ thế giới (Web Mercator bounds)
-        var worldExtent = new[]
-        {
-            new MPoint(-20037508.34, -20037508.34), // Bottom-left
-            new MPoint(20037508.34, -20037508.34),  // Bottom-right
-            new MPoint(20037508.34, 20037508.34),   // Top-right
-            new MPoint(-20037508.34, 20037508.34),  // Top-left
-            new MPoint(-20037508.34, -20037508.34)  // Close polygon
-        };
-        var overlayPolygon = new NetTopologySuite.Geometries.Polygon(
-            new NetTopologySuite.Geometries.LinearRing(
-                worldExtent.Select(p => new NetTopologySuite.Geometries.Coordinate(p.X, p.Y)).ToArray()));
-        darkOverlay.Features = new[] { new GeometryFeature { Geometry = overlayPolygon } };
-        MapView.Map.Layers.Add(darkOverlay);
-        Console.WriteLine("[Map] ✓ Dark overlay added (between OSM and Pins)");
-
-        // Layer route (đường đi) - OVERLAY NHƯNG DƯỚI PINS
-        _routeLayer = new MemoryLayer("RouteLayer");
-        MapView.Map.Layers.Add(_routeLayer);
-
-        // Layer pins cho user + POI markers - ADD CUỐI CÙNG để ở trên cùng
-        _pinsLayer = new MemoryLayer("Pins");
-        MapView.Map.Layers.Add(_pinsLayer);
-        Console.WriteLine($"[Map] ✓ Pins layer added on top. Total layers: {MapView.Map.Layers.Count}");
-
-        // Ẩn debug widgets mặc định (toạ độ, zoom level…)
-        MapView.Map.Widgets.Clear();
-
-        // Để MAUI không nuốt scroll/touch event trước khi đến MapControl
-        MapView.InputTransparent         = false;
-        MapView.CascadeInputTransparent  = false;
-
-        // Tắt rotation (mobile không cần xoay bản đồ)
-        MapView.Map.Navigator.RotationLock = true;
-
-        // Bật fling/momentum khi pan
-        MapView.UseFling = true;
-
-        // Tự động căn giữa Vĩnh Khánh khi mở lần đầu với zoom sát hơn
-        Dispatcher.Dispatch(async () =>
-        {
-            await Task.Delay(150);
-            var (cx, cy) = SphericalMercator.FromLonLat(
-                AppConfig.DefaultLongitude, AppConfig.DefaultLatitude);
-            MapView?.Map?.Navigator.CenterOn(new MPoint(cx, cy));
-            ZoomToDefaultLevel(); // Zoom nhà/địa điểm rõ ràng (house-level)
-        });
-
-        // Lắng nghe sự kiện tap trên bản đồ để hiển thị pin popup
-        MapView.Map.Info += OnMapInfoTapped;
-        
-        Console.WriteLine($"[Map] ✓ InitializeMap completed! Map ready at ({AppConfig.DefaultLatitude}, {AppConfig.DefaultLongitude})");
+            catch { /* safe */ }
+        }
     }
-
-    // ─── Pins ─────────────────────────────────────────────────────────────────
 
     private void UpdateZonePins()
     {
-        if (_pinsLayer == null || MapView?.Map == null)
-        {
-            Console.WriteLine("[Map] ❌ UpdateZonePins called but _pinsLayer or MapView.Map is null");
+        if (!_isMapInitialized)
             return;
-        }
 
-        var features  = new List<IFeature>();
-        var nearbyIds = _vm.ActiveZones.Select(z => z.Id).ToHashSet();
-
-        Console.WriteLine($"[Map] UpdateZonePins: AllPOIs.Count={_vm.AllPOIs.Count}, ActiveZones.Count={_vm.ActiveZones.Count}");
-        Console.WriteLine($"[Map] Map center: ({AppConfig.DefaultLatitude}, {AppConfig.DefaultLongitude})");
-
-        // Vị trí người dùng – vòng trắng, nhân xanh lá
-        if (_vm.CurrentLat != 0)
+        MainThread.BeginInvokeOnMainThread(() =>
         {
-            var (ux, uy) = SphericalMercator.FromLonLat(_vm.CurrentLon, _vm.CurrentLat);
-            Console.WriteLine($"[Map] User position: ({_vm.CurrentLat}, {_vm.CurrentLon}) -> Mercator ({ux:F2}, {uy:F2})");
-            var f = new PointFeature(new MPoint(ux, uy));
-            f.Styles.Add(new SymbolStyle
+            if (_pinsLayer == null || MapView?.Map == null)
             {
-                SymbolScale = 0.6,
-                Fill        = new MapsBrush(new MapsColor(34, 197, 94)),
-                Outline     = new Pen(MapsColor.White, 3)
-            });
-            features.Add(f);
-        }
-
-        // Tất cả POI loại Spot – màu theo trạng thái
-        // Ưu tiên: ⭐ Đã lưu (vàng) > 🟣 Đã ghé (tím) > 🔵 Đang gần (xanh dương) > � Chưa ghé (cam)
-        var poiCount = 0;
-        foreach (var poi in _vm.AllPOIs)
-        {
-            if (poi.ZoneType == "Area" || poi.ZoneType == "District") continue;
-            
-            poiCount++;
-            var (px, py) = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
-            
-            // Log first 3 POIs để debug tọa độ
-            if (poiCount <= 3)
-            {
-                Console.WriteLine($"[Map] POI #{poiCount}: '{poi.Name_Vi}' at ({poi.Latitude}, {poi.Longitude}) -> Mercator ({px:F2}, {py:F2})");
+                Console.WriteLine("[Map] UpdateZonePins called but _pinsLayer or MapView.Map is null");
+                return;
             }
-            
-            var f = new PointFeature(new MPoint(px, py));
-            f["POI_ID"] = poi.Id;
 
-            MapsColor fillColor;
-            if (_vm.SavedPOIIds.Contains(poi.Id))
-                fillColor = new MapsColor(251, 191, 36);  // ⭐ Vàng = đã lưu
-            else if (_vm.VisitedPOIIds.Contains(poi.Id))
-                fillColor = new MapsColor(147, 51, 234);  // 🟣 Tím  = đã ghé
-            else if (nearbyIds.Contains(poi.Id))
-                fillColor = new MapsColor(59, 130, 246);  // 🔵 Xanh dương = đang gần
-            else
-                fillColor = new MapsColor(249, 115, 22);  // 🟠 Cam  = chưa ghé
+            var features = new List<IFeature>();
+            var nearbyIds = _vm.ActiveZones.Select(z => z.Id).ToHashSet();
 
-            // ── Glow ring ngoài (nhỏ, mờ) ──
-            f.Styles.Add(new SymbolStyle
+            Console.WriteLine($"[Map] UpdateZonePins: AllPOIs.Count={_vm.AllPOIs.Count}, ActiveZones.Count={_vm.ActiveZones.Count}");
+
+            // ✅ NOTE: User pin is now in separate _userPinLayer (FIX 4) - not drawn here
+
+            var visiblePoiIds = _vm.FilteredPOIs.Select(p => p.Id).ToHashSet();
+
+            foreach (var poi in _vm.AllPOIs)
             {
-                SymbolScale = 1.0,
-                Fill        = new MapsBrush(new MapsColor(fillColor.R, fillColor.G, fillColor.B, 100)),
-                Outline     = null,
-                SymbolType  = SymbolType.Ellipse
-            });
-            // ── Dot chính (dấu chấm nhỏ, viền trắng) ──
-            f.Styles.Add(new SymbolStyle
-            {
-                SymbolScale = 0.5,
-                Fill        = new MapsBrush(fillColor),
-                Outline     = new Pen(MapsColor.White, 2.5f),
-                SymbolType  = SymbolType.Ellipse
-            });
+                if (poi.ZoneType == "Area" || poi.ZoneType == "District") continue;
+                if (visiblePoiIds.Count > 0 && !visiblePoiIds.Contains(poi.Id)) continue;
 
-            // ── Label dưới dot (tên quán ngắn gọn) ──
-            var labelText = poi.Name_Vi ?? poi.Name_En ?? "";
-            if (labelText.Length > 15) labelText = labelText[..15];
-            f.Styles.Add(new LabelStyle
-            {
-                Text               = labelText,
-                ForeColor          = MapsColor.White,
-                BackColor          = new MapsBrush(new MapsColor(10, 16, 12, 220)),
-                Font               = new Mapsui.Styles.Font { FontFamily = "sans-serif", Size = 8, Bold = false },
-                Offset             = new Offset(0, 18),
-                HorizontalAlignment = LabelStyle.HorizontalAlignmentEnum.Center,
-                VerticalAlignment  = LabelStyle.VerticalAlignmentEnum.Top,
-                MaxWidth           = 80,
-                WordWrap           = LabelStyle.LineBreakMode.NoWrap
-            });
-    
-        // Tính khoảng cách từ map center đến POI đầu tiên
-        var firstSpot = _vm.AllPOIs.FirstOrDefault(p => p.ZoneType != "Area" && p.ZoneType != "District");
-        if (firstSpot != null)
-        {
-            var latDiff = Math.Abs(firstSpot.Latitude - AppConfig.DefaultLatitude);
-            var lonDiff = Math.Abs(firstSpot.Longitude - AppConfig.DefaultLongitude);
-            var distanceKm = Math.Sqrt(latDiff * latDiff + lonDiff * lonDiff) * 111; // rough km conversion
-            Console.WriteLine($"[Map] First POI distance from center: ~{distanceKm:F2} km (latDiff={latDiff:F6}, lonDiff={lonDiff:F6})");
-        }
-    
-            features.Add(f);
-        }
+                var (px, py) = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
+                var poiFeature = new PointFeature(new MPoint(px, py));
+                poiFeature["POI_ID"] = poi.Id;
 
-        _pinsLayer.Features = features;
-        _pinsLayer.DataHasChanged();
-        MapView.RefreshGraphics();
-        
-        var spotCount = _vm.AllPOIs.Count(p => p.ZoneType != "Area" && p.ZoneType != "District");
-        Console.WriteLine($"[Map] ✓ UpdateZonePins completed: Drew {features.Count} features (1 user + {spotCount} POI pins)");
+                MapsColor fillColor;
+                if (_vm.SavedPOIIds.Contains(poi.Id))
+                    fillColor = new MapsColor(251, 191, 36);
+                else if (_vm.VisitedPOIIds.Contains(poi.Id))
+                    fillColor = new MapsColor(147, 51, 234);
+                else if (nearbyIds.Contains(poi.Id))
+                    fillColor = new MapsColor(59, 130, 246);
+                else
+                    fillColor = new MapsColor(249, 115, 22);
+
+                poiFeature.Styles.Add(new SymbolStyle
+                {
+                    SymbolScale = 0.5,
+                    Fill = new MapsBrush(fillColor),
+                    Outline = new Pen(MapsColor.White, 2.5f),
+                    SymbolType = SymbolType.Ellipse
+                });
+
+                var labelText = poi.Name_Vi ?? poi.Name_En ?? string.Empty;
+                if (labelText.Length > 15) labelText = labelText[..15];
+                poiFeature.Styles.Add(new LabelStyle
+                {
+                    Text = labelText,
+                    ForeColor = MapsColor.White,
+                    BackColor = new MapsBrush(new MapsColor(10, 16, 12, 220)),
+                    Font = new Mapsui.Styles.Font { FontFamily = "sans-serif", Size = 8 },
+                    Offset = new Offset(0, 18),
+                    HorizontalAlignment = LabelStyle.HorizontalAlignmentEnum.Center,
+                    VerticalAlignment = LabelStyle.VerticalAlignmentEnum.Top
+                });
+
+                features.Add(poiFeature);
+            }
+
+            _pinsLayer.Features = features;
+            _pinsLayer.DataHasChanged();
+            MapView.RefreshGraphics();
+
+            var spotCount = _vm.AllPOIs.Count(p => p.ZoneType != "Area" && p.ZoneType != "District");
+            Console.WriteLine($"[Map] UpdateZonePins completed: Drew {features.Count} POI pins (user pin is separate layer)");
+        });
     }
 
     public async Task DrawNavigationRouteAsync()
     {
+        if (!_isMapInitialized)
+            return;
+
         if (_routeLayer == null || MapView?.Map == null) return;
 
         var features = new List<IFeature>();
         var target = _vm.NavigationTarget;
 
-        if (target != null && _vm.CurrentLat != 0)
+        if (target != null)
         {
-            var (startPx, startPy) = SphericalMercator.FromLonLat(_vm.CurrentLon, _vm.CurrentLat);
+            var hasCurrentLocation = _vm.CurrentLat != 0 && _vm.CurrentLon != 0;
+            var startLon = hasCurrentLocation ? _vm.CurrentLon : AppConfig.DefaultLongitude;
+            var startLat = hasCurrentLocation ? _vm.CurrentLat : AppConfig.DefaultLatitude;
+
+            var (startPx, startPy) = SphericalMercator.FromLonLat(startLon, startLat);
             var (endPx, endPy) = SphericalMercator.FromLonLat(target.Longitude, target.Latitude);
 
-            // Lấy route theo đường đi thực (OSRM) nếu có mạng và không phải Virtual mode
             Coordinate[] routeCoords;
             var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
                            Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
 
-            if (isOnline && !_vm.IsVirtualNavigation)
+            if (isOnline && !_vm.IsVirtualNavigation && hasCurrentLocation)
             {
                 var osrmCoords = await FetchOsrmRouteAsync(
-                    _vm.CurrentLon, _vm.CurrentLat, target.Longitude, target.Latitude);
+                    startLon, startLat, target.Longitude, target.Latitude);
                 routeCoords = osrmCoords ?? new[]
                 {
                     new Coordinate(startPx, startPy),
@@ -292,7 +268,7 @@ public partial class MainPage
                 };
             }
 
-            var lineString = new NetTopologySuite.Geometries.LineString(routeCoords);
+            var lineString = new LineString(routeCoords);
             var feature = new GeometryFeature(lineString);
             feature.Styles.Add(new VectorStyle
             {
@@ -339,10 +315,6 @@ public partial class MainPage
         MapView.RefreshGraphics();
     }
 
-    /// <summary>
-    /// Gọi OSRM demo server lấy tuyến đi bộ giữa 2 điểm.
-    /// Trả về Coordinate[] (Web Mercator) hoặc null nếu lỗi/offline.
-    /// </summary>
     private async Task<Coordinate[]?> FetchOsrmRouteAsync(
         double srcLon, double srcLat, double dstLon, double dstLat)
     {
@@ -352,7 +324,7 @@ public partial class MainPage
             var url = $"https://router.project-osrm.org/route/v1/walking/" +
                       $"{srcLon.ToString(ic)},{srcLat.ToString(ic)};" +
                       $"{dstLon.ToString(ic)},{dstLat.ToString(ic)}" +
-                      $"?geometries=geojson&overview=full";
+                      "?geometries=geojson&overview=full";
 
             var json = await _routeHttpClient.GetStringAsync(url);
             using var doc = JsonDocument.Parse(json);
@@ -369,40 +341,84 @@ public partial class MainPage
                 })
                 .ToArray();
 
-            Console.WriteLine($"[Map] OSRM route: {coords.Length} điểm theo đường đi");
+            Console.WriteLine($"[Map] OSRM route: {coords.Length} diem theo duong di");
             return coords.Length >= 2 ? coords : null;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Map] OSRM fallback (đường thẳng): {ex.Message}");
+            Console.WriteLine($"[Map] OSRM fallback (duong thang): {ex.Message}");
             return null;
         }
     }
 
     private void UpdateUserPin()
     {
-        UpdateZonePins();
-        if (_vm.CurrentLat == 0 || MapView?.Map == null) return;
-        var (ux, uy) = SphericalMercator.FromLonLat(_vm.CurrentLon, _vm.CurrentLat);
-        MapView.Map.Navigator.CenterOn(new MPoint(ux, uy));
-    }
+        if (!_isMapInitialized || _userPinLayer == null || MapView?.Map == null)
+            return;
 
-    // ─── Header buttons ───────────────────────────────────────────────────────
+        try
+        {
+            if (_vm.CurrentLat == 0) return;
+
+            var (ux, uy) = SphericalMercator.FromLonLat(_vm.CurrentLon, _vm.CurrentLat);
+
+            // ✅ Only update user pin feature (not all POIs) - lightweight!
+            var userFeature = new PointFeature(new MPoint(ux, uy));
+            userFeature.Styles.Add(new SymbolStyle
+            {
+                SymbolScale = 0.6,
+                Fill = new MapsBrush(new MapsColor(34, 197, 94)),
+                Outline = new Pen(MapsColor.White, 3),
+                SymbolType = SymbolType.Ellipse
+            });
+            _userPinLayer.Features = new[] { userFeature };
+            _userPinLayer.DataHasChanged();
+
+            // ✅ Only center on first location (not every GPS update)
+            if (_isFirstLocation)
+            {
+                MapView.Map.Navigator.CenterOn(new MPoint(ux, uy));
+                _isFirstLocation = false;
+            }
+
+            // ✅ Lightweight refresh - only user pin layer changed
+            MapView.RefreshGraphics();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"UpdateUserPin error: {ex.Message}");
+        }
+    }
 
     private void OnBackClicked(object? sender, EventArgs e)
     {
+        if (_vm.IsLegacyMapVisible)
+        {
+            ShowExploreStateMode();
+            return;
+        }
+
+        _ = NavigateBackToWelcomeAsync();
+    }
+
+    private async Task NavigateBackToWelcomeAsync()
+    {
         try
         {
-            if (Application.Current?.Windows.Count > 0)
+            if (Shell.Current != null)
             {
-                Application.Current.Windows[0].Page = new NavigationPage(new WelcomePage());
+                await Shell.Current.GoToAsync("//WelcomePage");
             }
         }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Map] OnBackClicked: {ex}"); }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Map] NavigateBackToWelcomeAsync: {ex}");
+        }
     }
 
     private void OnCenterMapClicked(object? sender, EventArgs e)
     {
+        EnsureMapInitialized();
         if (MapView?.Map == null) return;
         var (cx, cy) = SphericalMercator.FromLonLat(AppConfig.DefaultLongitude, AppConfig.DefaultLatitude);
         MapView.Map.Navigator.CenterOn(new MPoint(cx, cy));
@@ -410,11 +426,21 @@ public partial class MainPage
 
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
-        try { await Navigation.PushAsync(new SettingsPage()); }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Map] OnSettingsClicked: {ex}"); }
-    }
+        try
+        {
+            if (Shell.Current is AppShell shell)
+            {
+                await Shell.Current.Navigation.PushModalAsync(shell.GetCachedSettingsPage());
+                return;
+            }
 
-    // ─── Zoom ─────────────────────────────────────────────────────────────────
+            await Navigation.PushModalAsync(new SettingsPage());
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Map] OnSettingsClicked: {ex}");
+        }
+    }
 
     private void OnZoomInClicked(object? sender, EventArgs e)
         => MapView?.Map?.Navigator.ZoomIn(300);
@@ -422,39 +448,33 @@ public partial class MainPage
     private void OnZoomOutClicked(object? sender, EventArgs e)
         => MapView?.Map?.Navigator.ZoomOut(300);
 
-    // ─── DEBUG: Reset Database ────────────────────────────────────────────────
-
     private async void OnResetDatabaseClicked(object? sender, EventArgs e)
     {
         try
         {
-            Console.WriteLine("[Map] 🔄 Reset database button clicked!");
-            
-            // Hiển thị confirm dialog
+            Console.WriteLine("[Map] Reset database button clicked!");
+
             bool confirm = await DisplayAlertAsync(
                 "Reset Database",
-                "Xóa toàn bộ dữ liệu và seed lại mock POIs với tọa độ đúng?",
+                "Xoa toan bo du lieu va seed lai mock POIs voi toa do dung?",
                 "Reset",
-                "Hủy");
-            
+                "Huy");
+
             if (!confirm)
             {
                 Console.WriteLine("[Map] User cancelled reset");
                 return;
             }
-            
-            // Gọi ViewModel để reset
+
             await _vm.ResetDatabaseAsync();
-            
-            // Vẽ lại pins với tọa độ mới
             UpdateZonePins();
-            
-            await DisplayAlertAsync("✓ Hoàn tất", "Database đã được reset với tọa độ đúng!", "OK");
+
+            await DisplayAlertAsync("Hoan tat", "Database da duoc reset voi toa do dung!", "OK");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Map] ❌ OnResetDatabaseClicked error: {ex.Message}");
-            await DisplayAlertAsync("Lỗi", $"Không thể reset database: {ex.Message}", "OK");
+            Console.WriteLine($"[Map] OnResetDatabaseClicked error: {ex.Message}");
+            await DisplayAlertAsync("Loi", $"Khong the reset database: {ex.Message}", "OK");
         }
     }
 }

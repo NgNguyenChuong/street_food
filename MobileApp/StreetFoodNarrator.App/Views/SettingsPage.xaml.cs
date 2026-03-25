@@ -15,12 +15,15 @@ public partial class SettingsPage : ContentPage
 {
     private readonly LanguageService _languageService;
     private readonly ITTSService _ttsService;
-    
+    private readonly IVoicePackageService _voicePackageService;
+
     private ObservableCollection<VoiceItemViewModel> _voices = new();
     private ObservableCollection<VoiceItemViewModel> _allVoices = new();
+    private ObservableCollection<VoicePackageViewModel> _voicePackages = new();
     private List<LanguageOption> _languages = new();
     private UserSettings? _settings;
     private bool _isVoicePickerExpanded = false;
+    private bool _isVoicePackagesExpanded = false;
     private System.Timers.Timer? _volumeDebounceTimer;
     private System.Timers.Timer? _sensitivityDebounceTimer;
     private bool _isLoadingPlaybackMode;
@@ -55,16 +58,18 @@ public partial class SettingsPage : ContentPage
         { "zh-CN-XiaoxiaoNeural", "zh-CN-XiaoxiaoNeural_welcome.mp3" },
     };
 
-    private IAudioPlayer? _demoPlayer;    
+    private IAudioPlayer? _demoPlayer;
     public SettingsPage()
     {
         InitializeComponent();
         _languageService = new LanguageService();
         _ttsService = MauiProgram.Services.GetRequiredService<ITTSService>();
+        _voicePackageService = MauiProgram.Services.GetRequiredService<IVoicePackageService>();
         AudioPlaybackModePicker.ItemsSource = _audioPlaybackOptions.Select(o => o.Label).ToList();
         SetupCustomLangPicker();
         LoadSettingsAndVoices();
         WireUpSliders();
+        _ = LoadVoicePackagesAsync();
     }
 
     protected override async void OnAppearing()
@@ -248,7 +253,89 @@ public partial class SettingsPage : ContentPage
             await CustomAlert.ShowAsync("Lỗi", $"Không thể tải danh sách giọng nói: {ex.Message}", "OK", AlertType.Error);
         }
     }
-    
+
+    private async Task LoadVoicePackagesAsync()
+    {
+        try
+        {
+            var packages = await _voicePackageService.GetAvailablePackagesAsync();
+            var selectedVoice = _settings?.TTS.Voice;
+
+            _voicePackages.Clear();
+            foreach (var pkg in packages)
+            {
+                pkg.IsSelected = pkg.VoiceName == selectedVoice;
+                _voicePackages.Add(new VoicePackageViewModel(pkg));
+            }
+
+            VoicePackageListView.ItemsSource = _voicePackages;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings] LoadVoicePackages failed: {ex.Message}");
+        }
+    }
+
+    private async Task DownloadVoicePackageAsync(VoicePackageViewModel packageVm)
+    {
+        if (packageVm.IsDownloading || packageVm.IsDownloaded)
+            return;
+
+        packageVm.IsDownloading = true;
+
+        try
+        {
+            var progress = new Progress<double>(p =>
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                    packageVm.DownloadProgress = p);
+            });
+
+            var success = await _voicePackageService.DownloadPackageAsync(
+                packageVm.Id, progress);
+
+            if (success)
+            {
+                packageVm.IsDownloaded = true;
+                packageVm.IsDownloading = false;
+                packageVm.DownloadProgress = 1.0;
+            }
+            else
+            {
+                packageVm.IsDownloading = false;
+                packageVm.DownloadProgress = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            packageVm.IsDownloading = false;
+            System.Diagnostics.Debug.WriteLine($"[Settings] DownloadVoicePackage failed: {ex.Message}");
+        }
+    }
+
+    private async Task SelectVoicePackageAsync(VoicePackageViewModel packageVm)
+    {
+        // Deselect all
+        foreach (var pkg in _voicePackages)
+            pkg.IsSelected = false;
+
+        // Select this one
+        packageVm.IsSelected = true;
+
+        // Update settings
+        if (_settings != null)
+        {
+            _settings.TTS.Voice = packageVm.VoiceName;
+            await SaveSettings();
+
+            // Update voice list too
+            foreach (var v in _allVoices)
+                v.IsSelected = v.Voice == packageVm.VoiceName;
+
+            UpdateSelectedVoiceDisplay();
+        }
+    }
+
     private void FilterVoicesByLanguage(string langCode)
     {
         // Chỉ 3 ngôn ngữ
@@ -369,7 +456,37 @@ public partial class SettingsPage : ContentPage
 
     private async void OnBackClicked(object sender, EventArgs e)
     {
-        await Navigation.PopAsync();
+        try
+        {
+            var shellNav = Shell.Current?.Navigation;
+            if (shellNav != null)
+            {
+                // Always return to the immediate previous page if Settings was opened modally.
+                var modalStack = shellNav.ModalStack;
+                if (modalStack.Count > 0 && ReferenceEquals(modalStack[^1], this))
+                {
+                    await shellNav.PopModalAsync();
+                    return;
+                }
+            }
+
+            // Non-modal fallback: return to previous page in current navigation stack.
+            if (Navigation?.NavigationStack?.Count > 1)
+            {
+                await Navigation.PopAsync();
+                return;
+            }
+
+            // Last resort only when no previous page is available.
+            if (Shell.Current != null)
+            {
+                await Shell.Current.GoToAsync("//WelcomePage");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Settings] OnBackClicked: {ex}");
+        }
     }
 
     //  (OnLanguagePickerSelectionChanged removed – replaced by OnLanguageOptionTapped)
@@ -439,6 +556,34 @@ public partial class SettingsPage : ContentPage
         _isVoicePickerExpanded = !_isVoicePickerExpanded;
         VoicePickerContainer.IsVisible = _isVoicePickerExpanded;
         TtsExpandIcon.Text = _isVoicePickerExpanded ? "▲" : "▼";
+    }
+
+    private void OnVoicePackagesClicked(object sender, EventArgs e)
+    {
+        _isVoicePackagesExpanded = !_isVoicePackagesExpanded;
+        VoicePackagesContainer.IsVisible = _isVoicePackagesExpanded;
+        VoicePackagesExpandIcon.Text = _isVoicePackagesExpanded ? "▲" : "▼";
+    }
+
+    private async void OnVoicePackageDownloadTapped(object sender, EventArgs e)
+    {
+        if (sender is Grid grid && grid.BindingContext is VoicePackageViewModel pkgVm)
+        {
+            if (pkgVm.IsDownloaded)
+            {
+                // Already downloaded - show info or delete option
+                return;
+            }
+            await DownloadVoicePackageAsync(pkgVm);
+        }
+    }
+
+    private async void OnVoicePackageSelected(object sender, EventArgs e)
+    {
+        if (sender is Grid grid && grid.BindingContext is VoicePackageViewModel pkgVm)
+        {
+            await SelectVoicePackageAsync(pkgVm);
+        }
     }
 
     private async void OnVoiceSelected(object sender, EventArgs e)
@@ -607,7 +752,7 @@ public partial class SettingsPage : ContentPage
             foreach (var id in poiIds)
             {
                 try {
-                    var menuUrl = $"{AppConfig.ApiBaseUrl}api/MenuItems?poiId={id}&page=1&pageSize=50";
+                    var menuUrl = $"{AppConfig.GetResolvedApiBaseUrl()}api/MenuItems?poiId={id}&page=1&pageSize=50";
                     var response = await client.GetAsync(menuUrl);
                     if (response.IsSuccessStatusCode) {
                         var content = await response.Content.ReadAsStringAsync();
@@ -685,6 +830,37 @@ public partial class SettingsPage : ContentPage
                     $"Lỗi khi xóa: {ex.Message}",
                     "OK",
                     AlertType.Error);
+            }
+        }
+    }
+
+    private async void OnClearMapCacheClicked(object sender, EventArgs e)
+    {
+        var confirm = await DisplayAlert(
+            "Xóa bộ nhớ cache bản đồ?",
+            "Bản đồ sẽ cần tải lại khi có internet.",
+            "Xóa",
+            "Hủy"
+        );
+
+        if (confirm)
+        {
+            try
+            {
+                var cacheDir = Path.Combine(
+                    FileSystem.AppDataDirectory,
+                    "map_cache"
+                );
+
+                if (Directory.Exists(cacheDir))
+                {
+                    Directory.Delete(cacheDir, true);
+                    await DisplayAlert("Thành công", "Đã xóa cache bản đồ", "OK");
+                }
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Lỗi", $"Không thể xóa cache: {ex.Message}", "OK");
             }
         }
     }

@@ -60,6 +60,7 @@ public class LocalDatabaseService : ILocalDatabaseService
             // Create tables
             await _database.CreateTableAsync<POI>();
             await _database.CreateTableAsync<MenuItemDto>();
+            await _database.CreateTableAsync<Review>();
             await _database.CreateTableAsync<ZoneHistory>();
 
             // Migrate from JSON if exists
@@ -286,6 +287,42 @@ public class LocalDatabaseService : ILocalDatabaseService
                 await _database.InsertOrReplaceAsync(item);
             }
             Console.WriteLine($"[LocalDatabaseService] SaveMenuItemsAsync: ✓ Saved {menuItems.Count} MenuItems for POI {poiId}");
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task<List<Review>> GetReviewsByPoiAsync(int poiId)
+    {
+        await InitializeInternalAsync();
+
+        if (_database == null)
+            return new List<Review>();
+
+        return await _database.Table<Review>()
+            .Where(r => r.POI_ID == poiId)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task SaveReviewAsync(Review review)
+    {
+        await InitializeInternalAsync();
+
+        if (_database == null)
+            return;
+
+        await _lock.WaitAsync();
+        try
+        {
+            if (review.CreatedAt == default)
+            {
+                review.CreatedAt = DateTime.UtcNow;
+            }
+
+            await _database.InsertAsync(review);
         }
         finally
         {

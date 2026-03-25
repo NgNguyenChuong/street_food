@@ -4,7 +4,6 @@
 // Bottom sheet:
 //   • Collapsed (30%): Drag handle + POI info + [Mini player | 3 cards]
 //   • Expanded  (70%): Full audio player + Mô tả + Next stops
-//
 // IsNarrating (từ ViewModel):
 //   true  → MiniPlayerCard hiện, InfoCardsSection ẩn
 //   false → InfoCardsSection hiện, MiniPlayerCard ẩn
@@ -23,6 +22,8 @@ public partial class TabTourView : ContentView
     public event EventHandler? ZoomInRequested;
     public event EventHandler? ZoomOutRequested;
     public event EventHandler? PlayPauseRequested;
+    public event EventHandler? RewindRequested;
+    public event EventHandler? ForwardRequested;
     public event EventHandler<double>? SeekBarDragCompleted;
     public event EventHandler? ShareRequested;
     public event EventHandler<bool>? MuteChangeRequested;
@@ -59,6 +60,7 @@ public partial class TabTourView : ContentView
     public TabTourView()
     {
         InitializeComponent();
+        SetPlayState(false);
         SizeChanged += OnSizeChanged;
         Loaded      += OnLoaded;
     }
@@ -102,15 +104,18 @@ public partial class TabTourView : ContentView
         ExpandedContent.IsVisible      = false;
     }
 
+    // SVG Path data for Play and Pause icons
+    private const string PlayPathData = "M 0,0 L 20,10 L 0,20 Z";
+    private const string PausePathData = "M 0,0 H 7 V 20 H 0 Z M 13,0 H 20 V 20 H 13 Z";
+
     // ─── Public API ──────────────────────────────────────────────────────────
 
     /// <summary>Cập nhật icon play/pause ở CẢ 2 chỗ (mini + full)</summary>
     public void SetPlayState(bool isPlaying)
     {
-        // MDI glyph: play = F040A, pause = F03E4
-        var mdiIcon = isPlaying ? "⏹️" : "▶️";
-        PlayPauseIcon.Text     = mdiIcon;
-        MiniPlayPauseIcon.Text = mdiIcon;
+        var pathData = isPlaying ? PausePathData : PlayPathData;
+        PlayPausePath.Data = (Microsoft.Maui.Controls.Shapes.Geometry)new Microsoft.Maui.Controls.Shapes.PathGeometryConverter().ConvertFromInvariantString(pathData);
+        MiniPlayPausePath.Data = (Microsoft.Maui.Controls.Shapes.Geometry)new Microsoft.Maui.Controls.Shapes.PathGeometryConverter().ConvertFromInvariantString(pathData);
     }
 
     /// <summary>Gọi khi bắt đầu phát audio (IsNarrating → true)</summary>
@@ -211,6 +216,12 @@ public partial class TabTourView : ContentView
     private void OnPlayPauseTapped(object sender, EventArgs e)
         => PlayPauseRequested?.Invoke(this, e);
 
+    private void OnRewindTapped(object sender, EventArgs e)
+        => RewindRequested?.Invoke(this, e);
+
+    private void OnForwardTapped(object sender, EventArgs e)
+        => ForwardRequested?.Invoke(this, e);
+
     private void OnSeekBarDragCompleted(object sender, EventArgs e)
         => SeekBarDragCompleted?.Invoke(this, AudioSeekBar.Value);
 
@@ -224,7 +235,7 @@ public partial class TabTourView : ContentView
     private void OnMuteTapped(object sender, EventArgs e)
     {
         _isMuted      = !_isMuted;
-        MuteIcon.Text = _isMuted ? "\uF057E" : "\uF057D";
+        MuteIcon.Text = _isMuted ? "🔇" : "🔊";
         // Sync slider: muted → 0, unmuted → restore previous volume
         VolumeSlider.Value = _isMuted ? 0 : _volume;
         MuteChangeRequested?.Invoke(this, _isMuted);
@@ -234,7 +245,7 @@ public partial class TabTourView : ContentView
     {
         _volume = Math.Max(0.0, _volume - 0.1);
         _isMuted = _volume == 0;
-        MuteIcon.Text = _isMuted ? "\uF057E" : "\uF057D";
+        MuteIcon.Text = _isMuted ? "🔇" : "🔊";
         VolumeSlider.Value = _volume;
         VolumeChangeRequested?.Invoke(this, _volume);
     }
@@ -243,7 +254,7 @@ public partial class TabTourView : ContentView
     {
         _volume = Math.Min(1.0, _volume + 0.1);
         _isMuted = false;
-        MuteIcon.Text = "\uF057D";
+        MuteIcon.Text = "🔊";
         VolumeSlider.Value = _volume;
         VolumeChangeRequested?.Invoke(this, _volume);
     }
@@ -252,7 +263,7 @@ public partial class TabTourView : ContentView
     {
         _volume = VolumeSlider.Value;
         _isMuted = _volume == 0;
-        MuteIcon.Text = _isMuted ? "\uF057E" : "\uF057D";
+        MuteIcon.Text = _isMuted ? "🔇" : "🔊";
         VolumeChangeRequested?.Invoke(this, _volume);
     }
 

@@ -6,10 +6,18 @@ using StreetFoodNarrator.App.Core.Models;
 public interface IGeofenceService
 {
     Task OnLocationChangedAsync(Microsoft.Maui.Devices.Sensors.Location newLocation);
+    Task SetMonitoringEnabledAsync(bool enabled);
     
     event Action<List<POI>>? OnActiveZonesChanged;
     event Action<POI?>? OnPrimaryZoneChanged;
     event Action<string>? OnStatusMessage;
+}
+
+public enum TrackingProximityState
+{
+    Far,
+    Near,
+    Inside
 }
 
 // ── Data-source tracking ──────────────────────────────────────────
@@ -45,6 +53,8 @@ public interface ILocalDatabaseService
     Task<List<POI>> GetLikedPOIsAsync();
     Task<List<MenuItemDto>> GetMenuItemsByPoiAsync(int poiId);
     Task SaveMenuItemsAsync(List<MenuItemDto> menuItems);
+    Task<List<Review>> GetReviewsByPoiAsync(int poiId);
+    Task SaveReviewAsync(Review review);
     Task<List<ZoneHistory>> GetAllZoneHistoriesAsync();
     Task<ZoneHistory?> GetZoneHistoryAsync(string sessionId, int poiId);
     Task<List<ZoneHistory>> GetZoneHistoriesForSessionAsync(string sessionId);
@@ -76,7 +86,70 @@ public interface ILocationService
 {
     Task StartAsync();
     Task StopAsync();
+    void SetTrackingState(TrackingProximityState state);
     bool IsRunning { get; }
 
     event Action<Microsoft.Maui.Devices.Sensors.Location>? OnLocationUpdated;
+}
+
+// ── Virtual tour engagement ──────────────────────────────────────────
+public interface ITourEngagementService
+{
+    void TrackPOIViewed(int? poiId = null);
+    void StartSession();
+    void EndSession();
+    bool ShouldShowCompletionPrompt(double distanceMeters);
+    int GetViewedPoiCount();
+    TimeSpan GetTotalVirtualTime();
+}
+
+public interface IPopupService
+{
+    Task<bool> ShowCompletionPopup();
+    void SetLastShownTime(DateTime? utcNow = null);
+    DateTime? GetLastShownTime();
+    bool IsSuppressedToday();
+    Task ShowCompletionPopupAsync(Func<bool, Task> onAccepted);
+}
+
+public static class VirtualTourPromptPreferenceKeys
+{
+    public const string ViewedPoiCount = "virtual_tour.prompt.viewed_poi_count";
+    public const string ViewedPoiIds = "virtual_tour.prompt.viewed_poi_ids";
+    public const string TotalVirtualSeconds = "virtual_tour.prompt.total_virtual_seconds";
+    public const string SessionStartUtc = "virtual_tour.prompt.session_start_utc";
+    public const string LastPromptShownUtc = "virtual_tour.prompt.last_shown_utc";
+    public const string SuppressUntilDate = "virtual_tour.prompt.suppress_until_date";
+}
+
+public static class VirtualTourPromptPolicy
+{
+    public const int MinViewedPois = 3;
+    public const int MinVirtualSeconds = 120;
+    public const double MinDistanceMeters = 1000;
+    public static readonly TimeSpan Cooldown = TimeSpan.FromHours(24);
+}
+
+public enum VirtualPromptTrigger
+{
+    Idle,
+    Exit
+}
+
+public enum VirtualPromptDecision
+{
+    NotShown,
+    Dismissed,
+    StartedRealTour
+}
+
+public interface IVirtualTourViewModel
+{
+    void ConfigureContext(Func<double> distanceProviderMeters, Func<Task> switchToRealModeAsync, Action switchToExploreFar);
+    void StartVirtualTourSession();
+    Task<VirtualPromptDecision> EndVirtualTourSessionAsync(bool evaluatePromptOnExit);
+    void OnPoiViewed(int poiId);
+    void RegisterInteraction();
+    void OnAppBackgrounded();
+    void OnAppResumed();
 }

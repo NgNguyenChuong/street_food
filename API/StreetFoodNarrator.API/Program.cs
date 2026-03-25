@@ -76,14 +76,25 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5004",      // Static files from API
-                "http://localhost:5500",      // Live Server
-                "http://127.0.0.1:5500", 
-                "http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        if (builder.Environment.IsDevelopment())
+        {
+            // Development: cho phép tất cả origin (Web admin + Mobile app trên LAN)
+            policy.SetIsOriginAllowed(_ => true)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            policy.WithOrigins(
+                    "http://localhost:5004",
+                    "http://localhost:5500",
+                    "http://127.0.0.1:5500",
+                    "http://localhost:3000")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
     });
 });
 
@@ -133,7 +144,12 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+// HTTPS redirect chỉ bật ở Production
+// Development: tắt để mobile app trên LAN có thể dùng HTTP
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // Protect admin HTML pages with JWT stored in auth_token cookie
 var publicHtmlPages = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
