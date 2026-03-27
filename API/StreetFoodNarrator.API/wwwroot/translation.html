@@ -190,7 +190,7 @@
 <script src="api.js"></script>
 <script>
     if (!TokenManager.isAuthenticated() && !localStorage.getItem('userSession')) {
-        window.location.href = 'index.html';
+        window.location.href = 'index';
     }
 
     let allPOIs = [];
@@ -309,7 +309,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         if (!requireAuth()) return;
         var role = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
-        if (role !== 'admin') { window.location.href = 'dashboard.html'; return; }
+        if (role !== 'admin') { window.location.href = 'dashboard'; return; }
         loadData();
     });
 </script>

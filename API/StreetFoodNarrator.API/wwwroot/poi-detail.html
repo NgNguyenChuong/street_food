@@ -257,7 +257,7 @@
 <!-- Banner removed per request -->
 
 <div class="container">
-    <a href="poi-list.html" class="back-btn"><i class="fas fa-arrow-left"></i> Quay lại danh sách POI</a>
+    <a href="poi-list" class="back-btn"><i class="fas fa-arrow-left"></i> Quay lại danh sách POI</a>
 
     <!-- Header -->
     <div class="poi-header" id="poiHeader">
@@ -464,7 +464,7 @@ let ownerName   = null;
 
 if (!POI_ID) {
     alert('Thiếu POI ID trong URL'); 
-    location.href = 'poi-list.html';
+    location.href = 'poi-list';
 }
 
 // ── Tab switching ──────────────────────────────────────────────────────────────
@@ -570,7 +570,7 @@ function renderHeader() {
     `;
 
     // Edit link
-    document.getElementById('editBtn').href = `poi-edit.html?id=${POI_ID}`;
+    document.getElementById('editBtn').href = `poi-edit?id=${POI_ID}`;
 }
 
 function renderInfo() {
@@ -678,7 +678,7 @@ function handleCreateAudio() {
         openAudioDoneModal();
         return;
     }
-    window.location.href = `audio-bulk-generate.html?poiId=${POI_ID}`;
+    window.location.href = `audio-bulk-generate?poiId=${POI_ID}`;
 }
 
 function openAudioDoneModal() {

@@ -358,7 +358,7 @@ const cardMapRefs = {};
 document.addEventListener('DOMContentLoaded', async () => {
     if (typeof requireAuth === 'function' && !requireAuth()) return;
     const role = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
-    if (role && role !== 'admin') { window.location.href = 'dashboard.html'; return; }
+    if (role && role !== 'admin') { window.location.href = 'dashboard'; return; }
     document.querySelectorAll('.chip-opt').forEach(c => c.addEventListener('click', function(){ this.classList.toggle('active'); }));
     await Promise.all([loadTours(), loadPOIs()]);
 });

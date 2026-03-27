@@ -47,14 +47,14 @@
                 <ul class="nav-menu">
                     ${isAdmin ? `
                     <li class="nav-item">
-                        <a href="admin-dashboard.html" class="nav-link">
+                        <a href="admin-dashboard" class="nav-link">
                             <i class="nav-icon fas fa-home"></i>
                             <span>Bảng điều khiển</span>
                         </a>
                     </li>
                     ` : `
                     <li class="nav-item">
-                        <a href="vendor-dashboard.html" class="nav-link">
+                        <a href="vendor-dashboard" class="nav-link">
                             <i class="nav-icon fas fa-home"></i>
                             <span>Bảng điều khiển</span>
                         </a>

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
 using MongoDB.Driver;
@@ -151,6 +152,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// URL Rewriting - Remove .html extension from URLs
+// MUST be BEFORE authentication check and UseStaticFiles
+var rewriteOptions = new RewriteOptions()
+    .AddRewrite(@"^(?!api|swagger|uploads)([a-zA-Z0-9\-_/]+)(?<!\.(js|css|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|html))(\?.*)?$", "$1.html$2", skipRemainingRules: true);
+
+app.UseRewriter(rewriteOptions);
+
 // Protect admin HTML pages with JWT stored in auth_token cookie
 var publicHtmlPages = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
@@ -164,24 +172,28 @@ app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? string.Empty;
 
+    // Skip API routes
     if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
     {
         await next();
         return;
     }
 
+    // Only check HTML pages (after rewrite, path will have .html)
     if (!path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
     {
         await next();
         return;
     }
 
+    // Check if it's a public page
     if (publicHtmlPages.Contains(path))
     {
         await next();
         return;
     }
 
+    // Require authentication for protected pages
     var token = context.Request.Cookies["auth_token"];
     if (string.IsNullOrWhiteSpace(token))
     {

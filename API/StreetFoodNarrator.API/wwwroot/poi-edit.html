@@ -816,7 +816,7 @@
         <div class="page-header">
             <h1 class="page-title">Chỉnh sửa POI</h1>
             <div class="header-actions">
-                <button class="btn btn-outline" onclick="window.location.href='poi-list.html'">
+                <button class="btn btn-outline" onclick="window.location.href='poi-list'">
                     <i class="fas fa-times"></i>
                     <span>Hủy</span>
                 </button>
@@ -1320,7 +1320,7 @@
 
         <!-- Form Actions (Bottom) -->
         <div class="form-actions" style="margin-top: 2rem;">
-            <button class="btn btn-outline" onclick="window.location.href='poi-list.html'">
+            <button class="btn btn-outline" onclick="window.location.href='poi-list'">
                 <i class="fas fa-times"></i>
                 <span>Hủy bỏ</span>
             </button>
@@ -1337,7 +1337,7 @@
     <script>
         const user = TokenManager.getUser();
         if (!user) {
-            window.location.href = '/index.html';
+            window.location.href = '/index';
         }
 
         const isAdmin = user?.roles?.includes('Admin');
@@ -1758,7 +1758,7 @@
         async function loadPoi() {
             const id = getQueryId();
             if (!id) {
-                window.location.href = 'poi-list.html';
+                window.location.href = 'poi-list';
                 return;
             }
             currentPoiId = parseInt(id, 10);
@@ -1779,7 +1779,7 @@
 
                     if (Number.isNaN(myVendorId) || Number.isNaN(poiVendorId) || poiVendorId !== myVendorId) {
                         alert('Bạn không có quyền chỉnh sửa POI này.');
-                        window.location.href = 'poi-list.html';
+                        window.location.href = 'poi-list';
                         return;
                     }
                 }
@@ -1880,7 +1880,7 @@
                 await loadPoiAudioStats();
             } catch (error) {
                 alert('Không thể tải POI: ' + error.message);
-                window.location.href = 'poi-list.html';
+                window.location.href = 'poi-list';
             }
         }
 
@@ -2049,7 +2049,7 @@
             if (!confirm('Bạn có chắc chắn muốn xóa POI này?')) return;
             try {
                 await api.deletePOI(currentPoiId);
-                window.location.href = 'poi-list.html';
+                window.location.href = 'poi-list';
             } catch (error) {
                 alert('Lỗi khi xóa POI: ' + error.message);
             }
