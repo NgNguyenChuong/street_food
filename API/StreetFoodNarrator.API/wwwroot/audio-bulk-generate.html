@@ -292,10 +292,15 @@
             </div>
 
             <h2 style="margin-top:1.5rem;">BƯỚC 2: CHỌN POI</h2>
-            <label style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
-                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
-                <strong>Chọn tất cả (<span id="poiCount">0</span> POI)</strong>
-            </label>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                <label style="display:flex;gap:0.5rem;align-items:center;">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                    <strong>Chọn tất cả (<span id="poiCount">0</span> POI)</strong>
+                </label>
+                <button class="btn btn-outline" onclick="refreshPOIs()" style="padding:0.5rem 1rem;">
+                    <i class="fas fa-sync-alt"></i> Làm mới
+                </button>
+            </div>
             <div id="poisGrid" class="poi-grid"></div>
             <div style="margin-top:0.75rem;color:#B45309;" id="poiWarning"></div>
 
@@ -659,7 +664,7 @@
         // ─── POI LOADING ──────────────────────────────────────────────────────────────
         const LANG_LABEL_MAP = { 'vi-VN': 'VI', 'en-US': 'EN', 'zh-CN': 'ZH' };
 
-        async function loadPOIs() {
+        async function loadPOIs(forceRefresh = false) {
             const langs = Array.from(selectedLangs);
             if (!langs.length) {
                 poisWithoutAudio = [];
@@ -669,8 +674,10 @@
             }
             try {
                 // For each language, fetch POIs that still need audio
+                // Add timestamp to force refresh and bypass cache
+                const cacheBuster = forceRefresh ? `&_t=${Date.now()}` : '';
                 const perLang = await Promise.all(langs.map(async l => {
-                    try { return { lang: l, pois: await api.getPOIsWithoutAudio(l) }; }
+                    try { return { lang: l, pois: await api.request(`/Audio/pois-without-audio?language=${l}${cacheBuster}`) }; }
                     catch { return { lang: l, pois: [] }; }
                 }));
 
@@ -694,6 +701,12 @@
                 document.getElementById('poiCount').textContent = poisWithoutAudio.length;
                 renderPOIs(); updateSummary();
             } catch (err) { console.error('Lỗi load POI:', err); }
+        }
+
+        async function refreshPOIs() {
+            console.log('🔄 Đang làm mới danh sách POI...');
+            await loadPOIs(true);
+            console.log('✅ Đã làm mới!');
         }
 
         function renderPOIs() {
@@ -1490,6 +1503,12 @@
                 document.getElementById(id).classList.toggle('hidden', idx !== step - 1);
                 document.querySelectorAll('.step')[idx].classList.toggle('active', idx === step - 1);
             });
+            
+            // Auto-refresh POI list when entering step 2
+            if (step === 2) {
+                refreshPOIs();
+            }
+            
             if (step === 4) {
                 updateSummary();
                 // Hide results until user triggers generation

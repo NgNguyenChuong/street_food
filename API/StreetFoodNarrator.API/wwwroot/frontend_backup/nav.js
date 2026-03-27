@@ -50,7 +50,7 @@ class Navigation {
                 </div>
                 
                 <div class="nav-menu">
-                    <a href="admin-dashboard.html" class="nav-item ${this.isActive('admin-dashboard')}">
+                    <a href="admin-dashboard" class="nav-item ${this.isActive('admin-dashboard')}">
                         <i class="fas fa-home"></i>
                         <span>Dashboard</span>
                     </a>

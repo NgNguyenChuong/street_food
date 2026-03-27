@@ -1177,7 +1177,7 @@
         // Check authentication
         const user = TokenManager.getUser();
         if (!user) {
-            window.location.href = '/index.html';
+            window.location.href = '/index';
         }
 
         const isAdmin = user?.roles?.includes('Admin');
@@ -1789,9 +1789,9 @@
                 alert('✅ Tạo gian hàng thành công!\n\nBạn có thể thêm file thuyết minh tại trang Quản lý Audio.');
 
                 if (isVendor) {
-                    window.location.href = 'dashboard.html';
+                    window.location.href = 'dashboard';
                 } else {
-                    window.location.href = 'poi-list.html';
+                    window.location.href = 'poi-list';
                 }
             } catch (error) {
                 errorDiv.textContent = '❌ Lỗi: ' + error.message;

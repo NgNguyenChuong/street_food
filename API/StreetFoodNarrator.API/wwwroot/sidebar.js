@@ -29,7 +29,7 @@
     const hasVendor = roles.includes('Vendor');
     const isAdmin = roleContext ? roleContext === 'admin' : hasAdmin;
     const isVendor = roleContext ? roleContext === 'vendor' : hasVendor;
-    const poiListHref = isAdmin ? 'poi-list.html' : 'poi-list.html?scope=mine';
+    const poiListHref = isAdmin ? 'poi-list' : 'poi-list?scope=mine';
     const poiListLabel = isAdmin ? 'Danh sách POI' : 'POI của tôi';
 
     const displayName = user?.fullName || user?.email?.split('@')[0] || 'Người dùng';
@@ -64,14 +64,14 @@
                 <ul class="nav-menu">
                     ${isAdmin ? `
                     <li class="nav-item">
-                        <a href="dashboard.html" class="nav-link">
+                        <a href="dashboard" class="nav-link">
                             <i class="nav-icon fas fa-home"></i>
                             <span>Bảng điều khiển</span>
                         </a>
                     </li>
                     ` : `
                     <li class="nav-item">
-                        <a href="dashboard.html" class="nav-link">
+                        <a href="dashboard" class="nav-link">
                             <i class="nav-icon fas fa-home"></i>
                             <span>Bảng điều khiển</span>
                         </a>
@@ -86,25 +86,25 @@
                         </button>
                         <ul class="submenu">
                             <li><a href="${poiListHref}" class="nav-sublink">${poiListLabel}</a></li>
-                            <li><a href="poi-create.html" class="nav-sublink">Tạo POI</a></li>
+                            <li><a href="poi-create" class="nav-sublink">Tạo POI</a></li>
                         </ul>
                     </li>
 
                     ${isAdmin ? `
                     <li class="nav-item">
-                        <a href="translation.html" class="nav-link">
+                        <a href="translation" class="nav-link">
                             <i class="nav-icon fas fa-language"></i>
                             <span>Bản dịch</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="tour.html" class="nav-link">
+                        <a href="tour" class="nav-link">
                             <i class="nav-icon fas fa-route"></i>
                             <span>Quản lý Tour</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="vendors-list.html" class="nav-link">
+                        <a href="vendors-list" class="nav-link">
                             <i class="nav-icon fas fa-store"></i>
                             <span>Quản lý Vendors</span>
                         </a>
@@ -118,21 +118,21 @@
                             <i class="nav-caret fas fa-chevron-down"></i>
                         </button>
                         <ul class="submenu">
-                            <li><a href="audio-list.html" class="nav-sublink">Danh sách âm thanh</a></li>
-                            <li><a href="audio-bulk-generate.html" class="nav-sublink">TTS hàng loạt</a></li>
-                            <li><a href="audio-list.html#upload" class="nav-sublink">Upload audio</a></li>
+                            <li><a href="audio-list" class="nav-sublink">Danh sách âm thanh</a></li>
+                            <li><a href="audio-bulk-generate" class="nav-sublink">TTS hàng loạt</a></li>
+                            <li><a href="audio-list#upload" class="nav-sublink">Upload audio</a></li>
                         </ul>
                     </li>
                     ${isAdmin ? `
                     <li class="nav-item">
-                        <a href="history.html" class="nav-link">
+                        <a href="history" class="nav-link">
                             <i class="nav-icon fas fa-users"></i>
                             <span>Người dùng</span>
                         </a>
                     </li>
                     ` : ''}
                     <li class="nav-item">
-                        <a href="/index.html" class="nav-link" onclick="logout(); return false;">
+                        <a href="/" class="nav-link" onclick="logout(); return false;">
                             <i class="nav-icon fas fa-sign-out-alt"></i>
                             <span>Đăng xuất</span>
                         </a>
@@ -426,8 +426,8 @@
     }
 
     function init() {
-        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-        if (currentPage === 'index.html' || currentPage === 'login.html' || currentPage === 'register.html') {
+        const currentPage = window.location.pathname.split('/').pop()?.replace('.html', '') || 'index';
+        if (currentPage === 'index' || currentPage === 'login' || currentPage === 'register') {
             return;
         }
 
@@ -456,7 +456,7 @@
             }
         });
 
-        if (currentPage === 'poi-edit.html') {
+        if (currentPage === 'poi-edit') {
             const poiGroup = document.querySelector('.nav-item.has-submenu');
             if (poiGroup) poiGroup.classList.add('open');
         }
@@ -496,7 +496,7 @@
                 : 'Tài khoản Vendor của bạn đang chờ Admin duyệt. Một số chức năng quản lý nội dung tạm thời bị khóa.';
         }
 
-        const allowList = new Set(['/index.html', 'dashboard.html']);
+        const allowList = new Set(['/', 'index', 'dashboard']);
         const links = document.querySelectorAll('.nav-link, .nav-sublink');
 
         links.forEach(link => {
@@ -575,7 +575,7 @@
             localStorage.removeItem('userSession');
             sessionStorage.removeItem('userSession');
             sessionStorage.removeItem('activeRole');
-            window.location.href = '/index.html';
+            window.location.href = '/';
         });
     };
 })();

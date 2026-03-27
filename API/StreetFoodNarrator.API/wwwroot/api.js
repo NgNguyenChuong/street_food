@@ -95,7 +95,7 @@ const TokenManager = {
         return normalized;
     },
 
-    loginPath: '/index.html',
+    loginPath: '/index',
 
     getLoginUrl(role) {
         const normalized = this.normalizeRole(role) || this.getRoleContext();
@@ -295,7 +295,10 @@ class API {
 
                 ...fetchOptions,
 
-                headers
+                headers,
+                
+                // Disable cache for all requests to ensure fresh data
+                cache: 'no-store'
 
             });
 

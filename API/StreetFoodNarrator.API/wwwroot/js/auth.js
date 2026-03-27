@@ -68,7 +68,7 @@ async function doLogin(email, password) {
 
 function requireAuth() {
   const user = getSession();
-  if (!user || !getToken()) { window.location.href='index.html'; return null; }
+  if (!user || !getToken()) { window.location.href='index'; return null; }
   currentUser = user;
   return user;
 }
@@ -83,4 +83,4 @@ function applyRoleUI() {
   const av = document.getElementById('user-avatar'); if(av) av.textContent = (currentUser.name||'U')[0].toUpperCase();
 }
 
-function doLogout() { clearSession(); window.location.href='index.html'; }
+function doLogout() { clearSession(); window.location.href='index'; }
