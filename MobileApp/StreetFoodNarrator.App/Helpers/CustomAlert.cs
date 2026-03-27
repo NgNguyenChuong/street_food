@@ -13,12 +13,12 @@ public static class CustomAlert
     /// Hiện alert đơn giản với 1 nút OK
     /// </summary>
     public static async Task ShowAsync(
-        string title, 
-        string message, 
+        string title,
+        string message,
         string okText = "OK",
         AlertType type = AlertType.Info)
     {
-        await ShowCustomAlertAsync(title, message, okText, null, type);
+        await ShowCustomAlertAsync(title, message, okText, null, type, null);
     }
 
     /// <summary>
@@ -31,25 +31,62 @@ public static class CustomAlert
         string cancelText = "Hủy",
         AlertType type = AlertType.Warning)
     {
-        return await ShowCustomAlertAsync(title, message, confirmText, cancelText, type);
+        var r = await ShowCustomAlertAsync(title, message, confirmText, cancelText, type, null);
+        return r.accepted;
     }
 
+    /// <summary>
+    /// Hiện alert với 2 nút + callback khi nhấn confirm.
+    /// Callback nhận true/false tuỳ người dùng chọn nút nào.
+    /// </summary>
+    public static async Task ShowConfirmAsync(
+        string title,
+        string message,
+        string confirmText,
+        string cancelText,
+        AlertType type,
+        Action<bool> onDismiss)
+    {
+        var result = await ShowConfirmAsync(title, message, confirmText, cancelText, type);
+        onDismiss?.Invoke(result);
+    }
+
+    /// <summary>
+    /// Hiện alert với 2 nút + optional checkbox + callback.
+    /// Callback nhận (accepted, dontShowAgainToday).
+    /// </summary>
+    public static Task ShowConfirmAsync(
+        string title,
+        string message,
+        string confirmText,
+        string cancelText,
+        AlertType type,
+        string? dontShowAgainText,
+        Action<bool, bool> onDismiss)
+    {
+        return ShowCustomAlertAsync(title, message, confirmText, cancelText, type, dontShowAgainText)
+            .ContinueWith(t => onDismiss?.Invoke(t.Result.accepted, t.Result.dontShowAgainToday));
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // CORE ALERT BUILDER
- 
-    private static async Task<bool> ShowCustomAlertAsync(
+    // ══════════════════════════════════════════════════════════════
+
+    private static async Task<AlertResult> ShowCustomAlertAsync(
         string title,
         string message,
         string primaryText,
         string? secondaryText,
-        AlertType type)
+        AlertType type,
+        string? dontShowAgainText)
     {
         System.Diagnostics.Debug.WriteLine($"[CustomAlert] Showing: {title}");
-        
-        var tcs = new TaskCompletionSource<bool>();
+
+        var tcs = new TaskCompletionSource<AlertResult>();
+        bool dontShowAgain = false;
 
         var overlay = new Grid
         {
-            // Semi-transparent backdrop without dimming the dialog itself
             BackgroundColor = Color.FromArgb("#66000000")
         };
 
@@ -75,12 +112,9 @@ public static class CustomAlert
 
         var content = new VerticalStackLayout { Spacing = 16 };
 
-        // ──────────────────────────────────────────────────────────
-        // Icon + Title
-        // ──────────────────────────────────────────────────────────
+        // ── Icon + Title ──────────────────────────────────────────
         var headerStack = new HorizontalStackLayout { Spacing = 12 };
 
-        // Icon based on type
         var iconBorder = new Border
         {
             BackgroundColor = GetIconBackground(type),
@@ -97,7 +131,6 @@ public static class CustomAlert
         };
         headerStack.Add(iconBorder);
 
-        // Title
         var titleLabel = new Label
         {
             Text = title,
@@ -107,12 +140,9 @@ public static class CustomAlert
             VerticalOptions = LayoutOptions.Center
         };
         headerStack.Add(titleLabel);
-
         content.Add(headerStack);
 
-        // ──────────────────────────────────────────────────────────
-        // Message
-        // ──────────────────────────────────────────────────────────
+        // ── Message ────────────────────────────────────────────────
         var messageLabel = new Label
         {
             Text = message,
@@ -122,12 +152,30 @@ public static class CustomAlert
         };
         content.Add(messageLabel);
 
-        // ──────────────────────────────────────────────────────────
-        // Buttons
-        // ──────────────────────────────────────────────────────────
+        // ── Optional checkbox ──────────────────────────────────────
+        if (!string.IsNullOrEmpty(dontShowAgainText))
+        {
+            var checkRow = new HorizontalStackLayout { Spacing = 8 };
+            var checkbox = new CheckBox
+            {
+                Color = Color.FromArgb("#22C55E"),
+                VerticalOptions = LayoutOptions.Center
+            };
+            checkbox.CheckedChanged += (_, e) => dontShowAgain = e.Value;
+            checkRow.Add(checkbox);
+            checkRow.Add(new Label
+            {
+                Text = dontShowAgainText,
+                FontSize = 13,
+                TextColor = Color.FromArgb("#94A3B8"),
+                VerticalOptions = LayoutOptions.Center
+            });
+            content.Add(checkRow);
+        }
+
+        // ── Buttons ───────────────────────────────────────────────
         if (string.IsNullOrEmpty(secondaryText))
         {
-            // Single button (OK only)
             var okButton = new Button
             {
                 Text = primaryText,
@@ -147,14 +195,13 @@ public static class CustomAlert
             };
             okButton.Clicked += (s, e) =>
             {
-                tcs.SetResult(true);
+                tcs.TrySetResult(new AlertResult(true, dontShowAgain));
                 CloseDialog(overlay);
             };
             content.Add(okButton);
         }
         else
         {
-            // Two buttons (Confirm + Cancel)
             var buttonGrid = new Grid
             {
                 ColumnDefinitions = new ColumnDefinitionCollection
@@ -165,7 +212,6 @@ public static class CustomAlert
                 ColumnSpacing = 10
             };
 
-            // Cancel button
             var cancelButton = new Button
             {
                 Text = secondaryText,
@@ -179,13 +225,12 @@ public static class CustomAlert
             };
             cancelButton.Clicked += (s, e) =>
             {
-                tcs.SetResult(false);
+                tcs.TrySetResult(new AlertResult(false, dontShowAgain));
                 CloseDialog(overlay);
             };
             Grid.SetColumn(cancelButton, 0);
             buttonGrid.Add(cancelButton);
 
-            // Confirm button
             var confirmButton = new Button
             {
                 Text = primaryText,
@@ -198,7 +243,7 @@ public static class CustomAlert
             };
             confirmButton.Clicked += (s, e) =>
             {
-                tcs.SetResult(true);
+                tcs.TrySetResult(new AlertResult(true, dontShowAgain));
                 CloseDialog(overlay);
             };
             Grid.SetColumn(confirmButton, 1);
@@ -210,42 +255,29 @@ public static class CustomAlert
         dialog.Content = content;
         overlay.Children.Add(dialog);
 
-        // Add to current page - improved logic
+        // Add to current page
         Page? currentPage = null;
-        
-        // Try multiple ways to get current page
-        if (Application.Current?.Windows?.FirstOrDefault() is Window window)
+        if (Shell.Current != null)
+            currentPage = Shell.Current.CurrentPage;
+        else if (Application.Current?.Windows?.FirstOrDefault() is Window window)
         {
             currentPage = window.Page;
-            System.Diagnostics.Debug.WriteLine($"[CustomAlert] Got window.Page: {currentPage?.GetType().Name}");
+            if (currentPage is NavigationPage navPage)
+                currentPage = navPage.CurrentPage;
         }
-        
-        // If in NavigationPage, get current page
-        if (currentPage is NavigationPage navPage)
-        {
-            currentPage = navPage.CurrentPage;
-            System.Diagnostics.Debug.WriteLine($"[CustomAlert] Navigation page detected, current page: {currentPage?.GetType().Name}");
-        }
-        
+
         if (currentPage is ContentPage contentPage && contentPage.Content != null)
         {
-            System.Diagnostics.Debug.WriteLine($"[CustomAlert] Adding overlay to: {contentPage.GetType().Name}");
-            
             var originalContent = contentPage.Content;
-            
-            // Always wrap in Grid to ensure overlay works
             var wrapper = new Grid();
-            
-            // Remove original content and add to wrapper
             contentPage.Content = null;
             wrapper.Children.Add(originalContent);
             wrapper.Children.Add(overlay);
-            
             contentPage.Content = wrapper;
         }
         else
         {
-            System.Diagnostics.Debug.WriteLine($"[CustomAlert] ERROR: Could not find ContentPage to show alert! Page type: {currentPage?.GetType().Name}");
+            System.Diagnostics.Debug.WriteLine($"[CustomAlert] ERROR: Could not find ContentPage!");
         }
 
         // Animate in
@@ -261,7 +293,6 @@ public static class CustomAlert
 
     private static async void CloseDialog(Grid overlay)
     {
-        // Fade out animation
         if (overlay.Children.FirstOrDefault() is Border dialog)
         {
             await Task.WhenAll(
@@ -269,13 +300,10 @@ public static class CustomAlert
                 dialog.ScaleToAsync(0.8, 200, Easing.CubicIn)
             );
         }
-        
-        // Remove overlay from parent
+
         if (overlay.Parent is Grid parentGrid)
         {
             parentGrid.Children.Remove(overlay);
-            
-            // If wrapper was temporary, restore original content
             if (parentGrid.Children.Count == 1 && parentGrid.Parent is ContentPage page)
             {
                 if (parentGrid.Children[0] is View originalContent)
@@ -286,8 +314,11 @@ public static class CustomAlert
             }
         }
     }
+
+    // ══════════════════════════════════════════════════════════════
     // STYLING HELPERS
-   
+    // ══════════════════════════════════════════════════════════════
+
     private static string GetIcon(AlertType type)
     {
         return type switch
@@ -326,13 +357,25 @@ public static class CustomAlert
 }
 
 // ══════════════════════════════════════════════════════════════
-// ALERT TYPES
+// ALERT RESULT + TYPES
 // ══════════════════════════════════════════════════════════════
+
+public readonly struct AlertResult
+{
+    public bool accepted { get; }
+    public bool dontShowAgainToday { get; }
+
+    public AlertResult(bool accepted, bool dontShowAgainToday)
+    {
+        this.accepted = accepted;
+        this.dontShowAgainToday = dontShowAgainToday;
+    }
+}
 
 public enum AlertType
 {
-    Success,  
-    Error,    
-    Warning,  
-    Info  
+    Success,
+    Error,
+    Warning,
+    Info
 }

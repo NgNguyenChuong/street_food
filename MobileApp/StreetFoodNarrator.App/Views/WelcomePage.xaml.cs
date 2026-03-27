@@ -2,11 +2,15 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Networking;
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using StreetFoodNarrator.App;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Core.Services.Implementations;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 using StreetFoodNarrator.App.Core.Models;
+using System.Text.RegularExpressions;
 namespace StreetFoodNarrator.App.Views;
 
 public partial class WelcomePage : ContentPage
@@ -16,14 +20,20 @@ public partial class WelcomePage : ContentPage
     private const string LangZh = "zh";
     private const string PREF_FULL_OFFLINE = "has_full_offline";
     private const string PREF_DONT_SHOW_INFO = "dont_show_offline_info";
+    private static readonly Regex ProgressPairRegex = new(@"(\d+)\s*/\s*(\d+)", RegexOptions.Compiled);
 
     private readonly IZoneRepository _repository;
     private readonly IAudioCacheService? _audioCache;
+    private readonly IVoicePackageService? _voicePackageService;
+    private readonly DataSyncService _dataSyncService;
     private bool _flowStarted = false;
+    private bool _canStartTour = false;
     private string _currentLang = LangVi;
     private StatusKind _statusKind = StatusKind.None;
     private string? _errorDetails;
     private int _newAudioCount = 0;
+    private bool _hasSystemUpdate = false;
+    private const string StartCtaText = "Bắt đầu khám phá Vĩnh Khánh";
 
     private enum StatusKind
     {
@@ -38,8 +48,10 @@ public partial class WelcomePage : ContentPage
     public WelcomePage()
     {
         InitializeComponent();
-        _repository  = MauiProgram.Services.GetRequiredService<IZoneRepository>();
-        _audioCache  = MauiProgram.Services.GetService<IAudioCacheService>();
+        _repository      = MauiProgram.Services.GetRequiredService<IZoneRepository>();
+        _audioCache      = MauiProgram.Services.GetService<IAudioCacheService>();
+        _voicePackageService = MauiProgram.Services.GetService<IVoicePackageService>();
+        _dataSyncService = MauiProgram.Services.GetRequiredService<DataSyncService>();
         var lang = Preferences.Get(AppConfig.LanguagePrefKey, LangVi);
         ApplyLanguage(lang);
     }
@@ -49,20 +61,32 @@ public partial class WelcomePage : ContentPage
         base.OnAppearing();
 
         ApplyLanguage(Preferences.Get(AppConfig.LanguagePrefKey, LangVi));
+        UpdateDataSourceLabel();
+
+        // ✅ Enable start button IMMEDIATELY - don't wait for anything!
+        EnableStartButton();
 
         if (_flowStarted) return;
         _flowStarted = true;
 
-        try
+        // Run all heavy operations in background - UI is already responsive!
+        _ = Task.Run(async () =>
         {
-            await RunSimpleFlowAsync();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[WelcomePage] OnAppearing error: {ex}");
-            ShowErrorState(ex.Message);
-            EnableStartButton();
-        }
+            try
+            {
+                await RunSimpleFlowAsync();
+                UpdateDataSourceLabel();
+
+                // Background update check — only show popup if user already has offline data
+                if (_dataSyncService.HasOfflineData() && IsOnline())
+                    await CheckForUpdatesInBackgroundAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WelcomePage] OnAppearing error: {ex}");
+                MainThread.BeginInvokeOnMainThread(() => ShowErrorState(ex.Message));
+            }
+        });
     }
     // AUTO LOAD: Tự động tải metadata ở background 
    
@@ -91,9 +115,12 @@ public partial class WelcomePage : ContentPage
         {
             ShowReadyState();
             EnableStartButton();
+            UpdateDataSourceLabel();
             _ = RunBackgroundSyncAsync();
             // Kiểm tra audio mới ngay sau khi UI sẵn sàng
             CheckAudioUpdatesInBackground();
+            // ✅ Auto-download voice packages in background (tự động, không cần user thao tác)
+            _ = AutoDownloadVoicePackagesAsync();
             return;
         }
 
@@ -107,9 +134,14 @@ public partial class WelcomePage : ContentPage
         try
         {
             if (!IsOnline()) return;
-            await Task.Delay(2000);
+            // ✅ Removed 2 second delay - sync immediately!
             await _repository.SyncFromMongoAsync();
             await _repository.LoadLocalAsync();
+
+            // ✅ Record sync time so MainPage won't re-sync unnecessarily
+            Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
+
+            MainThread.BeginInvokeOnMainThread(UpdateDataSourceLabel);
         }
         catch { /* Silent */ }
     }
@@ -124,7 +156,7 @@ public partial class WelcomePage : ContentPage
         {
             try
             {
-                await Task.Delay(2500); // Đợi UI ổn định trước
+                // ✅ Removed 2.5 second delay - check immediately!
                 var count = await _audioCache.CheckForUpdatesAsync();
 
                 MainThread.BeginInvokeOnMainThread(() => SetUpdateBadge(count));
@@ -136,38 +168,89 @@ public partial class WelcomePage : ContentPage
         });
     }
 
+    // ✅ Auto-download voice packages in background (tự động, không cần user thao tác)
+    private async Task AutoDownloadVoicePackagesAsync()
+    {
+        if (_voicePackageService == null) return;
+        if (!IsOnline()) return;
+
+        try
+        {
+            var packages = await _voicePackageService.GetAvailablePackagesAsync();
+            foreach (var pkg in packages)
+            {
+                if (await _voicePackageService.IsPackageDownloadedAsync(pkg.Id))
+                    continue; // Đã tải rồi
+
+                System.Diagnostics.Debug.WriteLine($"[WelcomePage] 📥 Auto-downloading voice: {pkg.Name}");
+                await _voicePackageService.DownloadPackageAsync(pkg.Id);
+            }
+            System.Diagnostics.Debug.WriteLine("[WelcomePage] ✅ Voice packages auto-download complete");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WelcomePage] Voice auto-download error: {ex.Message}");
+        }
+    }
+
     private async void OnUpdateClicked(object sender, EventArgs e)
     {
-        if (_audioCache == null)
+        // Case 1: Không có mạng → thông báo không tải được
+        if (!IsOnline())
         {
-            await DisplayAlert("Thông báo", "Tính năng cập nhật audio chưa sẵn sàng.", "OK");
+            await CustomAlert.ShowAsync(
+                AppStrings.Alert_NoNetwork_Title,
+                AppStrings.Alert_NoNetwork_Message,
+                AppStrings.Common_OK,
+                AlertType.Warning);
             return;
         }
 
-        if (!IsOnline())
+        // Case 2: Có mạng → kiểm tra xem đã tải chưa
+        // Nếu đã tải rồi (PREF_FULL_OFFLINE) thì check version server
+        var alreadyDownloaded = Preferences.Get(PREF_FULL_OFFLINE, false);
+
+        if (alreadyDownloaded)
         {
-            await DisplayAlert(
-                AppStrings.Alert_NoNetwork_Title,
-                AppStrings.Alert_NoNetwork_Message,
-                AppStrings.Common_OK);
-            return;
+            // Check server version to see if there's new data
+            var (hasUpdate, _) = await _dataSyncService.CheckForUpdatesAsync();
+
+            if (!hasUpdate)
+            {
+                // Đã tải và server không có gì mới → thông báo đã tải rồi
+                await CustomAlert.ShowAsync(
+                    "Đã tải rồi",
+                    "Dữ liệu offline của bạn đã là phiên bản mới nhất.",
+                    "OK",
+                    AlertType.Success);
+                return;
+            }
+
+            // Có bản cập nhật mới → hỏi có muốn đồng bộ không
+            var shouldSync = await CustomAlert.ShowConfirmAsync(
+                "Có bản cập nhật mới",
+                "Server có dữ liệu mới. Đồng bộ ngay để cập nhật?",
+                "Đồng bộ ngay",
+                AppStrings.Common_Cancel,
+                AlertType.Info);
+            if (!shouldSync) return;
+        }
+        else
+        {
+            // Chưa từng tải offline → hỏi có muốn tải không
+            var shouldSync = await CustomAlert.ShowConfirmAsync(
+                "Cập nhật dữ liệu",
+                "Đồng bộ dữ liệu mới nhất từ web quản lý: quán/POI, menu và audio.",
+                "Đồng bộ ngay",
+                AppStrings.Common_Cancel,
+                AlertType.Info);
+            if (!shouldSync) return;
         }
 
         UpdateButton.IsEnabled = false;
         try
         {
-            var count = await _audioCache.CheckForUpdatesAsync();
-            SetUpdateBadge(count);
-
-            if (count <= 0)
-            {
-                await ShowNoUpdateDialogAsync();
-                return;
-            }
-
-            var result = await ShowAudioUpdateDialogAsync(count);
-            if (result == "download")
-                await DownloadUpdatesAsync();
+            await DownloadUpdatesAsync();
         }
         finally
         {
@@ -318,68 +401,44 @@ public partial class WelcomePage : ContentPage
 
     private async Task DownloadUpdatesAsync()
     {
-        if (_audioCache == null) return;
-
-        // Cảnh báo khi dùng mạng di động
-        var isWifi = Connectivity.Current.ConnectionProfiles.Contains(ConnectionProfile.WiFi);
-        if (!isWifi)
+        var isWifiModern = Connectivity.Current.ConnectionProfiles.Contains(ConnectionProfile.WiFi);
+        if (!isWifiModern)
         {
-            var confirm = await DisplayAlert(
+            var continueSync = await CustomAlert.ShowConfirmAsync(
                 AppStrings.Alert_UsingCellular_Title,
                 AppStrings.Alert_UsingCellular_Message,
-                AppStrings.Common_Continue, AppStrings.Common_Cancel);
-            if (!confirm) return;
+                AppStrings.Common_Continue,
+                AppStrings.Common_Cancel,
+                AlertType.Warning);
+            if (!continueSync) return;
         }
 
-        // Khóa nút, ẩn dot badge trong lúc đồng bộ
         UpdateButton.IsEnabled = false;
 
         try
         {
-            // 1. Sync POIs
-            System.Diagnostics.Debug.WriteLine("[Sync] Bước 1: Sync POIs...");
-            await _repository.SyncFromMongoAsync();
-            await _repository.LoadLocalAsync();
-            
-            var poiIds = _repository.GetAllActiveZones().Select(p => p.Id).ToList();
-            
-            // 2. Sync Menu Items
-            System.Diagnostics.Debug.WriteLine("[Sync] Bước 2: Sync Menu...");
-            var db = MauiProgram.Services.GetRequiredService<ILocalDatabaseService>();
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            
-            foreach (var id in poiIds)
-            {
-                try {
-                    var menuUrl = $"{AppConfig.ApiBaseUrl}api/MenuItems?poiId={id}&page=1&pageSize=50";
-                    var response = await client.GetAsync(menuUrl);
-                    if (response.IsSuccessStatusCode) {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var result = System.Text.Json.JsonSerializer.Deserialize<MenuItemResponse>(content, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        if (result?.Data != null && result.Data.Any()) {
-                            await db.SaveMenuItemsAsync(result.Data);
-                        }
-                    }
-                } catch { /* ignore menu error for individual POI */ }
-            }
+            await _dataSyncService.DownloadAllDataAsync(msg =>
+                System.Diagnostics.Debug.WriteLine($"[WelcomePage Sync] {msg}"));
 
-            // 3. Sync Audio
-            System.Diagnostics.Debug.WriteLine("[Sync] Bước 3: Sync Audio...");
-            var progress = new Progress<(int done, int total)>(p =>
-                System.Diagnostics.Debug.WriteLine($"[Sync] Audio {p.done}/{p.total}"));
-
-            await _audioCache.PreloadAllAsync(poiIds, progress);
-
-            // Tải xong → ẩn chuông
             SetUpdateBadge(0);
-            Preferences.Set("LastSyncTime", DateTime.Now.ToString("dd/MM HH:mm"));
-            await DisplayAlert("✅ Hoàn tất",
-                "Đồng bộ hoàn tất! Dữ liệu quán, menu và audio đã sẵn sàng dùng offline.",
-                "OK");
+            UpdateDataSourceLabel();
+            await CustomAlert.ShowAsync(
+                "Đã cập nhật",
+                "Dữ liệu offline đã được cập nhật phiên bản mới nhất.",
+                "OK",
+                AlertType.Success);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[WelcomePage] DownloadUpdates lỗi: {ex.Message}");
+            await CustomAlert.ShowAsync(
+                "Lỗi cập nhật",
+                $"Không thể tải dữ liệu offline.\nChi tiết: {ex.Message}",
+                "OK",
+                AlertType.Error);
+        }
+        finally
+        {
             UpdateButton.IsEnabled = true;
         }
     }
@@ -389,38 +448,41 @@ public partial class WelcomePage : ContentPage
     {
         try
         {
-            var hasFullOffline = Preferences.Get(PREF_FULL_OFFLINE, false);
-            var dontShowInfo = Preferences.Get(PREF_DONT_SHOW_INFO, false);
+            var canContinue = await EnsureLocationPermissionFlowAsync();
+            if (!canContinue)
+                return;
 
-            // CASE 1: Đã có dữ liệu (offline hoặc online) → vào thẳng
-            if (_repository.IsSeeded)
+            var hasFullOffline = _dataSyncService.HasOfflineData();
+            var dontShowInfo   = Preferences.Get(PREF_DONT_SHOW_INFO, false);
+
+            // CASE 1: Has offline data → go straight to map
+            if (hasFullOffline || !IsOnline())
             {
-                // Nếu đã từng dùng full-offline flag, vào thẳng không hỏi
-                if (hasFullOffline || !IsOnline())
+                if (_repository.IsSeeded)
                 {
                     await NavigateToMapAsync();
                     return;
                 }
+
+                // No internet and not seeded → mock data warning
+                if (!IsOnline())
+                {
+                    await DisplayAlert(
+                        AppStrings.Alert_NeedInternet_Title,
+                        AppStrings.Alert_NeedInternet_Message,
+                        AppStrings.Common_OK);
+                    return;
+                }
             }
 
-            // CASE 2: Không có mạng, không có dữ liệu → cảnh báo rõ ràng
-            if (!IsOnline())
+            // CASE 2: First launch, has internet → show offline download popup
+            if (!dontShowInfo && !hasFullOffline && IsOnline())
             {
-                await DisplayAlert(
-                    AppStrings.Alert_NeedInternet_Title,
-                    AppStrings.Alert_NeedInternet_Message,
-                    AppStrings.Common_OK);
+                await ShowFirstLaunchOfflinePopupAsync();
                 return;
             }
 
-            // CASE 3: Lần đầu, có mạng → hiện info với checkbox
-            if (!dontShowInfo && !hasFullOffline)
-            {
-                await ShowFirstTimeInfoAsync();
-                return;
-            }
-
-            // CASE 4: User đã chọn "Không hỏi lại" → vào thẳng
+            // CASE 3: Already seeded online mode → go straight in
             await NavigateToMapAsync();
         }
         catch (Exception ex)
@@ -430,9 +492,490 @@ public partial class WelcomePage : ContentPage
         }
     }
 
+    private async Task<bool> EnsureLocationPermissionFlowAsync()
+    {
+        try
+        {
+            var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+            if (status == PermissionStatus.Granted)
+                return true;
+
+            status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+            if (status == PermissionStatus.Granted)
+                return true;
+
+            var openSettings = await DisplayAlert(
+                "Cần quyền vị trí",
+                "App cần vị trí để tự động nhận biết bạn đang ở gần quán nào. Bạn vẫn có thể tiếp tục mà không bật vị trí.",
+                "Bật lại",
+                "Tiếp tục không dùng vị trí");
+
+            if (openSettings)
+            {
+                AppInfo.ShowSettingsUI();
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WelcomePage] EnsureLocationPermissionFlowAsync error: {ex.Message}");
+            return true;
+        }
+    }
+
+    // ── Background update check ──────────────────────────────────────────────
+    private const double AUTO_SYNC_SIZE_THRESHOLD_MB = 5.0;  // Ngưỡng tự sync ngầm
+
+    private async Task CheckForUpdatesInBackgroundAsync()
+    {
+        try
+        {
+            // ✅ Removed 2 second delay - check immediately!
+
+            // Check if server has newer version
+            var (hasUpdate, newVersion) = await _dataSyncService.CheckForUpdatesAsync();
+            if (!hasUpdate) return;
+
+            // ✅ Calculate download size to decide auto-sync or prompt
+            (double totalMb, int poiCount, int audioCount, int imageCount, string breakdown) sizeInfo;
+            try
+            {
+                sizeInfo = await _dataSyncService.CalculateDownloadSizeAsync();
+            }
+            catch
+            {
+                sizeInfo = (9.8, 13, 39, 52, "• Dữ liệu quán: 0.1 MB\n• Audio 3 ngôn ngữ: 6.5 MB\n• Hình ảnh: 2.7 MB\n• Bản đồ: 0.5 MB");
+            }
+
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                _hasSystemUpdate = true;
+                UpdateBadgeVisibility();
+
+                // ✅ Size < 5MB: Auto sync in background + badge notification
+                if (sizeInfo.totalMb < AUTO_SYNC_SIZE_THRESHOLD_MB)
+                {
+                    Console.WriteLine($"[WelcomePage] 📦 Update size small ({sizeInfo.totalMb:F1} MB < {AUTO_SYNC_SIZE_THRESHOLD_MB} MB) → Auto sync in background");
+                    await RunSilentBackgroundUpdateAsync();
+                }
+                // ✅ Size >= 5MB: Show popup asking user
+                else
+                {
+                    Console.WriteLine($"[WelcomePage] 📦 Update size large ({sizeInfo.totalMb:F1} MB >= {AUTO_SYNC_SIZE_THRESHOLD_MB} MB) → Show popup");
+                    await ShowUpdateAvailablePopupAsync(newVersion, sizeInfo);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WelcomePage] UpdateCheck lỗi: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// ✅ Auto sync in background when update size is small (< 5MB)
+    /// Shows badge + optional toast, no popup blocking UI
+    /// </summary>
+    private async Task RunSilentBackgroundUpdateAsync()
+    {
+        try
+        {
+            // Show brief toast notification
+            await CustomAlert.ShowAsync(
+                "📦 Có dữ liệu cập nhật",
+                "Đang tải cập nhật trong nền...",
+                "OK",
+                AlertType.Info);
+
+            await _dataSyncService.DownloadAllDataAsync(status =>
+            {
+                System.Diagnostics.Debug.WriteLine($"[SilentUpdate] {status}");
+            });
+
+            // Update completed
+            _hasSystemUpdate = false;
+            UpdateBadgeVisibility();
+
+            await CustomAlert.ShowAsync(
+                "✅ Cập nhật hoàn tất",
+                "Dữ liệu đã được cập nhật phiên bản mới nhất.",
+                "OK",
+                AlertType.Success);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WelcomePage] SilentBackgroundUpdate failed: {ex.Message}");
+        }
+    }
+
+    private async Task ShowUpdateAvailablePopupAsync(
+        string newVersion,
+        (double TotalMb, int POICount, int AudioCount, int ImageCount, string BreakdownText) sizeInfo)
+    {
+        var tcs     = new TaskCompletionSource<string>();
+        var overlay = new Grid { BackgroundColor = Color.FromArgb("#80000000") };
+
+        var dialog = new Border
+        {
+            BackgroundColor  = Color.FromArgb("#111E18"),
+            Stroke           = Color.FromArgb("#22C55E"),
+            StrokeThickness  = 1.5,
+            Padding          = new Thickness(24),
+            Margin           = new Thickness(28),
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions   = LayoutOptions.Center,
+            MaximumWidthRequest = 340,
+            StrokeShape      = new RoundRectangle { CornerRadius = new CornerRadius(20) }
+        };
+
+        var stack = new VerticalStackLayout { Spacing = 14 };
+
+        var titleRow = new HorizontalStackLayout { Spacing = 10 };
+        titleRow.Add(new Label { Text = "🎉", FontSize = 22, VerticalOptions = LayoutOptions.Center });
+        titleRow.Add(new Label
+        {
+            Text = "Có bản cập nhật mới!",
+            FontSize = 18, FontAttributes = FontAttributes.Bold,
+            TextColor = Colors.White, VerticalOptions = LayoutOptions.Center
+        });
+        stack.Add(titleRow);
+
+        // ✅ Show size info in popup (for large updates >= 5MB)
+        stack.Add(new Label
+        {
+            Text = $"Phiên bản {newVersion} đã sẵn sàng.\nDung lượng: {sizeInfo.TotalMb:F1} MB\n\nCập nhật để có thêm quán mới, audio cải tiến và hình ảnh mới!",
+            FontSize = 14, TextColor = Color.FromArgb("#94A3B8"),
+            LineBreakMode = LineBreakMode.WordWrap
+        });
+
+        var btnUpdate = new Button
+        {
+            Text = "⬇️  Cập nhật ngay",
+            BackgroundColor = Color.FromArgb("#22C55E"),
+            TextColor = Colors.White, FontAttributes = FontAttributes.Bold,
+            CornerRadius = 12, HeightRequest = 50
+        };
+        btnUpdate.Clicked += (s, e) => { tcs.TrySetResult("update"); overlay.IsVisible = false; };
+        stack.Add(btnUpdate);
+
+        var btnLater = new Button
+        {
+            Text = "Để sau",
+            BackgroundColor = Colors.Transparent,
+            TextColor = Color.FromArgb("#64748B"),
+            BorderColor = Color.FromArgb("#1E3D2A"), BorderWidth = 1,
+            CornerRadius = 12, HeightRequest = 44
+        };
+        btnLater.Clicked += (s, e) =>
+        {
+            _dataSyncService.SkipVersion(newVersion);
+            _hasSystemUpdate = false;
+            UpdateBadgeVisibility();
+            tcs.TrySetResult("later");
+            overlay.IsVisible = false;
+        };
+        stack.Add(btnLater);
+
+        dialog.Content = stack;
+        overlay.Children.Add(dialog);
+        var mainGrid = (Grid)this.Content;
+        mainGrid.Children.Add(overlay);
+
+        var result = await tcs.Task;
+        mainGrid.Children.Remove(overlay);
+
+        if (result == "update")
+        {
+            await RunDownloadWithOverlayAsync(isUpdate: true);
+        }
+    }
+
+    // ── First-launch offline popup ───────────────────────────────────────────
+
+    private Task ShowFirstLaunchOfflinePopupAsync()
+    {
+        // ✅ FIX: Show popup IMMEDIATELY with estimated sizes — no slow HEAD requests!
+        // Real size will be shown in download progress overlay
+        var estimatedMb = 9.8;
+        var estimatedBreakdown =
+            "• Dữ liệu quán: 0.1 MB\n" +
+            "• Audio 3 ngôn ngữ: 6.5 MB\n" +
+            "• Hình ảnh: 2.7 MB\n" +
+            "• Bản đồ: 0.5 MB";
+
+        var tcs     = new TaskCompletionSource<string>();
+        var dontShowAgain = false;
+        var overlay = new Grid { BackgroundColor = Color.FromArgb("#80000000") };
+
+        var dialog = new Border
+        {
+            BackgroundColor  = Color.FromArgb("#111E18"),
+            Stroke           = Color.FromArgb("#22C55E"),
+            StrokeThickness  = 1.5,
+            Padding          = new Thickness(24),
+            Margin           = new Thickness(28),
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions   = LayoutOptions.Center,
+            MaximumWidthRequest = 360,
+            StrokeShape      = new RoundRectangle { CornerRadius = new CornerRadius(20) }
+        };
+
+        var stack = new VerticalStackLayout { Spacing = 14 };
+
+        stack.Add(new Label
+        {
+            Text = "📦 Tải dữ liệu offline",
+            FontSize = 20, FontAttributes = FontAttributes.Bold, TextColor = Colors.White
+        });
+
+        stack.Add(new Label
+        {
+            Text = $"Tải về để sử dụng không cần mạng:\n\n{estimatedBreakdown}\n\n📊 Tổng ước tính: ~{estimatedMb:F1} MB\n⏱️ ~{(estimatedMb / 1.5):F0} giây (WiFi)",
+            FontSize = 13, TextColor = Color.FromArgb("#94A3B8"),
+            LineBreakMode = LineBreakMode.WordWrap
+        });
+
+        // Checkbox: Don't show again
+        var checkGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitionCollection
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star }
+            },
+            ColumnSpacing = 10, Margin = new Thickness(0, 4, 0, 0)
+        };
+        var checkbox = new CheckBox { Color = Color.FromArgb("#22C55E"), VerticalOptions = LayoutOptions.Center };
+        checkbox.CheckedChanged += (s, e) => dontShowAgain = e.Value;
+        checkGrid.Add(checkbox);
+        Grid.SetColumn(checkbox, 0);
+        var checkLabel = new Label
+        {
+            Text = AppStrings.Info_DontShowAgain, FontSize = 12,
+            TextColor = Color.FromArgb("#64748B"), VerticalOptions = LayoutOptions.Center
+        };
+        var tap = new TapGestureRecognizer();
+        tap.Tapped += (_, _) => checkbox.IsChecked = !checkbox.IsChecked;
+        checkLabel.GestureRecognizers.Add(tap);
+        checkGrid.Add(checkLabel);
+        Grid.SetColumn(checkLabel, 1);
+        stack.Add(checkGrid);
+
+        var btnDownload = new Button
+        {
+            Text = "⬇️  Tải ngay",
+            BackgroundColor = Color.FromArgb("#22C55E"),
+            TextColor = Colors.White, FontAttributes = FontAttributes.Bold,
+            CornerRadius = 12, HeightRequest = 50
+        };
+        btnDownload.Clicked += async (s, e) =>
+        {
+            if (dontShowAgain) Preferences.Set(PREF_DONT_SHOW_INFO, true);
+            tcs.TrySetResult("download");
+            overlay.IsVisible = false;
+            // ✅ Popup closes instantly; download runs in background with its own progress overlay
+            await RunDownloadWithOverlayAsync(isUpdate: false);
+        };
+        stack.Add(btnDownload);
+
+        var btnSkip = new Button
+        {
+            Text = "⏭️  Bỏ qua – dùng online",
+            BackgroundColor = Colors.Transparent,
+            TextColor = Color.FromArgb("#64748B"),
+            BorderColor = Color.FromArgb("#1E3D2A"), BorderWidth = 1,
+            CornerRadius = 12, HeightRequest = 44
+        };
+        btnSkip.Clicked += async (s, e) =>
+        {
+            if (dontShowAgain) Preferences.Set(PREF_DONT_SHOW_INFO, true);
+            tcs.TrySetResult("skip");
+            overlay.IsVisible = false;
+            await NavigateToMapAsync();
+        };
+        stack.Add(btnSkip);
+
+        dialog.Content = stack;
+        overlay.Children.Add(dialog);
+        var mainGrid = (Grid)this.Content;
+        mainGrid.Children.Add(overlay);
+
+        return tcs.Task;
+    }
+
+    /// <summary>Runs full download with a spinner overlay and success popup.</summary>
+    private async Task RunDownloadWithOverlayAsync(bool isUpdate)
+    {
+        // Show spinner overlay
+        var spinnerOverlay = new Grid
+        {
+            BackgroundColor = Color.FromArgb("#CC000000")
+        };
+        var spinnerBox = new Border
+        {
+            BackgroundColor  = Color.FromArgb("#111E18"),
+            Stroke           = Color.FromArgb("#22C55E"),
+            StrokeThickness  = 1,
+            Padding          = new Thickness(32),
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions   = LayoutOptions.Center,
+            StrokeShape      = new RoundRectangle { CornerRadius = new CornerRadius(20) }
+        };
+
+        var spinnerStack = new VerticalStackLayout { Spacing = 16, HorizontalOptions = LayoutOptions.Center };
+        spinnerStack.Add(new ActivityIndicator { IsRunning = true, Color = Color.FromArgb("#22C55E"), HeightRequest = 48, WidthRequest = 48, HorizontalOptions = LayoutOptions.Center });
+        var progressBar = new ProgressBar
+        {
+            Progress = 0,
+            ProgressColor = Color.FromArgb("#22C55E"),
+            BackgroundColor = Color.FromArgb("#1E3D2A"),
+            HeightRequest = 8,
+            WidthRequest = 220
+        };
+        spinnerStack.Add(progressBar);
+        var percentLbl = new Label
+        {
+            Text = "0%",
+            FontSize = 16,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Colors.White,
+            HorizontalOptions = LayoutOptions.Center
+        };
+        spinnerStack.Add(percentLbl);
+        var statusLbl = new Label
+        {
+            Text = "Đang chuẩn bị...",
+            FontSize = 14, TextColor = Color.FromArgb("#94A3B8"),
+            HorizontalOptions = LayoutOptions.Center
+        };
+        spinnerStack.Add(statusLbl);
+        spinnerBox.Content = spinnerStack;
+        spinnerOverlay.Children.Add(spinnerBox);
+
+        var mainGrid = (Grid)this.Content;
+        mainGrid.Children.Add(spinnerOverlay);
+
+        try
+        {
+            if (isUpdate)
+            {
+                await _dataSyncService.DownloadAllDataAsync(msg =>
+                    MainThread.BeginInvokeOnMainThread(async () =>
+                    {
+                        var progress = GetDownloadOverlayProgress(msg);
+                        statusLbl.Text = SimplifyDownloadStatusMessage(msg);
+                        percentLbl.Text = $"{(int)Math.Round(progress * 100)}%";
+                        await progressBar.ProgressTo(progress, 120, Easing.Linear);
+                    }));
+
+                progressBar.Progress = 1;
+                percentLbl.Text = "100%";
+            }
+            else
+            {
+                await _dataSyncService.PrimeEssentialOfflineDataAsync(_currentLang, msg =>
+                    MainThread.BeginInvokeOnMainThread(async () =>
+                    {
+                        var progress = GetDownloadOverlayProgress(msg);
+                        statusLbl.Text = SimplifyDownloadStatusMessage(msg);
+                        percentLbl.Text = $"{(int)Math.Round(progress * 100)}%";
+                        await progressBar.ProgressTo(progress, 120, Easing.Linear);
+                    }));
+
+                progressBar.Progress = 1;
+                percentLbl.Text = "100%";
+            }
+
+            mainGrid.Children.Remove(spinnerOverlay);
+            UpdateDataSourceLabel();
+            EnableStartButton();
+
+            if (isUpdate)
+            {
+                Preferences.Set(PREF_FULL_OFFLINE, true);
+                await DisplayAlert(
+                    "✅ Hoàn tất!",
+                    "Dữ liệu đã được cập nhật phiên bản mới nhất. Tận hưởng tour nhé!",
+                    "OK");
+            }
+            else
+            {
+                _ = _dataSyncService.EnsureDeferredOfflineCompletionAsync();
+                await NavigateToMapAsync();
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            mainGrid.Children.Remove(spinnerOverlay);
+            EnableStartButton();
+            await DisplayAlert("Lỗi tải dữ liệu", $"Không thể tải: {ex.Message}", "OK");
+        }
+    }
+
     /// <summary>
     /// Hiện info lần đầu - KHÔNG AGGRESSIVE, có checkbox
     /// </summary>
+    private static string SimplifyDownloadStatusMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return "Dang chuan bi...";
+
+        var clean = ProgressPairRegex.Replace(message, string.Empty).Trim();
+        clean = clean.Replace("  ", " ");
+
+        if (clean.Contains("audio", StringComparison.OrdinalIgnoreCase))
+            return "Dang tai audio thuyet minh...";
+        if (clean.Contains("khu vuc chinh", StringComparison.OrdinalIgnoreCase))
+            return "Dang tai ban do can thiet...";
+        if (clean.Contains("ban do offline", StringComparison.OrdinalIgnoreCase))
+            return "Dang tai ban do offline...";
+        if (clean.Contains("thuc don", StringComparison.OrdinalIgnoreCase))
+            return "Dang tai thuc don...";
+        if (clean.Contains("danh sach quan", StringComparison.OrdinalIgnoreCase))
+            return "Dang tai danh sach quan...";
+
+        return clean;
+    }
+
+    private static double GetDownloadOverlayProgress(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return 0;
+
+        if (message.Contains("danh sach quan", StringComparison.OrdinalIgnoreCase))
+            return 0.10;
+
+        if (message.Contains("thuc don", StringComparison.OrdinalIgnoreCase))
+            return 0.25;
+
+        if (message.Contains("audio", StringComparison.OrdinalIgnoreCase))
+            return 0.25 + GetFractionFromMessage(message) * 0.45;
+
+        if (message.Contains("ban do offline", StringComparison.OrdinalIgnoreCase))
+            return 0.70 + GetFractionFromMessage(message) * 0.30;
+
+        return 0.05;
+    }
+
+    private static double GetFractionFromMessage(string message)
+    {
+        var match = ProgressPairRegex.Match(message);
+        if (!match.Success)
+            return 0;
+
+        if (!int.TryParse(match.Groups[1].Value, out var done))
+            return 0;
+        if (!int.TryParse(match.Groups[2].Value, out var total))
+            return 0;
+        if (total <= 0)
+            return 0;
+
+        return Math.Clamp((double)done / total, 0, 1);
+    }
+
     private async Task ShowFirstTimeInfoAsync()
     {
         // CUSTOM DIALOG với checkbox "Không hiển thị lại"
@@ -607,16 +1150,17 @@ public partial class WelcomePage : ContentPage
         return result;
     }
 
-    // DOWNLOAD OFFLINE 
+    // DOWNLOAD OFFLINE
     private async Task DownloadOfflineFromSettings()
     {
         // Check network
         if (!IsOnline())
         {
-            await DisplayAlert(
+            await CustomAlert.ShowAsync(
                 AppStrings.Alert_NoNetwork_Title,
                 AppStrings.Alert_NoNetwork_Message,
-                AppStrings.Common_OK);
+                AppStrings.Common_OK,
+                AlertType.Warning);
             return;
         }
 
@@ -626,58 +1170,38 @@ public partial class WelcomePage : ContentPage
 
         if (!isWifi)
         {
-            var confirm = await DisplayAlert(
+            var confirm = await CustomAlert.ShowConfirmAsync(
                 AppStrings.Alert_UsingCellular_Title,
                 AppStrings.Alert_UsingCellular_Message,
-                AppStrings.Common_Continue, AppStrings.Common_Cancel);
+                AppStrings.Common_Continue,
+                AppStrings.Common_Cancel,
+                AlertType.Warning);
 
             if (!confirm) return;
         }
 
         // Start download
         ShowDownloadingOfflineState();
-        StartButton.IsEnabled = false;
+        _canStartTour = false;
+        UpdatePrimaryActionState();
 
         try
         {
-            // Simulate progress steps
-            var detailLabel = FindDetailLabel();
-            if (detailLabel != null)
-            {
-                await UpdateProgress(detailLabel, AppStrings.Progress_ConnectingMongo);
-                await Task.Delay(500);
-
-                await UpdateProgress(detailLabel, AppStrings.Progress_DownloadingList);
-                await _repository.SyncFromMongoAsync();
-                await Task.Delay(300);
-
-                await UpdateProgress(detailLabel, AppStrings.Progress_DownloadingAudio);
-                await Task.Delay(800);
-
-                await UpdateProgress(detailLabel, AppStrings.Progress_SavingOffline);
-                await _repository.LoadLocalAsync();
-                await Task.Delay(300);
-
-                await UpdateProgress(detailLabel, AppStrings.Progress_Done);
-            }
-            else
-            {
-                await _repository.SyncFromMongoAsync();
-                await _repository.LoadLocalAsync();
-            }
+            // ✅ No artificial delays — real work only
+            await _repository.SyncFromMongoAsync();
+            await _repository.LoadLocalAsync();
 
             if (_repository.IsSeeded)
             {
-                // BỎ card "Sẵn sàng offline"
                 ShowReadyState();
                 EnableStartButton();
                 Preferences.Set(PREF_FULL_OFFLINE, true);
 
-                // Hiện Toast notification
-                await DisplayAlert(
+                await CustomAlert.ShowAsync(
                     AppStrings.Alert_DownloadDone_Title,
                     AppStrings.Alert_DownloadDone_Message,
-                    AppStrings.Common_OK);
+                    AppStrings.Common_OK,
+                    AlertType.Success);
 
                 await NavigateToMapAsync();
             }
@@ -745,6 +1269,7 @@ public partial class WelcomePage : ContentPage
         _statusKind = StatusKind.Ready;
         // BỎ HOÀN TOÀN - không hiện gì cả
         StatusContainer.Content = null;
+        UpdateDataSourceLabel();
     }
 
     private void ShowNeedInternetState()
@@ -782,6 +1307,8 @@ public partial class WelcomePage : ContentPage
             default:
                 break;
         }
+
+        UpdatePrimaryActionState();
     }
 
     private View CreateDownloadingView(string title, string detail)
@@ -1081,16 +1608,23 @@ public partial class WelcomePage : ContentPage
     
     private async Task NavigateToMapAsync()
     {
-        // Replace root with AppShell (Main app with tabs)
-        if (Application.Current?.Windows.Count > 0)
+        if (Shell.Current != null)
         {
-            Application.Current.Windows[0].Page = new AppShell();
+            await Shell.Current.GoToAsync("//MapPage");
         }
     }
 
     private async void OnSettingsClicked(object sender, EventArgs e)
     {
-        await Navigation.PushAsync(new SettingsPage());
+        // Use cached SettingsPage + Shell navigation for instant response
+        if (Shell.Current is AppShell shell)
+        {
+            await Shell.Current.Navigation.PushModalAsync(shell.GetCachedSettingsPage());
+        }
+        else
+        {
+            await Navigation.PushModalAsync(new SettingsPage());
+        }
     }
 
     // LANGUAGE
@@ -1109,7 +1643,7 @@ public partial class WelcomePage : ContentPage
         AppStrings.SetCulture(lang);
         TitleLabel.Text = AppStrings.Welcome_AppTitle;
         SubtitleLabel.Text = AppStrings.Welcome_Subtitle;
-        StartButton.Text = AppStrings.Welcome_StartTour;
+        StartButton.Text = StartCtaText;
         FeatureAutoTitleLabel.Text = AppStrings.Welcome_Feature_Auto_Title;
         FeatureAutoSubtitleLabel.Text = AppStrings.Welcome_Feature_Auto_Desc;
         FeatureOfflineTitleLabel.Text = AppStrings.Welcome_Feature_Offline_Title;
@@ -1122,6 +1656,7 @@ public partial class WelcomePage : ContentPage
         SetLangState(LangZhButton, lang == LangZh);
 
         RefreshStatusView();
+        UpdatePrimaryActionState();
     }
 
     private static void SetLangState(Button button, bool isActive)
@@ -1137,8 +1672,30 @@ public partial class WelcomePage : ContentPage
     private void SetUpdateBadge(int count)
     {
         _newAudioCount = Math.Max(0, count);
-        UpdateBadge.IsVisible = _newAudioCount > 0;
-        // Dot chỉ hiện/ẩn, không cần text số nữa
+        UpdateBadgeVisibility();
+    }
+
+    private void UpdateBadgeVisibility()
+    {
+        if (UpdateBadge == null) return;
+        UpdateBadge.IsVisible = _newAudioCount > 0 || _hasSystemUpdate;
+    }
+
+    private void UpdateDataSourceLabel()
+    {
+        if (DataSourceLabel == null) return;
+
+        var sourceText = _repository.CurrentDataSource switch
+        {
+            DataSourceKind.LiveApi => "Nguồn dữ liệu: Server",
+            DataSourceKind.SqliteCache => "Nguồn dữ liệu: Cache",
+            DataSourceKind.BundledJson => "Nguồn dữ liệu: Bundled",
+            DataSourceKind.MockFallback => "Nguồn dữ liệu: Mock",
+            _ => "Nguồn dữ liệu: Unknown"
+        };
+
+        var lastSync = Preferences.Get("LastSyncTime", "Chưa đồng bộ");
+        DataSourceLabel.Text = $"{sourceText} | Lần cuối: {lastSync}";
     }
 
     private static bool IsOnline()
@@ -1149,7 +1706,17 @@ public partial class WelcomePage : ContentPage
 
     private void EnableStartButton()
     {
-        StartButton.IsEnabled = true;
-        StartButton.Opacity = 1.0;
+        _canStartTour = true;
+        UpdatePrimaryActionState();
+    }
+
+    private void UpdatePrimaryActionState()
+    {
+        if (StartButton == null)
+            return;
+
+        StartButton.Text = StartCtaText;
+        StartButton.IsEnabled = _canStartTour;
+        StartButton.Opacity = _canStartTour ? 1.0 : 0.55;
     }
 }

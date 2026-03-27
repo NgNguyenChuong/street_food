@@ -1,39 +1,341 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<!--
-    MainPage.xaml  –  Tab Bản đồ (trong AppShell)
-    Chứa: OSM map + markers + overlays (TabMapView) + PinPopup
-    Bottom nav giờ do Shell quản lý
--->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
              xmlns:mapsui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
              xmlns:components="clr-namespace:StreetFoodNarrator.App.Views.Components"
              x:Class="StreetFoodNarrator.App.Views.MainPage"
+             x:Name="ExplorePageRoot"
              x:DataType="vm:MainViewModel"
              BackgroundColor="#0A1612"
              Shell.NavBarIsVisible="False">
 
-    <AbsoluteLayout Padding="0" Margin="0">
-
-        <!-- ── Layer 0: Bản đồ OSM (luôn visible, làm nền) ────────────── -->
+    <AbsoluteLayout BackgroundColor="#0A1612">
         <mapsui:MapControl x:Name="MapView"
                            AbsoluteLayout.LayoutBounds="0,0,1,1"
                            AbsoluteLayout.LayoutFlags="All"
-                           BackgroundColor="#0A1612"/>
+                           BackgroundColor="#08110D"
+                           InputTransparent="True" />
 
-        <!-- ── Layer 1: Map overlays (ZIndex 120) ─────────────────────── -->
+        <!-- Transparent overlay grid for gradient effect only (no background hiding map) -->
+        <Grid AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              InputTransparent="True">
+            <Grid.Background>
+                <LinearGradientBrush EndPoint="0,1">
+                    <GradientStop Color="#200A1612" Offset="0.0" />
+                    <GradientStop Color="#000A1612" Offset="0.35" />
+                    <GradientStop Color="#000A1612" Offset="1.0" />
+                </LinearGradientBrush>
+            </Grid.Background>
+        </Grid>
+
+        <!-- Far-state hero image: sibling layer (not inside StateContentLayer) so Far state
+             hero + content don't stack/overlap — positioned below map+gradient, above StateContentLayer -->
+        <Grid x:Name="FarStateHeroLayer"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              InputTransparent="True"
+              IsVisible="{Binding IsFarHeroVisible}">
+            <Image Source="{Binding ExploreHeroImage}" Aspect="AspectFill" Opacity="0.46" />
+            <BoxView Color="#07100D" Opacity="0.48" />
+        </Grid>
+
+        <Grid x:Name="StateContentLayer"
+              IsVisible="{Binding IsExploreStateScreenVisible}"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              RowDefinitions="Auto,*">
+
+            <Grid Grid.Row="0" Padding="20,48,20,10" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <Button Grid.Column="0" WidthRequest="50" HeightRequest="50" CornerRadius="25"
+                        BackgroundColor="#0F1D18" BorderColor="#1C3024" BorderWidth="1"
+                        FontFamily="MDI" Text="&#xF004D;" FontSize="24" TextColor="#4BE277"
+                        Clicked="OnWelcomeButtonClicked" />
+                <Label Grid.Column="1" Text="STREET FOOD NARRATOR"
+                       VerticalTextAlignment="Center"
+                       TextColor="#4BE277" FontSize="15" FontAttributes="Bold"
+                       CharacterSpacing="1.8" LineBreakMode="TailTruncation" />
+                <Button Grid.Column="2" WidthRequest="50" HeightRequest="50" CornerRadius="25"
+                        BackgroundColor="#15231D" BorderColor="#2C4736" BorderWidth="1"
+                        FontFamily="MDI" Text="&#xF0493;" FontSize="22" TextColor="#F4E4C1"
+                        Clicked="OnMenuButtonClicked" />
+            </Grid>
+
+            <Grid Grid.Row="1">
+                <VerticalStackLayout Padding="20,4,20,132" Spacing="22">
+
+                    <VerticalStackLayout IsVisible="{Binding IsFarExploreState}" Spacing="18" Margin="0,188,0,0">
+                        <Border BackgroundColor="#4BE27722" Stroke="#4BE27744" StrokeThickness="1" Padding="16,10" HorizontalOptions="Start">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="20" /></Border.StrokeShape>
+                            <HorizontalStackLayout Spacing="8">
+                                <BoxView WidthRequest="11" HeightRequest="11" CornerRadius="5.5" BackgroundColor="#4BE277" VerticalOptions="Center" />
+                                <Label Text="{Binding ExploreStateBadge}" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.9" TextColor="#4BE277" />
+                            </HorizontalStackLayout>
+                        </Border>
+                        <VerticalStackLayout>
+                            <Label Text="Bạn đang ở xa " FontSize="40" FontAttributes="Bold" LineHeight="0.95" TextColor="#E5EFE9" />
+                            <Label Text="Khu ẩm thực" FontSize="43" FontAttributes="Bold" TextColor="#4BE277" />
+                        </VerticalStackLayout>
+                        <Label Text="Không gian xung quanh thực yên tĩnh. Hãy bắt đầu chuyến thám hiểm ngay bây giờ để chuẩn bị cho hành trình sắp tới của bạn."
+                               FontSize="16" LineHeight="1.4" TextColor="#D7E1DBCC" MaxLines="4" />
+                        <Button Text="{Binding ExplorePrimaryActionText}" HeightRequest="64" CornerRadius="32" FontSize="18"
+                                FontAttributes="Bold" TextColor="#082111" Clicked="OnPrimaryExploreActionClicked">
+                            <Button.Background>
+                                <LinearGradientBrush EndPoint="1,0">
+                                    <GradientStop Color="#4BE277" Offset="0.0" />
+                                    <GradientStop Color="#22C55E" Offset="1.0" />
+                                </LinearGradientBrush>
+                            </Button.Background>
+                        </Button>
+                        <Button Text="{Binding ExploreSecondaryActionText}" HeightRequest="64" CornerRadius="32" FontSize="18"
+                                FontAttributes="Bold" BackgroundColor="#102019CC" BorderColor="#23352E" BorderWidth="1"
+                                TextColor="#E5EFE9" Clicked="OnSecondaryExploreActionClicked" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout IsVisible="{Binding IsNearExploreState}" Spacing="22" Margin="0,18,0,0">
+                        <Border BackgroundColor="#17231FDD" Stroke="#25362E" StrokeThickness="1" Padding="14,10" HorizontalOptions="Center">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="22" /></Border.StrokeShape>
+                            <HorizontalStackLayout Spacing="10">
+                                <BoxView WidthRequest="12" HeightRequest="12" CornerRadius="6" BackgroundColor="#4BE277" VerticalOptions="Center" />
+                                <Label Text="{Binding ExploreStateBadge}" FontSize="12" FontAttributes="Bold" CharacterSpacing="1.8" TextColor="#4BE277" />
+                            </HorizontalStackLayout>
+                        </Border>
+                        <Label Text="{Binding ExploreHeadline}" FontSize="46" FontAttributes="Bold" HorizontalTextAlignment="Center" LineHeight="1.05" TextColor="#E7EFE9" />
+                        <Label Text="{Binding ExploreSubtitle}" FontSize="18" HorizontalTextAlignment="Center" LineHeight="1.35" TextColor="#D0DDD5CC" />
+
+                        <Border BackgroundColor="#1B2723EE" Stroke="#22322C" StrokeThickness="1" Padding="0">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="32" /></Border.StrokeShape>
+                            <VerticalStackLayout Spacing="0">
+                                <Grid Padding="24,22,24,16" ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Spacing="6">
+                                        <Label Text="MÓN NGON GẦN NHẤT" FontSize="12" FontAttributes="Bold" CharacterSpacing="2.5" TextColor="#FFB690" />
+                                        <Label Text="{Binding FeaturedExplorePoi.Name}" FontSize="42" FontAttributes="Bold" TextColor="#E7EFE9" />
+                                    </VerticalStackLayout>
+                                    <Border Grid.Column="1" BackgroundColor="#22312C" Padding="16,10" VerticalOptions="Start">
+                                        <Border.StrokeShape><RoundRectangle CornerRadius="20" /></Border.StrokeShape>
+                                        <Label Text="{Binding FeaturedExplorePoi.DistanceText}" FontSize="16" FontAttributes="Bold" TextColor="#4BE277" />
+                                    </Border>
+                                </Grid>
+                                <Grid HeightRequest="260">
+                                    <Image Source="{Binding FeaturedExplorePoi.ImageUrl}" Aspect="AspectFill" />
+                                    <BoxView Color="#08110D" Opacity="0.15" />
+                                </Grid>
+                                <Button Text="{Binding ExplorePrimaryActionText}" Margin="28,24,28,28" HeightRequest="76" CornerRadius="38" FontSize="22"
+                                        FontAttributes="Bold" TextColor="#082111" Clicked="OnPrimaryExploreActionClicked">
+                                    <Button.Background>
+                                        <LinearGradientBrush EndPoint="1,0">
+                                            <GradientStop Color="#4BE277" Offset="0.0" />
+                                            <GradientStop Color="#22C55E" Offset="1.0" />
+                                        </LinearGradientBrush>
+                                    </Button.Background>
+                                </Button>
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="LỰA CHỌN KHÁC" FontSize="12" FontAttributes="Bold" CharacterSpacing="2.4" TextColor="#B9C8C0" />
+                            <Label Grid.Column="1" Text="→" FontSize="22" TextColor="#B9C8C0" />
+                        </Grid>
+                        <ScrollView Orientation="Horizontal">
+                            <HorizontalStackLayout Spacing="14" BindableLayout.ItemsSource="{Binding NearbyExplorePois}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BackgroundColor="#18231FDD" Stroke="#24342D" StrokeThickness="1" Padding="12" WidthRequest="170">
+                                            <Border.StrokeShape><RoundRectangle CornerRadius="24" /></Border.StrokeShape>
+                                            <VerticalStackLayout Spacing="10">
+                                                <Image Source="{Binding ImageUrl}" Aspect="AspectFill" HeightRequest="110" />
+                                                <Label Text="{Binding Name}" FontSize="18" FontAttributes="Bold" TextColor="#EDF5F0" LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding DistanceText}" FontSize="12" FontAttributes="Bold" TextColor="#D9E5DE99" />
+                                            </VerticalStackLayout>
+                                        </Border>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </HorizontalStackLayout>
+                        </ScrollView>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout IsVisible="{Binding IsInZoneExploreState}" Spacing="20" Margin="0,8,0,0">
+                        <Border BackgroundColor="#17231FDD" Stroke="#25362E" StrokeThickness="1" Padding="14,10" HorizontalOptions="Start">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="22" /></Border.StrokeShape>
+                            <HorizontalStackLayout Spacing="10">
+                                <BoxView WidthRequest="12" HeightRequest="12" CornerRadius="6" BackgroundColor="#4BE277" VerticalOptions="Center" />
+                                <Label Text="{Binding ExploreStateBadge}" FontSize="12" FontAttributes="Bold" CharacterSpacing="1.8" TextColor="#4BE277" />
+                            </HorizontalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#141F1BDD" Stroke="#22322C" StrokeThickness="1" Padding="0">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="28" /></Border.StrokeShape>
+                            <VerticalStackLayout Spacing="0">
+                                <Grid HeightRequest="300">
+                                    <Image Source="{Binding FeaturedExplorePoi.ImageUrl}" Aspect="AspectFill" />
+                                    <BoxView Color="#09120F" Opacity="0.16" />
+                                </Grid>
+                                <Grid Padding="24,22,24,0" ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Spacing="6">
+                                        <Label Text="{Binding FeaturedExplorePoi.Name}" FontSize="40" FontAttributes="Bold" TextColor="#E7EFE9" />
+                                        <HorizontalStackLayout Spacing="10">
+                                            <Label Text="{Binding FeaturedExplorePoi.DistanceText}" FontSize="16" FontAttributes="Bold" TextColor="#4BE277" />
+                                            <BoxView WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#5D6C65" VerticalOptions="Center" />
+                                            <Label Text="{Binding FeaturedExplorePoi.StatusText}" FontSize="16" FontAttributes="Bold" TextColor="#FFB690" />
+                                        </HorizontalStackLayout>
+                                    </VerticalStackLayout>
+                                    <Button Grid.Column="1" WidthRequest="64" HeightRequest="64" CornerRadius="32" BackgroundColor="#22312C"
+                                            Text="♥" FontSize="26" TextColor="#4BE277" Clicked="OnFeaturedSaveClicked" />
+                                </Grid>
+
+                                <Border Margin="24,20,24,0" BackgroundColor="#111A17" Stroke="#1F2C27" StrokeThickness="1" Padding="20">
+                                    <Border.StrokeShape><RoundRectangle CornerRadius="24" /></Border.StrokeShape>
+                                    <VerticalStackLayout Spacing="16">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                                            <Button WidthRequest="58" HeightRequest="58" CornerRadius="29" BackgroundColor="#22C55E"
+                                                    Text="▶" FontSize="22" TextColor="#082111" Clicked="OnPlayPauseTapped" />
+                                            <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                                                <Label Text="ĐANG THUYẾT MINH" FontSize="11" FontAttributes="Bold" CharacterSpacing="2" TextColor="#4BE277" />
+                                                <ProgressBar Progress="{Binding ExploreAudioProgressValue}" ProgressColor="#4BE277" BackgroundColor="#24342E" HeightRequest="6" />
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="2" Text="{Binding ExploreAudioProgressText}" VerticalTextAlignment="Center" FontSize="18" TextColor="#D8E6DF99" />
+                                        </Grid>
+                                        <Label Text="{Binding ExploreAudioQuote}" FontSize="18" FontAttributes="Italic" LineHeight="1.35" TextColor="#D0DDD5CC" />
+                                    </VerticalStackLayout>
+                                </Border>
+
+                                <Grid Padding="24,20,24,28" ColumnDefinitions="*,*,*" ColumnSpacing="14">
+                                    <Button Grid.Column="0" HeightRequest="96" CornerRadius="26" BackgroundColor="#22312C"
+                                            Text="➡&#10;CHỈ ĐƯỜNG" FontSize="18" FontAttributes="Bold" TextColor="#E7EFE9"
+                                            Clicked="OnDirectionClicked" />
+                                    <Button Grid.Column="1" HeightRequest="96" CornerRadius="26" BackgroundColor="#22312C"
+                                            Text="🔀&#10;ĐỔI QUÁN" FontSize="18" FontAttributes="Bold" TextColor="#E7EFE9"
+                                            Clicked="OnShuffleClicked" />
+                                    <Button Grid.Column="2" HeightRequest="96" CornerRadius="26" BackgroundColor="#22312C"
+                                            Text="🗺️&#10;XEM BẢN ĐỒ" FontSize="17" FontAttributes="Bold" TextColor="#E7EFE9"
+                                            Clicked="OnSecondaryExploreActionClicked" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Gần bạn còn:" FontSize="24" FontAttributes="Bold" TextColor="#E7EFE9" />
+                            <Label Grid.Column="1" Text="XEM TẤT CẢ" FontSize="13" FontAttributes="Bold" CharacterSpacing="1.4" TextColor="#4BE277" VerticalTextAlignment="Center" />
+                        </Grid>
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding NearbyExplorePois}" Spacing="14">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BackgroundColor="#121D19DD" Stroke="#1F2C27" StrokeThickness="1" Padding="16">
+                                        <Border.StrokeShape><RoundRectangle CornerRadius="24" /></Border.StrokeShape>
+                                        <Grid ColumnDefinitions="92,*,Auto" ColumnSpacing="16">
+                                            <Image WidthRequest="92" HeightRequest="92" Source="{Binding ImageUrl}" Aspect="AspectFill" />
+                                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="4">
+                                                <Label Text="{Binding Name}" FontSize="18" FontAttributes="Bold" TextColor="#EDF5F0" LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding DistanceText}" FontSize="14" TextColor="#D0DDD5CC" />
+                                                <Label Text="{Binding MetaText}" FontSize="12" TextColor="#9FB0A8CC" LineBreakMode="TailTruncation" />
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="2" Text="›" FontSize="32" VerticalTextAlignment="Center" TextColor="#4BE277" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="MapToolOverlay"
+              IsVisible="False"
+              Opacity="0"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              BackgroundColor="#07100DD9">
+            <Grid RowDefinitions="Auto,*,Auto" Padding="20,20,20,126">
+                <Border Grid.Row="0" BackgroundColor="#0E1915E6" Stroke="#23352E" StrokeThickness="1" Padding="16">
+                    <Border.StrokeShape><RoundRectangle CornerRadius="24" /></Border.StrokeShape>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Bản đồ khu ẩm thực" FontSize="22" FontAttributes="Bold" TextColor="#E7EFE9" />
+                            <Label Text="Bản đồ là công cụ phụ để định hướng nhanh, không phải màn hình chính."
+                                   FontSize="14" LineHeight="1.3" TextColor="#C8D6CFCC" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1" WidthRequest="42" HeightRequest="42" CornerRadius="21"
+                                BackgroundColor="#22312C" Text="✕" FontSize="18" TextColor="#E7EFE9"
+                                Clicked="OnMapToolCloseClicked" />
+                    </Grid>
+                </Border>
+                <Border Grid.Row="2" BackgroundColor="#0E1915EE" Stroke="#23352E" StrokeThickness="1" Padding="18">
+                    <Border.StrokeShape><RoundRectangle CornerRadius="26" /></Border.StrokeShape>
+                    <VerticalStackLayout Spacing="14">
+                        <Label Text="Bạn có thể dùng bản đồ để xem vị trí quán nổi bật và căn lại hướng di chuyển."
+                               FontSize="15" LineHeight="1.35" TextColor="#D9E5DECC" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <Button Grid.Column="0" HeightRequest="54" CornerRadius="27" BackgroundColor="#22312C"
+                                    Text="Căn giữa" FontSize="16" FontAttributes="Bold" TextColor="#E7EFE9"
+                                    Clicked="OnCenterMapClicked" />
+                            <Button Grid.Column="1" HeightRequest="54" CornerRadius="27" Text="Đóng bản đồ"
+                                    FontSize="16" FontAttributes="Bold" TextColor="#082111"
+                                    Clicked="OnMapToolCloseClicked">
+                                <Button.Background>
+                                    <LinearGradientBrush EndPoint="1,0">
+                                        <GradientStop Color="#4BE277" Offset="0.0" />
+                                        <GradientStop Color="#22C55E" Offset="1.0" />
+                                    </LinearGradientBrush>
+                                </Button.Background>
+                            </Button>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- TabMapView: visible only in Legacy map mode (when user tapped "Xem bản đồ").
+             Shows AppBar + Search + Filter chips.
+             Hidden in non-legacy Explore states (Far/Near/InZone).
+             InputTransparent so map canvas below receives touch events in blank areas. -->
         <components:TabMapView x:Name="TabMapComponent"
+                              AbsoluteLayout.LayoutBounds="0,0,1,1"
+                              AbsoluteLayout.LayoutFlags="All"
+                              InputTransparent="False"
+                              CascadeInputTransparent="False"
+                              IsVisible="{Binding IsMapModeVisible}" />
+
+        <!-- POI quick card and map bottom nav now live only inside TabMapView.
+             Explore state screens intentionally show just the background and action choices. -->
+        <!-- Real / Virtual / Detail mode overlays (swapped in/out above TabMapView) -->
+        <components:TabTourView x:Name="TabTourComponent"
                                AbsoluteLayout.LayoutBounds="0,0,1,1"
                                AbsoluteLayout.LayoutFlags="All"
-                               ZIndex="120"/>
-
-        <!-- ── Layer 2: Pin popup (ZIndex 150) ────────────────────────── -->
+                               IsVisible="{Binding IsRealMode}" />
+        <components:VirtualModeView x:Name="VirtualModeComponent"
+                                    AbsoluteLayout.LayoutBounds="0,0,1,1"
+                                    AbsoluteLayout.LayoutFlags="All"
+                                    IsVisible="{Binding IsVirtualMode}" />
+        <components:DetailModeView x:Name="DetailModeComponent"
+                                    AbsoluteLayout.LayoutBounds="0,0,1,1"
+                                    AbsoluteLayout.LayoutFlags="All"
+                                    IsVisible="{Binding IsDetailMode}" />
         <components:PinPopupView x:Name="PinPopupComponent"
-                                 AbsoluteLayout.LayoutBounds="0,1,1,-1"
-                                 AbsoluteLayout.LayoutFlags="WidthProportional,PositionProportional"
-                                 IsVisible="False"
-                                 ZIndex="150"/>
+                                  AbsoluteLayout.LayoutBounds="0,0,1,1"
+                                  AbsoluteLayout.LayoutFlags="All"
+                                  IsVisible="{Binding IsPinPopupVisible}" />
 
+        <!-- <components:FloatingBottomNav x:Name="BottomNavComponent"
+                                      ActiveTab="Explore"
+                                      IsVisible="{Binding IsBottomNavVisible}"
+                                      AbsoluteLayout.LayoutBounds="0,1,1,-1"
+                                      AbsoluteLayout.LayoutFlags="WidthProportional,PositionProportional"
+                                      ZIndex="999" /> -->
+
+        <Grid x:Name="LoadingOverlay"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              BackgroundColor="#0A1612"
+              ZIndex="9999"
+              IsVisible="True">
+            <VerticalStackLayout Spacing="22" HorizontalOptions="Center" VerticalOptions="Center">
+                <Label Text="🍜" FontSize="62" HorizontalOptions="Center" />
+                <Label Text="Street Food Narrator" FontSize="24" FontAttributes="Bold" TextColor="#4BE277" HorizontalOptions="Center" />
+                <Label x:Name="LoadingStatusLabel" Text="Đang tải dữ liệu..." FontSize="14" TextColor="#9FB0A8" HorizontalOptions="Center" />
+                <ActivityIndicator IsRunning="True" Color="#4BE277" WidthRequest="36" HeightRequest="36" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Grid>
     </AbsoluteLayout>
 </ContentPage>

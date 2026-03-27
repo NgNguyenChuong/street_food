@@ -1,18 +1,26 @@
 using System.Net.Http.Json;
-using StreetFoodNarrator.App.Core.Models;
-using Plugin.Maui.Audio;
 using System.Text.Json;
+using Plugin.Maui.Audio;
+using StreetFoodNarrator.App.Core.Models;
+#if ANDROID
+using Android.App;
+using Android.OS;
+using AndroidLocale = Java.Util.Locale;
+using AndroidTextToSpeech = Android.Speech.Tts.TextToSpeech;
+using AndroidVoice = Android.Speech.Tts.Voice;
+using AndroidUtteranceProgressListener = Android.Speech.Tts.UtteranceProgressListener;
+#endif
 
 namespace StreetFoodNarrator.App.Core.Services.Implementations;
 
 /// <summary>
-/// Text-to-Speech service sử dụng Edge-TTS từ backend API.
-/// Thứ tự ưu tiên: file cache offline → TTS API → native MAUI TTS.
+/// Text-to-Speech service uses backend audio first, then native fallback.
+/// Priority: cached offline audio -> published/streamed audio -> TTS API -> native TTS.
 /// </summary>
 public class TextToSpeechService : ITTSService
 {
-    // Với POI, ưu tiên audio được upload sẵn; nếu không có thì fallback native,
-    // tránh auto-generate từ server gây giọng đọc không đồng nhất.
+    // For POIs, prefer curated uploaded audio. If it does not exist, fall back to native TTS
+    // instead of generating server audio automatically, to keep voice quality consistent.
     private const bool EnablePoiServerTtsFallback = false;
 
     private readonly HttpClient _httpClient;
@@ -20,171 +28,233 @@ public class TextToSpeechService : ITTSService
     private readonly IAudioManager _audioManager;
     private readonly IAudioCacheService? _audioCache;
     private IAudioPlayer? _currentPlayer;
+    private double _lastKnownDuration;
 
     private CancellationTokenSource? _nativeTtsCts;
-    private bool _manualStop = false;
+    private bool _manualStop;
 
     // Native TTS progress simulation
-    private bool _isNativeTts = false;
-    private double _nativeTtsDuration = 0;
+    private bool _isNativeTts;
+    private double _nativeTtsDuration;
     private DateTime _nativeTtsStartTime;
 
     public event Action? OnPlaybackEnded;
 
     public bool IsAvailable => true;
 
-    // ─── New control methods ──────────────────────────────────────────────────
+    public TextToSpeechService(HttpClient httpClient, IAudioCacheService? audioCache = null)
+    {
+        _httpClient = httpClient;
+        _audioCache = audioCache;
+        _baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+        _audioManager = AudioManager.Current;
+    }
+
     public double GetDuration()
     {
-        if (_currentPlayer != null) return _currentPlayer.Duration;
+        if (_currentPlayer != null)
+        {
+            var duration = _currentPlayer.Duration;
+            if (duration > 0)
+            {
+                _lastKnownDuration = duration;
+                return duration;
+            }
+
+            if (_lastKnownDuration > 0)
+                return _lastKnownDuration;
+        }
+
         return _isNativeTts ? _nativeTtsDuration : 0;
     }
 
     public double GetCurrentPosition()
     {
-        if (_currentPlayer != null) return _currentPlayer.CurrentPosition;
+        if (_currentPlayer != null)
+            return _currentPlayer.CurrentPosition;
+
         if (_isNativeTts && _nativeTtsDuration > 0)
             return Math.Min((DateTime.Now - _nativeTtsStartTime).TotalSeconds, _nativeTtsDuration);
+
         return 0;
     }
 
-    public void SetVolume(double volume) { if (_currentPlayer != null) _currentPlayer.Volume = Math.Clamp(volume, 0.0, 1.0); }
-    public void SetSpeed(double speed)  { try { if (_currentPlayer != null) _currentPlayer.Speed = Math.Max(0.1, speed); } catch { } }
-    public void Seek(double positionSeconds) { try { _currentPlayer?.Seek(positionSeconds); } catch { } }
-
-    public TextToSpeechService(HttpClient httpClient, IAudioCacheService? audioCache = null)
+    public void SetVolume(double volume)
     {
-        _httpClient  = httpClient;
-        _audioCache  = audioCache;
-        _baseUrl     = AppConfig.ApiBaseUrl.TrimEnd('/');
-        _audioManager = AudioManager.Current;
+        if (_currentPlayer != null)
+            _currentPlayer.Volume = Math.Clamp(volume, 0.0, 1.0);
     }
 
-    // ─── Helper: create player + wire PlaybackEnded ───────────────────────────
-    private IAudioPlayer CreateAndWirePlayer(Stream stream)
+    public void SetSpeed(double speed)
     {
-        var player = _audioManager.CreatePlayer(stream);
-        player.PlaybackEnded += (_, _) =>
+        try
         {
-            if (!_manualStop) OnPlaybackEnded?.Invoke();
-        };
-        return player;
+            if (_currentPlayer != null)
+                _currentPlayer.Speed = Math.Max(0.1, speed);
+        }
+        catch
+        {
+        }
     }
 
-    public async Task<bool> SpeakNativeFallbackAsync(string text, string languageCode, CancellationToken cancellationToken = default)
+    public void Seek(double positionSeconds)
+    {
+        try
+        {
+            _currentPlayer?.Seek(positionSeconds);
+        }
+        catch
+        {
+        }
+    }
+
+    public void Pause()
+    {
+        try
+        {
+            if (_currentPlayer != null && _currentPlayer.IsPlaying)
+            {
+                _currentPlayer.Pause();
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    public void Resume()
+    {
+        try
+        {
+            if (_currentPlayer != null && !_currentPlayer.IsPlaying)
+            {
+                _currentPlayer.Play();
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    public bool IsPlaying()
+    {
+        try
+        {
+            return _currentPlayer?.IsPlaying ?? false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> SpeakNativeFallbackAsync(
+        string text,
+        string languageCode,
+        CancellationToken cancellationToken = default)
     {
         await StopAsync();
         return await NativeSpeakAsync(text, languageCode, cancellationToken);
     }
 
-    /// <summary>
-    /// Phát text với ngôn ngữ và voice được chỉ định.
-    /// Thứ tự ưu tiên:
-    /// 1. File cache offline (nếu có poiId)
-    /// 2. Stream audio từ server (nếu có audio published)
-    /// 3. TTS API (generate mới)
-    /// 4. Native TTS (fallback)
-    /// </summary>
-    public async Task<bool> SpeakAsync(string text, string languageCode, string? voiceName = null,
-        int? poiId = null, CancellationToken cancellationToken = default)
+    public async Task<bool> SpeakAsync(
+        string text,
+        string languageCode,
+        string? voiceName = null,
+        int? poiId = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            // Dừng bất kỳ lượt phát hiện tại
+            var preferredVoice = ResolvePreferredVoice(voiceName, languageCode);
+
             await StopAsync();
 
             var playbackMode = GetPlaybackMode();
             var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
 
-            // Ưu tiên 1: file audio đã tải trước (offline)
             if (poiId.HasValue && _audioCache != null)
             {
-                // 1) Luôn ưu tiên cache local nếu có
                 var cachedStream = await _audioCache.GetCachedStreamAsync(poiId.Value, languageCode);
                 if (cachedStream != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[TTS] 💾 Phát file cache offline: POI {poiId}");
+                    System.Diagnostics.Debug.WriteLine($"[TTS] Using cached offline audio for POI {poiId}");
                     _currentPlayer = CreateAndWirePlayer(cachedStream);
                     _currentPlayer.Play();
+                    StartDurationWarmup(_currentPlayer);
                     return true;
                 }
 
-                // 2) Download mode: bắt buộc tải về local trước khi phát
                 if (playbackMode == AudioPlaybackModes.Download)
                 {
                     if (!isOnline)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[TTS] Download mode + offline: không thể tải mới, thử fallback local/native");
+                        System.Diagnostics.Debug.WriteLine("[TTS] Download mode but offline, skip download and use native fallback.");
                     }
 
-                    var ensuredStream = await _audioCache.GetOrDownloadCachedStreamAsync(poiId.Value, languageCode, cancellationToken);
+                    var ensuredStream = await _audioCache.GetOrDownloadCachedStreamAsync(
+                        poiId.Value,
+                        languageCode,
+                        cancellationToken);
                     if (ensuredStream != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[TTS] ⬇️ Download mode: đã tải local và phát cache cho POI {poiId}");
+                        System.Diagnostics.Debug.WriteLine($"[TTS] Downloaded and cached POI {poiId} audio locally.");
                         _currentPlayer = CreateAndWirePlayer(ensuredStream);
                         _currentPlayer.Play();
+                        StartDurationWarmup(_currentPlayer);
                         return true;
                     }
-
-                    System.Diagnostics.Debug.WriteLine($"[TTS] Download mode: không có audio cache/tải mới cho POI {poiId}, fallback TTS");
                 }
 
-                // 3) Stream mode hoặc Auto (khi có mạng): stream online, không lưu local
                 if (playbackMode != AudioPlaybackModes.Download && isOnline)
                 {
                     var audioUrl = await _audioCache.GetAudioUrlAsync(poiId.Value, languageCode, cancellationToken);
                     if (!string.IsNullOrEmpty(audioUrl))
                     {
-                        System.Diagnostics.Debug.WriteLine($"[TTS] 🌐 Stream audio online: POI {poiId} → {audioUrl}");
-
+                        System.Diagnostics.Debug.WriteLine($"[TTS] Streaming published audio for POI {poiId}: {audioUrl}");
                         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                        timeoutCts.CancelAfter(TimeSpan.FromSeconds(10)); // Timeout cho việc tải audio
+                        timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
 
                         var audioBytes = await _httpClient.GetByteArrayAsync(audioUrl, timeoutCts.Token);
                         var audioStream = new MemoryStream(audioBytes);
                         _currentPlayer = CreateAndWirePlayer(audioStream);
                         _currentPlayer.Play();
+                        StartDurationWarmup(_currentPlayer);
                         return true;
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"[TTS] ℹ️ POI {poiId} không có audio published → fallback TTS");
+                System.Diagnostics.Debug.WriteLine($"[TTS] No published audio for POI {poiId}, falling back to TTS.");
 
                 if (!EnablePoiServerTtsFallback)
-                {
-                    System.Diagnostics.Debug.WriteLine("[TTS] POI fallback mode: dùng native TTS, bỏ qua /api/tts/generate");
                     return await NativeSpeakAsync(text, languageCode, cancellationToken);
-                }
             }
-            
-            // Nếu Offline và không có cache -> Fallback ngay lập tức sang Native TTS
+
             if (!isOnline)
             {
-                System.Diagnostics.Debug.WriteLine("[TTS] Offline và không có cache -> Dùng Native TTS ngay lập tức");
+                System.Diagnostics.Debug.WriteLine("[TTS] Offline and no cache available, use native TTS.");
                 return await NativeSpeakAsync(text, languageCode, cancellationToken);
             }
-            
-            // Ưu tiên 3: TTS API (generate mới)
-            // Build request
+
             var request = new
             {
-                text = text,
+                text,
                 language = languageCode,
-                voice = voiceName
+                voice = ResolveServerVoice(preferredVoice, languageCode)
             };
 
-            // Use a short timeout so offline fallback kicks in quickly
             using var timeoutCts2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts2.CancelAfter(TimeSpan.FromSeconds(6));
 
-            // Call API to generate audio
             var response = await _httpClient.PostAsJsonAsync(
-                $"{_baseUrl}/api/tts/generate", request, timeoutCts2.Token);
+                $"{_baseUrl}/api/tts/generate",
+                request,
+                timeoutCts2.Token);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                System.Diagnostics.Debug.WriteLine($"[TTS] API error: {response.StatusCode} — falling back to native TTS");
+                System.Diagnostics.Debug.WriteLine($"[TTS] API error: {response.StatusCode}. Body={errBody}");
                 return await NativeSpeakAsync(text, languageCode, cancellationToken);
             }
 
@@ -193,25 +263,24 @@ public class TextToSpeechService : ITTSService
             if (result == null || string.IsNullOrEmpty(result.FilePath))
                 return await NativeSpeakAsync(text, languageCode, cancellationToken);
 
-            // Play audio file
             var audioUrl2 = $"{_baseUrl}{result.FilePath}";
-            System.Diagnostics.Debug.WriteLine($"[TTS] 🤖 TTS API generated: {audioUrl2}");
-            
+            System.Diagnostics.Debug.WriteLine($"[TTS] Generated TTS audio: {audioUrl2}");
+
             var audioBytes2 = await _httpClient.GetByteArrayAsync(audioUrl2, timeoutCts2.Token);
             var audioStream2 = new MemoryStream(audioBytes2);
             _currentPlayer = CreateAndWirePlayer(audioStream2);
             _currentPlayer.Play();
-            
+            StartDurationWarmup(_currentPlayer);
             return true;
         }
-        catch (OperationCanceledException)
+        catch (System.OperationCanceledException)
         {
-            System.Diagnostics.Debug.WriteLine("[TTS] API timeout — falling back to native TTS");
+            System.Diagnostics.Debug.WriteLine("[TTS] API timeout, falling back to native TTS.");
             return await NativeSpeakAsync(text, languageCode, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[TTS] Network error — falling back to native TTS: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[TTS] Network error, falling back to native TTS: {ex.Message}");
             return await NativeSpeakAsync(text, languageCode, cancellationToken);
         }
         catch (Exception ex)
@@ -219,6 +288,115 @@ public class TextToSpeechService : ITTSService
             System.Diagnostics.Debug.WriteLine($"[TTS] Error: {ex.Message}");
             return await NativeSpeakAsync(text, languageCode, cancellationToken);
         }
+    }
+
+    public async Task<List<VoiceInfo>> GetVoicesAsync(string? languageCode = null)
+    {
+        var voices = new List<VoiceInfo>();
+
+        try
+        {
+            var url = string.IsNullOrWhiteSpace(languageCode)
+                ? $"{_baseUrl}/api/tts/voices"
+                : $"{_baseUrl}/api/tts/voices?language={MapToApiLanguageCode(languageCode)}";
+            var response = await _httpClient.GetFromJsonAsync<List<VoiceInfo>>(url);
+            if (response != null)
+                voices.AddRange(response);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Get voices error: {ex.Message}");
+        }
+
+#if ANDROID
+        try
+        {
+            var localVoices = await GetAndroidOfflineVoicesAsync(languageCode);
+            foreach (var localVoice in localVoices)
+            {
+                if (!voices.Any(v => string.Equals(v.Voice, localVoice.Voice, StringComparison.OrdinalIgnoreCase)))
+                    voices.Add(localVoice);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Get Android offline voices error: {ex.Message}");
+        }
+#endif
+
+        return voices;
+    }
+
+    public async Task StopAsync()
+    {
+        try
+        {
+            _manualStop = true;
+
+            if (_currentPlayer != null)
+            {
+                _currentPlayer.Stop();
+                _currentPlayer.Dispose();
+                _currentPlayer = null;
+            }
+
+            _nativeTtsCts?.Cancel();
+            _nativeTtsCts = null;
+            _isNativeTts = false;
+            _lastKnownDuration = 0;
+            _manualStop = false;
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Stop error: {ex.Message}");
+        }
+    }
+
+    private IAudioPlayer CreateAndWirePlayer(Stream stream)
+    {
+        var player = _audioManager.CreatePlayer(stream);
+        player.PlaybackEnded += (_, _) =>
+        {
+            var duration = player.Duration;
+            if (duration > 0)
+                _lastKnownDuration = duration;
+
+            if (!_manualStop)
+                OnPlaybackEnded?.Invoke();
+        };
+        return player;
+    }
+
+    private void StartDurationWarmup(IAudioPlayer player)
+    {
+        _lastKnownDuration = 0;
+
+        _ = Task.Run(async () =>
+        {
+            var delaysMs = new[] { 100, 150, 250 };
+            foreach (var delayMs in delaysMs)
+            {
+                await Task.Delay(delayMs).ConfigureAwait(false);
+
+                if (!ReferenceEquals(_currentPlayer, player))
+                    return;
+
+                try
+                {
+                    var duration = player.Duration;
+                    if (duration > 0)
+                    {
+                        _lastKnownDuration = duration;
+                        return;
+                    }
+                }
+                catch
+                {
+                    return;
+                }
+            }
+        });
     }
 
     private static string GetPlaybackMode()
@@ -251,44 +429,129 @@ public class TextToSpeechService : ITTSService
     }
 
     /// <summary>
-    /// Fallback: MAUI native TTS — Android TextToSpeech / iOS AVSpeechSynthesizer.
-    /// Works fully offline.
+    /// Phát text với voice package đã tải về (offline).
+    /// Sử dụng MAUI TTS với voice đã chọn.
     /// </summary>
-    private async Task<bool> NativeSpeakAsync(
-        string text, string languageCode, CancellationToken cancellationToken = default)
+    public async Task<bool> SpeakWithVoicePackageAsync(
+        string text,
+        string languageCode,
+        string voiceName,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            // Link with caller's token so StopAsync() also cancels it
+            await StopAsync();
+
+            _isNativeTts = true;
+            _nativeTtsDuration = Math.Max(2.0, text.Length / 12.0);
+            _nativeTtsStartTime = DateTime.Now;
+            _lastKnownDuration = 0;
+
+            // Try MAUI TTS with the specified voice
+            Microsoft.Maui.Media.Locale? locale = null;
+            try
+            {
+                var available = await Microsoft.Maui.Media.TextToSpeech.Default.GetLocalesAsync();
+                // Find locale matching the language
+                var langPrefix = languageCode.Split('-')[0].ToLowerInvariant();
+                locale = available.FirstOrDefault(l =>
+                    l.Language.StartsWith(langPrefix, StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+            }
+
+            var settings = new SpeechOptions
+            {
+                Volume = 1.0f,
+                Pitch = 1.0f,
+                Locale = locale
+            };
+
+            await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(text, settings, cancellationToken);
+            System.Diagnostics.Debug.WriteLine($"[TTS] Voice package playback complete: {voiceName}");
+
+            if (!_manualStop)
+                OnPlaybackEnded?.Invoke();
+
+            return true;
+        }
+        catch (System.OperationCanceledException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Voice package TTS error: {ex.Message}");
+            // Fallback to generic native TTS
+            return await NativeSpeakAsync(text, languageCode, cancellationToken);
+        }
+        finally
+        {
+            _isNativeTts = false;
+        }
+    }
+
+    private async Task<bool> NativeSpeakAsync(
+        string text,
+        string languageCode,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
             _nativeTtsCts?.Cancel();
             _nativeTtsCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var cts = _nativeTtsCts;
 
-            // Estimate duration for progress simulation (~12 chars/sec for Vietnamese)
             _isNativeTts = true;
             _nativeTtsDuration = Math.Max(2.0, text.Length / 12.0);
             _nativeTtsStartTime = DateTime.Now;
+            _lastKnownDuration = 0;
 
-            // Best-effort locale match; null = device default
-            Locale? locale = null;
+#if ANDROID
+            var preferredVoice = ResolvePreferredVoice(null, languageCode);
+            var androidOfflineOk = await SpeakWithAndroidOfflineVoiceAsync(
+                text,
+                languageCode,
+                preferredVoice,
+                cts.Token);
+            if (androidOfflineOk)
+            {
+                if (!_manualStop)
+                    OnPlaybackEnded?.Invoke();
+                return true;
+            }
+#endif
+
+            Microsoft.Maui.Media.Locale? locale = null;
             try
             {
-                var available = await TextToSpeech.Default.GetLocalesAsync();
+                var available = await Microsoft.Maui.Media.TextToSpeech.Default.GetLocalesAsync();
                 locale = available.FirstOrDefault(l =>
                     l.Language.StartsWith(
                         languageCode.Split('-')[0],
                         StringComparison.OrdinalIgnoreCase));
             }
-            catch { /* ignore — null locale falls back to device default */ }
+            catch
+            {
+            }
 
-            var settings = new SpeechOptions { Volume = 1.0f, Pitch = 1.0f, Locale = locale };
-            await TextToSpeech.Default.SpeakAsync(text, settings, cts.Token);
-            System.Diagnostics.Debug.WriteLine("[TTS] Native TTS playback complete.");
+            var settings = new SpeechOptions
+            {
+                Volume = 1.0f,
+                Pitch = 1.0f,
+                Locale = locale
+            };
 
-            if (!_manualStop) OnPlaybackEnded?.Invoke();
+            await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(text, settings, cts.Token);
+            System.Diagnostics.Debug.WriteLine("[TTS] Native MAUI fallback playback complete.");
+
+            if (!_manualStop)
+                OnPlaybackEnded?.Invoke();
+
             return true;
         }
-        catch (OperationCanceledException)
+        catch (System.OperationCanceledException)
         {
             return false;
         }
@@ -303,62 +566,88 @@ public class TextToSpeechService : ITTSService
         }
     }
 
-    /// <summary>
-    /// Lấy danh sách voices cho ngôn ngữ
-    /// </summary>
-    public async Task<List<VoiceInfo>> GetVoicesAsync(string? languageCode = null)
-    {
-        try
-        {
-            var url = string.IsNullOrWhiteSpace(languageCode)
-                ? $"{_baseUrl}/api/tts/voices"
-                : $"{_baseUrl}/api/tts/voices?language={MapToApiLanguageCode(languageCode)}";
-            var response = await _httpClient.GetFromJsonAsync<List<VoiceInfo>>(url);
-            return response ?? new List<VoiceInfo>();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[TTS] Get voices error: {ex.Message}");
-            return new List<VoiceInfo>();
-        }
-    }
-
-    /// <summary>
-    /// Dừng phát
-    /// </summary>
-    public async Task StopAsync()
-    {
-        try
-        {
-            _manualStop = true;
-            // Stop Plugin.Maui.Audio player if active
-            if (_currentPlayer != null)
-            {
-                _currentPlayer.Stop();
-                _currentPlayer.Dispose();
-                _currentPlayer = null;
-            }
-            // Cancel native TTS if a speak is in progress
-            _nativeTtsCts?.Cancel();
-            _nativeTtsCts = null;
-            _isNativeTts = false;
-            _manualStop = false;
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[TTS] Stop error: {ex.Message}");
-        }
-    }
-
     private string MapToApiLanguageCode(string languageCode)
     {
         var normalized = languageCode.Trim().ToLowerInvariant();
-        if (normalized.StartsWith("vi")) return "vi-VN";
-        if (normalized.StartsWith("en")) return "en-US";
-        if (normalized.StartsWith("zh")) return "zh-CN";
+        if (normalized.StartsWith("vi"))
+            return "vi-VN";
+        if (normalized.StartsWith("en"))
+            return "en-US";
+        if (normalized.StartsWith("zh"))
+            return "zh-CN";
         return "vi-VN";
     }
+
+    private string ResolvePreferredVoice(string? explicitVoiceName, string languageCode)
+    {
+        if (!string.IsNullOrWhiteSpace(explicitVoiceName))
+            return explicitVoiceName.Trim();
+
+        try
+        {
+            var json = Preferences.Get("UserSettings", string.Empty);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                var settings = JsonSerializer.Deserialize<UserSettings>(json);
+                var configuredVoice = settings?.TTS?.Voice?.Trim();
+                if (!string.IsNullOrWhiteSpace(configuredVoice))
+                    return configuredVoice;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Resolve preferred voice error: {ex.Message}");
+        }
+
+        return GetDefaultServerVoice(languageCode);
+    }
+
+    private string? ResolveServerVoice(string? preferredVoice, string languageCode)
+    {
+        if (!string.IsNullOrWhiteSpace(preferredVoice) &&
+            preferredVoice.Contains("Neural", StringComparison.OrdinalIgnoreCase) &&
+            preferredVoice.StartsWith(MapToApiLanguageCode(languageCode), StringComparison.OrdinalIgnoreCase))
+        {
+            return preferredVoice;
+        }
+
+        return GetDefaultServerVoice(languageCode);
+    }
+
+    private string GetDefaultServerVoice(string languageCode)
+    {
+        return MapToApiLanguageCode(languageCode) switch
+        {
+            "en-US" => "en-US-JennyNeural",
+            "zh-CN" => "zh-CN-XiaoxiaoNeural",
+            _ => "vi-VN-HoaiMyNeural"
+        };
+    }
+
+#if ANDROID
+    private async Task<List<VoiceInfo>> GetAndroidOfflineVoicesAsync(string? languageCode)
+    {
+        // Temporarily disabled - Android TTS binding has SDK compatibility issues
+        // App will use MAUI TTS fallback instead
+        await Task.CompletedTask;
+        return new List<VoiceInfo>();
+    }
+
+    private async Task<bool> SpeakWithAndroidOfflineVoiceAsync(
+        string text,
+        string languageCode,
+        string? preferredVoice,
+        CancellationToken cancellationToken)
+    {
+        // Temporarily disabled - use MAUI TTS fallback instead
+        await Task.CompletedTask;
+        return false;
+    }
+
+    // Temporarily disabled - Android TTS binding has SDK compatibility issues
+    // Use MAUI TTS fallback (Microsoft.Maui.Media.TextToSpeech) instead
+    // private static class AndroidOfflineTtsBridge
+#endif
 
     private class TtsGenerateResponse
     {

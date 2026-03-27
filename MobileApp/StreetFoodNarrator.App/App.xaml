@@ -12,10 +12,13 @@
             
             <!-- Converters -->
             <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
-            <converters:GenderToEmojiConverter x:Key="GenderToEmojiConverter" />
             <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
             <converters:StringFallbackConverter x:Key="StringFallbackConverter" />
             <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+            <converters:RatingToColorConverter x:Key="RatingToColorConverter" />
+            <converters:StringNotEmptyConverter x:Key="StringNotEmptyConverter" />
+            <converters:JournalQueueDurationConverter x:Key="JournalQueueDurationConverter" />
+            <converters:CategoryTextColorConverter x:Key="CategoryTextColorConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -13,7 +13,8 @@
              BackgroundColor="#0A1612"
              Shell.NavBarIsVisible="False">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid>
+        <Grid RowDefinitions="Auto,*" Padding="0,0,0,100">
 
         <!-- Segment: Danh sách / Đã lưu -->
         <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="16,12" ColumnSpacing="8">
@@ -44,5 +45,8 @@
             <components:TabSavedView x:Name="SavedContent" IsVisible="True"/>
         </Grid>
 
+        </Grid>
+
+        <components:FloatingBottomNav ActiveTab="Saved" VerticalOptions="End"/>
     </Grid>
 </ContentPage>

@@ -5,75 +5,74 @@
 -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:components="clr-namespace:StreetFoodNarrator.App.Views.Components"
              x:Class="StreetFoodNarrator.App.Views.ProfilePage"
              x:Name="ProfilePageRoot"
              BackgroundColor="#0A1612"
              Shell.NavBarIsVisible="False">
+    <Grid>
+        <ScrollView Padding="0,0,0,100">
+            <VerticalStackLayout Padding="20" Spacing="16">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="16">
+                <!-- Header -->
+                <Label Text="Cá nhân" FontSize="24" FontAttributes="Bold" TextColor="White"/>
 
-            <!-- Header -->
-            <Label Text="Cá nhân" FontSize="24" FontAttributes="Bold" TextColor="White"/>
+                <!-- Settings quick access -->
+                <Border StrokeShape="RoundRectangle 12" BackgroundColor="#1C3024"
+                        Stroke="#2A3E2C" Padding="16">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSettingsTapped"/>
+                    </Border.GestureRecognizers>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                        <Label Grid.Column="0" Text="&#xF0493;" FontFamily="MDI" FontSize="20"
+                               TextColor="#F5A623" VerticalOptions="Center"/>
+                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                            <Label Text="Cài đặt" FontSize="14" FontAttributes="Bold" TextColor="White"/>
+                            <Label Text="Giọng đọc, âm lượng, vị trí" FontSize="11" TextColor="#9CA3AF"/>
+                        </VerticalStackLayout>
+                        <Label Grid.Column="2" Text="&#xF0142;" FontFamily="MDI" FontSize="16"
+                               TextColor="#6B7280" VerticalOptions="Center"/>
+                    </Grid>
+                </Border>
 
-            <!-- Settings quick access -->
-            <Border StrokeShape="RoundRectangle 12" BackgroundColor="#1C3024"
-                    Stroke="#2A3E2C" Padding="16">
-                <Border.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnSettingsTapped"/>
-                </Border.GestureRecognizers>
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                    <Label Grid.Column="0" Text="&#xF0493;" FontFamily="MDI" FontSize="20"
-                           TextColor="#F5A623" VerticalOptions="Center"/>
-                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                        <Label Text="Cài đặt" FontSize="14" FontAttributes="Bold" TextColor="White"/>
-                        <Label Text="Giọng đọc, âm lượng, vị trí" FontSize="11" TextColor="#9CA3AF"/>
-                    </VerticalStackLayout>
-                    <Label Grid.Column="2" Text="&#xF0142;" FontFamily="MDI" FontSize="16"
-                           TextColor="#6B7280" VerticalOptions="Center"/>
-                </Grid>
-            </Border>
+                <!-- Tour history -->
+                <Label Text="Lịch sử tour" FontSize="16" FontAttributes="Bold" TextColor="White" Margin="0,12,0,0"/>
 
-            <!-- Tour history -->
-            <Label Text="Lịch sử tour" FontSize="16" FontAttributes="Bold" TextColor="White" Margin="0,12,0,0"/>
+                <CollectionView ItemsSource="{Binding TourHistories}"
+                                SelectionMode="None"
+                                Margin="0,4,0,0">
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout Spacing="8" Padding="0,10,0,10">
+                            <Label Text="Chưa có lịch sử tour" FontSize="13" TextColor="#6B7280"/>
+                            <Label Text="Hãy bắt đầu một tour để lưu lại hành trình của bạn"
+                                   FontSize="11" TextColor="#4B5563"/>
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border StrokeShape="RoundRectangle 14"
+                                    BackgroundColor="#0E1E17" Stroke="#1C3024"
+                                    Padding="12" Margin="0,0,0,10">
+                                <VerticalStackLayout Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Text="{Binding Title}" FontSize="13" FontAttributes="Bold" TextColor="White"/>
+                                            <Label Text="{Binding Summary}" FontSize="11" TextColor="#9CA3AF"/>
+                                        </VerticalStackLayout>
+                                        <Button Grid.Column="1"
+                                                Text="Đi lại tour"
+                                                FontSize="11"
+                                                Padding="10,6"
+                                                CornerRadius="10"
+                                                BackgroundColor="#22C55E"
+                                                TextColor="White"
+                                                Command="{Binding Source={x:Reference ProfilePageRoot}, Path=ReplayTourCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                    </Grid>
 
-            <CollectionView ItemsSource="{Binding TourHistories}"
-                            SelectionMode="None"
-                            Margin="0,4,0,0">
-                <CollectionView.EmptyView>
-                    <VerticalStackLayout Spacing="8" Padding="0,10,0,10">
-                        <Label Text="Chưa có lịch sử tour" FontSize="13" TextColor="#6B7280"/>
-                        <Label Text="Hãy bắt đầu một tour để lưu lại hành trình của bạn"
-                               FontSize="11" TextColor="#4B5563"/>
-                    </VerticalStackLayout>
-                </CollectionView.EmptyView>
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Border StrokeShape="RoundRectangle 14"
-                                BackgroundColor="#0E1E17" Stroke="#1C3024"
-                                Padding="12" Margin="0,0,0,10">
-                            <VerticalStackLayout Spacing="8">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                    <VerticalStackLayout Spacing="2">
-                                        <Label Text="{Binding Title}" FontSize="13" FontAttributes="Bold" TextColor="White"/>
-                                        <Label Text="{Binding Summary}" FontSize="11" TextColor="#9CA3AF"/>
-                                    </VerticalStackLayout>
-                                    <Button Grid.Column="1"
-                                            Text="Đi lại tour"
-                                            FontSize="11"
-                                            Padding="10,6"
-                                            CornerRadius="10"
-                                            BackgroundColor="#22C55E"
-                                            TextColor="White"
-                                            Command="{Binding Source={x:Reference ProfilePageRoot}, Path=ReplayTourCommand}"
-                                            CommandParameter="{Binding .}"/>
-                                </Grid>
-
-                                <Expander>
-                                    <Expander.Header>
-                                        <Label Text="Xem chi tiết" FontSize="11" TextColor="#6B9E7E"/>
-                                    </Expander.Header>
+                                    <!-- Expanded Content (without collapsible Expander) -->
                                     <VerticalStackLayout Spacing="8" Padding="0,6,0,0">
+                                        <Label Text="Xem chi tiết" FontSize="11" TextColor="#6B9E7E" FontAttributes="Bold"/>
                                         <Label Text="Điểm đã ghé" FontSize="12" FontAttributes="Bold" TextColor="White"/>
                                         <VerticalStackLayout BindableLayout.ItemsSource="{Binding Stops}" Spacing="6">
                                             <BindableLayout.ItemTemplate>
@@ -98,13 +97,14 @@
                                                PlaceholderColor="#6B7280"
                                                BackgroundColor="#0B1A14"/>
                                     </VerticalStackLayout>
-                                </Expander>
-                            </VerticalStackLayout>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
 
-        </VerticalStackLayout>
-    </ScrollView>
+            </VerticalStackLayout>
+        </ScrollView>
+        <components:FloatingBottomNav ActiveTab="Profile" VerticalOptions="End"/>
+    </Grid>
 </ContentPage>

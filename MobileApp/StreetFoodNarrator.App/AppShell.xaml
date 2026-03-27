@@ -9,8 +9,10 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:pages="clr-namespace:StreetFoodNarrator.App.Views"
+    BackgroundColor="#0A1612"
     Shell.NavBarIsVisible="False"
-    Shell.FlyoutBehavior="Disabled">
+    Shell.FlyoutBehavior="Disabled"
+    Shell.TabBarIsVisible="False">
 
     <Shell.Resources>
         <Style TargetType="TabBar">
@@ -21,9 +23,16 @@
         </Style>
     </Shell.Resources>
 
+    <ShellContent
+        x:Name="WelcomeShellContent"
+        Route="WelcomePage"
+        ContentTemplate="{DataTemplate pages:WelcomePage}"
+        Shell.NavBarIsVisible="False"
+        Shell.TabBarIsVisible="False" />
+
     <TabBar>
         <!-- Tab 0: Bản đồ -->
-        <ShellContent
+        <ShellContent x:Name="MapShellContent"
             Title="Bản đồ"
             ContentTemplate="{DataTemplate pages:MainPage}"
             Route="MapPage"
@@ -37,22 +46,7 @@
             </ShellContent.Icon>
         </ShellContent>
 
-        <!-- Tab 1: Tour -->
-        <ShellContent
-            Title="Tour"
-            ContentTemplate="{DataTemplate pages:TourPage}"
-            Route="TourPage"
-            Shell.PresentationMode="NotAnimated">
-            <ShellContent.Icon>
-                <FontImageSource
-                    FontFamily="MDI"
-                    Glyph="&#xF02CE;"
-                    Size="20"
-                    Color="#F5A623"/>
-            </ShellContent.Icon>
-        </ShellContent>
-
-        <!-- Tab 2: Đã lưu -->
+        <!-- Tab 1: Đã lưu -->
         <ShellContent
             Title="Đã lưu"
             ContentTemplate="{DataTemplate pages:SavedPage}"
@@ -67,7 +61,7 @@
             </ShellContent.Icon>
         </ShellContent>
 
-        <!-- Tab 3: Cá nhân -->
+        <!-- Tab 2: Cá nhân -->
         <ShellContent
             Title="Cá nhân"
             ContentTemplate="{DataTemplate pages:ProfilePage}"

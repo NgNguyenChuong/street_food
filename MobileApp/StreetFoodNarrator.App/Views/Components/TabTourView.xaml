@@ -417,10 +417,10 @@
                                         <Border.GestureRecognizers>
                                             <TapGestureRecognizer Tapped="OnPlayPauseTapped"/>
                                         </Border.GestureRecognizers>
-                                        <Label x:Name="MiniPlayPauseIcon"
-                                               Text="&#xF040A;" FontFamily="MDI" FontSize="13"
-                                               TextColor="White" Margin="2,0,0,0"
-                                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                                        <Path x:Name="MiniPlayPausePath"
+                                              Fill="White"
+                                              HorizontalOptions="Center" VerticalOptions="Center"
+                                              Aspect="Uniform" HeightRequest="14" WidthRequest="14" />
                                     </Border>
 
                                     <!-- Waveform + seek + time -->
@@ -670,15 +670,19 @@
                                             <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnSpeedTapped"/></Border.GestureRecognizers>
                                             <Label x:Name="SpeedLabel" Text="1×" FontSize="11" FontAttributes="Bold" TextColor="#F59E0B"/>
                                         </Border>
-                                        <Label Grid.Column="1"
-                                               Text="&#xF003C;" FontFamily="MDI" FontSize="24" TextColor="#D1D5DB"
-                                               HorizontalOptions="Center" VerticalOptions="Center" Margin="10,0">
-                                            <Label.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding PrevStopCommand}"/>
-                                            </Label.GestureRecognizers>
-                                        </Label>
-                                        <Border Grid.Column="2" StrokeShape="RoundRectangle 23"
-                                                WidthRequest="46" HeightRequest="46" HorizontalOptions="Center">
+                                        <Border Grid.Column="1" StrokeShape="RoundRectangle 9"
+                                                BackgroundColor="#0F241D" Stroke="#1C3024" StrokeThickness="1"
+                                                Padding="10,6" VerticalOptions="Center" Margin="10,0">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnRewindTapped"/>
+                                            </Border.GestureRecognizers>
+                                            <Label Text="-10s" FontSize="11" FontAttributes="Bold" TextColor="#D1D5DB"
+                                                   HorizontalOptions="Center" VerticalOptions="Center"/>
+                                        </Border>
+                                        <Border Grid.Column="2" StrokeShape="RoundRectangle 32"
+                                                WidthRequest="64" HeightRequest="64"
+                                                HorizontalOptions="Center" VerticalOptions="Center"
+                                                Padding="0">
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                                     <GradientStop Color="#22C55E" Offset="0"/>
@@ -691,43 +695,43 @@
                                             <Border.GestureRecognizers>
                                                 <TapGestureRecognizer Tapped="OnPlayPauseTapped"/>
                                             </Border.GestureRecognizers>
-                                            <Label x:Name="PlayPauseIcon"
-                                                   Text="&#xF040A;" FontFamily="MDI" FontSize="17" TextColor="White"
-                                                   Margin="3,0,0,0"
+                                            <Path x:Name="PlayPausePath"
+                                                  Fill="White"
+                                                  HorizontalOptions="Center" VerticalOptions="Center"
+                                                  Aspect="Uniform" HeightRequest="28" WidthRequest="28" />
+                                        </Border>
+                                        <Border Grid.Column="3" StrokeShape="RoundRectangle 9"
+                                                BackgroundColor="#0F241D" Stroke="#1C3024" StrokeThickness="1"
+                                                Padding="10,6" VerticalOptions="Center" Margin="10,0">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnForwardTapped"/>
+                                            </Border.GestureRecognizers>
+                                            <Label Text="+10s" FontSize="11" FontAttributes="Bold" TextColor="#D1D5DB"
                                                    HorizontalOptions="Center" VerticalOptions="Center"/>
                                         </Border>
-                                        <Label Grid.Column="3"
-                                               Text="&#xF0457;" FontFamily="MDI" FontSize="24" TextColor="#D1D5DB"
-                                               HorizontalOptions="Center" VerticalOptions="Center" Margin="10,0">
-                                            <Label.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding NextStopCommand}"/>
-                                            </Label.GestureRecognizers>
-                                        </Label>
                                         <Border Grid.Column="4" StrokeShape="RoundRectangle 9"
                                                 BackgroundColor="#0F241D" Stroke="#1C3024" StrokeThickness="1"
                                                 Padding="9,5" VerticalOptions="Center">
                                             <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnMuteTapped"/></Border.GestureRecognizers>
-                                            <Label x:Name="MuteIcon" Text="&#xF057D;" FontFamily="MDI" FontSize="15"
-                                                   TextColor="#9CA3AF"
-                                                   HorizontalOptions="Center" VerticalOptions="Center"/>
+                                            <Label x:Name="MuteIcon" Text="🔊" FontSize="15"
+       TextColor="#9CA3AF"
+       HorizontalOptions="Center" VerticalOptions="Center"/>
                                         </Border>
                                     </Grid>
 
                                     <!-- Volume row -->
-                                    <Grid ColumnDefinitions="30,*,30" ColumnSpacing="10"
+                                    <Grid ColumnDefinitions="30,*" ColumnSpacing="10"
                                           Margin="0,10,0,0" VerticalOptions="Center">
-                                        <!-- Volume down -->
                                         <Border Grid.Column="0" StrokeShape="RoundRectangle 9"
                                                 BackgroundColor="#0F241D" Stroke="#1C3024" StrokeThickness="1"
                                                 WidthRequest="30" HeightRequest="30" HorizontalOptions="Center">
                                             <Border.GestureRecognizers>
-                                                <TapGestureRecognizer Tapped="OnVolumeDownTapped"/>
+                                                <TapGestureRecognizer Tapped="OnMuteTapped"/>
                                             </Border.GestureRecognizers>
-                                            <Label Text="&#xF057E;" FontFamily="MDI" FontSize="14"
-                                                   TextColor="#9CA3AF"
-                                                   HorizontalOptions="Center" VerticalOptions="Center"/>
+                                            <Label Text="🔊" FontSize="14"
+       TextColor="#9CA3AF"
+       HorizontalOptions="Center" VerticalOptions="Center"/>
                                         </Border>
-                                        <!-- Volume slider -->
                                         <Slider Grid.Column="1" x:Name="VolumeSlider"
                                                 Minimum="0" Maximum="1" Value="1"
                                                 MinimumTrackColor="#22C55E"
@@ -735,17 +739,6 @@
                                                 ThumbColor="#22C55E"
                                                 HeightRequest="20"
                                                 DragCompleted="OnVolumeSliderDragCompleted"/>
-                                        <!-- Volume up -->
-                                        <Border Grid.Column="2" StrokeShape="RoundRectangle 9"
-                                                BackgroundColor="#0F241D" Stroke="#1C3024" StrokeThickness="1"
-                                                WidthRequest="30" HeightRequest="30" HorizontalOptions="Center">
-                                            <Border.GestureRecognizers>
-                                                <TapGestureRecognizer Tapped="OnVolumeUpTapped"/>
-                                            </Border.GestureRecognizers>
-                                            <Label Text="&#xF057D;" FontFamily="MDI" FontSize="14"
-                                                   TextColor="#9CA3AF"
-                                                   HorizontalOptions="Center" VerticalOptions="Center"/>
-                                        </Border>
                                     </Grid>
                                 </VerticalStackLayout>
                             </Border>

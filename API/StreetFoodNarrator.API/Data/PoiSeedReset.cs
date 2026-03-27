@@ -29,11 +29,13 @@ public static class PoiSeedReset
             throw new InvalidOperationException("Seed file is empty or invalid.");
         }
 
-        // Remove all existing POIs
+        // Remove all existing POIs and Reviews
         await db.POIs.DeleteManyAsync(_ => true);
+        await db.Reviews.DeleteManyAsync(_ => true);
 
         var now = DateTime.UtcNow;
         var pois = new List<POI>();
+        var reviews = new List<Review>();
 
         var nextId = 1;
         foreach (var item in items)
@@ -60,6 +62,7 @@ public static class PoiSeedReset
                 AveragePrice = item.AveragePrice,
                 PriceLevel = item.PriceLevel,
                 Rating = item.Rating,
+                NumReviews = 2, // Seeding 2 mock reviews
                 Tags = item.Tags,
                 ImageUrl = item.ImageUrl,
                 ImageUrls = item.ImageUrls,
@@ -68,9 +71,32 @@ public static class PoiSeedReset
                 CreatedAt = now,
                 UpdatedAt = now
             });
+            
+            // Add two mock reviews
+            reviews.Add(new Review
+            {
+                POI_ID = nextId - 1,
+                UserName = "Android SM-G998B",
+                Rating = 5,
+                Comment = "Quán ăn rất ngon, ốc tươi và gia vị đậm đà. Mình sẽ ghé lại sớm!",
+                CreatedAt = now.AddDays(-2)
+            });
+
+            reviews.Add(new Review
+            {
+                POI_ID = nextId - 1,
+                UserName = "iOS iPhone 13",
+                Rating = 4,
+                Comment = "Món ăn ổn, phục vụ nhanh nhạy nhưng giá hơi cao so với mặt bằng chung.",
+                CreatedAt = now.AddDays(-1)
+            });
         }
 
         await db.POIs.InsertManyAsync(pois);
+        if (reviews.Any())
+        {
+            await db.Reviews.InsertManyAsync(reviews);
+        }
 
         await db.Database.GetCollection<SequenceCounter>("counters")
             .UpdateOneAsync(

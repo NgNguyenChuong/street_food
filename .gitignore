@@ -79,3 +79,15 @@ node_modules/
 .env
 appsettings.Development.json
 secrets.json
+
+# Local CLI/cache artifacts (avoid noisy git status)
+.dotnet_cli/
+.dotnet/.dotnet/
+.dotnet/.nuget/
+.buildobj/
+.buildbin/
+MobileApp/build.log
+MobileApp/StreetFoodNarrator.App/crash_log.txt
+
+CLAUDE.md
+.claude/

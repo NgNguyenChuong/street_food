@@ -10,6 +10,8 @@
     <ContentPage.Resources>
         <ResourceDictionary>
             <converters:GenderToEmojiConverter x:Key="GenderToEmojiConverter" />
+            <converters:InvertedBoolConverter x:Key="InverseBoolConverter" />
+            <converters:DownloadedToColorConverter x:Key="DownloadedToColorConverter" />
         </ResourceDictionary>
     </ContentPage.Resources>
 
@@ -318,6 +320,127 @@
                             </Border>
                         </VerticalStackLayout>
 
+                        <!-- ────────────────────────────────────────────
+                             Voice Packages Section (Downloadable)
+                             ──────────────────────────────────────────── -->
+                        <BoxView HeightRequest="1"
+                                 BackgroundColor="#1E3D2A"
+                                 Opacity="0.5" />
+
+                        <!-- Voice Packages Header -->
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnVoicePackagesClicked" />
+                            </Grid.GestureRecognizers>
+                            <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                <Label Text="Gói giọng nói offline"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       TextColor="White" />
+                                <Label Text="Tải về để dùng khi không có mạng"
+                                       FontSize="12"
+                                       TextColor="#64748B" />
+                            </VerticalStackLayout>
+                            <Label x:Name="VoicePackagesExpandIcon"
+                                    Grid.Column="1"
+                                    Text="▼"
+                                    FontSize="16"
+                                    TextColor="#64748B"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                        <!-- Voice Packages Container -->
+                        <VerticalStackLayout x:Name="VoicePackagesContainer"
+                                            IsVisible="False"
+                                            Spacing="8">
+                            <!-- Vietnamese voices -->
+                            <Label Text="Tiếng Việt"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="#22C55E"
+                                   CharacterSpacing="1"
+                                   Margin="0,8,0,0"/>
+
+                            <CollectionView x:Name="VoicePackageListView"
+                                            MaximumHeightRequest="300">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="Auto,*,Auto"
+                                              Padding="12,10"
+                                              BackgroundColor="#1A2925"
+                                              Margin="0,0,0,4">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnVoicePackageSelected" />
+                                            </Grid.GestureRecognizers>
+
+                                            <!-- Selected checkmark -->
+                                            <Label Grid.Column="0"
+                                                   Text="{Binding SelectedIcon}"
+                                                   FontFamily="MDI"
+                                                   FontSize="18"
+                                                   TextColor="#22C55E"
+                                                   VerticalOptions="Center"
+                                                   Margin="0,0,10,0"/>
+
+                                            <!-- Voice info -->
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <HorizontalStackLayout Spacing="6">
+                                                    <Label Text="{Binding Name}"
+                                                           FontSize="13"
+                                                           FontAttributes="Bold"
+                                                           TextColor="White"/>
+                                                    <Label Text="{Binding GenderIcon}"
+                                                           FontFamily="MDI"
+                                                           FontSize="12"
+                                                           TextColor="#64748B"
+                                                           VerticalOptions="Center"/>
+                                                </HorizontalStackLayout>
+                                                <Label FontSize="11" TextColor="#64748B">
+                                                    <Label.FormattedText>
+                                                        <FormattedString>
+                                                            <Span Text="{Binding Language}" TextColor="#64748B"/>
+                                                            <Span Text=" • " TextColor="#64748B"/>
+                                                            <Span Text="{Binding SizeDisplay}" TextColor="#64748B"/>
+                                                        </FormattedString>
+                                                    </Label.FormattedText>
+                                                </Label>
+                                            </VerticalStackLayout>
+
+                                            <!-- Download button -->
+                                            <Grid Grid.Column="2" WidthRequest="80" VerticalOptions="Center">
+                                                <!-- Progress ring when downloading -->
+                                                <ActivityIndicator IsVisible="{Binding IsDownloading}"
+                                                                  IsRunning="{Binding IsDownloading}"
+                                                                  Color="#22C55E"
+                                                                  WidthRequest="24"
+                                                                  HeightRequest="24"/>
+                                                <!-- Download button when not downloaded -->
+                                                <Button Text="{Binding DownloadIcon}"
+                                                        FontFamily="MDI"
+                                                        FontSize="20"
+                                                        BackgroundColor="{Binding IsDownloaded, Converter={StaticResource DownloadedToColorConverter}}"
+                                                        TextColor="White"
+                                                        WidthRequest="40"
+                                                        HeightRequest="40"
+                                                        CornerRadius="20"
+                                                        Padding="0"
+                                                        IsVisible="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}"
+                                                        Clicked="OnVoicePackageDownloadTapped"/>
+                                                <!-- Checkmark when downloaded -->
+                                                <Label Text="&#xF073E;"
+                                                       FontFamily="MDI"
+                                                       FontSize="24"
+                                                       TextColor="#22C55E"
+                                                       IsVisible="{Binding IsDownloaded}"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center"/>
+                                            </Grid>
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+
                         <BoxView HeightRequest="1"
                                  BackgroundColor="#1E3D2A"
                                  Opacity="0.5" />
@@ -465,6 +588,11 @@
                                     FontSize="13"
                                     Clicked="OnDeleteDataClicked" />
                         </Grid>
+
+                        <Button Text="🗑️ Xóa bộ nhớ cache bản đồ"
+                                Clicked="OnClearMapCacheClicked"
+                                BackgroundColor="Transparent"
+                                TextColor="#EF4444" />
 
                         <Label x:Name="LastUpdatedLabel"
                                Text="{x:Static resx:AppStrings.Settings_LastUpdated}"

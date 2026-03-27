@@ -8,6 +8,7 @@
 
 using Mapsui;
 using Mapsui.Projections;
+using StreetFoodNarrator.App.ViewModels;
 
 namespace StreetFoodNarrator.App.Views;
 
@@ -36,12 +37,14 @@ public partial class MainPage
         {
             if (nearest != null)
             {
-                _vm.SelectedPinPOI    = nearest;
-                _vm.IsPinPopupVisible = true;
-                PinPopupComponent.IsVisible = true;
+                _vm.SelectedPinPOI = nearest;
+                _vm.IsPinPopupVisible = false;
+                PinPopupComponent.IsVisible = false;
             }
             else
             {
+                _vm.SelectedPinPOI = null;
+                _vm.IsPinPopupVisible = false;
                 PinPopupComponent.IsVisible = false;
             }
         });
@@ -82,9 +85,9 @@ public partial class MainPage
         UpdateZonePins();
     }
 
-    private async void OnPinViewDetails(object? sender, EventArgs e)
+    private void OnPinViewDetails(object? sender, EventArgs e)
     {
-        Console.WriteLine("[MainPage] OnPinViewDetails - Handler called!");
+        Console.WriteLine("[MainPage] OnPinViewDetails - Opening Detail Mode...");
         
         var poi = _vm.SelectedPinPOI;
         if (poi == null)
@@ -93,29 +96,63 @@ public partial class MainPage
             return;
         }
 
-        Console.WriteLine($"[MainPage] OnPinViewDetails - POI: {poi.Name_Vi}");
+        // Set the primary zone to the selected POI
+        _vm.PrimaryZone = poi;
+        // Switch to detail mode
+        _vm.CurrentAppMode = MainViewModel.AppMode.Detail;
+        
+        // Cập nhật thủ công các trường vì Binding PrimaryZoneName có khi trễ
+        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
+        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? "Không có mô tả";
+        _vm.PrimaryZoneAddress= poi.Address ?? "Địa chỉ đang cập nhật";
+        _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
 
-        // Ẩn popup
+        // Hide popup
         _vm.IsPinPopupVisible = false;
         PinPopupComponent.IsVisible = false;
+    }
 
-        try
-        {
-            // Điều hướng đến trang chi tiết POI
-            Console.WriteLine("[MainPage] OnPinViewDetails - Creating POIDetailPage...");
-            var detailPage = new POIDetailPage(poi);
-            
-            Console.WriteLine($"[MainPage] OnPinViewDetails - Navigation exists: {Navigation != null}");
-            Console.WriteLine("[MainPage] OnPinViewDetails - Calling PushModalAsync...");
+    // ── POI Card navigation (TabMapView redesign) ───────────────────────────
 
-            await Shell.Current.Navigation.PushModalAsync(detailPage);
+    private async void OnMapViewDetail(object? sender, Core.Models.POI poi)
+    {
+        if (poi == null) return;
+        _vm.SelectedPinPOI = poi;
+        _vm.PrimaryZone = poi;
+        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
+        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? "";
+        _vm.PrimaryZoneAddress = poi.Address ?? "Đang cập nhật";
+        _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
+        _vm.CurrentAppMode = MainViewModel.AppMode.Detail;
 
-            Console.WriteLine("[MainPage] OnPinViewDetails - Navigation SUCCESS!");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[MainPage] OnPinViewDetails - ERROR: {ex.Message}");
-            Console.WriteLine($"[MainPage] OnPinViewDetails - Stack trace: {ex.StackTrace}");
-        }
+        // Stop audio and navigate to POIDetailPage
+        await StopNarrationAsync(resetProgress: true, clearResumeState: true);
+        await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi));
+    }
+
+    private void OnMapPrevPoi(object? sender, Core.Models.POI poi)
+    {
+        var spots = _vm.FilteredPOIs.Where(p => p.ZoneType == "Spot").ToList();
+        if (spots.Count == 0)
+            spots = _vm.AllPOIs.Where(p => p.ZoneType == "Spot").ToList();
+        if (spots.Count == 0) return;
+        var idx = spots.FindIndex(p => p.Id == poi.Id);
+        var prevIdx = (idx - 1 + spots.Count) % spots.Count;
+        var prev = spots[prevIdx];
+        _vm.SelectedPinPOI = prev;
+        CenterMapOnPOI(prev);
+    }
+
+    private void OnMapNextPoi(object? sender, Core.Models.POI poi)
+    {
+        var spots = _vm.FilteredPOIs.Where(p => p.ZoneType == "Spot").ToList();
+        if (spots.Count == 0)
+            spots = _vm.AllPOIs.Where(p => p.ZoneType == "Spot").ToList();
+        if (spots.Count == 0) return;
+        var idx = spots.FindIndex(p => p.Id == poi.Id);
+        var nextIdx = (idx + 1) % spots.Count;
+        var next = spots[nextIdx];
+        _vm.SelectedPinPOI = next;
+        CenterMapOnPOI(next);
     }
 }
