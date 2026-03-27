@@ -29,7 +29,7 @@
         .header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; }
         .header p { opacity: 0.9; margin-top: 0.25rem; }
 
-        .stepper { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .stepper { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
         .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0.8rem 1rem; font-weight: 600; color: var(--muted); }
         .step.active { border-color: var(--primary); color: var(--primary); box-shadow: 0 6px 18px var(--shadow); }
 
@@ -95,6 +95,11 @@
         .result-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         .result-actions .btn { padding: 0.5rem 0.9rem; font-size: 0.85rem; }
         .result-textarea { width: 100%; min-height: 90px; border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.7rem; font-family: inherit; }
+        .edit-item { border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; background: #fff; display: grid; gap: 0.6rem; }
+        .edit-item-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+        .edit-item-title { font-weight: 700; }
+        .edit-item-sub { font-size: 0.85rem; color: var(--muted); }
+        .edit-textarea { width: 100%; min-height: 120px; border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 0.8rem; font-family: inherit; resize: vertical; }
 
         /* Log styles */
         .log-entry { padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.5rem; }
@@ -234,8 +239,9 @@
         <div class="stepper">
             <div class="step active">1. Chọn phương thức tạo audio</div>
             <div class="step">2. Chọn template & POI</div>
-            <div class="step">3. Ngôn ngữ & giọng đọc</div>
-            <div class="step">4. Xem trước & tạo</div>
+            <div class="step">3. Chinh sua text POI</div>
+            <div class="step">4. Ngon ngu & giong doc</div>
+            <div class="step">5. Xem truoc & tao</div>
         </div>
 
         <!-- STEP 1 -->
@@ -310,38 +316,55 @@
             </div>
         </div>
 
-        <!-- STEP 3 -->
+                <!-- STEP 3 -->
         <div class="card hidden" id="step3">
-            <h2>BƯỚC 3: CHỌN NGÔN NGỮ & GIỌNG ĐỌC</h2>
+            <h2>BUOC 3: CHINH SUA TEXT TTS CHO TUNG POI</h2>
+            <div style="color:var(--muted);margin-bottom:0.75rem;">
+                Chon POI xong ban cap nhat noi dung tung diem. Noi dung nay se dung de tao audio va dich.
+            </div>
+            <div id="editPoiList" class="result-list"></div>
+
+            <div class="actions" style="margin-top: 1rem;">
+                <button class="btn btn-outline" onclick="goStep(2)">Quay lai</button>
+                <button class="btn btn-primary" onclick="validateAndGoStep(4)">Tiep tuc</button>
+            </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="card hidden" id="step4">
+            <h2>BUOC 4: CHON NGON NGU & GIONG DOC</h2>
             <div class="lang-grid" id="langGrid"></div>
 
             <div class="controls" style="margin-top:1rem;">
                 <div class="control">
-                    <h4>Giọng đọc</h4>
+                    <h4>Giong doc</h4>
                     <div id="voiceOptions"></div>
                 </div>
                 <div class="control">
-                    <h4>Tốc độ & âm lượng</h4>
-                    <label>Tốc độ đọc: <span id="rateVal">1.0</span>x
+                    <h4>Toc do & am luong</h4>
+                    <label>Toc do doc: <span id="rateVal">1.0</span>x
                         <input type="range" min="0.8" max="1.2" step="0.05" value="1" id="rate" oninput="document.getElementById('rateVal').textContent=parseFloat(this.value).toFixed(2)">
                     </label>
                     <br>
-                    <label>Âm lượng: <span id="volVal">1.0</span>x
+                    <label>Am luong: <span id="volVal">1.0</span>x
                         <input type="range" min="0.8" max="1.2" step="0.05" value="1" id="volume" oninput="document.getElementById('volVal').textContent=parseFloat(this.value).toFixed(2)">
                     </label>
                     <br>
                 </div>
             </div>
 
-            <div class="actions" style="margin-top: 1rem;">
-                <button class="btn btn-outline" onclick="goStep(2)">Quay lại</button>
-                <button class="btn btn-primary" onclick="validateAndGoStep(4)">Tiếp tục</button>
+            <div class="actions" style="margin-top: 1rem; justify-content: space-between;">
+                <button class="btn btn-outline" onclick="goStep(3)">Quay lai</button>
+                <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+                    <button class="btn btn-outline" onclick="autoTranslateAll()">Tu dong dich</button>
+                    <button class="btn btn-primary" onclick="validateAndGoStep(5)">Tiep tuc</button>
+                </div>
             </div>
         </div>
 
-        <!-- STEP 4 -->
-        <div class="card hidden" id="step4">
-            <h2>BƯỚC 4: XEM TRƯỚC & XÁC NHẬN</h2>
+        <!-- STEP 5 -->
+        <div class="card hidden" id="step5">
+            <h2>BUOC 5: XEM TRUOC & XAC NHAN</h2>
             <div class="summary" style="margin-bottom:1rem;">
                 <div class="summary-item"><div class="value" id="sumPois">0</div><div>Số POI</div></div>
                 <div class="summary-item"><div class="value" id="sumLangs">0</div><div>Ngôn ngữ</div></div>
@@ -349,18 +372,17 @@
                 <div class="summary-item"><div class="value" id="sumEst">~</div><div>Ước tính</div></div>
             </div>
 
-            <div style="font-weight:700;margin-bottom:0.5rem;" id="scriptPreviewLabel">Xem trước script theo ngôn ngữ</div>
+            <div style="font-weight:700;margin-bottom:0.5rem;" id="scriptPreviewLabel">Xem truoc script theo ngon ngu</div>
             <div class="preview-tabs" id="scriptPreviewTabs"></div>
             <div class="preview-box" id="scriptPreview"></div>
 
             <div class="actions" style="margin-top: 1rem;">
-                <button class="btn btn-outline" onclick="goBackFromStep4()">Quay lại</button>
-                <button class="btn btn-outline" onclick="saveDraft()">Lưu nháp</button>
-                <button class="btn btn-primary" onclick="generateAudio()">Tạo ngay</button>
+                <button class="btn btn-outline" onclick="goBackFromStep5()">Quay lai</button>
+                <button class="btn btn-outline" onclick="saveDraft()">Luu nhap</button>
+                <button class="btn btn-primary" onclick="generateAudio()">Tao ngay</button>
             </div>
         </div>
-
-        <!-- PROGRESS (popup) -->
+<!-- PROGRESS (popup) -->
         <div class="progress-overlay hidden" id="progressCard">
             <div class="progress-dialog">
                 <div class="progress-title">Đang tạo audio...</div>
@@ -425,10 +447,12 @@
         ]);
 
         let currentTemplate    = templates[0];
-        let poisWithoutAudio   = [];     // all unique POI objects that need ≥1 lang
+        let poisWithoutAudio   = [];     // all unique POI objects (show all, not just missing audio)
         let poiMissingLangsMap = new Map(); // poiId  → Set<lang>  (langs still missing)
         let selectedPOIs       = new Set();
         let selectedLangs      = new Set(['vi-VN', 'en-US', 'zh-CN']);
+        let editedScripts      = new Map(); // poiId -> vi script
+        let translatedScripts  = new Map(); // key = "poiId-lang" -> translated text
         let ttsVoices          = [];
         let previewLangTemplate = 'vi-VN';
         let previewLangScript   = 'vi-VN';
@@ -661,29 +685,152 @@
             return text.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
         }
 
+        function getBaseScriptForPoi(poi) {
+            const id = getPoiId(poi);
+            if (id && editedScripts.has(id)) return editedScripts.get(id);
+            return buildScript(poi, 'vi-VN');
+        }
+
+        function getScriptForPoiLang(poi, lang) {
+            const id = getPoiId(poi);
+            const normalized = normalizeLangId(lang);
+            if (normalized === 'vi-VN') return getBaseScriptForPoi(poi);
+            const key = `${id}-${normalized}`;
+            if (translatedScripts.has(key)) return translatedScripts.get(key);
+            return buildScript(poi, normalized);
+        }
+
+        function setEditedScript(poiId, text) {
+            if (!poiId) return;
+            const cleaned = (text || '').trim();
+            editedScripts.set(String(poiId), cleaned);
+            // Invalidate translations for this POI when source changes
+            Array.from(translatedScripts.keys())
+                .filter(k => k.startsWith(String(poiId) + '-'))
+                .forEach(k => translatedScripts.delete(k));
+        }
+
+        function renderEditScripts() {
+            const list = document.getElementById('editPoiList');
+            if (!list) return;
+            const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
+            if (!selected.length) {
+                list.innerHTML = '<div style="color:var(--muted);padding:0.75rem;">Chua chon POI nao.</div>';
+                return;
+            }
+            list.innerHTML = selected.map(p => {
+                const id = getPoiId(p);
+                const name = p.name_Vi || p.name_En || `POI ${id}`;
+                const address = p.address || '';
+                const text = getBaseScriptForPoi(p);
+                return `
+                    <div class="edit-item" data-edit-id="${id}">
+                        <div class="edit-item-head">
+                            <div>
+                                <div class="edit-item-title">${name}</div>
+                                <div class="edit-item-sub">${address}</div>
+                            </div>
+                            <button class="btn btn-outline" onclick="resetEditText('${id}')">Reset</button>
+                        </div>
+                        <textarea class="edit-textarea" oninput="setEditedScript('${id}', this.value)">${text}</textarea>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function resetEditText(poiId) {
+            const poi = poisWithoutAudio.find(p => String(getPoiId(p)) === String(poiId));
+            if (!poi) return;
+            editedScripts.delete(String(poiId));
+            Array.from(translatedScripts.keys())
+                .filter(k => k.startsWith(String(poiId) + '-'))
+                .forEach(k => translatedScripts.delete(k));
+            const row = document.querySelector(`[data-edit-id="${poiId}"]`);
+            const textarea = row?.querySelector('textarea');
+            if (textarea) textarea.value = buildScript(poi, 'vi-VN');
+        }
+
+        function getTranslateTargets() {
+            const targets = [];
+            Array.from(selectedLangs).forEach(l => {
+                const norm = normalizeLangId(l);
+                if (norm === 'en-US') targets.push('en');
+                if (norm === 'zh-CN') targets.push('zh-CN');
+            });
+            return Array.from(new Set(targets));
+        }
+
+        async function autoTranslateAll() {
+            const targets = getTranslateTargets();
+            if (!targets.length) {
+                alert('Khong co ngon ngu can dich (chi chon Tieng Viet).');
+                return;
+            }
+            const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
+            if (!selected.length) {
+                alert('Vui long chon POI truoc.');
+                return;
+            }
+            for (const poi of selected) {
+                const id = getPoiId(poi);
+                const baseText = getBaseScriptForPoi(poi);
+                if (!baseText) {
+                    alert('Noi dung trong cho mot so POI. Vui long nhap text truoc khi dich.');
+                    return;
+                }
+            }
+
+            try {
+                const btns = document.querySelectorAll('button.btn.btn-outline[onclick=\"autoTranslateAll()\"]');
+                btns.forEach(b => { b.disabled = true; b.textContent = 'Dang dich...'; });
+                for (const poi of selected) {
+                    const id = getPoiId(poi);
+                    const baseText = getBaseScriptForPoi(poi);
+                    const res = await api.autoTranslate(baseText, targets);
+                    if (res && typeof res === 'object') {
+                        Object.keys(res).forEach(k => {
+                            const langId = (k === 'en') ? 'en-US' : (k === 'zh-CN' ? 'zh-CN' : k);
+                            const key = `${id}-${langId}`;
+                            const value = (res[k] || '').trim();
+                            if (value) translatedScripts.set(key, value);
+                        });
+                    }
+                }
+                alert('Da tu dong dich xong.');
+            } catch (err) {
+                alert(err?.message || 'Khong the tu dong dich.');
+            } finally {
+                const btns = document.querySelectorAll('button.btn.btn-outline[onclick=\"autoTranslateAll()\"]');
+                btns.forEach(b => { b.disabled = false; b.textContent = 'Tu dong dich'; });
+            }
+        }
+
         // ─── POI LOADING ──────────────────────────────────────────────────────────────
         const LANG_LABEL_MAP = { 'vi-VN': 'VI', 'en-US': 'EN', 'zh-CN': 'ZH' };
 
         async function loadPOIs(forceRefresh = false) {
             const langs = Array.from(selectedLangs);
-            if (!langs.length) {
-                poisWithoutAudio = [];
-                poiMissingLangsMap.clear();
-                document.getElementById('poiCount').textContent = 0;
-                renderPOIs(); updateSummary(); return;
-            }
             try {
+                // Load ALL POIs (so created POIs are not hidden)
+                const rawAll = await api.getPOIs(1, 5000);
+                const allPois = (rawAll && Array.isArray(rawAll.data)) ? rawAll.data : (rawAll || []);
+                const poiObjects = new Map();
+                (allPois || []).forEach(p => {
+                    const id = getPoiId(p);
+                    if (id === null) return;
+                    if (!poiObjects.has(id)) poiObjects.set(id, p);
+                });
+
                 // For each language, fetch POIs that still need audio
-                // Add timestamp to force refresh and bypass cache
-                const cacheBuster = forceRefresh ? `&_t=${Date.now()}` : '';
-                const perLang = await Promise.all(langs.map(async l => {
-                    try { return { lang: l, pois: await api.request(`/Audio/pois-without-audio?language=${l}${cacheBuster}`) }; }
-                    catch { return { lang: l, pois: [] }; }
-                }));
+                const perLang = langs.length
+                    ? await Promise.all(langs.map(async l => {
+                        try { return { lang: l, pois: await api.getPOIsWithoutAudio(l) }; }
+                        catch { return { lang: l, pois: [] }; }
+                    }))
+                    : [];
 
                 // Build: poiId → Set<missing lang>
                 poiMissingLangsMap.clear();
-                const poiObjects = new Map(); // poiId → poi object
                 perLang.forEach(({ lang, pois }) => {
                     (pois || []).forEach(p => {
                         const id = getPoiId(p);
@@ -694,13 +841,17 @@
                     });
                 });
 
-                // Only keep POIs that are missing at least 1 selected language
+                // Show ALL POIs (not only missing ones)
                 poisWithoutAudio = Array.from(poiObjects.values());
                 const validIds = new Set(poisWithoutAudio.map(p => getPoiId(p)));
                 selectedPOIs = new Set(Array.from(selectedPOIs).filter(id => validIds.has(id)));
                 document.getElementById('poiCount').textContent = poisWithoutAudio.length;
                 renderPOIs(); updateSummary();
-            } catch (err) { console.error('Lỗi load POI:', err); }
+            const editCard = document.getElementById('step3');
+            if (editCard && !editCard.classList.contains('hidden')) {
+                renderEditScripts();
+            }
+        } catch (err) { console.error('Lỗi load POI:', err); }
         }
 
         async function refreshPOIs() {
@@ -712,13 +863,13 @@
         function renderPOIs() {
             const grid = document.getElementById('poisGrid');
             if (!poisWithoutAudio.length) {
-                grid.innerHTML = '<div style="color:var(--muted);padding:1rem;">Không có POI nào cần tạo audio.</div>';
+                grid.innerHTML = '<div style="color:var(--muted);padding:1rem;">Không có POI nào.</div>';
                 return;
             }
             const allSelectedLangs = Array.from(selectedLangs);
             grid.innerHTML = poisWithoutAudio.map(p => {
                 const id           = getPoiId(p);
-                const missingLangs = poiMissingLangsMap.get(id) || new Set(allSelectedLangs);
+                const missingLangs = poiMissingLangsMap.get(id) || new Set();
                 const doneLangs    = allSelectedLangs.filter(l => !missingLangs.has(l));
                 const missingList  = getMissingInfoDisplay(p);
                 const hasWarn      = missingList.length > 0;
@@ -761,6 +912,10 @@
             document.getElementById('poiWarning').textContent =
                 invalid.length ? `⚠️ ${invalid.length} POI thiếu thông tin sẽ bị bỏ qua khi tạo` : '';
             updateSummary();
+            const editCard = document.getElementById('step3');
+            if (editCard && !editCard.classList.contains('hidden')) {
+                renderEditScripts();
+            }
         }
 
         // ─── SUMMARY & PREVIEW ────────────────────────────────────────────────────────
@@ -796,7 +951,7 @@
             const langs = languages.map(l => l.id);
             if (!langs.length || !firstPoi) {
                 tabs.innerHTML   = '';
-                preview.textContent = 'Chưa chọn POI hoặc chưa chọn ngôn ngữ.';
+                preview.textContent = 'Chưa chọn POI.';
                 return;
             }
             if (!langs.includes(previewLangScript)) previewLangScript = langs[0];
@@ -805,25 +960,25 @@
                 return `<button class="preview-tab ${l === previewLangScript ? 'active' : ''}" onclick="setScriptPreviewLang('${l}')">${info ? info.label : l}</button>`;
             }).join('');
 
-            // If exactly 1 POI selected → show filled script; otherwise show template with placeholders
+            // If exactly 1 POI selected -> show filled script; otherwise show template with placeholders
             const validSelected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
             const isOnePoi = validSelected.length === 1;
             if (label) {
                 label.textContent = isOnePoi
-                    ? `Xem trước script của “${firstPoi.name_Vi || firstPoi.name_En || 'POI'}”`
-                    : 'Xem trước template (script mẫu)';
+                    ? `Xem truoc script cua "${firstPoi.name_Vi || firstPoi.name_En || 'POI'}"`
+                    : 'Xem truoc template (script mau)';
             }
 
             let displayText;
             if (isOnePoi) {
                 // Show actual filled script for this POI
-                const script  = buildScript(firstPoi, previewLangScript);
+                const script  = getScriptForPoiLang(firstPoi, previewLangScript);
                 const clamped = clampScript(script, previewLangScript);
-                const truncNote = clamped.truncated ? ` [⚠️ Đã cắt bớt còn ~${MAX_TTS_SECONDS}s]` : '';
+                const truncNote = clamped.truncated ? ` [Da cat bot con ~${MAX_TTS_SECONDS}s]` : '';
                 displayText = `${clamped.text}${truncNote}`;
             } else {
                 // Show template with unresolved placeholders
-                displayText = getActiveTemplateText(previewLangScript) || 'Chưa có template.';
+                displayText = getActiveTemplateText(previewLangScript) || 'Chua co template.';
             }
             preview.textContent = displayText;
         }
@@ -914,7 +1069,7 @@
             if (container) container.innerHTML = '<div style="color:var(--muted);">Đang tạo audio...</div>';
 
             try {
-                const script = buildScript(poi, lang);
+                const script      = getScriptForPoiLang(poi, lang);
                 const clamp = clampScript(script, lang);
                 const scriptToUse = clamp.text;
                 const voice = getVoiceForLang(lang);
@@ -994,17 +1149,35 @@
         function validateAndGoStep(step) {
             if (step === 2) { goStep(2); return; }
             if (step === 3) {
-                if (selectedPOIs.size === 0) { showValidationError('step2', 'Vui lòng chọn ít nhất 1 POI.'); return; }
+                if (selectedPOIs.size === 0) { showValidationError('step2', 'Vui long chon it nhat 1 POI.'); return; }
                 goStep(3); return;
             }
             if (step === 4) {
-                if (selectedLangs.size === 0) { showValidationError('step3', 'Vui lòng chọn ít nhất 1 ngôn ngữ.'); return; }
+                const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
+                const hasEmpty = selected.some(p => !getBaseScriptForPoi(p));
+                if (hasEmpty) { showValidationError('step3', 'Vui long nhap noi dung cho tat ca POI.'); return; }
                 goStep(4); return;
+            }
+            if (step === 5) {
+                if (selectedLangs.size === 0) { showValidationError('step4', 'Vui long chon it nhat 1 ngon ngu.'); return; }
+                const needsTranslation = Array.from(selectedLangs).some(l => normalizeLangId(l) !== 'vi-VN');
+                if (needsTranslation) {
+                    const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
+                    const missing = selected.some(p => {
+                        const id = getPoiId(p);
+                        return Array.from(selectedLangs).some(l => {
+                            const norm = normalizeLangId(l);
+                            if (norm === 'vi-VN') return false;
+                            return !translatedScripts.has(`${id}-${norm}`);
+                        });
+                    });
+                    if (missing) { showValidationError('step4', 'Hay bam "Tu dong dich" truoc khi tao audio.'); return; }
+                }
+                goStep(5); return;
             }
             goStep(step);
         }
-
-        function showValidationError(stepId, message) {
+function showValidationError(stepId, message) {
             document.getElementById('validationErr_' + stepId)?.remove();
             const el = document.createElement('div');
             el.id        = 'validationErr_' + stepId;
@@ -1056,8 +1229,24 @@
             const validPOIs = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
 
             if (validPOIs.length === 0 || selectedLangs.size === 0) {
-                alert('Không có POI hợp lệ hoặc chưa chọn ngôn ngữ.');
+                alert('Khong co POI hop le hoac chua chon ngon ngu.');
                 return;
+            }
+
+            const needsTranslation = Array.from(selectedLangs).some(l => normalizeLangId(l) !== 'vi-VN');
+            if (needsTranslation) {
+                const missing = validPOIs.some(p => {
+                    const id = getPoiId(p);
+                    return Array.from(selectedLangs).some(l => {
+                        const norm = normalizeLangId(l);
+                        if (norm === 'vi-VN') return false;
+                        return !translatedScripts.has(`${id}-${norm}`);
+                    });
+                });
+                if (missing) {
+                    alert('Hay bam "Tu dong dich" truoc khi tao audio.');
+                    return;
+                }
             }
 
             const progressCard = document.getElementById('progressCard');
@@ -1089,7 +1278,7 @@
                     let taskDone = false;
                     while (!taskDone && !stopped) {
                         try {
-                            const script      = buildScript(poi, lang);
+                            const script      = getScriptForPoiLang(poi, lang);
                             const clamp       = clampScript(script, lang);
                             const scriptToUse = clamp.text;
                             const voice       = getVoiceForLang(lang);
@@ -1343,7 +1532,7 @@
                 });
                 generatedItems.delete(key);
                 renderResults();
-                // If no items remain, refresh POI list so saved POIs are removed
+                // If no items remain, refresh POI list so status/badges are updated
                 if (generatedItems.size === 0) {
                     await afterAllSaved();
                 }
@@ -1365,7 +1554,7 @@
             for (const key of keys) {
                 await saveItem(key);
             }
-            // After saving all: refresh POI list + summary so saved POIs disappear
+            // After saving all: refresh POI list + summary
             await afterAllSaved();
         }
 
@@ -1377,25 +1566,17 @@
         }
 
         async function afterAllSaved() {
-            // Reload POI list so saved POIs (now have audio) are filtered out
+            // Reload POI list so latest status/badges are refreshed
             await loadPOIs();
             updateSummary();
 
-            // Count remaining POIs that still need audio
-            const remaining = poisWithoutAudio.filter(p =>
-                selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p)
-            ).length;
-
-            if (remaining === 0) {
-                // All done — go back to step 2 and show success toast
-                goStep(2);
-                const toast = document.createElement('div');
-                toast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:.75rem 1.5rem;border-radius:9999px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:9999;animation:errFadeIn .2s ease';
-                toast.textContent = '✅ Đã lưu toàn bộ audio! Danh sách POI đã được cập nhật.';
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 3500);
-            }
-            // else: step 4 summary already refreshed — user can generate remaining POIs
+            // All done — go back to step 2 and show success toast
+            goStep(2);
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:.75rem 1.5rem;border-radius:9999px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:9999;animation:errFadeIn .2s ease';
+            toast.textContent = '✅ Đã lưu toàn bộ audio! Bạn có thể tiếp tục chỉnh sửa và tạo lại nếu cần.';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3500);
         }
 
         // ─── LOG HELPERS ──────────────────────────────────────────────────────────────
@@ -1499,17 +1680,15 @@
         }
 
         function goStep(step) {
-            ['step1', 'step2', 'step3', 'step4'].forEach((id, idx) => {
+            const ids = ['step1', 'step2', 'step3', 'step4', 'step5'];
+            ids.forEach((id, idx) => {
                 document.getElementById(id).classList.toggle('hidden', idx !== step - 1);
                 document.querySelectorAll('.step')[idx].classList.toggle('active', idx === step - 1);
             });
-            
-            // Auto-refresh POI list when entering step 2
-            if (step === 2) {
-                refreshPOIs();
+            if (step === 3) {
+                renderEditScripts();
             }
-            
-            if (step === 4) {
+            if (step === 5) {
                 updateSummary();
                 // Hide results until user triggers generation
                 document.getElementById('resultsCard').classList.add('hidden');
@@ -1517,10 +1696,10 @@
             sessionStorage.setItem('tts_current_step', String(step));
         }
 
-        // "Quay lại" from step 4: warn user if there are pending generated items
-        async function goBackFromStep4() {
+        // "Quay lại" from step 5: warn user if there are pending generated items
+        async function goBackFromStep5() {
             const hasResults = generatedItems.size > 0;
-            if (!hasResults) { goStep(3); return; }
+            if (!hasResults) { goStep(4); return; }
 
             // Custom confirm popup (same style as showErrorDialog)
             const ok = await new Promise(resolve => {
@@ -1549,7 +1728,7 @@
 
             if (!ok) return;
             await discardAll();
-            goStep(3);
+            goStep(4);
         }
 
         // ─── OPTION CLICK ─────────────────────────────────────────────────────────────
@@ -1573,7 +1752,7 @@
 
         // Restore last step after refresh
         const savedStep = parseInt(sessionStorage.getItem('tts_current_step') || '1', 10);
-        if (savedStep >= 2 && savedStep <= 4) goStep(savedStep);
+        if (savedStep >= 2 && savedStep <= 5) goStep(savedStep);
     </script>
 </body>
 </html>

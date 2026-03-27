@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             xmlns:mapsui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
+             xmlns:components="clr-namespace:StreetFoodNarrator.App.Views.Components"
+             x:Class="StreetFoodNarrator.App.Views.ExploreMapPage"
+             x:DataType="vm:MainViewModel"
+             BackgroundColor="#0A1612"
+             Shell.NavBarIsVisible="False">
+
+    <AbsoluteLayout BackgroundColor="#0A1612">
+        <mapsui:MapControl x:Name="MapView"
+                           AbsoluteLayout.LayoutBounds="0,0,1,1"
+                           AbsoluteLayout.LayoutFlags="All"
+                           BackgroundColor="#08110D" />
+
+        <components:TabMapView x:Name="TabMapComponent"
+                               AbsoluteLayout.LayoutBounds="0,0,1,1"
+                               AbsoluteLayout.LayoutFlags="All"
+                               InputTransparent="False"
+                               CascadeInputTransparent="False" />
+    </AbsoluteLayout>
+</ContentPage>

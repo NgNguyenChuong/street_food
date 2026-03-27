@@ -21,7 +21,7 @@ public class AudioCacheService : IAudioCacheService
     public AudioCacheService(HttpClient httpClient)
     {
         _http    = httpClient;
-        _baseUrl = AppConfig.ApiBaseUrl.TrimEnd('/');
+        _baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
         _cacheDir = Path.Combine(FileSystem.AppDataDirectory, "audio_cache");
         Directory.CreateDirectory(_cacheDir);
 
@@ -40,6 +40,7 @@ public class AudioCacheService : IAudioCacheService
     {
         var ids   = poiIds.Distinct().ToList();
         int done  = 0;
+        int timeoutFailures = 0;
 
         foreach (var poiId in ids)
         {
@@ -47,6 +48,17 @@ public class AudioCacheService : IAudioCacheService
             try
             {
                 await DownloadAudioForPoiAsync(poiId, ct);
+                timeoutFailures = 0;
+            }
+            catch (TaskCanceledException ex)
+            {
+                timeoutFailures++;
+                Debug.WriteLine($"[AudioCache] Timeout preload POI {poiId}: {ex.Message}");
+                if (timeoutFailures >= 3)
+                {
+                    Debug.WriteLine("[AudioCache] Quá nhiều timeout liên tiếp, dừng preload để tránh treo UX.");
+                    break;
+                }
             }
             catch (Exception ex)
             {

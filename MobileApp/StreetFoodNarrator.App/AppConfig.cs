@@ -1,5 +1,7 @@
 namespace StreetFoodNarrator.App;
 
+using Microsoft.Maui.Devices;
+
 /// <summary>
 /// App-wide configuration.
 /// Replace placeholder values before building for production.
@@ -32,9 +34,16 @@ public static class AppConfig
     public const double DefaultLatitude  = 10.762094471587867;  // Cổng chính — 11 Đường Vĩnh Khánh, P.8, Q.4
     public const double DefaultLongitude = 106.70189053795724;
     public const double DefaultZoom      = 24;
-    // Backend API
-    // Emulator: http://10.0.2.2:5004  |  Real device: http://<YOUR_PC_IP>:5004
-    public static string ApiBaseUrl { get; set; } = "http://10.0.2.2:5004/";
+
+    // ── Backend API ───────────────────────────────────────────────
+    // ── Emulator (Android AVD): http://10.0.2.2:5004/
+    //    (10.0.2.2 là địa chỉ host PC khi chạy trên máy ảo Android)
+    public static string EmulatorApiBaseUrl { get; set; } = "http://10.0.2.2:5004/";
+
+    // ── Máy thật (Real Device): dùng IP LAN của PC chạy API
+    public static string DefaultRealDeviceApiUrl { get; set; } = "http://192.168.100.9:5004/";
+
+    public const int NetworkTimeoutSeconds = 30;
     public static bool UseBackendApi { get; set; } = true;
     public const string DataVersionKey = "pois_data_version";
     public const string LanguagePrefKey = "app_language";
@@ -43,6 +52,60 @@ public static class AppConfig
     public const double DebounceMeters = 5.0;
     public const int    DebounceMs     = 3000;
 
-    // ── Feature flags ─────────────────────────────────────────────
-    public const bool UseSimulatedGPS = true;  // Set false for real device GPS
+    // ── Feature flags ──────────────────────────────────────────────
+    public const bool UseSimulatedGPS = false;    // Máy thật: dùng GPS thật của thiết bị
+
+    private const string CUSTOM_API_URL_KEY = "CustomApiUrl";
+
+    /// <summary>
+    /// Get the resolved API Base URL.
+    /// Priority: Custom URL (from settings) > Default Real Device URL > Emulator URL
+    /// </summary>
+    public static string GetResolvedApiBaseUrl()
+    {
+        // ✅ Priority 1: Custom URL set by user
+        var customUrl = Preferences.Get(CUSTOM_API_URL_KEY, "");
+        if (!string.IsNullOrEmpty(customUrl))
+            return customUrl;
+
+        // ✅ Priority 2: Emulator (Android AVD)
+        if (DeviceInfo.Platform == DevicePlatform.Android && DeviceInfo.DeviceType == DeviceType.Virtual)
+            return EmulatorApiBaseUrl;
+
+        // ✅ Priority 3: Real device default
+        return DefaultRealDeviceApiUrl;
+    }
+
+    /// <summary>
+    /// Set a custom API URL for real device connection.
+    /// Use this when default IP doesn't work or you need to change server.
+    /// </summary>
+    /// <param name="url">Full URL including trailing slash, e.g. "http://192.168.1.100:5004/"</param>
+    public static void SetCustomApiUrl(string url)
+    {
+        if (!string.IsNullOrEmpty(url))
+        {
+            // Ensure trailing slash
+            url = url.TrimEnd('/') + "/";
+            Preferences.Set(CUSTOM_API_URL_KEY, url);
+            Console.WriteLine($"[AppConfig] ✅ Custom API URL set: {url}");
+        }
+    }
+
+    /// <summary>
+    /// Clear custom API URL and revert to default.
+    /// </summary>
+    public static void ClearCustomApiUrl()
+    {
+        Preferences.Remove(CUSTOM_API_URL_KEY);
+        Console.WriteLine("[AppConfig] ✅ Custom API URL cleared, using defaults");
+    }
+
+    /// <summary>
+    /// Check if a custom API URL is currently configured.
+    /// </summary>
+    public static bool HasCustomApiUrl()
+    {
+        return !string.IsNullOrEmpty(Preferences.Get(CUSTOM_API_URL_KEY, ""));
+    }
 }

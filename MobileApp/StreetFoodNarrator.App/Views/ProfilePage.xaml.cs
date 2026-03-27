@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.Maui.Storage;
+using StreetFoodNarrator.App;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.ViewModels;
@@ -111,7 +112,7 @@ public partial class ProfilePage : ContentPage
         vm.AutoStartRequestedTour = true;
 
         if (Shell.Current != null)
-            await Shell.Current.GoToAsync("//TourPage");
+            await Shell.Current.GoToAsync("//MapPage");
     }
 
     private static string FormatDuration(TimeSpan duration)
@@ -123,8 +124,13 @@ public partial class ProfilePage : ContentPage
 
     private async void OnSettingsTapped(object sender, EventArgs e)
     {
-        // Navigate to Settings page
-        await Shell.Current.GoToAsync("SettingsPage");
+        if (Shell.Current is AppShell shell)
+        {
+            await Shell.Current.Navigation.PushModalAsync(shell.GetCachedSettingsPage());
+            return;
+        }
+
+        await Navigation.PushModalAsync(new SettingsPage());
     }
 }
 

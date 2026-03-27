@@ -20,6 +20,13 @@ public interface ITTSService
     /// Dùng để kiểm tra nhanh trên thiết bị khi nghi ngờ lỗi giọng hoặc mạng.
     /// </summary>
     Task<bool> SpeakNativeFallbackAsync(string text, string languageCode, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Phát text với voice package đã tải về (offline).
+    /// Nếu voice package chưa có, fallback về native TTS.
+    /// </summary>
+    Task<bool> SpeakWithVoicePackageAsync(string text, string languageCode, string voiceName,
+        CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Lấy danh sách giọng nói cho ngôn ngữ
@@ -50,6 +57,15 @@ public interface ITTSService
 
     /// <summary>Seek đến vị trí cụ thể (giây).</summary>
     void Seek(double positionSeconds);
+
+    /// <summary>Tạm dừng audio đang phát.</summary>
+    void Pause();
+
+    /// <summary>Tiếp tục phát audio đang tạm dừng.</summary>
+    void Resume();
+
+    /// <summary>Kiểm tra audio có đang phát không.</summary>
+    bool IsPlaying();
 
     /// <summary>Ẩn khi audio phát xong. Không fire khi gọi StopAsync.</summary>
     event Action? OnPlaybackEnded;

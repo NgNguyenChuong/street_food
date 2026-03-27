@@ -1,209 +1,277 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!--  BackgroundColor="#0A1612" -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:resx="clr-namespace:StreetFoodNarrator.App.Resources.Strings"
              x:Class="StreetFoodNarrator.App.Views.WelcomePage"
-             BackgroundColor="Black"
+             BackgroundColor="#0A1612"
              NavigationPage.HasNavigationBar="False">
 
-    <Grid>
-        <!-- Background image with stronger overlay
-           Aspect="AspectFill"
-               Opacity="0.3" -->
-        <Image Source="welcome_streetfood.jpg"
-               Aspect="AspectFill" />
+    <Grid x:Name="RootGrid">
 
-        <!-- Gradient overlay -->
-         <BoxView>
-            <BoxView.Background>
-                <LinearGradientBrush EndPoint="0,1">
-                    <GradientStop Color="#E6000000" Offset="0.0" />
-                    <GradientStop Color="#CC0A1612" Offset="0.6" />
-                    <GradientStop Color="#FF0A1612" Offset="1.0" />
-                </LinearGradientBrush>
-            </BoxView.Background>
-        </BoxView> 
+        <!-- Background Image -->
+        <Image Source="welcome_streetfood.jpg" Aspect="AspectFill" Opacity="0.08" />
+        
+        <!-- Dark Overlay -->
+        <BoxView Color="#0A1612" Opacity="0.85" />
 
-        <!-- ═══ Nút chuông thông báo audio mới (góc trên phải) ═══ -->
-        <Grid RowDefinitions="*,Auto"
-              Padding="28,56,28,36">
+        <!-- Gradient Overlay -->
+        <Grid>
+            <Grid.Background>
+                <RadialGradientBrush Center="0.5,0.15" Radius="1.0">
+                    <GradientStop Color="#1A3329" Offset="0.0" />
+                    <GradientStop Color="#0E1E17" Offset="0.4" />
+                    <GradientStop Color="#0A1612" Offset="0.8" />
+                    <GradientStop Color="#08140F" Offset="1.0" />
+                </RadialGradientBrush>
+            </Grid.Background>
+        </Grid>
 
-            <!-- ═══════════════════════════════════════════════════
-                 TOP: Compact branding + features in cards grid
-                 ═══════════════════════════════════════════════════ -->
-            <VerticalStackLayout Grid.Row="0"
-                                 Spacing="24"
-                                 VerticalOptions="Center">
+        <!-- Main Content -->
+        <Grid Padding="20,48,20,24" RowDefinitions="Auto,*,Auto,Auto">
+            
+            <!-- Top Bar: Settings Button -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+
+                <Button x:Name="SettingsButton"
+                        Grid.Column="2"
+                        Text="&#xF0493;"
+                        FontFamily="MDI"
+                        FontSize="22"
+                        BackgroundColor="#0E1E17"
+                        TextColor="#E5E7EB"
+                        BorderColor="#1C3024"
+                        BorderWidth="1.5"
+                        WidthRequest="50"
+                        HeightRequest="50"
+                        CornerRadius="25"
+                        Clicked="OnSettingsClicked">
+                    <Button.Shadow>
+                        <Shadow Brush="#000000" Offset="0,2" Radius="8" Opacity="0.15" />
+                    </Button.Shadow>
+                </Button>
+            </Grid>
+
+            <!-- Main Content Area -->
+            <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="16" Margin="0,8,0,0">
                 
-                <!-- Compact header -->
-                <VerticalStackLayout Spacing="12" HorizontalOptions="Center">
-                    <!-- Logo: colored noodle emoji, no background -->
-                    <Label Text="🍜"
-                           FontSize="80"
-                           HorizontalOptions="Center"
-                           VerticalOptions="Center" />
+                <!-- App Logo & Title -->
+                <VerticalStackLayout Grid.Row="0" Spacing="14" HorizontalOptions="Center">
+                    <!-- Logo Container with Glow -->
+                    <Border BackgroundColor="#1A3329" 
+                            Padding="18" 
+                            StrokeThickness="0"
+                            HorizontalOptions="Center">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="26" />
+                        </Border.StrokeShape>
+                        <Border.Shadow>
+                            <Shadow Brush="#22C55E" Offset="0,4" Radius="24" Opacity="0.3" />
+                        </Border.Shadow>
+                        <Label Text="🍜"
+                               FontSize="52"
+                               HorizontalTextAlignment="Center"
+                               VerticalTextAlignment="Center" />
+                    </Border>
 
-                    <Label x:Name="TitleLabel"
-                           Text="{x:Static resx:AppStrings.Welcome_AppTitle}"
-                           FontSize="34"
-                           FontAttributes="Bold"
-                           TextColor="White"
-                           HorizontalTextAlignment="Center" />
-
-                    <Label x:Name="SubtitleLabel"
-                           Text="{x:Static resx:AppStrings.Welcome_Subtitle}"
-                           FontSize="14"
-                           TextColor="#CBD5E1"
-                           HorizontalTextAlignment="Center" />
+                    <!-- Title & Subtitle -->
+                    <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                        <Label x:Name="TitleLabel"
+                               Text="{x:Static resx:AppStrings.Welcome_AppTitle}"
+                               FontSize="26"
+                               FontAttributes="Bold"
+                               TextColor="#F9FAFB"
+                               HorizontalTextAlignment="Center"
+                               LineHeight="1.2" />
+                        <Label x:Name="SubtitleLabel"
+                               Text="{x:Static resx:AppStrings.Welcome_Subtitle}"
+                               FontSize="14"
+                               TextColor="#9CA3AF"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
                 </VerticalStackLayout>
 
-                <!-- 3 features in 2x2 grid (compact) -->
-                <Grid ColumnDefinitions="*,*"
-                      RowDefinitions="Auto,Auto"
-                      ColumnSpacing="12"
-                      RowSpacing="12">
+                <!-- Feature Boxes (2-1 Grid Layout) -->
+                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto" RowSpacing="10" Padding="0,4,0,8">
                     
-                    <!-- Feature 1: Auto GPS (top left) -->
-                    <Border Grid.Column="0" Grid.Row="0"
-                            BackgroundColor="#0F1F1720"
-                            Stroke="#24cf65ff"
-                            StrokeThickness="1"
-                            Padding="14,12">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="14" />
-                        </Border.StrokeShape>
-                        <VerticalStackLayout Spacing="8">
-                            <Label Text="&#xF034E;" FontFamily="MDI" FontSize="28" TextColor="#F97316" HorizontalOptions="Center" />
-                            <Label x:Name="FeatureAutoTitleLabel"
-                                   Text="{x:Static resx:AppStrings.Welcome_Feature_Auto_Title}"
-                                   FontSize="13"
-                                   FontAttributes="Bold"
-                                   TextColor="#E2E8F0"
-                                   HorizontalTextAlignment="Center" />
-                            <Label x:Name="FeatureAutoSubtitleLabel"
-                                   Text="{x:Static resx:AppStrings.Welcome_Feature_Auto_Desc}"
-                                   FontSize="11"
-                                   TextColor="#64748B"
-                                   HorizontalTextAlignment="Center" />
-                        </VerticalStackLayout>
-                    </Border>
+                    <!-- Top Row: 2 boxes side by side -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,*" ColumnSpacing="10">
+                        
+                        <!-- Feature 1: Tự động phát (Left) -->
+                        <Border Grid.Column="0"
+                                BackgroundColor="#0E1E17"
+                                Stroke="#1C3024"
+                                StrokeThickness="1.5"
+                                Padding="14,16">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="16" />
+                            </Border.StrokeShape>
+                            <Border.Shadow>
+                                <Shadow Brush="#000000" Offset="0,3" Radius="10" Opacity="0.18" />
+                            </Border.Shadow>
+                            <VerticalStackLayout Spacing="10">
+                                <Border WidthRequest="48"
+                                        HeightRequest="48"
+                                        HorizontalOptions="Start"
+                                        StrokeThickness="0">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="24" />
+                                    </Border.StrokeShape>
+                                    <Border.Background>
+                                        <RadialGradientBrush>
+                                            <GradientStop Color="#F9731618" Offset="0" />
+                                            <GradientStop Color="#F9731608" Offset="1" />
+                                        </RadialGradientBrush>
+                                    </Border.Background>
+                                    <Label Text="&#xF034E;"
+                                           FontFamily="MDI"
+                                           FontSize="24"
+                                           TextColor="#F97316"
+                                           HorizontalTextAlignment="Center"
+                                           VerticalTextAlignment="Center" />
+                                </Border>
 
-                    <!-- Feature 2: Offline (top right) -->
-                    <Border Grid.Column="1" Grid.Row="0"
-                            BackgroundColor="#0F1F1720"
-                            Stroke="#24cf65ff"
-                            StrokeThickness="1"
-                            Padding="14,12">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="14" />
-                        </Border.StrokeShape>
-                        <VerticalStackLayout Spacing="8">
-                            <Label Text="&#xF01DA;" FontFamily="MDI" FontSize="28" TextColor="#3B82F6" HorizontalOptions="Center" />
-                            <Label x:Name="FeatureOfflineTitleLabel"
-                                   Text="{x:Static resx:AppStrings.Welcome_Feature_Offline_Title}"
-                                   FontSize="13"
-                                   FontAttributes="Bold"
-                                   TextColor="#E2E8F0"
-                                   HorizontalTextAlignment="Center" />
-                            <Label x:Name="FeatureOfflineSubtitleLabel"
-                                   Text="{x:Static resx:AppStrings.Welcome_Feature_Offline_Desc}"
-                                   FontSize="11"
-                                   TextColor="#64748B"
-                                   HorizontalTextAlignment="Center" />
-                        </VerticalStackLayout>
-                    </Border>
+                                <VerticalStackLayout Spacing="4">
+                                    <Label x:Name="FeatureAutoTitleLabel"
+                                           Text="{x:Static resx:AppStrings.Welcome_Feature_Auto_Title}"
+                                           FontSize="15"
+                                           FontAttributes="Bold"
+                                           TextColor="#F9FAFB"
+                                           LineBreakMode="WordWrap"
+                                           MaxLines="2" />
+                                    <Label x:Name="FeatureAutoSubtitleLabel"
+                                           Text="{x:Static resx:AppStrings.Welcome_Feature_Auto_Desc}"
+                                           FontSize="12"
+                                           TextColor="#9CA3AF"
+                                           LineHeight="1.3"
+                                           MaxLines="3"
+                                           LineBreakMode="TailTruncation" />
+                                </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
 
-                    <!-- Feature 3: Local Stories (bottom, spans 2 columns) -->
-                    <Border Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
-                            BackgroundColor="#0F1F1720"
-                            Stroke="#24cf65ff"
-                            StrokeThickness="1"
-                            Padding="14,12">
+                        <!-- Feature 2: Tải trước (Right) -->
+                        <Border Grid.Column="1"
+                                BackgroundColor="#0E1E17"
+                                Stroke="#1C3024"
+                                StrokeThickness="1.5"
+                                Padding="14,16">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="16" />
+                            </Border.StrokeShape>
+                            <Border.Shadow>
+                                <Shadow Brush="#000000" Offset="0,3" Radius="10" Opacity="0.18" />
+                            </Border.Shadow>
+                            <VerticalStackLayout Spacing="10">
+                                <Border WidthRequest="48"
+                                        HeightRequest="48"
+                                        HorizontalOptions="Start"
+                                        StrokeThickness="0">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="24" />
+                                    </Border.StrokeShape>
+                                    <Border.Background>
+                                        <RadialGradientBrush>
+                                            <GradientStop Color="#3B82F618" Offset="0" />
+                                            <GradientStop Color="#3B82F608" Offset="1" />
+                                        </RadialGradientBrush>
+                                    </Border.Background>
+                                    <Label Text="&#xF01DA;"
+                                           FontFamily="MDI"
+                                           FontSize="24"
+                                           TextColor="#60A5FA"
+                                           HorizontalTextAlignment="Center"
+                                           VerticalTextAlignment="Center" />
+                                </Border>
+
+                                <VerticalStackLayout Spacing="4">
+                                    <Label x:Name="FeatureOfflineTitleLabel"
+                                           Text="{x:Static resx:AppStrings.Welcome_Feature_Offline_Title}"
+                                           FontSize="15"
+                                           FontAttributes="Bold"
+                                           TextColor="#F9FAFB"
+                                           LineBreakMode="WordWrap"
+                                           MaxLines="2" />
+                                    <Label x:Name="FeatureOfflineSubtitleLabel"
+                                           Text="{x:Static resx:AppStrings.Welcome_Feature_Offline_Desc}"
+                                           FontSize="12"
+                                           TextColor="#9CA3AF"
+                                           LineHeight="1.3"
+                                           MaxLines="3"
+                                           LineBreakMode="TailTruncation" />
+                                </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
+                    </Grid>
+
+                    <!-- Bottom Row: 1 box full width -->
+                    <Border Grid.Row="1"
+                            BackgroundColor="#0E1E17"
+                            Stroke="#1C3024"
+                            StrokeThickness="1.5"
+                            Padding="16,14">
                         <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="14" />
+                            <RoundRectangle CornerRadius="16" />
                         </Border.StrokeShape>
+                        <Border.Shadow>
+                            <Shadow Brush="#000000" Offset="0,3" Radius="10" Opacity="0.18" />
+                        </Border.Shadow>
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                            <Label Grid.Column="0"
-                                   Text="&#xF036C;" FontFamily="MDI"
-                                   FontSize="28"
-                                   TextColor="#F59E0B"
-                                   VerticalOptions="Center" />
+                            <Border WidthRequest="52"
+                                    HeightRequest="52"
+                                    VerticalOptions="Start"
+                                    StrokeThickness="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="26" />
+                                </Border.StrokeShape>
+                                <Border.Background>
+                                    <RadialGradientBrush>
+                                        <GradientStop Color="#F59E0B18" Offset="0" />
+                                        <GradientStop Color="#F59E0B08" Offset="1" />
+                                    </RadialGradientBrush>
+                                </Border.Background>
+                                <Label Text="&#xF036C;"
+                                       FontFamily="MDI"
+                                       FontSize="26"
+                                       TextColor="#F59E0B"
+                                       HorizontalTextAlignment="Center"
+                                       VerticalTextAlignment="Center" />
+                            </Border>
+
                             <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
                                 <Label x:Name="FeatureLocalTitleLabel"
                                        Text="{x:Static resx:AppStrings.Welcome_Feature_Local_Title}"
-                                       FontSize="13"
+                                       FontSize="17"
                                        FontAttributes="Bold"
-                                       TextColor="#E2E8F0" />
+                                       TextColor="#F9FAFB"
+                                       LineBreakMode="TailTruncation" />
                                 <Label x:Name="FeatureLocalSubtitleLabel"
                                        Text="{x:Static resx:AppStrings.Welcome_Feature_Local_Desc}"
-                                       FontSize="11"
-                                       TextColor="#64748B"
-                                       LineBreakMode="WordWrap" />
+                                       FontSize="13"
+                                       TextColor="#9CA3AF"
+                                       LineHeight="1.3"
+                                       MaxLines="2"
+                                       LineBreakMode="TailTruncation" />
                             </VerticalStackLayout>
                         </Grid>
                     </Border>
+
+                    <!-- Status Container (if needed) -->
+                    <ContentView x:Name="StatusContainer" Grid.Row="2" />
                 </Grid>
+            </Grid>
 
-                <!-- Status (compact, inline) -->
-                <ContentView x:Name="StatusContainer" />
-            </VerticalStackLayout>
-
-            <!-- ═══════════════════════════════════════════════════
-                 BOTTOM: Actions (always visible, no scroll)
-                 ═══════════════════════════════════════════════════ -->
-            <VerticalStackLayout Grid.Row="1" Spacing="12">
+            <!-- Action Buttons -->
+            <VerticalStackLayout Grid.Row="2" Spacing="10" Margin="0,12,0,0">
                 
-                <!-- Language (horizontal, compact) -->
-                <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
-                    <Button x:Name="LangViButton"
-                            Text="VN"
-                            Padding="12,6"
-                            HeightRequest="32"
-                            FontSize="12"
-                            FontAttributes="Bold"
-                            BackgroundColor="#22C55E"
-                            TextColor="White"
-                            CornerRadius="8"
-                            Clicked="OnLanguageClicked"
-                            CommandParameter="vi" />
-                    <Button x:Name="LangEnButton"
-                            Text="EN"
-                            Padding="12,6"
-                            HeightRequest="32"
-                            FontSize="12"
-                            BackgroundColor="#0F1F17"
-                            TextColor="#64748B"
-                            BorderColor="#1E3D2A"
-                            BorderWidth="1"
-                            CornerRadius="8"
-                            Clicked="OnLanguageClicked"
-                            CommandParameter="en" />
-                    <Button x:Name="LangZhButton"
-                            Text="ZH"
-                            Padding="12,6"
-                            HeightRequest="32"
-                            FontSize="12"
-                            BackgroundColor="#0F1F17"
-                            TextColor="#64748B"
-                            BorderColor="#1E3D2A"
-                            BorderWidth="1"
-                            CornerRadius="8"
-                            Clicked="OnLanguageClicked"
-                            CommandParameter="zh" />
-                </HorizontalStackLayout>
-
-                <!-- Main CTA (bigger, more prominent) -->
+                <!-- Main CTA Button -->
                 <Button x:Name="StartButton"
-                        Text="{x:Static resx:AppStrings.Welcome_StartTour}"
+                        Text="Bắt đầu khám phá Vĩnh Khánh"
                         Clicked="OnStartTourClicked"
-                        HeightRequest="64"
-                        FontSize="18"
+                        HeightRequest="56"
+                        FontSize="16"
                         FontAttributes="Bold"
-                        TextColor="White"
-                        CornerRadius="18"
-                        IsEnabled="False"
-                        Opacity="0.5">
+                        TextColor="#FFFFFF"
+                        CornerRadius="28">
                     <Button.Background>
                         <LinearGradientBrush EndPoint="1,0">
                             <GradientStop Color="#22C55E" Offset="0" />
@@ -211,60 +279,99 @@
                         </LinearGradientBrush>
                     </Button.Background>
                     <Button.Shadow>
-                        <Shadow Brush="#22C55E" Opacity="0.4" Radius="20" Offset="0,8" />
+                        <Shadow Brush="#22C55E" Offset="0,4" Radius="16" Opacity="0.4" />
                     </Button.Shadow>
                 </Button>
 
-                <!-- Secondary (horizontal, equal width) -->
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                    <!-- Update audio button (replaces manual browse + bell) -->
-                    <Grid Grid.Column="0">
-                        <Button x:Name="UpdateButton"
+                <!-- Secondary Button -->
+                <Button x:Name="UpdateButton"
+                        Text="TẢI DỮ LIỆU OFFLINE"
+                        FontSize="14"
+                        FontAttributes="Bold"
+                        BackgroundColor="Transparent"
+                        TextColor="#22C55E"
+                        BorderColor="Transparent"
+                        HeightRequest="44"
+                        Clicked="OnUpdateClicked" />
+
+            </VerticalStackLayout>
+
+            <!-- Bottom Section: Language & Data Source -->
+            <Grid Grid.Row="3" Margin="0,10,0,0" RowDefinitions="Auto,Auto" RowSpacing="12">
+                
+                <!-- Language Selector -->
+                <HorizontalStackLayout x:Name="LangRow"
+                                       Grid.Row="0"
+                                       Spacing="8"
+                                       HorizontalOptions="Center">
+                    <Button x:Name="LangViButton" Text="VN" WidthRequest="50" HeightRequest="34" Padding="0"
+                            FontSize="13" FontAttributes="Bold" BackgroundColor="#22C55E" TextColor="#FFFFFF"
+                            CornerRadius="17" Clicked="OnLanguageClicked" CommandParameter="vi">
+                        <Button.Shadow>
+                            <Shadow Brush="#22C55E" Offset="0,2" Radius="8" Opacity="0.3" />
+                        </Button.Shadow>
+                    </Button>
+                    <Button x:Name="LangEnButton" Text="EN" WidthRequest="50" HeightRequest="34" Padding="0"
+                            FontSize="13" FontAttributes="Bold" BackgroundColor="#0E1E17" TextColor="#9CA3AF"
+                            BorderColor="#1C3024" BorderWidth="1.5" CornerRadius="17"
+                            Clicked="OnLanguageClicked" CommandParameter="en" />
+                    <Button x:Name="LangZhButton" Text="ZH" WidthRequest="50" HeightRequest="34" Padding="0"
+                            FontSize="13" FontAttributes="Bold" BackgroundColor="#0E1E17" TextColor="#9CA3AF"
+                            BorderColor="#1C3024" BorderWidth="1.5" CornerRadius="17"
+                            Clicked="OnLanguageClicked" CommandParameter="zh" />
+                </HorizontalStackLayout>
+
+                <!-- Data Source & Update Button -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <Label x:Name="DataSourceLabel"
+                           Grid.Column="0"
+                           Text="Nguồn dữ liệu: Unknown | Lần cuối: Chưa đồng bộ"
+                           FontSize="10"
+                           TextColor="#6B7280"
+                           VerticalTextAlignment="Center"
+                           LineBreakMode="TailTruncation" />
+
+                    <Grid Grid.Column="1">
+                        <Button x:Name="BellIconButton"
                                 Text="&#xF0453;"
                                 FontFamily="MDI"
-                                FontSize="18"
-                                BackgroundColor="#0F1F17"
-                                TextColor="#94A3B8"
-                                BorderColor="#1E3D2A"
-                                BorderWidth="1"
-                                CornerRadius="14"
+                                FontSize="20"
+                                BackgroundColor="#0E1E17"
+                                TextColor="#E5E7EB"
+                                BorderColor="#1C3024"
+                                BorderWidth="1.5"
+                                WidthRequest="48"
                                 HeightRequest="48"
-                                Clicked="OnUpdateClicked" />
-                        <!-- Dot thông báo (không số, chỉ chấm sáng) -->
+                                CornerRadius="24"
+                                Clicked="OnUpdateClicked">
+                            <Button.Shadow>
+                                <Shadow Brush="#000000" Offset="0,2" Radius="8" Opacity="0.15" />
+                            </Button.Shadow>
+                        </Button>
+                        
+                        <!-- Update Badge -->
                         <Grid x:Name="UpdateBadge"
                               WidthRequest="16"
                               HeightRequest="16"
                               HorizontalOptions="End"
                               VerticalOptions="Start"
-                              Margin="0,4,4,0"
+                              Margin="0,5,5,0"
                               IsVisible="False"
                               InputTransparent="True">
-                            <!-- Vòng glow ngoài -->
-                            <Ellipse Fill="#4DEF4444"
-                                     HorizontalOptions="Fill"
-                                     VerticalOptions="Fill"/>
-                            <!-- Chấm đỏ trong -->
-                            <Ellipse Fill="#EF4444"
-                                     WidthRequest="8"
-                                     HeightRequest="8"
+                            <Ellipse Fill="#EF4444">
+                                <Ellipse.Shadow>
+                                    <Shadow Brush="#EF4444" Offset="0,0" Radius="8" Opacity="0.6" />
+                                </Ellipse.Shadow>
+                            </Ellipse>
+                            <Ellipse Fill="#FFFFFF"
+                                     WidthRequest="6"
+                                     HeightRequest="6"
                                      HorizontalOptions="Center"
-                                     VerticalOptions="Center"/>
+                                     VerticalOptions="Center" />
                         </Grid>
                     </Grid>
-                    <Button Grid.Column="1"
-                            x:Name="SettingsButton"
-                            Text="&#xF0493;"
-                            FontFamily="MDI"
-                            FontSize="18"
-                            BackgroundColor="#0F1F17"
-                            TextColor="#f3f6faff"
-                            BorderColor="#1E3D2A"
-                            BorderWidth="1"
-                            CornerRadius="14"
-                            HeightRequest="48"
-                            Clicked="OnSettingsClicked" />
                 </Grid>
-            </VerticalStackLayout>
+            </Grid>
         </Grid>
     </Grid>
 </ContentPage>

@@ -1,22 +1,20 @@
-<svg width="600" height="520" viewBox="0 0 600 520" xmlns="http://www.w3.org/2000/svg">
-  <rect width="600" height="520" fill="#0A1612"/>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#0A1612"/>
 
-  <!-- Emoji 🍜 — no background circle, matches WelcomePage -->
-  <text x="300" y="290"
-        font-size="200"
+  <!-- Keep splash icon identical to WelcomePage icon -->
+  <text x="256" y="322"
+        font-size="250"
         text-anchor="middle"
         font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif">
     🍜
   </text>
 
-  <!-- App name — fits within wide canvas -->
-  <text x="300" y="390"
+  <text x="256" y="408"
         font-size="45"
-        font-weight="bold"
+        font-weight="700"
         text-anchor="middle"
-        fill="white"
-        font-family="Georgia, 'Times New Roman', serif"
-        letter-spacing="1">
+        fill="#FFFFFF"
+        font-family="Segoe UI, Arial, sans-serif">
     Street Food Narrator
   </text>
 </svg>

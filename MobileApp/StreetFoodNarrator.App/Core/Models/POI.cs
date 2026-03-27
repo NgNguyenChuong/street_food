@@ -94,11 +94,11 @@ public class POI
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(ImageUrl)) return "dotnet_bot.png";
+            if (string.IsNullOrWhiteSpace(ImageUrl)) return "welcome_streetfood.png";
             if (ImageUrl.StartsWith("http://") || ImageUrl.StartsWith("https://"))
                 return ImageUrl;
             // Relative path from API → prefix with API base URL
-            var baseUrl = AppConfig.ApiBaseUrl.TrimEnd('/');
+            var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
             return $"{baseUrl}/{ImageUrl.TrimStart('/')}";
         }
     }
@@ -141,6 +141,11 @@ public class POI
     /// Đánh giá (0-5 sao)
     /// </summary>
     public double? Rating { get; set; }
+
+    /// <summary>
+    /// Số lượng đánh giá
+    /// </summary>
+    public int NumReviews { get; set; } = 0;
     
     /// <summary>
     /// Danh mục (ẨM THỰC ĐƯỜNG PHỐ, etc.)

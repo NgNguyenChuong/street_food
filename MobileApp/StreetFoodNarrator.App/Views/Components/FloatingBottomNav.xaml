@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="StreetFoodNarrator.App.Views.Components.FloatingBottomNav">
+
+    <!-- Container nền với bo tròn lớn ở trên và hiệu ứng shadow giả blur -->
+    <Border StrokeShape="RoundRectangle 48,48,0,0"
+            StrokeThickness="0"
+            BackgroundColor="#16221E"
+            Margin="0,0,0,0"
+            Padding="16,16,16,32"
+            VerticalOptions="End">
+        <Border.Shadow>
+            <Shadow Brush="#4BE277" Opacity="0.1" Radius="24" Offset="0,-4"/>
+        </Border.Shadow>
+
+        <Grid ColumnDefinitions="*,*,*">
+            
+            <!-- Tab 1: Khám phá -->
+            <VerticalStackLayout Grid.Column="0" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
+                <VerticalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnExploreTapped" />
+                </VerticalStackLayout.GestureRecognizers>
+                <!-- Icon container -->
+                <Grid WidthRequest="40" HeightRequest="40" HorizontalOptions="Center">
+                    <Label x:Name="ExploreIcon" Text="&#xF034D;" FontFamily="MDI" FontSize="26" 
+                           TextColor="#4BE277" HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Grid>
+                <!-- Text & Indicator -->
+                <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                    <Label x:Name="ExploreLabel" Text="Khám phá" FontSize="11" FontAttributes="Bold" TextColor="#4BE277" HorizontalTextAlignment="Center"/>
+                    <BoxView x:Name="ExploreIndicator" WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="True"/>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Tab 2: Đã lưu -->
+            <VerticalStackLayout Grid.Column="1" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
+                <VerticalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSavedTapped" />
+                </VerticalStackLayout.GestureRecognizers>
+                <!-- Icon container -->
+                <Grid WidthRequest="40" HeightRequest="40" HorizontalOptions="Center">
+                    <Label x:Name="SavedIcon" Text="&#xF02D1;" FontFamily="MDI" FontSize="26" 
+                           TextColor="#92A89D" HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Grid>
+                <!-- Text & Indicator -->
+                <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                    <Label x:Name="SavedLabel" Text="Đã lưu" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                    <BoxView x:Name="SavedIndicator" WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Tab 3: Cá nhân -->
+            <VerticalStackLayout Grid.Column="2" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
+                <VerticalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnProfileTapped" />
+                </VerticalStackLayout.GestureRecognizers>
+                <!-- Icon container -->
+                <Grid WidthRequest="40" HeightRequest="40" HorizontalOptions="Center">
+                    <Label x:Name="ProfileIcon" Text="&#xF0004;" FontFamily="MDI" FontSize="26" 
+                           TextColor="#92A89D" HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Grid>
+                <!-- Text & Indicator -->
+                <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                    <Label x:Name="ProfileLabel" Text="Cá nhân" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                    <BoxView x:Name="ProfileIndicator" WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+        </Grid>
+    </Border>
+</ContentView>

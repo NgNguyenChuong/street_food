@@ -70,6 +70,8 @@ public class ZoneRepository : IZoneRepository
         _zones = await _localDb.GetAllActivePOIsAsync();
         _hasData = _zones.Count > 0;
         _isLoaded = true;
+        if (_hasData && CurrentDataSource == DataSourceKind.Unknown)
+            CurrentDataSource = DataSourceKind.SqliteCache;
         Console.WriteLine($"[ZoneRepository] ✓ LoadLocalAsync: Loaded {_zones.Count} POIs from SQLite");
         if (_zones.Count > 0)
         {
@@ -103,7 +105,8 @@ public class ZoneRepository : IZoneRepository
             }
 
             var currentVersion = Preferences.Get(AppConfig.DataVersionKey, 0L);
-            using var http = new HttpClient { BaseAddress = new Uri(AppConfig.ApiBaseUrl), Timeout = TimeSpan.FromSeconds(10) };
+            var baseUrl = AppConfig.GetResolvedApiBaseUrl();
+            using var http = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds) };
             var response = await http.GetAsync($"api/POIs/sync?sinceVersion={currentVersion}");
             response.EnsureSuccessStatusCode();
 
@@ -122,6 +125,30 @@ public class ZoneRepository : IZoneRepository
                 // But we DID reach the API, so mark as LiveApi (online).
                 if (!_isLoaded)
                     await LoadLocalAsync();
+
+                // Guard: if stored version is stale/corrupted and local DB is empty,
+                // force a full sync once (sinceVersion=0) before falling back.
+                if (_zones.Count == 0 && currentVersion > 0)
+                {
+                    var fullResponse = await http.GetAsync("api/POIs/sync?sinceVersion=0");
+                    fullResponse.EnsureSuccessStatusCode();
+
+                    var fullJson = await fullResponse.Content.ReadAsStringAsync();
+                    var fullData = JsonSerializer.Deserialize<PoiSyncResponse>(fullJson, ApiJsonOptions);
+                    if (fullData?.Data != null && fullData.Data.Count > 0)
+                    {
+                        var fullMapped = fullData.Data.Select(MapToPoi).ToList();
+                        await _localDb.SavePOIsAsync(fullMapped);
+
+                        _zones = fullMapped.Where(z => z.IsActive).ToList();
+                        _hasData = _zones.Count > 0;
+                        _isLoaded = true;
+                        CurrentDataSource = DataSourceKind.LiveApi;
+                        Preferences.Set(AppConfig.DataVersionKey, fullData.DataVersion);
+                        Console.WriteLine($"[ZoneRepository] ✓ Full sync recovery: {fullMapped.Count} POIs ({_zones.Count} active)");
+                        return;
+                    }
+                }
 
                 if (_zones.Count == 0)
                 {
@@ -171,11 +198,12 @@ public class ZoneRepository : IZoneRepository
         catch (Exception ex)
         {
             Console.WriteLine($"[ZoneRepository] ❌ SyncFromMongo FAILED: {ex.GetType().Name}: {ex.Message}");
-            Console.WriteLine($"[ZoneRepository] NetworkAccess={Connectivity.Current.NetworkAccess}, ApiUrl={AppConfig.ApiBaseUrl}");
+            Console.WriteLine($"[ZoneRepository] NetworkAccess={Connectivity.Current.NetworkAccess}, ApiUrl={AppConfig.GetResolvedApiBaseUrl()}");
             System.Diagnostics.Debug.WriteLine($"[Repository] Sync failed: {ex.Message}");
             // On error, keep whatever we have in SQLite; do NOT clear it
             if (!_isLoaded) await LoadLocalAsync();
             if (_zones.Count == 0) await SeedFromBundledJsonAsync();
+            else if (CurrentDataSource == DataSourceKind.Unknown) CurrentDataSource = DataSourceKind.SqliteCache;
         }
     }
 
@@ -250,6 +278,7 @@ public class ZoneRepository : IZoneRepository
                 _zones    = allPois.Where(z => z.IsActive).ToList();
                 _hasData  = true;
                 _isLoaded = true;
+                CurrentDataSource = DataSourceKind.MockFallback;
                 CurrentDataSource = DataSourceKind.BundledJson;
 
                 // Persist to SQLite so subsequent LoadLocalAsync() calls find the data

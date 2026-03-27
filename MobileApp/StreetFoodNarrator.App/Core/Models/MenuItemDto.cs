@@ -46,10 +46,10 @@ public class MenuItemDto
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(ImageUrl)) return "dotnet_bot.png";
+            if (string.IsNullOrWhiteSpace(ImageUrl)) return "welcome_streetfood.png";
             if (ImageUrl.StartsWith("http://") || ImageUrl.StartsWith("https://"))
                 return ImageUrl;
-            var baseUrl = AppConfig.ApiBaseUrl.TrimEnd('/');
+            var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
             return $"{baseUrl}/{ImageUrl.TrimStart('/')}";
         }
     }

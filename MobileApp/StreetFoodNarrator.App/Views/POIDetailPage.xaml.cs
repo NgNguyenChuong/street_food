@@ -7,6 +7,7 @@ using Mapsui.Styles;
 using Mapsui.Tiling;
 using Mapsui.Tiling.Layers;
 using BruTile.Predefined;
+using BruTile.Web;
 using MapsColor = Mapsui.Styles.Color;
 using MapsBrush = Mapsui.Styles.Brush;
 using System.Collections.ObjectModel;
@@ -24,6 +25,7 @@ public partial class POIDetailPage : ContentPage
     private readonly ITTSService _tts;
     private readonly LanguageService _lang;
     private bool _isPlaying = false;
+    private bool _mapInitialized = false;
     
     public ObservableCollection<MenuItemDto> MenuItems { get; } = new();
 
@@ -42,7 +44,8 @@ public partial class POIDetailPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        await LoadMenuItemsAsync();
+        // ✅ Load menu in background (non-blocking) so page shows immediately
+        _ = LoadMenuItemsAsync();
     }
 
     private async Task LoadMenuItemsAsync()
@@ -50,11 +53,12 @@ public partial class POIDetailPage : ContentPage
         try 
         {
             var db = MauiProgram.Services.GetRequiredService<ILocalDatabaseService>();
-            var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
+            var netAccess = Connectivity.Current.NetworkAccess;
+            var isOnline  = netAccess is NetworkAccess.Internet or NetworkAccess.ConstrainedInternet;
             
             if (isOnline)
             {
-                var url = $"{AppConfig.ApiBaseUrl}api/MenuItems?poiId={_poi.Id}&page=1&pageSize=50";
+                var url = $"{AppConfig.GetResolvedApiBaseUrl()}api/MenuItems?poiId={_poi.Id}&page=1&pageSize=50";
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
                 var response = await client.GetAsync(url);
                 if (response.IsSuccessStatusCode)
@@ -99,22 +103,25 @@ public partial class POIDetailPage : ContentPage
 
     private void InitializeMap()
     {
-        if (MapView?.Map == null) return;
+        // ✅ Prevent re-initialization
+        if (_mapInitialized || MapView?.Map == null) return;
+        _mapInitialized = true;
 
         try
         {
             // Add OSM tile layer
-            var cacheDir = Path.Combine(FileSystem.AppDataDirectory, "tile_cache");
-            Directory.CreateDirectory(cacheDir);
-            var cacheDb = Path.Combine(cacheDir, "osm.db");
-            var tileCache = new SqliteTileCache(cacheDb);
+            var cacheDb = Path.Combine(FileSystem.AppDataDirectory, "map_cache", "tiles.db");
+            var tileCache = new StreetFoodNarrator.App.Services.SimpleTileCache(cacheDb);
 
-            var tileSource = KnownTileSources.Create(
-                KnownTileSource.OpenStreetMap,
-                persistentCache: tileCache);
-            var osmLayer = new TileLayer(tileSource) { Name = "OSM", Opacity = 0.5 };
+            var tileSource = new HttpTileSource(
+                new GlobalSphericalMercator(),
+                "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+                name: "Carto",
+                persistentCache: tileCache
+            );
+            var baseLayer = new TileLayer(tileSource) { Name = "BaseMap", Opacity = 0.9 };
             MapView.Map.BackColor = new MapsColor(26, 26, 26); // Dark background
-            MapView.Map.Layers.Add(osmLayer);
+            MapView.Map.Layers.Add(baseLayer);
 
             // Add marker for POI location
             var poiLocation = SphericalMercator.FromLonLat(_poi.Longitude, _poi.Latitude);
@@ -271,8 +278,6 @@ public partial class POIDetailPage : ContentPage
             var destLoc = new Microsoft.Maui.Devices.Sensors.Location(_poi.Latitude, _poi.Longitude);
             var distKm = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(currentLoc, destLoc, DistanceUnits.Kilometers);
 
-            vm.NavigationTarget = _poi;
-
             if (distKm <= 1.0)
             {
                 vm.IsVirtualNavigation = false;
@@ -282,6 +287,9 @@ public partial class POIDetailPage : ContentPage
                 await DisplayAlert("Chế độ Xem Ảo", "Bạn đang ở cách quán hơn 1km. Bản đồ sẽ chuyển sang tương tác Xem Ảo.", "Đã Hiểu");
                 vm.IsVirtualNavigation = true;
             }
+
+            // Set target after mode is finalized so map renders with the correct routing style/viewport.
+            vm.NavigationTarget = _poi;
 
             // Đóng modal chi tiết rồi chuyển sang tab Bản đồ để vẽ tuyến đường.
             await Navigation.PopModalAsync();

@@ -21,6 +21,7 @@ public class MongoDbContext
     public IMongoCollection<UserSettings> UserSettings => Database.GetCollection<UserSettings>("user_settings");
     public IMongoCollection<Translation> Translations => Database.GetCollection<Translation>("translations");
     public IMongoCollection<DeviceInfo> Devices => Database.GetCollection<DeviceInfo>("devices");
+    public IMongoCollection<Review> Reviews => Database.GetCollection<Review>("reviews");
 
     // Thêm các collections mới từ schema update
     public IMongoCollection<Zone> Zones => Database.GetCollection<Zone>("zones");

@@ -14,6 +14,7 @@ public class LocationService : ILocationService
 {
     private CancellationTokenSource? _cts;
     private bool _isRunning = false;
+    private TrackingProximityState _trackingState = TrackingProximityState.Near;
 
     public bool IsRunning => _isRunning;
     public event Action<Microsoft.Maui.Devices.Sensors.Location>? OnLocationUpdated;
@@ -41,30 +42,18 @@ public class LocationService : ILocationService
         {
             while (!_cts.Token.IsCancellationRequested)
             {
-                int delayMs = 15000; // Default 15s nếu ở gần
+                var delayMs = GetDelayMs(_trackingState);
 
                 try
                 {
                     var loc = await Geolocation.GetLocationAsync(new GeolocationRequest
                     {
-                        DesiredAccuracy = GeolocationAccuracy.Best,
+                        DesiredAccuracy = GetAccuracy(_trackingState),
                         Timeout = TimeSpan.FromSeconds(10)
                     }, _cts.Token);
 
                     if (loc != null)
-                    {
                         OnLocationUpdated?.Invoke(loc);
-                        
-                        // Tính khoảng cách tới cổng Vĩnh Khánh
-                        var gateLocation = new Microsoft.Maui.Devices.Sensors.Location(
-                            StreetFoodNarrator.App.AppConfig.DefaultLatitude, 
-                            StreetFoodNarrator.App.AppConfig.DefaultLongitude);
-                        
-                        var distanceKm = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(loc, gateLocation, DistanceUnits.Kilometers);
-                        
-                        // Nếu cách > 1km -> delay 75s (1m15s). Nếu ở gần -> delay 15s.
-                        delayMs = distanceKm > 1.0 ? 75000 : 15000;
-                    }
                 }
                 catch (FeatureNotEnabledException)
                 {
@@ -99,6 +88,11 @@ public class LocationService : ILocationService
         await Task.CompletedTask;
     }
 
+    public void SetTrackingState(TrackingProximityState state)
+    {
+        _trackingState = state;
+    }
+
 #if ANDROID
     private static void StartAndroidForegroundService()
     {
@@ -119,6 +113,20 @@ public class LocationService : ILocationService
         context.StartService(intent);
     }
 #endif
+
+    private static int GetDelayMs(TrackingProximityState state) => state switch
+    {
+        TrackingProximityState.Far => 180_000,
+        TrackingProximityState.Inside => 12_000,
+        _ => 45_000
+    };
+
+    private static GeolocationAccuracy GetAccuracy(TrackingProximityState state) => state switch
+    {
+        TrackingProximityState.Far => GeolocationAccuracy.Medium,
+        TrackingProximityState.Inside => GeolocationAccuracy.Best,
+        _ => GeolocationAccuracy.High
+    };
 }
 
 /// <summary>
@@ -190,6 +198,11 @@ public class SimulatedLocationService : ILocationService
     }
 
     public void Reset() => _stepIndex = 0;
+
+    public void SetTrackingState(TrackingProximityState state)
+    {
+        // Simulator advances manually; tracking interval changes do not apply here.
+    }
 
     public async Task StopAsync()
     {

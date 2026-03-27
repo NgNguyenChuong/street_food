@@ -25,6 +25,7 @@ public class GeofenceService : IGeofenceService
     private List<POI> _currentZones = new();
     private POI? _primaryZone = null;
     private bool _localLoaded = false;
+    private bool _isMonitoringEnabled = true;
 
     // ── Events ────────────────────────────────────────────────────
     public event Action<List<POI>>? OnActiveZonesChanged;
@@ -44,6 +45,12 @@ public class GeofenceService : IGeofenceService
     // ─────────────────────────────────────────────────────────────
     public async Task OnLocationChangedAsync(Microsoft.Maui.Devices.Sensors.Location newLocation)
     {
+        if (!_isMonitoringEnabled)
+        {
+            _lastLocation = newLocation;
+            return;
+        }
+
         if (!_localLoaded)
         {
             await _repository.LoadLocalAsync();
@@ -90,6 +97,22 @@ public class GeofenceService : IGeofenceService
 
         // STEP 7: Select & update primary zone
         await UpdatePrimaryZoneAsync(insideZones);
+    }
+
+    public async Task SetMonitoringEnabledAsync(bool enabled)
+    {
+        if (_isMonitoringEnabled == enabled)
+            return;
+
+        _isMonitoringEnabled = enabled;
+
+        if (!enabled)
+        {
+            await ClearMonitoringStateAsync("GPS đang ở xa POI, tạm tắt geofence để tiết kiệm pin.");
+            return;
+        }
+
+        OnStatusMessage?.Invoke("Đã bật geofence watch mode cho POI gần nhất.");
     }
 
     private async Task UpdatePrimaryZoneAsync(List<POI> insideZones)
@@ -217,6 +240,25 @@ public class GeofenceService : IGeofenceService
         {
             System.Diagnostics.Debug.WriteLine($"[Geofence] Save history error: {ex.Message}");
         }
+    }
+
+    private async Task ClearMonitoringStateAsync(string? statusMessage = null)
+    {
+        if (_primaryZone != null)
+        {
+            await _audio.StopAllAsync();
+            _primaryZone = null;
+            OnPrimaryZoneChanged?.Invoke(null);
+        }
+
+        if (_currentZones.Count > 0)
+        {
+            _currentZones = new List<POI>();
+            OnActiveZonesChanged?.Invoke(_currentZones);
+        }
+
+        if (!string.IsNullOrWhiteSpace(statusMessage))
+            OnStatusMessage?.Invoke(statusMessage);
     }
 
     private void LogEntry(POI zone)

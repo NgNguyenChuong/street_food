@@ -95,6 +95,8 @@ public class POI
     public int? PriceLevel { get; set; }
 
     public double? Rating { get; set; }
+    
+    public int NumReviews { get; set; } = 0;
 
     public List<string>? Tags { get; set; }
 
