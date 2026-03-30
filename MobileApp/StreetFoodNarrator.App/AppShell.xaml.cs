@@ -8,11 +8,14 @@ public partial class AppShell : Shell
 {
     private MainPage? _cachedMainPage;
 
-    public AppShell()
+    public AppShell(bool isOnboarding = false)
     {
         InitializeComponent();
 
-        WelcomeShellContent.ContentTemplate = new DataTemplate(() => new WelcomePage());
+        if (isOnboarding)
+        {
+            WelcomeShellContent.ContentTemplate = new DataTemplate(() => new WelcomePage());
+        }
 
         // Cache MainPage once so navigation is instant (no DI resolution each time)
         // DEFENSIVE: If DI fails, create MainPage without injected dependencies

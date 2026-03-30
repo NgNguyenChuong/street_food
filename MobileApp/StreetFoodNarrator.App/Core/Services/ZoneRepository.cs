@@ -114,8 +114,14 @@ public class ZoneRepository : IZoneRepository
             var data = JsonSerializer.Deserialize<PoiSyncResponse>(json, ApiJsonOptions);
             if (data == null)
             {
+                // API response invalid — fall back to local data
                 if (!_isLoaded) await LoadLocalAsync();
-                if (_zones.Count == 0) await SeedFromBundledJsonAsync();
+                if (_zones.Count == 0)
+                {
+                    await SeedFromBundledJsonAsync();
+                    // SeedFromBundledJsonAsync sets _zones but keep SQLite as source of truth
+                    await LoadLocalAsync();
+                }
                 return;
             }
 
@@ -278,7 +284,6 @@ public class ZoneRepository : IZoneRepository
                 _zones    = allPois.Where(z => z.IsActive).ToList();
                 _hasData  = true;
                 _isLoaded = true;
-                CurrentDataSource = DataSourceKind.MockFallback;
                 CurrentDataSource = DataSourceKind.BundledJson;
 
                 // Persist to SQLite so subsequent LoadLocalAsync() calls find the data
@@ -316,7 +321,7 @@ public class ZoneRepository : IZoneRepository
                 Radius = 200, // Area keeps large radius for ambient awareness
                 ZoneType = "Area",
                 ZoneLevel = 1,
-                Priority = 1,
+                Priority = 2, // LOW: Area is general, lower than specific Spots
                 CooldownMinutes = 30,
                 MaxPlaysPerSession = 1,
                 ParentZoneId = null,
@@ -340,7 +345,7 @@ public class ZoneRepository : IZoneRepository
                 Radius = 25,
                 ZoneType = "Spot",
                 ZoneLevel = 3,
-                Priority = 10,
+                Priority = 8, // HIGH: specific spot, high importance
                 CooldownMinutes = 0,
                 MaxPlaysPerSession = 1,
                 ParentZoneId = 1000,
@@ -364,7 +369,7 @@ public class ZoneRepository : IZoneRepository
                 Radius = 25,
                 ZoneType = "Spot",
                 ZoneLevel = 3,
-                Priority = 10,
+                Priority = 8, // HIGH: specific spot, high importance
                 CooldownMinutes = 0,
                 MaxPlaysPerSession = 1,
                 ParentZoneId = 1000,
@@ -388,7 +393,7 @@ public class ZoneRepository : IZoneRepository
                 Radius = 25,
                 ZoneType = "Spot",
                 ZoneLevel = 3,
-                Priority = 10,
+                Priority = 7, // MEDIUM-HIGH: specific spot, slightly lower than Banh Mi
                 CooldownMinutes = 0,
                 MaxPlaysPerSession = 1,
                 ParentZoneId = 1000,

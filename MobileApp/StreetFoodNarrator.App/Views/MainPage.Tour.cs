@@ -242,7 +242,8 @@ public partial class MainPage
         {
             while (!token.IsCancellationRequested)
             {
-                await Task.Delay(500, token).ConfigureAwait(false);
+                var delayMs = _vm.CurrentAppMode == MainViewModel.AppMode.Virtual ? 750 : 500;
+                await Task.Delay(delayMs, token).ConfigureAwait(false);
                 if (token.IsCancellationRequested) break;
                 var pos      = _tts.GetCurrentPosition();
                 var duration = _tts.GetDuration();

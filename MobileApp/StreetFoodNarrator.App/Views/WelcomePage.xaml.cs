@@ -15,6 +15,7 @@ namespace StreetFoodNarrator.App.Views;
 
 public partial class WelcomePage : ContentPage
 {
+    private const string AutoOpenInZoneOnNextMainPageKey = "auto_open_inzone_on_next_mainpage";
     private const string LangVi = "vi";
     private const string LangEn = "en";
     private const string LangZh = "zh";
@@ -33,6 +34,7 @@ public partial class WelcomePage : ContentPage
     private string? _errorDetails;
     private int _newAudioCount = 0;
     private bool _hasSystemUpdate = false;
+    private bool _isNavigatingToMap = false;
     private const string StartCtaText = "Bắt đầu khám phá Vĩnh Khánh";
 
     private enum StatusKind
@@ -63,8 +65,11 @@ public partial class WelcomePage : ContentPage
         ApplyLanguage(Preferences.Get(AppConfig.LanguagePrefKey, LangVi));
         UpdateDataSourceLabel();
 
+        _isNavigatingToMap = false;
+
         // ✅ Enable start button IMMEDIATELY - don't wait for anything!
         EnableStartButton();
+        StartButton.IsEnabled = true;
 
         if (_flowStarted) return;
         _flowStarted = true;
@@ -105,17 +110,29 @@ public partial class WelcomePage : ContentPage
 
             await _repository.SyncFromMongoAsync();
 
-            // After SyncFromMongoAsync the in-memory zones are set;
-            // reload from SQLite so IsSeeded reflects reality on next launch
-            if (_repository.IsSeeded)
-                await _repository.LoadLocalAsync(); // sync in-memory → SQLite state
+            // Always reload from SQLite after sync — ensures _zones matches persisted data
+            // regardless of which path SyncFromMongoAsync took (API success / null response / offline)
+            await _repository.LoadLocalAsync();
         }
 
         if (_repository.IsSeeded)
         {
             ShowReadyState();
-            EnableStartButton();
             UpdateDataSourceLabel();
+
+            // First-time user: hỏi có muốn tải offline không SAU khi sync đầu tiên thành công
+            var alreadyHasOffline = Preferences.Get(PREF_FULL_OFFLINE, false);
+            var dontShowInfo     = Preferences.Get(PREF_DONT_SHOW_INFO, false);
+            if (!alreadyHasOffline && !dontShowInfo && IsOnline())
+            {
+                EnableStartButton(); // bật nút trước để dialog không bị block
+                await ShowFirstTimeInfoAsync(); // chờ user chọn xong mới tiếp
+            }
+            else
+            {
+                EnableStartButton();
+            }
+
             _ = RunBackgroundSyncAsync();
             // Kiểm tra audio mới ngay sau khi UI sẵn sàng
             CheckAudioUpdatesInBackground();
@@ -139,7 +156,8 @@ public partial class WelcomePage : ContentPage
             await _repository.LoadLocalAsync();
 
             // ✅ Record sync time so MainPage won't re-sync unnecessarily
-            Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
+            if (_repository.CurrentDataSource == DataSourceKind.LiveApi)
+                Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
 
             MainThread.BeginInvokeOnMainThread(UpdateDataSourceLabel);
         }
@@ -192,6 +210,9 @@ public partial class WelcomePage : ContentPage
             System.Diagnostics.Debug.WriteLine($"[WelcomePage] Voice auto-download error: {ex.Message}");
         }
     }
+
+    private void OnBellClicked(object sender, EventArgs e)
+        => OnUpdateClicked(sender, e);
 
     private async void OnUpdateClicked(object sender, EventArgs e)
     {
@@ -446,48 +467,25 @@ public partial class WelcomePage : ContentPage
     // START BUTTON:
     private async void OnStartTourClicked(object sender, EventArgs e)
     {
+        if (_isNavigatingToMap)
+            return;
+
+        _isNavigatingToMap = true;
+        StartButton.IsEnabled = false;
+
         try
         {
-            var canContinue = await EnsureLocationPermissionFlowAsync();
-            if (!canContinue)
-                return;
-
-            var hasFullOffline = _dataSyncService.HasOfflineData();
-            var dontShowInfo   = Preferences.Get(PREF_DONT_SHOW_INFO, false);
-
-            // CASE 1: Has offline data → go straight to map
-            if (hasFullOffline || !IsOnline())
-            {
-                if (_repository.IsSeeded)
-                {
-                    await NavigateToMapAsync();
-                    return;
-                }
-
-                // No internet and not seeded → mock data warning
-                if (!IsOnline())
-                {
-                    await DisplayAlert(
-                        AppStrings.Alert_NeedInternet_Title,
-                        AppStrings.Alert_NeedInternet_Message,
-                        AppStrings.Common_OK);
-                    return;
-                }
-            }
-
-            // CASE 2: First launch, has internet → show offline download popup
-            if (!dontShowInfo && !hasFullOffline && IsOnline())
-            {
-                await ShowFirstLaunchOfflinePopupAsync();
-                return;
-            }
-
-            // CASE 3: Already seeded online mode → go straight in
+            // ✅ Navigate first for instant UX (shows loading overlay on MainPage immediately)
             await NavigateToMapAsync();
+
+            // Permission flow is now fire-and-forget, does not block first navigation
+            _ = EnsureLocationPermissionFlowAsync();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[WelcomePage] OnStartTourClicked error: {ex}");
+            _isNavigatingToMap = false;
+            StartButton.IsEnabled = true;
             await DisplayAlert("Lỗi", $"Không thể mở bản đồ: {ex.Message}", "OK");
         }
     }
@@ -1610,6 +1608,8 @@ public partial class WelcomePage : ContentPage
     {
         if (Shell.Current != null)
         {
+            // Hint for MainPage: if user is already in-zone after loading, open InZone map directly.
+            Preferences.Set(AutoOpenInZoneOnNextMainPageKey, true);
             await Shell.Current.GoToAsync("//MapPage");
         }
     }
@@ -1691,10 +1691,13 @@ public partial class WelcomePage : ContentPage
             DataSourceKind.SqliteCache => "Nguồn dữ liệu: Cache",
             DataSourceKind.BundledJson => "Nguồn dữ liệu: Bundled",
             DataSourceKind.MockFallback => "Nguồn dữ liệu: Mock",
-            _ => "Nguồn dữ liệu: Unknown"
+            _ => "Nguồn dữ liệu: Đang kiểm tra"
         };
 
         var lastSync = Preferences.Get("LastSyncTime", "Chưa đồng bộ");
+        if (DateTime.TryParse(lastSync, out var parsed))
+            lastSync = parsed.ToString("dd/MM HH:mm");
+
         DataSourceLabel.Text = $"{sourceText} | Lần cuối: {lastSync}";
     }
 

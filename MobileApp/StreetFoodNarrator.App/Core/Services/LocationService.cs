@@ -15,6 +15,9 @@ public class LocationService : ILocationService
     private CancellationTokenSource? _cts;
     private bool _isRunning = false;
     private TrackingProximityState _trackingState = TrackingProximityState.Near;
+    private Microsoft.Maui.Devices.Sensors.Location? _lastLocation;
+    private const double SignificantMovementMeters = 5.0;
+    private const int StationaryDelayMs = 30_000;
 
     public bool IsRunning => _isRunning;
     public event Action<Microsoft.Maui.Devices.Sensors.Location>? OnLocationUpdated;
@@ -53,7 +56,16 @@ public class LocationService : ILocationService
                     }, _cts.Token);
 
                     if (loc != null)
+                    {
+                        if (!IsSignificantMovement(loc))
+                        {
+                            // User is effectively standing still: throttle polling.
+                            delayMs = Math.Max(delayMs, StationaryDelayMs);
+                        }
+
+                        _lastLocation = loc;
                         OnLocationUpdated?.Invoke(loc);
+                    }
                 }
                 catch (FeatureNotEnabledException)
                 {
@@ -91,6 +103,19 @@ public class LocationService : ILocationService
     public void SetTrackingState(TrackingProximityState state)
     {
         _trackingState = state;
+    }
+
+    private bool IsSignificantMovement(Microsoft.Maui.Devices.Sensors.Location location)
+    {
+        if (_lastLocation == null)
+            return true;
+
+        var movedMeters = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(
+            _lastLocation,
+            location,
+            Microsoft.Maui.Devices.Sensors.DistanceUnits.Kilometers) * 1000.0;
+
+        return movedMeters >= SignificantMovementMeters;
     }
 
 #if ANDROID

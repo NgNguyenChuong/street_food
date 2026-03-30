@@ -302,6 +302,7 @@
                     <!-- Queue Items List -->
                     <CollectionView ItemsSource="{Binding JournalQueueItems}"
                                     SelectionMode="None"
+                                    ItemSizingStrategy="MeasureFirstItem"
                                     VerticalScrollBarVisibility="Never">
                         <CollectionView.ItemsLayout>
                             <LinearItemsLayout Orientation="Vertical" ItemSpacing="14"/>

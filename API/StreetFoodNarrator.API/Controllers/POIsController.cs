@@ -119,6 +119,7 @@ public class POIsController : ControllerBase
 
     /// <summary>
     /// Sync POIs for offline-first clients.
+    /// Uses POI_ID as version because it always increments (no race condition vs UpdatedAt).
     /// </summary>
     [HttpGet("sync")]
     public async Task<ActionResult<POISyncResponse>> SyncPOIs([FromQuery] long sinceVersion = 0)
@@ -129,11 +130,12 @@ public class POIsController : ControllerBase
 
         var latest = await _db.POIs
             .Find(filter)
-            .SortByDescending(p => p.UpdatedAt)
+            .SortByDescending(p => p.POI_ID)
             .Limit(1)
             .FirstOrDefaultAsync();
 
-        var serverVersion = latest?.UpdatedAt?.Ticks ?? 0;
+        // Use POI_ID as version — always strictly increasing, never ties
+        var serverVersion = latest?.POI_ID ?? 0;
         if (serverVersion <= sinceVersion)
         {
             return Ok(new POISyncResponse
@@ -145,7 +147,7 @@ public class POIsController : ControllerBase
 
         var pois = await _db.POIs
             .Find(filter)
-            .SortByDescending(p => p.UpdatedAt)
+            .SortByDescending(p => p.POI_ID)
             .ToListAsync();
 
         var poiDtos = await BuildPoiDtosAsync(pois);

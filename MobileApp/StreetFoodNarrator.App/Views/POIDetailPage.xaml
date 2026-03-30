@@ -1,279 +1,520 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
-    POIDetailPage.xaml – Trang chi tiết quán ăn
-    Thiết kế theo mẫu với màu xanh lá chủ đạo
+    POIDetailPage.xaml – "Midnight Alchemist" dark editorial design.
+    Palette: surface #0a1612, primary #4be277, secondary #ffb690, tertiary #afc7ff.
+    No 1px borders — tonal background shifts define sections.
+    FontFamily chỉ dùng: MDI (Material Design Icons), OpenSansRegular, OpenSansSemibold
+    (Plus Jakarta Sans / Manrope chưa đăng ký trong app — KHÔNG dùng).
 -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:mapsui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
              xmlns:models="clr-namespace:StreetFoodNarrator.App.Core.Models"
-             xmlns:views="clr-namespace:StreetFoodNarrator.App.Views"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
              x:Class="StreetFoodNarrator.App.Views.POIDetailPage"
-             BackgroundColor="#0A1612"
+             BackgroundColor="#0a1612"
              NavigationPage.HasNavigationBar="False"
              Shell.NavBarIsVisible="False">
 
+    <!-- ═══════════════════════════════════════════════════════════════
+         COLOR PALETTE
+         ═══════════════════════════════════════════════════════════════ -->
+    <ContentPage.Resources>
+        <Color x:Key="SurfaceLowest">#05100d</Color>
+        <Color x:Key="SurfaceLow">#121e1a</Color>
+        <Color x:Key="SurfaceContainer">#16221e</Color>
+        <Color x:Key="SurfaceContainerHigh">#202c28</Color>
+        <Color x:Key="SurfaceContainerHighest">#2b3733</Color>
+        <Color x:Key="Primary">#4be277</Color>
+        <Color x:Key="PrimaryContainer">#22c55e</Color>
+        <Color x:Key="OnPrimaryContainer">#004b1e</Color>
+        <Color x:Key="Secondary">#ffb690</Color>
+        <Color x:Key="SecondaryContainer">#ec6a06</Color>
+        <Color x:Key="Tertiary">#afc7ff</Color>
+        <Color x:Key="TertiaryContainer">#82abff</Color>
+        <Color x:Key="OnSurface">#d8e6df</Color>
+        <Color x:Key="OnSurfaceVariant">#bccbb9</Color>
+        <Color x:Key="Divider">#1affffff</Color>
+    </ContentPage.Resources>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ROOT GRID
+         ═══════════════════════════════════════════════════════════════ -->
     <Grid>
-        <ScrollView VerticalScrollBarVisibility="Never">
-            <VerticalStackLayout Spacing="0">
+        <!-- ══ Main Scroll Content ═══════════════════════════════════ -->
+        <ScrollView x:Name="MainScroll"
+                    VerticalScrollBarVisibility="Never">
+            <VerticalStackLayout Spacing="0" Padding="0">
 
-            <!-- Header: Full-bleed restaurant image -->
-            <Grid HeightRequest="320">
-                <!-- Base: green fallback background -->
-                <BoxView BackgroundColor="#22C55E"/>
-                
-                <!-- Hero image: fills entire header area -->
-                <Image Source="{Binding DisplayImageUrl}"
-                       Aspect="AspectFill"
-                       HorizontalOptions="Fill"
-                       VerticalOptions="Fill"/>
-                
-                <!-- Dark gradient overlay so buttons are readable -->
-                <BoxView VerticalOptions="Start" HeightRequest="100">
-                    <BoxView.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                            <GradientStop Color="#99000000" Offset="0"/>
-                            <GradientStop Color="#00000000" Offset="1"/>
-                        </LinearGradientBrush>
-                    </BoxView.Background>
-                </BoxView>
-                
-                <!-- Top bar with back and share buttons -->
-                <Grid Margin="16,48,16,0" HeightRequest="40"
-                      HorizontalOptions="Fill" VerticalOptions="Start">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    
-                    <!-- Back button -->
-                    <Border Grid.Column="0" WidthRequest="40" HeightRequest="40"
-                            StrokeShape="RoundRectangle 20" BackgroundColor="#00000060"
-                            HorizontalOptions="Start">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnBackTapped"/>
-                        </Border.GestureRecognizers>
-                        <Label Text="&#xF004D;" FontFamily="MDI" FontSize="20" TextColor="White"
-                               HorizontalOptions="Center" VerticalOptions="Center"/>
-                    </Border>
-                    
-                    <!-- Share button -->
-                    <Border Grid.Column="1" WidthRequest="40" HeightRequest="40"
-                            StrokeShape="RoundRectangle 20" BackgroundColor="#00000060"
-                            HorizontalOptions="End">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnShareTapped"/>
-                        </Border.GestureRecognizers>
-                        <Label Text="&#xF0FC8;" FontFamily="MDI" FontSize="20" TextColor="White"
-                               HorizontalOptions="Center" VerticalOptions="Center"/>
-                    </Border>
-                </Grid>
-            </Grid>
+                <!-- ─── HERO ─────────────────────────────────────────── -->
+                <!-- HeightRequest 530dp, overlap -32 so content bleeds under -->
+                <Grid x:Name="HeroGrid" HeightRequest="500" IsClippedToBounds="True">
+                    <!-- Green fallback -->
+                    <BoxView BackgroundColor="{StaticResource PrimaryContainer}"/>
+                    <!-- Hero image -->
+                    <Image Source="{Binding Poi.DisplayImageUrl}"
+                           Aspect="AspectFill"
+                           HorizontalOptions="Fill" VerticalOptions="Fill"/>
+                    <!-- Bottom gradient overlay -->
+                    <BoxView VerticalOptions="Fill" HorizontalOptions="Fill">
+                        <BoxView.Background>
+                            <LinearGradientBrush StartPoint="0,0.25" EndPoint="0,1">
+                                <GradientStop Color="#00000000" Offset="0"/>
+                                <GradientStop Color="#CC0a1612" Offset="0.5"/>
+                                <GradientStop Color="#FF0a1612" Offset="1"/>
+                            </LinearGradientBrush>
+                        </BoxView.Background>
+                    </BoxView>
 
-            <!-- Content on dark background -->
-            <Border StrokeShape="RoundRectangle 32,32,0,0" BackgroundColor="#1A1A1A" 
-                    Margin="0,-30,0,0" Padding="0">
-                <VerticalStackLayout Spacing="0">
-                    
-                    <!-- Header section with name, status and rating -->
-                    <VerticalStackLayout Padding="24,24,24,16" Spacing="12">
-                        <Label Text="{Binding Name_Vi, TargetNullValue='Ốc Oanh'}" 
-                               FontSize="28" FontAttributes="Bold"
-                               TextColor="White" LineBreakMode="WordWrap"/>
-                        
-                        <HorizontalStackLayout Spacing="10">
-                            <!-- Open status badge -->
-                            <Border StrokeShape="RoundRectangle 12" BackgroundColor="#22C55E" 
-                                    Padding="10,6">
+                    <!-- Top anchor bar -->
+                    <Grid Margin="20,48,20,0" HeightRequest="48"
+                          VerticalOptions="Start">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="48"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="48"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Back -->
+                        <Border Grid.Column="0"
+                                WidthRequest="48" HeightRequest="48"
+                                StrokeShape="RoundRectangle 24"
+                                BackgroundColor="#66000000" Stroke="Transparent">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnBackTapped"/>
+                            </Border.GestureRecognizers>
+                            <Label Text="&#xF0156;" FontFamily="MDI" FontSize="22"
+                                   TextColor="White"
+                                   HorizontalOptions="Center" VerticalOptions="Center"/>
+                        </Border>
+
+                        <!-- Title in header -->
+                        <StackLayout Grid.Column="1" HorizontalOptions="Center"
+                                     VerticalOptions="Center" Spacing="2">
+                            <Label Text="{Binding Poi.Name_Vi}"
+                                   FontSize="18" FontAttributes="Bold"
+                                   TextColor="White"
+                                   HorizontalTextAlignment="Center"
+                                   LineBreakMode="TailTruncation"/>
+                        </StackLayout>
+
+                        <!-- Like -->
+                        <Border x:Name="LikeButtonBorder"
+                                Grid.Column="2"
+                                WidthRequest="48" HeightRequest="48"
+                                StrokeShape="RoundRectangle 24"
+                                BackgroundColor="#66000000" Stroke="Transparent">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLikeTapped"/>
+                            </Border.GestureRecognizers>
+                            <Label x:Name="LikeIcon"
+                                   Text="&#xF02D1;" FontFamily="MDI" FontSize="22"
+                                   TextColor="White"
+                                   HorizontalOptions="Center" VerticalOptions="Center"/>
+                        </Border>
+                    </Grid>
+
+                    <!-- Hero bottom text -->
+                    <VerticalStackLayout VerticalOptions="End"
+                                         Margin="24,0,24,28" Spacing="12">
+                        <!-- Category badge -->
+                        <HorizontalStackLayout>
+                            <Border StrokeShape="RoundRectangle 20"
+                                    BackgroundColor="#334be277"
+                                    Padding="12,6">
                                 <HorizontalStackLayout Spacing="4">
-                                    <Label Text="●" FontSize="10" TextColor="White" 
+                                    <Label Text="&#xF077B;"
+                                           FontFamily="MDI" FontSize="14"
+                                           TextColor="{StaticResource Primary}"
                                            VerticalOptions="Center"/>
-                                    <Label Text="ĐANG MỞ CỬA" FontSize="11" FontAttributes="Bold" 
-                                           TextColor="White"/>
-                                </HorizontalStackLayout>
-                            </Border>
-                            
-                            <!-- Rating badge -->
-                            <Border StrokeShape="RoundRectangle 12" BackgroundColor="#2A2A2A" 
-                                    Padding="10,6">
-                                <HorizontalStackLayout Spacing="4">
-                                    <Label Text="⭐" FontSize="12" VerticalOptions="Center"/>
-                                    <Label FontSize="13" FontAttributes="Bold" TextColor="White"
-                                           VerticalOptions="Center">
-                                        <Label.FormattedText>
-                                            <FormattedString>
-                                                <Span Text="{Binding Rating, StringFormat='{0:F1}', TargetNullValue='4.5'}"/>
-                                                <Span Text="(1,200+ đánh giá)" TextColor="#999999"/>
-                                            </FormattedString>
-                                        </Label.FormattedText>
-                                    </Label>
+                                    <Label Text="{Binding Poi.Category, TargetNullValue='ẨM THỰC ĐƯỜNG PHỐ'}"
+                                           FontSize="10" FontAttributes="Bold"
+                                           TextColor="{StaticResource Primary}"/>
                                 </HorizontalStackLayout>
                             </Border>
                         </HorizontalStackLayout>
+                        <!-- Hero headline — dùng Bold thay vì font chưa đăng ký -->
+                        <Label Text="{Binding Poi.Name_Vi}"
+                               FontSize="38" FontAttributes="Bold"
+                               TextColor="{StaticResource OnSurface}"
+                               LineHeight="1.05"/>
                     </VerticalStackLayout>
+                </Grid>
 
-                    <!-- Info section -->
-                    <VerticalStackLayout Padding="24,0,24,20" Spacing="16">
-                        <!-- Address -->
-                        <HorizontalStackLayout Spacing="12">
-                            <Border WidthRequest="40" HeightRequest="40" 
-                                    StrokeShape="RoundRectangle 20" BackgroundColor="#FF6B3520"
-                                    VerticalOptions="Start">
-                                <Label Text="&#xF034E;" FontFamily="MDI" FontSize="20" 
-                                       TextColor="#FF6B35"
-                                       HorizontalOptions="Center" VerticalOptions="Center"/>
-                            </Border>
-                            <VerticalStackLayout Spacing="4" FlexLayout.Grow="1">
-                                <Label Text="ĐỊA CHỈ" FontSize="11" FontAttributes="Bold" 
-                                       TextColor="#999999"/>
-                                <Label Text="{Binding Address, TargetNullValue='534 Vĩnh Khánh, Phường 10, Quận 4, TP. Hồ Chí Minh'}"
-                                       FontSize="14" TextColor="White" LineBreakMode="WordWrap"/>
-                            </VerticalStackLayout>
-                        </HorizontalStackLayout>
+                <!-- ══ Content Canvas ════════════════════════════════ -->
+                <!-- Overlap -32 pull content up, Border radius top-left creates the "folder" look -->
+                <Border StrokeShape="RoundRectangle 32,32,0,0"
+                        BackgroundColor="#0a1612"
+                        Padding="0">
+                    <VerticalStackLayout Spacing="0">
 
-                        <!-- Opening hours -->
-                        <HorizontalStackLayout Spacing="12">
-                            <Border WidthRequest="40" HeightRequest="40" 
-                                    StrokeShape="RoundRectangle 20" BackgroundColor="#FF6B3520"
-                                    VerticalOptions="Start">
-                                <Label Text="&#xF0954;" FontFamily="MDI" FontSize="20" 
-                                       TextColor="#FF6B35"
-                                       HorizontalOptions="Center" VerticalOptions="Center"/>
-                            </Border>
-                            <VerticalStackLayout Spacing="4" FlexLayout.Grow="1">
-                                <Label Text="GIỜ MỞ CỬA" FontSize="11" FontAttributes="Bold" 
-                                       TextColor="#999999"/>
-                                <Label Text="{Binding OpeningHoursText, FallbackValue='16:00 - 23:00 mỗi ngày'}"
-                                       FontSize="14" TextColor="White" LineBreakMode="WordWrap"/>
-                            </VerticalStackLayout>
-                        </HorizontalStackLayout>
+                        <!-- ── Key Info Bar ───────────────────────────────── -->
+                        <Border StrokeShape="RoundRectangle 24"
+                                BackgroundColor="#26000000"
+                                Margin="16,20,16,0"
+                                Padding="16,20">
+                            <Grid ColumnDefinitions="*,Auto,*,Auto,*">
+                                <!-- Rating -->
+                                <StackLayout Grid.Column="0" HorizontalOptions="Center" Spacing="4">
+                                    <Label Text="&#xF04CE;" FontFamily="MDI" FontSize="22"
+                                           TextColor="{StaticResource Secondary}"
+                                           HorizontalOptions="Center"/>
+                                    <Label Text="{Binding RatingText}"
+                                           FontSize="14" FontAttributes="Bold"
+                                           TextColor="{StaticResource OnSurface}"
+                                           HorizontalOptions="Center"/>
+                                    <Label Text="Đánh giá" FontSize="9"
+                                           TextColor="#80ffffff"
+                                           HorizontalOptions="Center"/>
+                                </StackLayout>
 
-                        <!-- Phone -->
-                        <HorizontalStackLayout Spacing="12">
-                            <Border WidthRequest="40" HeightRequest="40" 
-                                    StrokeShape="RoundRectangle 20" BackgroundColor="#FF6B3520"
-                                    VerticalOptions="Start">
-                                <Label Text="&#xF0B0;" FontFamily="MDI" FontSize="20" 
-                                       TextColor="#FF6B35"
-                                       HorizontalOptions="Center" VerticalOptions="Center"/>
-                            </Border>
-                            <VerticalStackLayout Spacing="4" FlexLayout.Grow="1">
-                                <Label Text="ĐIỆN THOẠI" FontSize="11" FontAttributes="Bold" 
-                                       TextColor="#999999"/>
-                                <Label Text="{Binding PhoneNumber, FallbackValue='090 123 4567'}"
-                                       FontSize="14" TextColor="White">
-                                    <Label.GestureRecognizers>
-                                        <TapGestureRecognizer Tapped="OnPhoneTapped"/>
-                                    </Label.GestureRecognizers>
-                                </Label>
-                            </VerticalStackLayout>
-                        </HorizontalStackLayout>
-                    </VerticalStackLayout>
+                                <BoxView Grid.Column="1" WidthRequest="1" HeightRequest="32"
+                                         BackgroundColor="{StaticResource Divider}"
+                                         VerticalOptions="Center"/>
 
-                    <!-- Signature dishes section -->
-                    <VerticalStackLayout Padding="24,8,24,20" Spacing="14">
-                        <Label Text="Món đặc trưng" FontSize="18" FontAttributes="Bold"
-                               TextColor="White"/>
+                                <!-- Signature -->
+                                <StackLayout Grid.Column="2" HorizontalOptions="Center" Spacing="4">
+                                    <Label Text="&#xF0B0F;" FontFamily="MDI" FontSize="22"
+                                           TextColor="{StaticResource Primary}"
+                                           HorizontalOptions="Center"/>
+                                    <Label Text="{Binding Poi.SignatureDish, TargetNullValue='Đặc sản'}"
+                                           FontSize="11" FontAttributes="Bold"
+                                           TextColor="{StaticResource OnSurface}"
+                                           HorizontalOptions="Center"
+                                           LineBreakMode="TailTruncation"/>
+                                    <Label Text="Top món" FontSize="9"
+                                           TextColor="#80ffffff"
+                                           HorizontalOptions="Center"/>
+                                </StackLayout>
 
-                        <!-- Horizontal carousel with prev/next arrows -->
-                        <Grid>
-                            <CarouselView x:Name="DishCarousel"
-                                          HeightRequest="160" Loop="False"
-                                          ItemsSource="{Binding Source={RelativeSource AncestorType={x:Type views:POIDetailPage}}, Path=MenuItems}">
-                                <CarouselView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:MenuItemDto">
-                                        <Border StrokeShape="RoundRectangle 16" BackgroundColor="#2A2A2A"
-                                                Padding="14" Margin="4,0">
-                                            <VerticalStackLayout Spacing="8" VerticalOptions="Center">
-                                                <Border StrokeShape="RoundRectangle 12"
-                                                        WidthRequest="72" HeightRequest="72"
-                                                        BackgroundColor="#1A3426"
-                                                        HorizontalOptions="Center">
-                                                    <Image Source="{Binding DisplayImageUrl}" Aspect="AspectFill"
-                                                           WidthRequest="72" HeightRequest="72"/>
-                                                </Border>
-                                                <Label Text="{Binding Name_Vi}" FontSize="14" FontAttributes="Bold"
-                                                       TextColor="White" HorizontalTextAlignment="Center"
-                                                       LineBreakMode="WordWrap" MaxLines="2"/>
-                                                <Label Text="{Binding Price, StringFormat='{0:N0} đ'}"
-                                                       FontSize="13" TextColor="#FF6B35"
-                                                       HorizontalTextAlignment="Center"/>
-                                            </VerticalStackLayout>
-                                        </Border>
-                                    </DataTemplate>
-                                </CarouselView.ItemTemplate>
-                            </CarouselView>
+                                <BoxView Grid.Column="3" WidthRequest="1" HeightRequest="32"
+                                         BackgroundColor="{StaticResource Divider}"
+                                         VerticalOptions="Center"/>
 
-                            <!-- Left arrow -->
-                            <Border WidthRequest="36" HeightRequest="36" StrokeShape="RoundRectangle 18"
-                                    BackgroundColor="#66000000" Stroke="Transparent"
-                                    HorizontalOptions="Start" VerticalOptions="Center" Margin="4,0">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnDishPrev"/>
-                                </Border.GestureRecognizers>
-                                <Label Text="&#xF004D;" FontFamily="MDI" FontSize="20" TextColor="White"
-                                       HorizontalOptions="Center" VerticalOptions="Center"/>
-                            </Border>
+                                <!-- Hours -->
+                                <StackLayout Grid.Column="4" HorizontalOptions="Center" Spacing="4">
+                                    <Label Text="&#xF0954;" FontFamily="MDI" FontSize="22"
+                                           TextColor="{StaticResource Tertiary}"
+                                           HorizontalOptions="Center"/>
+                                    <Label Text="{Binding Poi.DisplayOpeningHoursText, TargetNullValue='16:00-23:00'}"
+                                           FontSize="9" FontAttributes="Bold"
+                                           TextColor="{StaticResource OnSurface}"
+                                           HorizontalOptions="Center"
+                                           MaxLines="2"
+                                           LineBreakMode="TailTruncation"/>
+                                    <Label Text="Giờ mở cửa" FontSize="9"
+                                           TextColor="#80ffffff"
+                                           HorizontalOptions="Center"/>
+                                </StackLayout>
+                            </Grid>
+                        </Border>
 
-                            <!-- Right arrow -->
-                            <Border WidthRequest="36" HeightRequest="36" StrokeShape="RoundRectangle 18"
-                                    BackgroundColor="#66000000" Stroke="Transparent"
-                                    HorizontalOptions="End" VerticalOptions="Center" Margin="4,0">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnDishNext"/>
-                                </Border.GestureRecognizers>
-                                <Label Text="&#xF0054;" FontFamily="MDI" FontSize="20" TextColor="White"
-                                       HorizontalOptions="Center" VerticalOptions="Center"/>
-                            </Border>
+                        <!-- ── Tab Bar ──────────────────────────────────── -->
+                        <Grid Margin="16,24,16,0" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0" x:Name="TabInfoBtn"
+                                    Text="Thông tin" FontSize="13" FontAttributes="Bold"
+                                    CornerRadius="8" HeightRequest="44"
+                                    BackgroundColor="{StaticResource PrimaryContainer}"
+                                    TextColor="{StaticResource OnPrimaryContainer}"
+                                    Clicked="OnTabInfoClicked"/>
+
+                            <Button Grid.Column="1" x:Name="TabMenuBtn"
+                                    Text="Menu" FontSize="13" FontAttributes="Bold"
+                                    CornerRadius="8" HeightRequest="44"
+                                    BackgroundColor="{StaticResource SurfaceContainer}"
+                                    TextColor="{StaticResource OnSurfaceVariant}"
+                                    Clicked="OnTabMenuClicked"/>
+
+                            <Button Grid.Column="2" x:Name="TabMapBtn"
+                                    Text="Bản đồ" FontSize="13" FontAttributes="Bold"
+                                    CornerRadius="8" HeightRequest="44"
+                                    BackgroundColor="{StaticResource SurfaceContainer}"
+                                    TextColor="{StaticResource OnSurfaceVariant}"
+                                    Clicked="OnTabMapClicked"/>
                         </Grid>
 
-                        <!-- Position indicator: 1 / 3 -->
-                        <Label x:Name="DishIndicatorLabel" Text="" FontSize="11"
-                               TextColor="#6B7280" HorizontalOptions="Center"/>
+                        <!-- ── TAB CONTENT ───────────────────────────────── -->
+
+                        <!-- INFO TAB -->
+                        <VerticalStackLayout x:Name="TabInfoContent"
+                                             Margin="16,20,16,0" Spacing="20">
+
+                            <!-- Story section -->
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Câu chuyện"
+                                       FontSize="18" FontAttributes="Bold"
+                                       TextColor="{StaticResource OnSurface}"/>
+                                <Label Text="{Binding Poi.Description_Vi, TargetNullValue='Quán ẩm thực đường phố nổi tiếng tại khu Vĩnh Khánh, Quận 4. Hương vị đậm đà, phục vụ tận tình.'}"
+                                       FontSize="15"
+                                       TextColor="{StaticResource OnSurfaceVariant}"
+                                       LineHeight="1.6"/>
+                            </VerticalStackLayout>
+
+                            <!-- Audio block -->
+                            <VerticalStackLayout Spacing="10">
+                                <Label Text="Audio Guide"
+                                       FontSize="16" FontAttributes="Bold"
+                                       TextColor="{StaticResource OnSurface}"/>
+
+                                <Border
+                                    StrokeShape="RoundRectangle 20"
+                                    BackgroundColor="#e616221e"
+                                    Stroke="Transparent"
+                                    Padding="0">
+                                    <Grid ColumnDefinitions="56,*,Auto"
+                                          ColumnSpacing="10"
+                                          Padding="12"
+                                          VerticalOptions="Center">
+                                        <Border Grid.Column="0"
+                                                WidthRequest="56" HeightRequest="56"
+                                                StrokeShape="RoundRectangle 28"
+                                                BackgroundColor="{StaticResource SurfaceContainerHighest}"
+                                                VerticalOptions="Center">
+                                            <Label Text="&#xF0F9D;" FontFamily="MDI" FontSize="26"
+                                                   TextColor="{StaticResource Primary}"
+                                                   HorizontalOptions="Center" VerticalOptions="Center"/>
+                                        </Border>
+
+                                        <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                                            <Label Text="{Binding AudioTitle}"
+                                                   FontSize="10" FontAttributes="Bold"
+                                                   TextColor="{StaticResource Primary}" Opacity="0.8"/>
+                                            <Label Text="{Binding AudioSubtitle}"
+                                                   FontSize="13" FontAttributes="Bold"
+                                                   TextColor="{StaticResource OnSurface}"
+                                                   LineBreakMode="TailTruncation"/>
+                                            <Grid HeightRequest="14" Margin="0,2,0,0">
+                                                <BoxView x:Name="AudioProgressTrack"
+                                                         BackgroundColor="#1a4be277"
+                                                         StrokeShape="RoundRectangle 3"
+                                                         HeightRequest="6"
+                                                         VerticalOptions="Center"
+                                                         HorizontalOptions="Fill"/>
+                                                <BoxView x:Name="AudioProgressFill"
+                                                         BackgroundColor="{StaticResource Primary}"
+                                                         StrokeShape="RoundRectangle 3"
+                                                         HeightRequest="6"
+                                                         VerticalOptions="Center"
+                                                         HorizontalOptions="Start"
+                                                         WidthRequest="0"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="*,*" Margin="0,1,0,0">
+                                                <Label Grid.Column="0"
+                                                       Text="{Binding AudioPositionText}"
+                                                       FontSize="10" TextColor="{StaticResource OnSurfaceVariant}"
+                                                       Opacity="0.6"/>
+                                                <Label Grid.Column="1"
+                                                       Text="{Binding AudioDurationText}"
+                                                       FontSize="10" TextColor="{StaticResource OnSurfaceVariant}"
+                                                       Opacity="0.6" HorizontalOptions="End"/>
+                                            </Grid>
+                                        </VerticalStackLayout>
+
+                                        <Button Grid.Column="2"
+                                                x:Name="PlayPauseBtn"
+                                                WidthRequest="48" HeightRequest="48"
+                                                CornerRadius="24"
+                                                BackgroundColor="{StaticResource Primary}"
+                                                TextColor="{StaticResource OnPrimaryContainer}"
+                                                FontFamily="MDI" FontSize="22"
+                                                Text="&#xF040A;"
+                                                Clicked="OnPlayPauseClicked"
+                                                VerticalOptions="Center"/>
+                                    </Grid>
+                                </Border>
+                            </VerticalStackLayout>
+
+                            <!-- 2-column mini cards -->
+                            <Grid ColumnSpacing="12" RowSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0"
+                                        StrokeShape="RoundRectangle 16"
+                                        BackgroundColor="{StaticResource SurfaceLow}"
+                                        Padding="16">
+                                    <VerticalStackLayout Spacing="10">
+                                        <Label Text="&#xF0CFE;" FontFamily="MDI" FontSize="26"
+                                               TextColor="{StaticResource Secondary}"/>
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Text="Top Món"
+                                                   FontSize="13" FontAttributes="Bold"
+                                                   TextColor="{StaticResource OnSurface}"/>
+                                            <Label Text="{Binding Poi.SignatureDish, TargetNullValue='Menu đặc trưng'}"
+                                                   FontSize="12"
+                                                   TextColor="{StaticResource OnSurfaceVariant}"
+                                                   MaxLines="2" LineBreakMode="TailTruncation"/>
+                                        </VerticalStackLayout>
+                                    </VerticalStackLayout>
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        StrokeShape="RoundRectangle 16"
+                                        BackgroundColor="{StaticResource SurfaceLow}"
+                                        Padding="16">
+                                    <VerticalStackLayout Spacing="10">
+                                        <Label Text="&#xF0D3D;" FontFamily="MDI" FontSize="26"
+                                               TextColor="{StaticResource Tertiary}"/>
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Text="Không gian"
+                                                   FontSize="13" FontAttributes="Bold"
+                                                   TextColor="{StaticResource OnSurface}"/>
+                                            <Label Text="{Binding Poi.Category, TargetNullValue='Ẩm thực đường phố'}"
+                                                   FontSize="12"
+                                                   TextColor="{StaticResource OnSurfaceVariant}"/>
+                                        </VerticalStackLayout>
+                                    </VerticalStackLayout>
+                                </Border>
+                            </Grid>
+
+                        </VerticalStackLayout><!-- end TabInfoContent -->
+
+                        <!-- MENU TAB -->
+                        <VerticalStackLayout x:Name="TabMenuContent"
+                                             Margin="16,20,16,0"
+                                             Spacing="12"
+                                             IsVisible="False">
+
+                            <Label Text="Danh sách món"
+                                   FontSize="18" FontAttributes="Bold"
+                                   TextColor="{StaticResource OnSurface}"/>
+
+                            <CollectionView x:Name="MenuCollectionView"
+                                            ItemsSource="{Binding MenuItems}"
+                                            HeightRequest="380"
+                                            BackgroundColor="Transparent">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:MenuItemDto">
+                                        <Border StrokeShape="RoundRectangle 16"
+                                                BackgroundColor="{StaticResource SurfaceLow}"
+                                                Margin="0,0,0,8"
+                                                Padding="16">
+                                            <Grid ColumnDefinitions="72,*,Auto">
+                                                <!-- Image -->
+                                                <Border Grid.Column="0"
+                                                        WidthRequest="72" HeightRequest="72"
+                                                        StrokeShape="RoundRectangle 12"
+                                                        BackgroundColor="{StaticResource SurfaceContainer}"
+                                                        VerticalOptions="Center">
+                                                    <Image Source="{Binding DisplayImageUrl}"
+                                                           Aspect="AspectFill"
+                                                           WidthRequest="72" HeightRequest="72"/>
+                                                </Border>
+                                                <!-- Name + desc -->
+                                                <VerticalStackLayout Grid.Column="1"
+                                                                     Spacing="4"
+                                                                     VerticalOptions="Center">
+                                                    <Label Text="{Binding Name_Vi}"
+                                                           FontSize="15" FontAttributes="Bold"
+                                                           TextColor="{StaticResource OnSurface}"
+                                                           LineBreakMode="TailTruncation"/>
+                                                    <Label Text="{Binding Description_Vi}"
+                                                           FontSize="12"
+                                                           TextColor="{StaticResource OnSurfaceVariant}"
+                                                           MaxLines="2" LineBreakMode="TailTruncation"/>
+                                                    <Border StrokeShape="RoundRectangle 6"
+                                                            BackgroundColor="#334be277"
+                                                            IsVisible="{Binding IsSignatureDish}"
+                                                            Padding="6,2" HorizontalOptions="Start">
+                                                        <Label Text="Đặc trưng"
+                                                               FontSize="9" FontAttributes="Bold"
+                                                               TextColor="{StaticResource Primary}"/>
+                                                    </Border>
+                                                </VerticalStackLayout>
+                                                <!-- Price -->
+                                                <Label Grid.Column="2"
+                                                       Text="{Binding Price, StringFormat='{0:N0}đ'}"
+                                                       FontSize="14" FontAttributes="Bold"
+                                                       TextColor="{StaticResource Secondary}"
+                                                       VerticalOptions="Start"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <!-- Empty state -->
+                            <Border x:Name="MenuEmptyState"
+                                    StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="{StaticResource SurfaceLow}"
+                                    Padding="32"
+                                    IsVisible="False">
+                                <VerticalStackLayout HorizontalOptions="Center" Spacing="8">
+                                    <Label Text="&#xF0CFE;" FontFamily="MDI" FontSize="48"
+                                           TextColor="{StaticResource OnSurfaceVariant}"
+                                           HorizontalOptions="Center"/>
+                                    <Label Text="Menu đang cập nhật"
+                                           FontSize="14"
+                                           TextColor="{StaticResource OnSurfaceVariant}"
+                                           HorizontalOptions="Center"/>
+                                </VerticalStackLayout>
+                            </Border>
+                        </VerticalStackLayout><!-- end TabMenuContent -->
+
+                        <!-- MAP TAB -->
+                        <VerticalStackLayout x:Name="TabMapContent"
+                                             Margin="16,20,16,0"
+                                             Spacing="12"
+                                             IsVisible="False">
+
+                            <Label Text="Vị trí trên bản đồ"
+                                   FontSize="18" FontAttributes="Bold"
+                                   TextColor="{StaticResource OnSurface}"/>
+
+                            <Border StrokeShape="RoundRectangle 24"
+                                    BackgroundColor="{StaticResource SurfaceLowest}"
+                                    Stroke="Transparent"
+                                    HeightRequest="360">
+                                <mapsui:MapControl x:Name="MiniMapView"
+                                                   HorizontalOptions="Fill"
+                                                   VerticalOptions="Fill"
+                                                   BackgroundColor="{StaticResource SurfaceLowest}"/>
+                            </Border>
+
+                        </VerticalStackLayout><!-- end TabMapContent -->
+
+                        <!-- Bottom padding for fixed audio bar + CTA -->
+                        <BoxView HeightRequest="110" BackgroundColor="Transparent"/>
                     </VerticalStackLayout>
-
-                    <!-- Location/Map section -->
-                    <VerticalStackLayout Padding="24,8,24,24" Spacing="12">
-                        <Label Text="Vị trí" FontSize="18" FontAttributes="Bold" TextColor="White"/>
-                        
-                        <Border StrokeShape="RoundRectangle 12" 
-                                BackgroundColor="#1A1A1A"
-                                Stroke="#2A2A2A"
-                                StrokeThickness="1"
-                                HeightRequest="240"
-                                Padding="0">
-                            <mapsui:MapControl x:Name="MapView"
-                                              HorizontalOptions="Fill"
-                                              VerticalOptions="Fill"
-                                              BackgroundColor="#1A1A1A"/>
-                        </Border>
-                    </VerticalStackLayout>
-
-                    <!-- Bottom spacing for button -->
-                    <BoxView HeightRequest="100" BackgroundColor="Transparent"/>
-
-                </VerticalStackLayout>
-            </Border>
-
-        </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
         </ScrollView>
 
-        <!-- Bottom action button -->
-        <Border VerticalOptions="End"
-                Margin="20,0,20,32"
-                StrokeShape="RoundRectangle 16" 
-                BackgroundColor="#3B82F6"
-                Padding="0,18">
+        <!-- ══ Bottom CTA Button (gradient, fixed) ═══════════════════ -->
+        <!-- Linear gradient primary → primary_container at 135° -->
+        <Border x:Name="NavigateCtaBorder"
+                VerticalOptions="End"
+                ZIndex="20"
+                Margin="16,0,16,36"
+                StrokeShape="RoundRectangle 20"
+                Padding="0"
+                HeightRequest="60">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#4be277" Offset="0"/>
+                    <GradientStop Color="#22c55e" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
             <Border.GestureRecognizers>
                 <TapGestureRecognizer Tapped="OnNavigateTapped"/>
             </Border.GestureRecognizers>
-            <HorizontalStackLayout HorizontalOptions="Center" Spacing="8">
-                <Label Text="&#xF03B0;" FontFamily="MDI" FontSize="20" TextColor="White"
-                       VerticalOptions="Center"/>
-                <Label Text="Chỉ đường ngay" FontSize="16" FontAttributes="Bold"
-                       TextColor="White" VerticalOptions="Center"/>
+            <HorizontalStackLayout HorizontalOptions="Center"
+                                   Spacing="12" VerticalOptions="Center">
+                <Label Text="&#xF03B0;" FontFamily="MDI" FontSize="22"
+                       TextColor="#05100d" VerticalOptions="Center"/>
+                <Label Text="Chỉ đường ngay"
+                       FontSize="17" FontAttributes="Bold"
+                       TextColor="#05100d" VerticalOptions="Center"/>
             </HorizontalStackLayout>
         </Border>
-    </Grid>
 
+    </Grid><!-- end root Grid -->
 </ContentPage>

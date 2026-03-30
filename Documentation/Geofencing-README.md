@@ -252,28 +252,31 @@ db.POIs.find({
 
 ---
 
-## 📐 Ví Dụ Priority Calculation
+## 📐 Ví Dụ Priority Selection (Implementation Thực Tế)
 
 ```
-Scenario: User đứng ở [10.7629, 106.6931]
+Mobile code: insideZones.OrderByDescending(z => z.Priority)
+               .ThenBy(z => z.DistanceFromUser)
+               .ThenBy(z => z.Radius)
+               .ThenBy(z => z.Id)
 
-Zones in range:
-1. Spot (Quán Bà Năm): Distance=2m
-   Score = (8×100) + (1000/10) + (3×10) - (2×0.1)
-        = 800 + 100 + 30 - 0.2
-        = 929.8 ← WINNER! 🏆
+Scenario 1 — Multiple Spots overlap, user standing between Ốc Oanh & Ốc Vũ:
+  Ốc Oanh (Spot):    Priority=9, Distance=20m  → 1st (WINNER)
+  Ốc Vũ (Spot):     Priority=5, Distance=8m   → 2nd (loses despite closer!)
+  Area (Area):       Priority=2, Distance=5m  → 3rd
+  → Ốc Oanh WIN vì Priority cao nhất (9)
 
-2. District (Khu Hải Sản): Distance=15m
-   Score = (5×100) + (1000/100) + (2×10) - (15×0.1)
-        = 500 + 10 + 20 - 1.5
-        = 528.5
+Scenario 2 — Same priority boundary (hysteresis kicks in):
+  User đang ở Ốc Vũ (Priority=5, đã đi vào zone). Di chuyển đến vị trí:
+    Ốc Vũ: Priority=5, Distance=25m
+    Ốc Thảo: Priority=5, Distance=23m   ← cùng Priority!
+  → Hysteresis: 25m - 23m = 2m ≤ 8m threshold → giữ Ốc Vũ
+  → Giúp tránh zone "flapping" khi user đứng giữa 2 Spot cùng priority
 
-3. Area (Khu Vĩnh Khánh): Distance=50m
-   Score = (3×100) + (1000/500) + (1×10) - (50×0.1)
-        = 300 + 2 + 10 - 5
-        = 307
-
-→ Spot được chọn vì có score cao nhất!
+Scenario 3 — User enters Area then walks into a Spot:
+  1. Inside Area (Priority=2): Area plays (only zone)
+  2. Enter Ốc Oanh zone (Priority=9): Ốc Oanh WIN → plays instead
+  3. Exit Ốc Oanh zone (still inside Area): Area resumes (ducked earlier)
 ```
 
 ---
@@ -374,9 +377,10 @@ db.POIs.createIndex({ "POI_ID": 1 })
 
 ### Priority Hierarchy
 ```
-Spot (8) > District (5) > Area (3)
+Spot (7-10) > District (4-6) > Area (1-3)
 ```
-**Why?** Spot là cụ thể nhất → Quan trọng nhất
+**Convention: Priority 1-10, HIGHER = more important.**
+**Why?** Spot là cụ thể nhất → Quan trọng nhất → Priority cao nhất. Admin form ghi rõ "Higher wins when zones overlap". Mobile code dùng `OrderByDescending(Priority)`.
 
 ### Cooldown Strategy
 ```
@@ -400,7 +404,7 @@ Spot:     0 minutes   (play once only, điểm cụ thể)
 
 ### Khi thêm POI mới:
 1. Xác định ZoneType (Area / District / Spot)
-2. Set Priority phù hợp (Spot=8, District=5, Area=3)
+2. Set Priority phù hợp (Spot=7-10, District=4-6, Area=1-3; HIGHER = more important)
 3. Set TriggerRadius hợp lý (Spot=10m, District=100m, Area=500m)
 4. Set ParentZoneId nếu là nested zone
 5. Test với GPS simulator

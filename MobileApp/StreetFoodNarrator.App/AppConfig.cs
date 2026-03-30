@@ -31,8 +31,10 @@ public static class AppConfig
         PLACEHOLDER; // e.g. "aBcD1234xYzW..."
 
     // ── Default Map Center (Cổng chào Phố ẩm thực Vĩnh Khánh, Q.4) ──────
-    public const double DefaultLatitude  = 10.762094471587867;  // Cổng chính — 11 Đường Vĩnh Khánh, P.8, Q.4
-    public const double DefaultLongitude = 106.70189053795724;
+    //10.761921196165435, 106.70190931342479  
+    // 10.7628 106.7028
+    public const double DefaultLatitude  =  10.761921196165435;  // Cổng chính — 11 Đường Vĩnh Khánh, P.8, Q.4
+    public const double DefaultLongitude = 106.70190931342479;
     public const double DefaultZoom      = 24;
 
     // ── Backend API ───────────────────────────────────────────────
@@ -51,9 +53,15 @@ public static class AppConfig
     // ── GPS Settings ──────────────────────────────────────────────
     public const double DebounceMeters = 5.0;
     public const int    DebounceMs     = 3000;
+    public const double InZoneRadiusMeters = 120.0;
+    public const double NearRadiusMeters = 400.0;
+    public const double TrackingInsideMeters = 60.0;
+    public const double TrackingNearMeters = 250.0;
+    public const double FallbackInZoneMeters = 120.0;
+    public const double FallbackNearMeters = 400.0;
 
     // ── Feature flags ──────────────────────────────────────────────
-    public const bool UseSimulatedGPS = false;    // Máy thật: dùng GPS thật của thiết bị
+    public const bool UseSimulatedGPS = true;     // Máy thật: dùng GPS thật của thiết bị
 
     private const string CUSTOM_API_URL_KEY = "CustomApiUrl";
 

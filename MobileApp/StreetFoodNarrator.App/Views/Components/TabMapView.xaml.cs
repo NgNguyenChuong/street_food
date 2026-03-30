@@ -29,6 +29,8 @@ public partial class TabMapView : ContentView
     public event EventHandler<POI>? PrevPoiRequested;
     public event EventHandler<POI>? NextPoiRequested;
     public event EventHandler<POI>? ViewDetailRequested;
+    public event EventHandler<POI>? PreviewAudioRequested;
+    public event EventHandler<POI>? StartFromHereRequested;
     public event EventHandler<POI>? LikeRequested;           // fires when user taps like/save button
 
     // ── Filter chips ──────────────────────────────────────────────────────
@@ -43,25 +45,37 @@ public partial class TabMapView : ContentView
     public event EventHandler? ResetDatabaseRequested;
 
     // MDI icon codes
-private const string IconHeartOutline = "\U000F1437";
-private const string IconHeartFilled  = "\U000F1438";
+private const string IconHeart = "\U000F02D1";
+private const string IconPlay  = "\U000F040A";
+private const string IconPause = "\U000F03E4";
+    private int? _previewAudioPoiId;
+    private bool _isPreviewAudioPlaying;
+    private bool _isPreviewAudioPaused;
+    private MainViewModel? _observedVm;
 
     public TabMapView()
     {
         InitializeComponent();
-
-        // Update like icon when CurrentPOI changes
-        if (BindingContext is MainViewModel vm)
-        {
-            vm.PropertyChanged += OnVmPropertyChanged;
-        }
         Loaded += (_, _) =>
         {
-            if (BindingContext is MainViewModel vm2)
-            {
-                vm2.PropertyChanged += OnVmPropertyChanged;
-            }
+            RefreshLikeIcon();
+            RefreshPreviewAudioUi();
         };
+    }
+
+    protected override void OnBindingContextChanged()
+    {
+        base.OnBindingContextChanged();
+
+        if (_observedVm != null)
+            _observedVm.PropertyChanged -= OnVmPropertyChanged;
+
+        _observedVm = BindingContext as MainViewModel;
+        if (_observedVm != null)
+            _observedVm.PropertyChanged += OnVmPropertyChanged;
+
+        RefreshLikeIcon();
+        RefreshPreviewAudioUi();
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -70,33 +84,89 @@ private const string IconHeartFilled  = "\U000F1438";
             e.PropertyName == nameof(MainViewModel.SelectedPinPOI))
         {
             RefreshLikeIcon();
+            RefreshPreviewAudioUi();
         }
     }
 
-    /// <summary>Updates the Like icon to filled/unfilled based on CurrentPOI.IsLikedByUser.</summary>
+    /// <summary>Updates the heart style based on the selected POI liked state.</summary>
     public void RefreshLikeIcon()
     {
         try
         {
             if (LikeIcon == null) return;
 
-            if (BindingContext is MainViewModel vm && vm.CurrentPOI != null)
+            if (BindingContext is MainViewModel vm && vm.SelectedPinPOI != null)
             {
-                LikeIcon.Text = vm.CurrentPOI.IsLikedByUser
-                    ? IconHeartFilled
-                    : IconHeartOutline;
-                LikeIcon.TextColor = vm.CurrentPOI.IsLikedByUser
-                    ? Color.FromArgb("#6BFF8F")
-                    : Color.FromArgb("#6BFF8F"); // same color, different icon
+                var isLiked = vm.SelectedPinPOI.IsLikedByUser;
+                LikeIcon.Text = IconHeart;
+                LikeIcon.TextColor = isLiked
+                    ? Color.FromArgb("#EF4444")
+                    : Color.FromArgb("#FFFFFF");
+
+                if (LikeButtonBorder != null)
+                {
+                    LikeButtonBorder.BackgroundColor = Color.FromArgb(isLiked ? "#EF444418" : "#0E1E1718");
+                    LikeButtonBorder.Stroke = new SolidColorBrush(Color.FromArgb(isLiked ? "#EF444430" : "#1C3024"));
+                }
             }
             else
             {
-                LikeIcon.Text = IconHeartOutline;
+                LikeIcon.Text = IconHeart;
+                LikeIcon.TextColor = Color.FromArgb("#FFFFFF");
+
+                if (LikeButtonBorder != null)
+                {
+                    LikeButtonBorder.BackgroundColor = Color.FromArgb("#0E1E1718");
+                    LikeButtonBorder.Stroke = new SolidColorBrush(Color.FromArgb("#1C3024"));
+                }
             }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[TabMapView] RefreshLikeIcon error: {ex.Message}");
+        }
+    }
+
+    public void SetPreviewAudioState(int? poiId, bool isPlaying, bool isPaused = false)
+    {
+        _previewAudioPoiId = poiId;
+        _isPreviewAudioPlaying = isPlaying;
+        _isPreviewAudioPaused = isPaused;
+        RefreshPreviewAudioUi();
+    }
+
+    private void RefreshPreviewAudioUi()
+    {
+        try
+        {
+            if (PreviewAudioToggleIcon == null || PreviewAudioActionLabel == null)
+                return;
+
+            var selectedPoi = (BindingContext as MainViewModel)?.SelectedPinPOI;
+            var isCurrentPreview = selectedPoi != null &&
+                                   _previewAudioPoiId == selectedPoi.Id &&
+                                   (_isPreviewAudioPlaying || _isPreviewAudioPaused);
+
+            if (!isCurrentPreview)
+            {
+                PreviewAudioToggleIcon.Text = IconPlay;
+                PreviewAudioActionLabel.Text = "Nghe thử";
+                return;
+            }
+
+            if (_isPreviewAudioPlaying)
+            {
+                PreviewAudioToggleIcon.Text = IconPause;
+                PreviewAudioActionLabel.Text = "Tạm dừng";
+                return;
+            }
+
+            PreviewAudioToggleIcon.Text = IconPlay;
+            PreviewAudioActionLabel.Text = "Tiếp tục";
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TabMapView] RefreshPreviewAudioUi error: {ex.Message}");
         }
     }
 
@@ -154,16 +224,24 @@ private const string IconHeartFilled  = "\U000F1438";
             ViewDetailRequested?.Invoke(this, vm.SelectedPinPOI);
     }
 
-    /// <summary>
-    /// Fires LikeRequested with the CurrentPOI so MainPage can toggle the save state.
-    /// Refreshes the like icon after the event is handled.
-    /// </summary>
+    private void OnPreviewAudioTapped(object sender, EventArgs e)
+    {
+        if (BindingContext is MainViewModel vm && vm.SelectedPinPOI != null)
+            PreviewAudioRequested?.Invoke(this, vm.SelectedPinPOI);
+    }
+
+    private void OnStartFromHereTapped(object sender, EventArgs e)
+    {
+        if (BindingContext is MainViewModel vm && vm.SelectedPinPOI != null)
+            StartFromHereRequested?.Invoke(this, vm.SelectedPinPOI);
+    }
+
+    /// <summary>Fires LikeRequested with the currently selected POI.</summary>
     private void OnLikeTapped(object sender, EventArgs e)
     {
-        if (BindingContext is MainViewModel vm && vm.CurrentPOI != null)
+        if (BindingContext is MainViewModel vm && vm.SelectedPinPOI != null)
         {
-            LikeRequested?.Invoke(this, vm.CurrentPOI);
-            // Refresh icon after state change
+            LikeRequested?.Invoke(this, vm.SelectedPinPOI);
             Dispatcher.Dispatch(RefreshLikeIcon);
         }
     }

@@ -67,6 +67,9 @@ public static class PoiSeedReset
                 ImageUrl = item.ImageUrl,
                 ImageUrls = item.ImageUrls,
                 TriggerRadius = item.TriggerRadius ?? 50,
+                ZoneType = item.ZoneType ?? "Spot",
+                ZoneLevel = item.ZoneLevel ?? 3,
+                Priority = item.Priority ?? 5,
                 IsActive = item.IsActive ?? true,
                 CreatedAt = now,
                 UpdatedAt = now

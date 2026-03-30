@@ -37,31 +37,31 @@ public partial class TabMenuView : ContentView
 
     private void OnFilterAll(object sender, EventArgs e)
     {
-        if (BindingContext is MainViewModel vm) { vm.SearchQuery = ""; vm.ApplyFilter(); }
+        if (BindingContext is MainViewModel vm) { vm.SearchQuery = ""; }
         ApplyChipStyle(FilterChipAll);
     }
 
     private void OnFilterPho(object sender, EventArgs e)
     {
-        if (BindingContext is MainViewModel vm) { vm.SearchQuery = "phở"; vm.ApplyFilter(); }
+        if (BindingContext is MainViewModel vm) { vm.SearchQuery = "phở"; }
         ApplyChipStyle(FilterChipPho);
     }
 
     private void OnFilterBanhMi(object sender, EventArgs e)
     {
-        if (BindingContext is MainViewModel vm) { vm.SearchQuery = "bánh mì"; vm.ApplyFilter(); }
+        if (BindingContext is MainViewModel vm) { vm.SearchQuery = "bánh mì"; }
         ApplyChipStyle(FilterChipBanhMi);
     }
 
     private void OnFilterCom(object sender, EventArgs e)
     {
-        if (BindingContext is MainViewModel vm) { vm.SearchQuery = "cơm"; vm.ApplyFilter(); }
+        if (BindingContext is MainViewModel vm) { vm.SearchQuery = "cơm"; }
         ApplyChipStyle(FilterChipCom);
     }
 
     private void OnFilterChe(object sender, EventArgs e)
     {
-        if (BindingContext is MainViewModel vm) { vm.SearchQuery = "chè"; vm.ApplyFilter(); }
+        if (BindingContext is MainViewModel vm) { vm.SearchQuery = "chè"; }
         ApplyChipStyle(FilterChipChe);
     }
 
@@ -72,8 +72,7 @@ public partial class TabMenuView : ContentView
         if (bindable.BindingContext is not POI poi) return;
 
         vm.ToggleSavePOICommand.Execute(poi);
-        // Rebuild FilteredPOIs so heart color updates immediately
-        vm.ApplyFilter();
+        // ToggleSavePOICommand already calls ApplyFilterCore() to rebuild FilteredPOIs
     }
 
     private async void OnDetailTapped(object sender, EventArgs e)

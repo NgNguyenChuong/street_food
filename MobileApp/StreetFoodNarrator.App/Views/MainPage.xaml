@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
@@ -47,7 +47,7 @@
               AbsoluteLayout.LayoutFlags="All"
               RowDefinitions="Auto,*">
 
-            <Grid Grid.Row="0" Padding="20,48,20,10" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Grid Grid.Row="0" Padding="20,36,20,8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                 <Button Grid.Column="0" WidthRequest="50" HeightRequest="50" CornerRadius="25"
                         BackgroundColor="#0F1D18" BorderColor="#1C3024" BorderWidth="1"
                         FontFamily="MDI" Text="&#xF004D;" FontSize="24" TextColor="#4BE277"
@@ -93,35 +93,51 @@
                                 TextColor="#E5EFE9" Clicked="OnSecondaryExploreActionClicked" />
                     </VerticalStackLayout>
 
-                    <VerticalStackLayout IsVisible="{Binding IsNearExploreState}" Spacing="22" Margin="0,18,0,0">
-                        <Border BackgroundColor="#17231FDD" Stroke="#25362E" StrokeThickness="1" Padding="14,10" HorizontalOptions="Center">
+                    <VerticalStackLayout IsVisible="{Binding IsNearExploreState}" Spacing="14" Margin="0,4,0,0">
+                        <Border BackgroundColor="#16221ECC" Padding="12,7" HorizontalOptions="Center">
                             <Border.StrokeShape><RoundRectangle CornerRadius="22" /></Border.StrokeShape>
-                            <HorizontalStackLayout Spacing="10">
-                                <BoxView WidthRequest="12" HeightRequest="12" CornerRadius="6" BackgroundColor="#4BE277" VerticalOptions="Center" />
-                                <Label Text="{Binding ExploreStateBadge}" FontSize="12" FontAttributes="Bold" CharacterSpacing="1.8" TextColor="#4BE277" />
+                            <HorizontalStackLayout Spacing="9">
+                                <Grid WidthRequest="12" HeightRequest="12">
+                                    <BoxView WidthRequest="12" HeightRequest="12" CornerRadius="6" BackgroundColor="#4BE277" Opacity="0.33" />
+                                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4" BackgroundColor="#4BE277" HorizontalOptions="Center" VerticalOptions="Center" />
+                                </Grid>
+                                <Label Text="{Binding ExploreStateBadge}" FontSize="10" FontAttributes="Bold" CharacterSpacing="1.4" TextColor="#4BE277" />
                             </HorizontalStackLayout>
                         </Border>
-                        <Label Text="{Binding ExploreHeadline}" FontSize="46" FontAttributes="Bold" HorizontalTextAlignment="Center" LineHeight="1.05" TextColor="#E7EFE9" />
-                        <Label Text="{Binding ExploreSubtitle}" FontSize="18" HorizontalTextAlignment="Center" LineHeight="1.35" TextColor="#D0DDD5CC" />
 
-                        <Border BackgroundColor="#1B2723EE" Stroke="#22322C" StrokeThickness="1" Padding="0">
-                            <Border.StrokeShape><RoundRectangle CornerRadius="32" /></Border.StrokeShape>
+                        <Label Text="{Binding ExploreHeadline}" FontSize="34" FontAttributes="Bold" HorizontalTextAlignment="Center" LineHeight="1.0" TextColor="#E7EFE9" />
+                        <Label Text="{Binding ExploreSubtitle}" FontSize="14" HorizontalTextAlignment="Center" LineHeight="1.35" TextColor="#BFD0C8" MaxLines="2" />
+
+                        <Border BackgroundColor="#1A2622EE" Padding="0" Margin="0,2,0,0">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="30" /></Border.StrokeShape>
                             <VerticalStackLayout Spacing="0">
-                                <Grid Padding="24,22,24,16" ColumnDefinitions="*,Auto">
-                                    <VerticalStackLayout Spacing="6">
-                                        <Label Text="MÓN NGON GẦN NHẤT" FontSize="12" FontAttributes="Bold" CharacterSpacing="2.5" TextColor="#FFB690" />
-                                        <Label Text="{Binding FeaturedExplorePoi.Name}" FontSize="42" FontAttributes="Bold" TextColor="#E7EFE9" />
+                                <Grid Padding="16,14,16,10" ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="MÓN NGON GẦN NHẤT" FontSize="10" FontAttributes="Bold" CharacterSpacing="2.1" TextColor="#FFB690" />
+                                        <Label Text="{Binding FeaturedExplorePoi.Name}" FontSize="25" FontAttributes="Bold" TextColor="#E7EFE9" LineBreakMode="TailTruncation" />
                                     </VerticalStackLayout>
-                                    <Border Grid.Column="1" BackgroundColor="#22312C" Padding="16,10" VerticalOptions="Start">
-                                        <Border.StrokeShape><RoundRectangle CornerRadius="20" /></Border.StrokeShape>
-                                        <Label Text="{Binding FeaturedExplorePoi.DistanceText}" FontSize="16" FontAttributes="Bold" TextColor="#4BE277" />
+                                    <Border Grid.Column="1" BackgroundColor="#20312A" Padding="10,6" VerticalOptions="Start">
+                                        <Border.StrokeShape><RoundRectangle CornerRadius="18" /></Border.StrokeShape>
+                                        <Label Text="{Binding FeaturedExplorePoi.DistanceText}" FontSize="14" FontAttributes="Bold" TextColor="#4BE277" />
                                     </Border>
                                 </Grid>
-                                <Grid HeightRequest="260">
+
+                                <Grid HeightRequest="170">
                                     <Image Source="{Binding FeaturedExplorePoi.ImageUrl}" Aspect="AspectFill" />
-                                    <BoxView Color="#08110D" Opacity="0.15" />
+                                    <BoxView Color="#07100D" Opacity="0.20" />
+                                    <Grid Padding="12" VerticalOptions="End" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+                                        <Border BackgroundColor="#08120FD8" Padding="8,4">
+                                            <Border.StrokeShape><RoundRectangle CornerRadius="12" /></Border.StrokeShape>
+                                            <Label Text="{Binding FeaturedExplorePoi.TagText}" FontSize="9" FontAttributes="Bold" TextColor="#FFB690" />
+                                        </Border>
+                                        <Border Grid.Column="1" BackgroundColor="#08120FD8" Padding="8,4">
+                                            <Border.StrokeShape><RoundRectangle CornerRadius="12" /></Border.StrokeShape>
+                                            <Label Text="{Binding FeaturedExplorePoi.MetaText}" FontSize="9" FontAttributes="Bold" TextColor="#86C8FF" MaxLines="1" LineBreakMode="TailTruncation" />
+                                        </Border>
+                                    </Grid>
                                 </Grid>
-                                <Button Text="{Binding ExplorePrimaryActionText}" Margin="28,24,28,28" HeightRequest="76" CornerRadius="38" FontSize="22"
+
+                                <Button Text="{Binding ExplorePrimaryActionText}" Margin="16,12,16,8" HeightRequest="56" CornerRadius="28" FontSize="17"
                                         FontAttributes="Bold" TextColor="#082111" Clicked="OnPrimaryExploreActionClicked">
                                     <Button.Background>
                                         <LinearGradientBrush EndPoint="1,0">
@@ -130,23 +146,42 @@
                                         </LinearGradientBrush>
                                     </Button.Background>
                                 </Button>
+
+                                <Button Text="Xem bản đồ" Margin="16,0,16,14" HeightRequest="50" CornerRadius="25" FontSize="15"
+                                        FontAttributes="Bold" BackgroundColor="#102019CC" BorderColor="#23352E" BorderWidth="1"
+                                        TextColor="#E5EFE9" Clicked="OnNearMapOnlyClicked" />
                             </VerticalStackLayout>
                         </Border>
 
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Label Text="LỰA CHỌN KHÁC" FontSize="12" FontAttributes="Bold" CharacterSpacing="2.4" TextColor="#B9C8C0" />
-                            <Label Grid.Column="1" Text="→" FontSize="22" TextColor="#B9C8C0" />
+                        <Grid Margin="2,3,2,0" ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                            <Label Text="LỰA CHỌN KHÁC" FontSize="10" FontAttributes="Bold" CharacterSpacing="2.0" TextColor="#AEBFB6" />
+                            <Label Grid.Column="1" Text="→" FontSize="18" TextColor="#AEBFB6" />
                         </Grid>
-                        <ScrollView Orientation="Horizontal">
-                            <HorizontalStackLayout Spacing="14" BindableLayout.ItemsSource="{Binding NearbyExplorePois}">
+
+                        <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                            <HorizontalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding NearbyExplorePois}" Padding="0,0,0,6">
                                 <BindableLayout.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border BackgroundColor="#18231FDD" Stroke="#24342D" StrokeThickness="1" Padding="12" WidthRequest="170">
-                                            <Border.StrokeShape><RoundRectangle CornerRadius="24" /></Border.StrokeShape>
-                                            <VerticalStackLayout Spacing="10">
-                                                <Image Source="{Binding ImageUrl}" Aspect="AspectFill" HeightRequest="110" />
-                                                <Label Text="{Binding Name}" FontSize="18" FontAttributes="Bold" TextColor="#EDF5F0" LineBreakMode="TailTruncation" />
-                                                <Label Text="{Binding DistanceText}" FontSize="12" FontAttributes="Bold" TextColor="#D9E5DE99" />
+                                    <DataTemplate x:DataType="vm:MainViewModel+ExplorePoiCard">
+                                        <Border BackgroundColor="#1A2622D8" Padding="8" WidthRequest="150">
+                                            <Border.StrokeShape><RoundRectangle CornerRadius="20" /></Border.StrokeShape>
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnNearSuggestionCardTapped" />
+                                            </Border.GestureRecognizers>
+                                            <VerticalStackLayout Spacing="8">
+                                                <Grid HeightRequest="78">
+                                                    <Image Source="{Binding ImageUrl, TargetNullValue='welcome_streetfood.png', FallbackValue='welcome_streetfood.png'}" Aspect="AspectFill" />
+                                                    <BoxView Color="#08110D" Opacity="0.08" />
+                                                </Grid>
+                                                <Label Text="{Binding Name, TargetNullValue='Địa điểm gợi ý', FallbackValue='Địa điểm gợi ý'}"
+                                                       FontSize="16"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#E8F0EA"
+                                                       LineBreakMode="TailTruncation"
+                                                       MaxLines="1" />
+                                                <Label Text="{Binding SuggestionInfoText, TargetNullValue='— • 4.5★', FallbackValue='— • 4.5★'}"
+                                                       FontSize="10"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#B3C5BB" />
                                             </VerticalStackLayout>
                                         </Border>
                                     </DataTemplate>
@@ -220,7 +255,7 @@
                         </Grid>
                         <VerticalStackLayout BindableLayout.ItemsSource="{Binding NearbyExplorePois}" Spacing="14">
                             <BindableLayout.ItemTemplate>
-                                <DataTemplate>
+                                <DataTemplate x:DataType="vm:MainViewModel+ExplorePoiCard">
                                     <Border BackgroundColor="#121D19DD" Stroke="#1F2C27" StrokeThickness="1" Padding="16">
                                         <Border.StrokeShape><RoundRectangle CornerRadius="24" /></Border.StrokeShape>
                                         <Grid ColumnDefinitions="92,*,Auto" ColumnSpacing="16">
@@ -238,6 +273,104 @@
                         </VerticalStackLayout>
                     </VerticalStackLayout>
                 </VerticalStackLayout>
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="NearSuggestionPopupOverlay"
+              IsVisible="False"
+              Opacity="0"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              BackgroundColor="#07140F"
+              ZIndex="9500">
+            <Grid RowDefinitions="*,Auto" Padding="16,18,16,120">
+                <Border Grid.Row="1" BackgroundColor="#14211D" Stroke="#23352E" StrokeThickness="1" Padding="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="34" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="0">
+                        <Grid HeightRequest="250">
+                            <Image x:Name="NearPopupImage" Source="welcome_streetfood.png" Aspect="AspectFill" />
+                            <BoxView Color="#07110D" Opacity="0.22" />
+                            <Border HorizontalOptions="End" VerticalOptions="Start" Margin="14" BackgroundColor="#F57C00" Padding="14,7">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="20" />
+                                </Border.StrokeShape>
+                                <Label x:Name="NearPopupRatingLabel" Text="★ 4.8" FontSize="16" FontAttributes="Bold" TextColor="#09120F" />
+                            </Border>
+                            <Grid VerticalOptions="End" HeightRequest="96">
+                                <Grid.Background>
+                                    <LinearGradientBrush EndPoint="0,1">
+                                        <GradientStop Color="#0014211D" Offset="0.0" />
+                                        <GradientStop Color="#DD14211D" Offset="0.62" />
+                                        <GradientStop Color="#14211D" Offset="1.0" />
+                                    </LinearGradientBrush>
+                                </Grid.Background>
+                            </Grid>
+                        </Grid>
+
+                        <VerticalStackLayout Padding="16,12,16,16" Spacing="12">
+                            <Label x:Name="NearPopupTitleLabel" Text="Bún bò Nam Bộ" FontSize="20" FontAttributes="Bold" TextColor="#EAF2ED" />
+                            <HorizontalStackLayout Spacing="8">
+                                <Label x:Name="NearPopupDistanceAreaLabel" Text="📍 400M • QUẬN 4" FontSize="13" FontAttributes="Bold" TextColor="#C5D6CE" />
+                                <Label Text="•" FontSize="12" TextColor="#61716A" VerticalTextAlignment="Center" />
+                                <Label x:Name="NearPopupTagLineLabel" Text="🔥 MÓN NÊN THỬ" FontSize="13" FontAttributes="Bold" TextColor="#FFB690" />
+                            </HorizontalStackLayout>
+
+                            <Label x:Name="NearPopupDescriptionLabel"
+                                   Text="Thưởng thức hương vị truyền thống với rau thơm và nước mắm chua ngọt."
+                                   FontSize="14"
+                                   LineHeight="1.35"
+                                   TextColor="#D7E2DC"
+                                   MaxLines="3" />
+
+                            <HorizontalStackLayout Spacing="8">
+                                <Border BackgroundColor="#283833" Padding="12,6">
+                                    <Border.StrokeShape><RoundRectangle CornerRadius="9" /></Border.StrokeShape>
+                                    <Label x:Name="NearPopupChip1Label" Text="NHANH GỌN" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.2" TextColor="#DCE8E1" />
+                                </Border>
+                                <Border BackgroundColor="#283833" Padding="12,6">
+                                    <Border.StrokeShape><RoundRectangle CornerRadius="9" /></Border.StrokeShape>
+                                    <Label x:Name="NearPopupChip2Label" Text="ĐẶC SẢN" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.2" TextColor="#DCE8E1" />
+                                </Border>
+                                <Border BackgroundColor="#283833" Padding="12,6">
+                                    <Border.StrokeShape><RoundRectangle CornerRadius="9" /></Border.StrokeShape>
+                                    <Label x:Name="NearPopupChip3Label" Text="GIÁ RẺ" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.2" TextColor="#DCE8E1" />
+                                </Border>
+                            </HorizontalStackLayout>
+
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                <Button Grid.Column="0"
+                                        x:Name="NearPopupExploreNowButton"
+                                        Text="Khám phá ngay  →"
+                                        HeightRequest="48"
+                                        CornerRadius="24"
+                                        FontSize="15"
+                                        FontAttributes="Bold"
+                                        TextColor="#082111"
+                                        Clicked="OnNearPopupExploreNowClicked">
+                                    <Button.Background>
+                                        <LinearGradientBrush EndPoint="1,0">
+                                            <GradientStop Color="#4BE277" Offset="0.0" />
+                                            <GradientStop Color="#22C55E" Offset="1.0" />
+                                        </LinearGradientBrush>
+                                    </Button.Background>
+                                </Button>
+                                <Button Grid.Column="1"
+                                        Text="HỦY"
+                                        HeightRequest="48"
+                                        CornerRadius="24"
+                                        FontSize="15"
+                                        FontAttributes="Bold"
+                                        BackgroundColor="#22312C"
+                                        BorderColor="#2F453A"
+                                        BorderWidth="1"
+                                        TextColor="#C6D4CC"
+                                        Clicked="OnNearPopupCancelClicked" />
+                            </Grid>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
             </Grid>
         </Grid>
 

@@ -20,6 +20,7 @@ namespace StreetFoodNarrator.App.Views;
 
 public partial class MainPage : ContentPage
 {
+    private const string AutoOpenInZoneOnNextMainPageKey = "auto_open_inzone_on_next_mainpage";
     private readonly MainViewModel _vm;
     private readonly ITTSService _tts;
     private readonly LanguageService _lang;
@@ -29,9 +30,21 @@ public partial class MainPage : ContentPage
     private Window? _lifecycleWindow;
     private bool _isWindowLifecycleHooked;
     private DateTime _lastQueueTapTime = DateTime.MinValue;
+    private CancellationTokenSource? _queueAudioSwitchCts;
+    private bool _preserveNarrationOnNextDisappearing;
+    private bool _isNavigatingToPoiDetail;
+    private DateTime _lastPoiDetailNavigationAt = DateTime.MinValue;
     private bool _isOpeningExploreMapPage;
+    private bool _isNearSuggestionPopupOpen;
+    private MainViewModel.ExplorePoiCard? _pendingNearSuggestionCard;
+    private StreetFoodNarrator.App.Core.Models.POI? _pendingNearSuggestionPoi;
     private ExploreMapPage? _cachedExploreMapPage;
-    private bool _hasPrewarmedSecondaryExperiences;
+    private MainViewModel.ExploreState _lastObservedExploreState = MainViewModel.ExploreState.Far;
+    private bool _hasObservedExploreState;
+    private bool _isStateTransitionPromptOpen;
+    private bool _dismissNearTransitionSuggestion;
+    private bool _dismissInZoneTransitionSuggestion;
+    private bool _autoOpenInZoneDirectly;
 
     public MainPage()
         : this(null, null, null, null)
@@ -70,6 +83,8 @@ public partial class MainPage : ContentPage
             }
 
             BindingContext = _vm = viewModel;
+            _lastObservedExploreState = _vm.CurrentExploreState;
+            _hasObservedExploreState = true;
 
             // Resolve ITTSService
             if (ttsService == null)
@@ -170,24 +185,60 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private void OnPrimaryExploreActionClicked(object? sender, EventArgs e)
+    private async void OnPrimaryExploreActionClicked(object? sender, EventArgs e)
     {
-        switch (_vm.CurrentExploreState)
+        try
         {
-            case MainViewModel.ExploreState.Far:
-                _ = StartVirtualPreviewAsync();
-                break;
-            default:
-                _ = OpenExploreMapPageAsync();
-                break;
+            switch (_vm.CurrentExploreState)
+            {
+                case MainViewModel.ExploreState.Far:
+                    await StartVirtualPreviewAsync();
+                    break;
+                case MainViewModel.ExploreState.Near:
+                    await OpenExploreMapForFeaturedPoiAsync(triggerFeaturedPoi: true);
+                    break;
+                case MainViewModel.ExploreState.InZone:
+                    await OpenExploreMapForFeaturedPoiAsync(triggerFeaturedPoi: true);
+                    break;
+                default:
+                    await OpenExploreMapPageAsync();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnPrimaryExploreActionClicked error: {ex}");
+            await DisplayAlertAsync("Lỗi", "Không thể mở chế độ này lúc này. Vui lòng thử lại.", "OK");
         }
     }
 
-    private void OnSecondaryExploreActionClicked(object? sender, EventArgs e)
-        => _ = OpenExploreMapPageAsync();
+    private async void OnSecondaryExploreActionClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            var shouldOpenFocusedMap = _vm.CurrentExploreState == MainViewModel.ExploreState.Near ||
+                                       _vm.CurrentExploreState == MainViewModel.ExploreState.InZone;
+            await OpenExploreMapPageAsync(nearFocusMode: shouldOpenFocusedMap);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnSecondaryExploreActionClicked error: {ex}");
+            await DisplayAlertAsync("Lỗi", "Không thể mở bản đồ lúc này. Vui lòng thử lại.", "OK");
+        }
+    }
 
-    private void OnDirectionClicked(object? sender, EventArgs e)
-        => _ = OpenExploreMapPageAsync();
+    private async void OnDirectionClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            await OpenExploreMapPageAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnDirectionClicked error: {ex}");
+            await DisplayAlertAsync("Lỗi", "Không thể mở bản đồ lúc này. Vui lòng thử lại.", "OK");
+        }
+    }
 
     private void OnShuffleClicked(object? sender, EventArgs e)
     {
@@ -196,19 +247,26 @@ public partial class MainPage : ContentPage
             cards.Add(_vm.FeaturedExplorePoi);
         cards.AddRange(_vm.NearbyExplorePois);
 
-        if (cards.Count < 2)
+        if (cards.Count < 1)
             return;
 
-        var rotated = cards.Skip(1).Concat(cards.Take(1)).ToList();
+        var rotated = cards.Count == 1
+            ? new List<MainViewModel.ExplorePoiCard> { cards[0] }
+            : cards.Skip(1).Concat(cards.Take(1)).ToList();
         _vm.FeaturedExplorePoi = rotated[0];
         _vm.ExploreHeroImage = rotated[0].ImageUrl;
         _vm.ExploreAudioQuote = rotated[0].QuoteText;
 
-        _vm.NearbyExplorePois.Clear();
-        foreach (var item in rotated.Skip(1).Take(2))
+        // ✅ FIX: Defer collection modification to avoid "Cannot change ObservableCollection
+        // during a CollectionChanged event"
+        MainThread.BeginInvokeOnMainThread(() =>
         {
-            _vm.NearbyExplorePois.Add(item);
-        }
+            _vm.NearbyExplorePois.Clear();
+            foreach (var item in rotated.Skip(1).Take(2))
+            {
+                _vm.NearbyExplorePois.Add(item);
+            }
+        });
     }
 
     private async void OnFeaturedSaveClicked(object? sender, EventArgs e)
@@ -220,23 +278,301 @@ public partial class MainPage : ContentPage
         await _vm.ToggleSavePOICommand.ExecuteAsync(poi);
     }
 
+    private async void OnNearSuggestionCardTapped(object? sender, TappedEventArgs e)
+    {
+        if (_isNearSuggestionPopupOpen || _isOpeningExploreMapPage)
+            return;
+
+        if ((sender as BindableObject)?.BindingContext is not MainViewModel.ExplorePoiCard card)
+            return;
+
+        var poi = _vm.AllPOIs.FirstOrDefault(p => p.ZoneType == "Spot" && p.Id == card.Id);
+        try
+        {
+            await ShowNearSuggestionPopupAsync(card, poi);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnNearSuggestionCardTapped error: {ex}");
+        }
+    }
+
+    private async void OnNearMapOnlyClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            await OpenExploreMapForFeaturedPoiAsync(triggerFeaturedPoi: false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnNearMapOnlyClicked error: {ex}");
+            await DisplayAlertAsync("Lỗi", "Không thể mở bản đồ lúc này. Vui lòng thử lại.", "OK");
+        }
+    }
+
+    private void PromoteSuggestionAsFeatured(MainViewModel.ExplorePoiCard selectedCard)
+    {
+        var previousFeatured = _vm.FeaturedExplorePoi;
+        _vm.FeaturedExplorePoi = selectedCard;
+        _vm.ExploreHeroImage = selectedCard.ImageUrl;
+        _vm.ExploreAudioQuote = selectedCard.QuoteText;
+
+        var reorderedSuggestions = new List<MainViewModel.ExplorePoiCard>();
+        if (previousFeatured != null && previousFeatured.Id != selectedCard.Id)
+        {
+            reorderedSuggestions.Add(previousFeatured);
+        }
+
+        foreach (var item in _vm.NearbyExplorePois)
+        {
+            if (item.Id == selectedCard.Id || reorderedSuggestions.Any(x => x.Id == item.Id))
+                continue;
+
+            reorderedSuggestions.Add(item);
+        }
+
+        _vm.NearbyExplorePois = new System.Collections.ObjectModel.ObservableCollection<MainViewModel.ExplorePoiCard>(
+            reorderedSuggestions.Take(2));
+    }
+
+    private async Task ShowNearSuggestionPopupAsync(
+        MainViewModel.ExplorePoiCard card,
+        StreetFoodNarrator.App.Core.Models.POI? poi)
+    {
+        _pendingNearSuggestionCard = card;
+        _pendingNearSuggestionPoi = poi;
+        _isNearSuggestionPopupOpen = true;
+
+        NearPopupImage.Source = card.ImageUrl;
+        NearPopupTitleLabel.Text = card.Name;
+        NearPopupRatingLabel.Text = $"★ {(poi?.Rating ?? card.Rating):F1}";
+
+        var areaText = ResolvePopupAreaText(poi, card);
+        NearPopupDistanceAreaLabel.Text = $"📍 {FormatPopupDistance(card.DistanceMeters)} • {areaText.ToUpperInvariant()}";
+
+        var tagLine = ResolvePopupTagLine(poi, card).ToUpperInvariant();
+        NearPopupTagLineLabel.Text = $"🔥 {tagLine}";
+
+        NearPopupDescriptionLabel.Text = ResolvePopupDescription(poi, card);
+
+        var popupTags = BuildPopupHashtags(poi, card);
+        NearPopupChip1Label.Text = popupTags.ElementAtOrDefault(0) ?? "#MONNGON";
+        NearPopupChip2Label.Text = popupTags.ElementAtOrDefault(1) ?? "#MONNGON";
+        NearPopupChip3Label.Text = popupTags.ElementAtOrDefault(2) ?? "#KHAMPHA";
+
+        NearSuggestionPopupOverlay.IsVisible = true;
+        NearSuggestionPopupOverlay.InputTransparent = false;
+        NearSuggestionPopupOverlay.Opacity = 0;
+        await NearSuggestionPopupOverlay.FadeToAsync(1, 140);
+    }
+
+    private async Task HideNearSuggestionPopupAsync()
+    {
+        if (!NearSuggestionPopupOverlay.IsVisible)
+        {
+            _isNearSuggestionPopupOpen = false;
+            _pendingNearSuggestionCard = null;
+            _pendingNearSuggestionPoi = null;
+            return;
+        }
+
+        await NearSuggestionPopupOverlay.FadeToAsync(0, 120);
+        NearSuggestionPopupOverlay.IsVisible = false;
+        _isNearSuggestionPopupOpen = false;
+        _pendingNearSuggestionCard = null;
+        _pendingNearSuggestionPoi = null;
+    }
+
+    private async void OnNearPopupCancelClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            await HideNearSuggestionPopupAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnNearPopupCancelClicked error: {ex}");
+        }
+    }
+
+    private async void OnNearPopupExploreNowClicked(object? sender, EventArgs e)
+    {
+        if (_pendingNearSuggestionCard == null || _isOpeningExploreMapPage)
+            return;
+
+        var selected = _pendingNearSuggestionCard;
+        try
+        {
+            await HideNearSuggestionPopupAsync();
+            PromoteSuggestionAsFeatured(selected);
+            await OpenExploreMapForFeaturedPoiAsync(triggerFeaturedPoi: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnNearPopupExploreNowClicked error: {ex}");
+        }
+    }
+
+    private static string FormatPopupDistance(double meters)
+    {
+        if (meters <= 0) return "—";
+        if (meters < 1000) return $"{meters:F0}M";
+        return $"{meters / 1000:F1}KM";
+    }
+
+    private static string ResolvePopupAreaText(
+        StreetFoodNarrator.App.Core.Models.POI? poi,
+        MainViewModel.ExplorePoiCard card)
+    {
+        if (!string.IsNullOrWhiteSpace(card.AreaText))
+            return card.AreaText;
+
+        var address = poi?.Address;
+        if (string.IsNullOrWhiteSpace(address))
+            return "KHU ẨM THỰC";
+
+        var parts = address.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 ? parts[1] : parts[0];
+    }
+
+    private static string ResolvePopupTagLine(
+        StreetFoodNarrator.App.Core.Models.POI? poi,
+        MainViewModel.ExplorePoiCard card)
+    {
+        if (!string.IsNullOrWhiteSpace(poi?.Category))
+            return poi.Category!;
+        if (!string.IsNullOrWhiteSpace(poi?.Type))
+            return poi.Type;
+        if (!string.IsNullOrWhiteSpace(card.TagText))
+            return card.TagText;
+        return "Món nên thử";
+    }
+
+    private static string ResolvePopupDescription(
+        StreetFoodNarrator.App.Core.Models.POI? poi,
+        MainViewModel.ExplorePoiCard card)
+    {
+        var raw = poi?.Description_Vi ?? card.ShortDescription ?? card.QuoteText;
+        if (string.IsNullOrWhiteSpace(raw))
+            return "Khám phá hương vị địa phương đặc sắc ngay gần bạn.";
+
+        var cleaned = raw.Replace("\"", "").Replace("\r", " ").Replace("\n", " ").Trim();
+        return cleaned.Length > 140 ? $"{cleaned[..140].Trim()}..." : cleaned;
+    }
+
+    private static IReadOnlyList<string> BuildPopupHashtags(
+        StreetFoodNarrator.App.Core.Models.POI? poi,
+        MainViewModel.ExplorePoiCard card)
+    {
+        var rawTags = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(poi?.Category))
+            rawTags.Add(poi.Category!);
+        if (!string.IsNullOrWhiteSpace(poi?.Type))
+            rawTags.Add(poi.Type);
+        if (!string.IsNullOrWhiteSpace(poi?.SignatureDish))
+            rawTags.Add(poi.SignatureDish!);
+        if (poi?.DisplaySignatureDishes != null)
+            rawTags.AddRange(poi.DisplaySignatureDishes.Take(2));
+        if (!string.IsNullOrWhiteSpace(card.TagText))
+            rawTags.Add(card.TagText);
+
+        var hashtags = new List<string>(capacity: 3);
+        foreach (var raw in rawTags)
+        {
+            var hashtag = ToHashtag(raw);
+            if (string.IsNullOrWhiteSpace(hashtag) || hashtags.Contains(hashtag))
+                continue;
+
+            hashtags.Add(hashtag);
+            if (hashtags.Count == 3)
+                break;
+        }
+
+        while (hashtags.Count < 3)
+        {
+            hashtags.Add(hashtags.Count switch
+            {
+                0 => "#MONNGON",
+                1 => "#STREETFOOD",
+                _ => "#KHAMPHA"
+            });
+        }
+
+        return hashtags;
+    }
+
+    private static string ToHashtag(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+            return string.Empty;
+
+        var normalized = new string(source
+            .Trim()
+            .Where(char.IsLetterOrDigit)
+            .ToArray());
+
+        if (string.IsNullOrWhiteSpace(normalized))
+            return string.Empty;
+
+        if (normalized.Length > 14)
+            normalized = normalized[..14];
+
+        return $"#{normalized.ToUpperInvariant()}";
+    }
+
     private async void OnMapToolCloseClicked(object? sender, EventArgs e)
     {
         await SetMapToolVisibleAsync(false);
     }
 
+    private async Task<bool> EnsureSpotDataReadyAsync()
+    {
+        if (_vm.AllPOIs.Any(p => p.ZoneType == "Spot"))
+            return true;
+
+        try
+        {
+            await _vm.LoadAllPoisAsync(forceSyncNow: false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] EnsureSpotDataReadyAsync load error: {ex}");
+        }
+
+        return _vm.AllPOIs.Any(p => p.ZoneType == "Spot");
+    }
+
     private async Task StartVirtualPreviewAsync()
     {
+        var hasSpotData = await EnsureSpotDataReadyAsync();
+        if (!hasSpotData)
+        {
+            await DisplayAlertAsync("Đang tải dữ liệu", "Dữ liệu tour chưa sẵn sàng. Vui lòng thử lại sau vài giây.", "OK");
+            return;
+        }
+
         var poi = ResolveBestStartPoi();
         if (poi == null)
+        {
+            await DisplayAlertAsync("Chưa có điểm tour", "Không tìm thấy điểm bắt đầu phù hợp. Vui lòng thử lại.", "OK");
             return;
+        }
 
-        EnsureMapInitialized();
-        StartContinuousTrackingIfNeeded();
-        _vm.IsLegacyMapVisible = false;
-        ApplyMapPresentation();
-        await PrimeVirtualModeMapAsync();
-        await EnableVirtualTourAsync(poi);
+        try
+        {
+            EnsureMapInitialized();
+            StartContinuousTrackingIfNeeded();
+            _vm.IsLegacyMapVisible = false;
+            ApplyMapPresentation();
+            await EnableVirtualTourAsync(poi);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] StartVirtualPreviewAsync error: {ex}");
+            ShowExploreStateMode();
+            await DisplayAlertAsync("Không thể vào tour ảo", "Đã có lỗi khi mở tour ảo. Vui lòng thử lại.", "OK");
+        }
     }
 
     private void ShowLegacyMapMode()
@@ -246,6 +582,7 @@ public partial class MainPage : ContentPage
         EnsureMapInitialized();
         StartContinuousTrackingIfNeeded();
         _vm.IsLegacyMapVisible = true;
+        TabMapComponent?.InitializeChips(_vm.SelectedCategory);
         SyncExplorePresentationState();
         ApplyMapPresentation();
         ScheduleInteractiveMapRefresh();
@@ -260,7 +597,7 @@ public partial class MainPage : ContentPage
         ApplyMapPresentation();
     }
 
-    private async Task OpenExploreMapPageAsync()
+    private async Task OpenExploreMapPageAsync(bool nearFocusMode = false)
     {
         if (_isOpeningExploreMapPage)
             return;
@@ -269,18 +606,43 @@ public partial class MainPage : ContentPage
 
         try
         {
+            var hasSpotData = await EnsureSpotDataReadyAsync();
+            if (!hasSpotData)
+            {
+                await DisplayAlertAsync("Đang tải dữ liệu", "Dữ liệu bản đồ chưa sẵn sàng. Vui lòng thử lại sau vài giây.", "OK");
+                return;
+            }
+
+            // Keep MainPage in Explore-state mode, then open the dedicated map page.
             _vm.CurrentAppMode = MainViewModel.AppMode.Explore;
             _vm.IsLegacyMapVisible = false;
             SyncExplorePresentationState();
             ApplyMapPresentation();
 
-            var mapPage = GetOrCreateExploreMapPage();
-            mapPage.Prewarm();
-            await Navigation.PushAsync(mapPage);
+            var nav = Shell.Current?.Navigation ?? Navigation;
+            if (nav == null)
+            {
+                // Fallback for rare navigation-context issues.
+                ShowLegacyMapMode();
+                return;
+            }
+
+            if (nav.NavigationStack.Count > 0 &&
+                nav.NavigationStack[nav.NavigationStack.Count - 1] is ExploreMapPage topMapPage &&
+                topMapPage.IsNearFocusMode == nearFocusMode)
+            {
+                return;
+            }
+
+            var exploreMapPage = new ExploreMapPage(_vm, nearFocusMode);
+            exploreMapPage.Prewarm();
+            await nav.PushAsync(exploreMapPage);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MainPage] OpenExploreMapPageAsync error: {ex}");
+            ShowLegacyMapMode();
+            await DisplayAlertAsync("Không thể mở bản đồ", "Đã có lỗi khi mở bản đồ. Vui lòng thử lại.", "OK");
         }
         finally
         {
@@ -328,28 +690,6 @@ public partial class MainPage : ContentPage
         return _cachedExploreMapPage;
     }
 
-    private void PrewarmSecondaryExperiences()
-    {
-        if (_hasPrewarmedSecondaryExperiences)
-            return;
-
-        _hasPrewarmedSecondaryExperiences = true;
-
-        MainThread.BeginInvokeOnMainThread(async () =>
-        {
-            try
-            {
-                await Task.Delay(180);
-                EnsureMapInitialized();
-                var exploreMapPage = GetOrCreateExploreMapPage();
-                exploreMapPage.Prewarm();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[MainPage] PrewarmSecondaryExperiences error: {ex.Message}");
-            }
-        });
-    }
 
     private async void OpenMapToolForFeaturedPoi()
     {
@@ -424,6 +764,8 @@ public partial class MainPage : ContentPage
         MapView.IsVisible = shouldShowInteractiveMap;
         MapView.InputTransparent = !shouldShowInteractiveMap;
         MapView.Opacity = shouldShowInteractiveMap ? 1.0 : 0.0;
+        if (TabMapComponent != null)
+            TabMapComponent.IsVisible = _vm.IsMapModeVisible;
 
         if (shouldShowInteractiveMap && _isMapInitialized)
         {
@@ -638,19 +980,18 @@ public partial class MainPage : ContentPage
     private void OnAppWindowStopped(object? sender, EventArgs e)
     {
         _virtualTourVm.OnAppBackgrounded();
+        _vm.ReduceTrackingForBackground();
     }
 
     private void OnAppWindowResumed(object? sender, EventArgs e)
     {
         _virtualTourVm.OnAppResumed();
+        _vm.RestoreTrackingFromBackground();
     }
 
     private async Task InitializePageAsync()
     {
-        // Start GPS in background so first render is not blocked by sensor timeout.
-        var gpsInitTask = TryInitializeCurrentLocationAsync();
-
-        //Tai du lieu POI truoc de co thong tin hien thi tren ban do cang som cang tot, sau do moi an loading overlay de nguoi dung thay map ngay khi da co data.
+        // Load POI data from cache immediately — no network needed if cached
         SetLoadingStatus("Đang tải dữ liệu...");
         try
         {
@@ -661,81 +1002,81 @@ public partial class MainPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"[MainPage] LoadAllPoisAsync error: {ex}");
         }
 
-        SetLoadingStatus($"Đã tải {_vm.AllPOIs.Count} địa điểm...");
-        await Task.Delay(300); // Cho UI cap nhat
+        // Prime initial Explore state BEFORE hiding overlay to avoid Far->Near flicker.
+        SetLoadingStatus("Đang xác định vị trí...");
+        await PrimeInitialExploreStateAsync();
 
-        SetLoadingStatus("Đang xác định vị trí của bạn...");
-        try
-        {
-            await gpsInitTask;
-            _vm.RefreshExploreState();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainPage] GPS/state refresh error: {ex.Message}");
-        }
+        // Hide loading only after initial state is decided.
+        try { HideLoadingOverlay(); } catch { /* safe */ }
 
-        // Hide loading overlay â€” crash guard prevents blank screen on failure
-        try
+        // Everything below runs in background — does NOT block UI
+        _ = Task.Run(async () =>
         {
-            HideLoadingOverlay();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainPage] HideLoadingOverlay error: {ex.Message}");
-        }
-
-        PrewarmSecondaryExperiences();
-
-        // Show virtual tour popup AFTER overlay is hidden
-
-        // Preload audio for nearby POIs so that if user taps one, it can play immediately without waiting for load.
-        if (_audioCache != null)
-        {
+            // Start GPS tracking
             try
             {
-                var ids = _vm.AllPOIs
-                    .Where(p => p.ZoneType != "Area" && p.ZoneType != "District")
-                    .OrderBy(p =>
-                    {
-                        var latDiff = p.Latitude - AppConfig.DefaultLatitude;
-                        var lonDiff = p.Longitude - AppConfig.DefaultLongitude;
-                        return (latDiff * latDiff) + (lonDiff * lonDiff);
-                    })
-                    .Take(4)
-                    .Select(p => p.Id)
-                    .ToList();
-                if (ids.Count > 0)
-                {
-                    _ = _audioCache.PreloadAllAsync(ids).ContinueWith(pt =>
-                    {
-                        if (pt.Exception != null)
-                            System.Diagnostics.Debug.WriteLine(
-                                $"[MainPage] AudioCache preload error: {pt.Exception.InnerException?.Message}");
-                    }, TaskContinuationOptions.OnlyOnFaulted);
-                }
+                // In simulated mode, never seed coordinates from real device GPS.
+                if (!_vm.IsSimulated)
+                    await TryInitializeCurrentLocationAsync();
+                _vm.RefreshExploreState();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[MainPage] Audio preload error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[MainPage] GPS init error: {ex.Message}");
             }
-        }
 
-        // Initial GPS attempt already completed before loading overlay was hidden.
-
-        // Start continuous tracking now so that if user moves to map immediately, we already have a location fix and can show them on the map.
-        try
-        {
-            _ = _vm.StartTrackingAsync().ContinueWith(t =>
+            // Start continuous GPS tracking
+            try
             {
-                if (t.Exception != null)
-                    System.Diagnostics.Debug.WriteLine($"[MainPage] StartTrackingAsync error: {t.Exception}");
-            }, TaskContinuationOptions.OnlyOnFaulted);
-        }
-        catch (Exception ex)
+                await _vm.StartTrackingAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainPage] StartTrackingAsync error: {ex.Message}");
+            }
+        });
+
+        // Preload audio in background
+        if (_audioCache != null && _vm.AllPOIs.Count > 0)
         {
-            System.Diagnostics.Debug.WriteLine($"[MainPage] StartTrackingAsync launch error: {ex.Message}");
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var ids = _vm.AllPOIs
+                        .Where(p => p.ZoneType != "Area" && p.ZoneType != "District")
+                        .OrderBy(p =>
+                        {
+                            var latDiff = p.Latitude - AppConfig.DefaultLatitude;
+                            var lonDiff = p.Longitude - AppConfig.DefaultLongitude;
+                            return (latDiff * latDiff) + (lonDiff * lonDiff);
+                        })
+                        .Take(4)
+                        .Select(p => p.Id)
+                        .ToList();
+                    if (ids.Count > 0)
+                        await _audioCache.PreloadAllAsync(ids);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainPage] Audio preload error: {ex.Message}");
+                }
+            });
         }
+
+        // Prewarm secondary experiences
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(200);
+            try
+            {
+                await MainThread.InvokeOnMainThreadAsync(() => EnsureMapInitialized());
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainPage] Prewarm error: {ex.Message}");
+            }
+        });
     }    private async Task PrimeVirtualModeMapAsync()
     {
         try
@@ -765,10 +1106,51 @@ public partial class MainPage : ContentPage
 
     private async Task TryInitializeCurrentLocationAsync()
     {
+        if (_vm.IsSimulated)
+            return;
+
+        Location? loc = null;
+
         try
         {
-            var loc = await Geolocation.GetLocationAsync(
-                new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(6)));
+            // Offline-friendly: use last known GPS first if available.
+            loc = await Geolocation.GetLastKnownLocationAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] LastKnown location error: {ex.Message}");
+        }
+
+        try
+        {
+            if (loc == null)
+            {
+                loc = await Geolocation.GetLocationAsync(
+                    new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(6)));
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] GPS init active request error: {ex.Message}");
+        }
+
+        try
+        {
+            if (loc == null)
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                loc = await Geolocation.GetLocationAsync(
+                    new GeolocationRequest(GeolocationAccuracy.Low, TimeSpan.FromSeconds(3)),
+                    cts.Token);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] GPS init quick fallback error: {ex.Message}");
+        }
+
+        try
+        {
             if (loc == null) return;
 
             await MainThread.InvokeOnMainThreadAsync(() =>
@@ -807,7 +1189,7 @@ public partial class MainPage : ContentPage
         MainThread.BeginInvokeOnMainThread(async () =>
         {
             if (LoadingOverlay == null) return;
-            await LoadingOverlay.FadeToAsync(0, 400);
+            await LoadingOverlay.FadeToAsync(0, 200);
             LoadingOverlay.IsVisible = false;
             ApplyMapPresentation();
         });
@@ -895,6 +1277,7 @@ public partial class MainPage : ContentPage
             DetailModeComponent.BackRequested += OnDetailBackClicked;
             DetailModeComponent.ShareRequested += OnDetailShareClicked;
         }
+
     }
 
     private void OnPinClose(object? sender, EventArgs e)
@@ -945,8 +1328,17 @@ public partial class MainPage : ContentPage
     private async void OnMapLikeRequested(object? sender, Core.Models.POI poi)
     {
         if (poi == null) return;
-        await _vm.ToggleSavePOICommand.ExecuteAsync(poi);
-        UpdateZonePins();
+        try
+        {
+            await _vm.ToggleSavePOICommand.ExecuteAsync(poi);
+            _vm.SelectedPinPOI = _vm.AllPOIs.FirstOrDefault(p => p.Id == poi.Id) ?? poi;
+            UpdateZonePins();
+            TabMapComponent?.RefreshLikeIcon();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnMapLikeRequested error: {ex}");
+        }
     }
 
     /// <summary>Explore nav tap — go to Explore mode.</summary>
@@ -981,12 +1373,15 @@ public partial class MainPage : ContentPage
 
     private async void OnJournalQueueItemTapped(object? sender, Core.Models.POI poi)
     {
+        if (_isNavigatingToPoiDetail) return;
+
         // Debounce: ignore rapid taps within 400ms
         var now = DateTime.UtcNow;
         if ((now - _lastQueueTapTime).TotalMilliseconds < 400) return;
         _lastQueueTapTime = now;
 
         if (poi == null) return;
+        if (_vm.PrimaryZone?.Id == poi.Id) return;
 
         // Update PrimaryZone immediately so audio player shows correct POI info
         _vm.PrimaryZone = poi;
@@ -999,17 +1394,119 @@ public partial class MainPage : ContentPage
         _vm.RefreshJournalQueueOnly();
 
         // Switch audio in background — fire and forget so UI is instant
-        _ = SwitchAudioForQueueItemAsync();
+        _queueAudioSwitchCts?.Cancel();
+        _queueAudioSwitchCts = new CancellationTokenSource();
+        _ = SwitchAudioForQueueItemAsync(_queueAudioSwitchCts.Token);
     }
 
-    private async Task SwitchAudioForQueueItemAsync()
+    private async Task PrimeInitialExploreStateAsync()
     {
         try
         {
+            if (_vm.IsSimulated)
+            {
+                // Prime with simulated provider first to avoid using stale/default coordinates.
+                await _vm.StartTrackingAsync();
+                var waitStarted = DateTime.UtcNow;
+                while (!_vm.HasLocationFix && (DateTime.UtcNow - waitStarted).TotalMilliseconds < 700)
+                    await Task.Delay(50);
+
+                await MainThread.InvokeOnMainThreadAsync(() => _vm.RefreshExploreState());
+                return;
+            }
+
+            var quickLocation = await TryGetQuickInitialLocationAsync();
+            if (quickLocation != null)
+            {
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    _vm.HasLocationFix = true;
+                    _vm.CurrentLat = quickLocation.Latitude;
+                    _vm.CurrentLon = quickLocation.Longitude;
+                    _vm.RefreshExploreState();
+                });
+            }
+            else
+            {
+                await MainThread.InvokeOnMainThreadAsync(() => _vm.RefreshExploreState());
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] PrimeInitialExploreStateAsync error: {ex.Message}");
+            try
+            {
+                await MainThread.InvokeOnMainThreadAsync(() => _vm.RefreshExploreState());
+            }
+            catch
+            {
+                // Best effort only
+            }
+        }
+    }
+
+    private async Task OpenExploreMapForFeaturedPoiAsync(bool triggerFeaturedPoi)
+    {
+        if (triggerFeaturedPoi)
+        {
+            var featuredPoi = ResolveFeaturedPoi();
+            if (featuredPoi != null)
+            {
+                _vm.NavigationTarget = featuredPoi;
+                _vm.IsVirtualNavigation = false;
+            }
+        }
+        else
+        {
+            _vm.NavigationTarget = null;
+            _vm.IsVirtualNavigation = false;
+        }
+
+        var shouldOpenNearRoutingMode = _vm.CurrentExploreState == MainViewModel.ExploreState.Near ||
+                                        _vm.CurrentExploreState == MainViewModel.ExploreState.InZone;
+        await OpenExploreMapPageAsync(nearFocusMode: shouldOpenNearRoutingMode);
+    }
+
+    private static async Task<Location?> TryGetQuickInitialLocationAsync()
+    {
+        try
+        {
+            var lastKnown = await Geolocation.GetLastKnownLocationAsync();
+            if (lastKnown != null)
+                return lastKnown;
+        }
+        catch
+        {
+            // Ignore and fallback to quick active request.
+        }
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));
+            return await Geolocation.GetLocationAsync(
+                new GeolocationRequest(GeolocationAccuracy.Low, TimeSpan.FromSeconds(2)),
+                cts.Token);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task SwitchAudioForQueueItemAsync(CancellationToken token)
+    {
+        try
+        {
+            if (token.IsCancellationRequested) return;
             await StopNarrationAsync(resetProgress: true, clearResumeState: true);
-            // Give a tiny moment for TTS to reset before starting new narration
-            await Task.Delay(50);
-            OnPlayPauseTapped(this, EventArgs.Empty);
+            if (token.IsCancellationRequested) return;
+
+            // Programmatic queue switch should not be blocked by tap debounce.
+            _lastTapTime = DateTime.MinValue;
+            await MainThread.InvokeOnMainThreadAsync(() => OnPlayPauseTapped(this, EventArgs.Empty));
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
@@ -1020,21 +1517,94 @@ public partial class MainPage : ContentPage
     private async void OnJournalQueueSeeMoreTapped(object? sender, Core.Models.POI poi)
     {
         if (poi == null) return;
+        if (!TryBeginPoiDetailNavigation()) return;
 
-        // Stop current audio so that when user goes back from POIDetailPage, we don't have two audio sources competing (the one for the POI they tapped on, and the one for the PrimaryZone which is still technically "playing" until we stop it here). We also reset progress and clear resume state so that if they do go back to the journal and tap play again, it starts from the beginning of the new POI's audio instead of resuming the old one.
-        await StopNarrationAsync(resetProgress: true, clearResumeState: true);
+        try
+        {
+            _queueAudioSwitchCts?.Cancel();
+            await StopNarrationForNavigationAsync();
 
-        // Show POIDetailPage for this POI  audio stays stopped
-        await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi));
+            var nav = Shell.Current?.Navigation;
+            if (nav == null)
+                return;
+
+            await nav.PushModalAsync(new POIDetailPage(poi));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] QueueSeeMore navigation error: {ex}");
+        }
+        finally
+        {
+            _isNavigatingToPoiDetail = false;
+        }
     }
 
     private async void OnJournalCurrentlyPlayingSeeMoreTapped(object? sender, EventArgs e)
     {
-        if (_vm.PrimaryZone == null) return;
+        var targetPoi = _vm.JournalCurrentlyPlayingPoi ?? _vm.PrimaryZone;
+        if (targetPoi == null) return;
+        if (!TryBeginPoiDetailNavigation()) return;
 
-        // Stop audio and navigate to POIDetailPage
-        await StopNarrationAsync(resetProgress: true, clearResumeState: true);
-        await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(_vm.PrimaryZone));
+        try
+        {
+            _queueAudioSwitchCts?.Cancel();
+
+            // Keep current playback running and let POIDetailPage attach to it.
+            _preserveNarrationOnNextDisappearing = true;
+            var nav = Shell.Current?.Navigation;
+            if (nav == null)
+            {
+                _preserveNarrationOnNextDisappearing = false;
+                return;
+            }
+
+            await nav.PushModalAsync(new POIDetailPage(targetPoi, keepCurrentAudio: true));
+        }
+        catch (Exception ex)
+        {
+            _preserveNarrationOnNextDisappearing = false;
+            System.Diagnostics.Debug.WriteLine($"[MainPage] Open POIDetail keep-audio failed: {ex}");
+        }
+        finally
+        {
+            _isNavigatingToPoiDetail = false;
+        }
+    }
+
+    private bool TryBeginPoiDetailNavigation()
+    {
+        var now = DateTime.UtcNow;
+        if (_isNavigatingToPoiDetail)
+            return false;
+
+        if ((now - _lastPoiDetailNavigationAt).TotalMilliseconds < 700)
+            return false;
+
+        _isNavigatingToPoiDetail = true;
+        _lastPoiDetailNavigationAt = now;
+        return true;
+    }
+
+    private async Task StopNarrationForNavigationAsync()
+    {
+        try
+        {
+            var stopTask = StopNarrationAsync(resetProgress: true, clearResumeState: true);
+            var completed = await Task.WhenAny(stopTask, Task.Delay(900));
+            if (completed == stopTask)
+            {
+                await stopTask;
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[MainPage] StopNarration timeout before navigation, continuing.");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] StopNarrationForNavigationAsync error: {ex}");
+        }
     }
 
     private void OnDetailShareClicked(object? sender, EventArgs e)
@@ -1054,11 +1624,14 @@ public partial class MainPage : ContentPage
         if (e.PropertyName == nameof(MainViewModel.CurrentLat) ||
             e.PropertyName == nameof(MainViewModel.CurrentLon))
         {
-            //Update user pin (lightweight - no POI redraw)
-            UpdateUserPin();
+            if (MapView?.IsVisible == true)
+            {
+                //Update user pin (lightweight - no POI redraw)
+                UpdateUserPin();
+            }
 
             //Debounce route redraw (FIX 4: only redraw every 3 seconds)
-            if (_vm.NavigationTarget != null)
+            if (_vm.NavigationTarget != null && MapView?.IsVisible == true)
             {
                 var now = DateTime.Now;
                 if ((now - _lastRouteRedraw).TotalMilliseconds >= 3000)
@@ -1075,10 +1648,14 @@ public partial class MainPage : ContentPage
         else if (e.PropertyName == nameof(MainViewModel.ActiveZoneCount))
         {
             // Fires once after ActiveZones is fully populated (not N+1 times via CollectionChanged)
-            UpdateZonePins();
+            if (MapView?.IsVisible == true)
+                UpdateZonePins();
         }
         else if (e.PropertyName == nameof(MainViewModel.NavigationTarget))
         {
+            if (MapView?.IsVisible != true)
+                return;
+
             _lastRouteRedraw = DateTime.Now; // Reset debounce for explicit navigation
             _ = DrawNavigationRouteAsync().ContinueWith(t =>
             {
@@ -1088,6 +1665,9 @@ public partial class MainPage : ContentPage
         }
         else if (e.PropertyName == nameof(MainViewModel.IsVirtualNavigation))
         {
+            if (MapView?.IsVisible != true)
+                return;
+
             _lastRouteRedraw = DateTime.Now;
             _ = DrawNavigationRouteAsync().ContinueWith(t =>
             {
@@ -1102,12 +1682,47 @@ public partial class MainPage : ContentPage
 
             if (_vm.CurrentAppMode == MainViewModel.AppMode.Virtual)
             {
-                _vm.RefreshJournalState();
-                _ = PrimeVirtualModeMapAsync();
+                // Defer one UI tick so VirtualMode view is fully materialized
+                // before queue data updates.
+                _ = MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    await Task.Yield();
+                    _vm.RefreshJournalState();
+                });
             }
         }
         else if (e.PropertyName == nameof(MainViewModel.CurrentExploreState) && MapView != null && !MapToolOverlay.IsVisible)
         {
+            var currentState = _vm.CurrentExploreState;
+            var previousState = _lastObservedExploreState;
+            if (!_hasObservedExploreState)
+            {
+                previousState = currentState;
+                _hasObservedExploreState = true;
+            }
+            _lastObservedExploreState = currentState;
+
+            if (currentState == MainViewModel.ExploreState.Far)
+            {
+                _dismissNearTransitionSuggestion = false;
+            }
+
+            if (currentState != MainViewModel.ExploreState.InZone)
+            {
+                _dismissInZoneTransitionSuggestion = false;
+            }
+
+            if (currentState == MainViewModel.ExploreState.Near &&
+                previousState == MainViewModel.ExploreState.Far)
+            {
+                _ = PromptFarToNearSuggestionAsync();
+            }
+
+            if (currentState == MainViewModel.ExploreState.InZone)
+            {
+                _ = TryAutoOpenInZoneMapAsync();
+            }
+
             ApplyMapPresentation();
             SyncExplorePresentationState();
         }
@@ -1125,15 +1740,117 @@ public partial class MainPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        _autoOpenInZoneDirectly = Preferences.Get(AutoOpenInZoneOnNextMainPageKey, false);
+        if (_autoOpenInZoneDirectly)
+            Preferences.Set(AutoOpenInZoneOnNextMainPageKey, false);
         OnTourAppearing();
+        _vm.RefreshExploreState();
+        _ = TryAutoOpenInZoneMapAsync();
+    }
+
+    private async Task PromptFarToNearSuggestionAsync()
+    {
+        try
+        {
+            if (_dismissNearTransitionSuggestion || _isStateTransitionPromptOpen)
+                return;
+
+            if (_vm.CurrentExploreState != MainViewModel.ExploreState.Near)
+                return;
+
+            if (_vm.CurrentAppMode != MainViewModel.AppMode.Explore)
+                return;
+
+            if (_isOpeningExploreMapPage || _isNearSuggestionPopupOpen)
+                return;
+
+            _isStateTransitionPromptOpen = true;
+            var shouldOpenMap = await MainThread.InvokeOnMainThreadAsync(() =>
+                DisplayAlertAsync(
+                    "Bạn đã đến gần khu ẩm thực",
+                    "Bạn muốn mở bản đồ để bắt đầu trải nghiệm tour thật ngay không?",
+                    "Xem bản đồ",
+                    "Hủy"));
+
+            _dismissNearTransitionSuggestion = true;
+            if (!shouldOpenMap)
+                return;
+
+            await OpenExploreMapForFeaturedPoiAsync(triggerFeaturedPoi: false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] PromptFarToNearSuggestionAsync error: {ex}");
+        }
+        finally
+        {
+            _isStateTransitionPromptOpen = false;
+        }
+    }
+
+    private async Task TryAutoOpenInZoneMapAsync()
+    {
+        try
+        {
+            if (_dismissInZoneTransitionSuggestion || _isStateTransitionPromptOpen)
+                return;
+
+            if (_vm.CurrentExploreState != MainViewModel.ExploreState.InZone)
+                return;
+
+            if (_vm.CurrentAppMode != MainViewModel.AppMode.Explore)
+                return;
+
+            if (_isOpeningExploreMapPage || _isNearSuggestionPopupOpen)
+                return;
+
+            if (_autoOpenInZoneDirectly)
+            {
+                _autoOpenInZoneDirectly = false;
+                _dismissInZoneTransitionSuggestion = true;
+                await OpenExploreMapForFeaturedPoiAsync(triggerFeaturedPoi: true);
+                return;
+            }
+
+            _isStateTransitionPromptOpen = true;
+            var shouldOpenMap = await MainThread.InvokeOnMainThreadAsync(() =>
+                DisplayAlertAsync(
+                    "Bạn đã ở trong khu ẩm thực",
+                    "Mở bản đồ trải nghiệm tại chỗ ngay bây giờ?",
+                    "Mở ngay",
+                    "Hủy"));
+
+            _dismissInZoneTransitionSuggestion = true;
+            if (!shouldOpenMap)
+                return;
+
+            await OpenExploreMapForFeaturedPoiAsync(triggerFeaturedPoi: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] TryAutoOpenInZoneMapAsync error: {ex}");
+        }
+        finally
+        {
+            _isStateTransitionPromptOpen = false;
+        }
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+
+        // Opening POIDetail from VirtualMode is a modal transition; keep current narration alive.
+        if (_preserveNarrationOnNextDisappearing)
+        {
+            _preserveNarrationOnNextDisappearing = false;
+            return;
+        }
+
         OnTourDisappearing();
         UnhookWindowLifecycle();
         _ = StopNarrationAsync(resetProgress: true, clearResumeState: true);
     }
 }
+
 

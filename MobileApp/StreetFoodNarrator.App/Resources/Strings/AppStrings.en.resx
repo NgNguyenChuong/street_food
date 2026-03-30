@@ -31,14 +31,28 @@
     <value>Close</value>
   </data>
   <data name="Welcome_AppTitle" xml:space="preserve">
-    <value>Street Food Narrator</value>
+    <value>Explore Vinh Khanh Food</value>
   </data>
   <data name="Welcome_Subtitle" xml:space="preserve">
-    <value>Explore Vinh Khanh
-Food Journey</value>
+    <value>The app will guide you on an auto food tour</value>
   </data>
   <data name="Welcome_StartTour" xml:space="preserve">
-    <value>🚀  Start Tour</value>
+    <value>🚀  Start</value>
+  </data>
+  <data name="Onboarding_Popup_Title" xml:space="preserve">
+    <value>Download data for offline use?</value>
+  </data>
+  <data name="Onboarding_Popup_Message" xml:space="preserve">
+    <value>You can download data to use without internet, or start now and download later.</value>
+  </data>
+  <data name="Onboarding_Popup_Download" xml:space="preserve">
+    <value>📥 Download Data</value>
+  </data>
+  <data name="Onboarding_Popup_UseNow" xml:space="preserve">
+    <value>⚡ Use Now</value>
+  </data>
+  <data name="Onboarding_OfflineNoNetwork" xml:space="preserve">
+    <value>No internet, will use bundled data</value>
   </data>
   <data name="Welcome_Feature_Auto_Title" xml:space="preserve">
     <value>Auto play</value>
