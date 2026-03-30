@@ -12,6 +12,7 @@ using MapsColor = Mapsui.Styles.Color;
 using MapsBrush = Mapsui.Styles.Brush;
 using MPoint = Mapsui.MPoint;
 using MauiColor = Microsoft.Maui.Graphics.Color;
+using StreetFoodNarrator.App.Helpers;
 
 namespace StreetFoodNarrator.App.Views;
 
@@ -197,7 +198,7 @@ public partial class POIDetailPage : ContentPage
 
     private void UpdateLikeIcon()
     {
-        LikeIcon.Text = "\uF02D1";
+        LikeIcon.Text = "\U000F02D1";
         LikeIcon.TextColor = _poi.IsLikedByUser
             ? MauiColor.FromArgb("#EF4444")
             : MauiColor.FromArgb("#FFFFFF");
@@ -229,7 +230,7 @@ public partial class POIDetailPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[POIDetail] Phone error: {ex}");
-            await DisplayAlertAsync("Lỗi", "Không thể gọi điện.", "OK");
+            await CustomAlert.ShowAsync("Lỗi", "Không thể gọi điện.", "OK", AlertType.Error);
         }
     }
 
@@ -246,10 +247,10 @@ public partial class POIDetailPage : ContentPage
 
             if (vm.CurrentExploreState == MainViewModel.ExploreState.Far)
             {
-                await DisplayAlertAsync(
+                await CustomAlert.ShowAsync(
                     "Bạn đang ở xa",
                     "Khu ẩm thực nên chỉ có thể thực hiện chức năng xem ảo.",
-                    "Đã hiểu");
+                    "Đã hiểu", AlertType.Warning);
                 return;
             }
 
@@ -260,8 +261,8 @@ public partial class POIDetailPage : ContentPage
 
             if (distKm > 1.0)
             {
-                await DisplayAlertAsync("Chế độ Xem Ảo",
-                    "Bạn đang ở cách quán hơn 1km. Bản đồ sẽ chuyển sang tương tác Xem Ảo.", "Đã Hiểu");
+                await CustomAlert.ShowAsync("Chế độ Xem Ảo",
+                    "Bạn đang ở cách quán hơn 1km. Bản đồ sẽ chuyển sang tương tác Xem Ảo.", "Đã Hiểu", AlertType.Info);
                 vm.IsVirtualNavigation = true;
             }
             else
@@ -278,7 +279,7 @@ public partial class POIDetailPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[POIDetail] Navigate error: {ex}");
-            await DisplayAlertAsync("Lỗi", "Không thể chỉ đường lúc này.", "OK");
+            await CustomAlert.ShowAsync("Lỗi", "Không thể chỉ đường lúc này.", "OK", AlertType.Error);
         }
     }
 

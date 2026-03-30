@@ -292,13 +292,13 @@
                                             <Grid HeightRequest="14" Margin="0,2,0,0">
                                                 <BoxView x:Name="AudioProgressTrack"
                                                          BackgroundColor="#1a4be277"
-                                                         StrokeShape="RoundRectangle 3"
+                                                         CornerRadius="3"
                                                          HeightRequest="6"
                                                          VerticalOptions="Center"
                                                          HorizontalOptions="Fill"/>
                                                 <BoxView x:Name="AudioProgressFill"
                                                          BackgroundColor="{StaticResource Primary}"
-                                                         StrokeShape="RoundRectangle 3"
+                                                         CornerRadius="3"
                                                          HeightRequest="6"
                                                          VerticalOptions="Center"
                                                          HorizontalOptions="Start"

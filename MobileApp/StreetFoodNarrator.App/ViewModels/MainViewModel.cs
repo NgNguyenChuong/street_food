@@ -26,6 +26,13 @@ public partial class MainViewModel : ObservableObject
         InZone
     }
 
+    public enum MapViewState
+    {
+        NearOverview,
+        InZoneActive,
+        InZoneMinimized
+    }
+
     public sealed class ExplorePoiCard
     {
         public int Id { get; set; }
@@ -361,6 +368,10 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string latestStatus = "Sẵn sàng.";
     [ObservableProperty] private string simStepLabel = "";
     [ObservableProperty] private bool isTracking = false;
+    [ObservableProperty] private MapViewState viewState = MapViewState.NearOverview;
+    [ObservableProperty] private int? playingPoiId = null;
+    [ObservableProperty] private bool isAudioPaused = false;
+    private bool _userManuallyExitedInZone;
     [ObservableProperty] private bool isSimulated = AppConfig.UseSimulatedGPS;
     [ObservableProperty] private bool hasLocationFix = false;
     [ObservableProperty] private AppMode currentAppMode = AppMode.Explore;
@@ -398,6 +409,14 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnCurrentExploreStateChanged(ExploreState value)
     {
+        if (value == ExploreState.InZone && !_userManuallyExitedInZone && ViewState == MapViewState.NearOverview)
+            ViewState = MapViewState.InZoneActive;
+        else if (value != ExploreState.InZone && ViewState != MapViewState.NearOverview)
+        {
+            _userManuallyExitedInZone = false;
+            ViewState = MapViewState.NearOverview;
+        }
+
         OnPropertyChanged(nameof(IsFarExploreState));
         OnPropertyChanged(nameof(IsNearExploreState));
         OnPropertyChanged(nameof(IsInZoneExploreState));
@@ -413,6 +432,15 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsFarHeroVisible));
     }
 
+    partial void OnViewStateChanged(MapViewState value)
+    {
+        OnPropertyChanged(nameof(IsInZoneExploreState));
+        OnPropertyChanged(nameof(IsInZoneMinimizedExploreState));
+        OnPropertyChanged(nameof(IsInZoneDashboardVisible));
+        OnPropertyChanged(nameof(MapHeaderBackIcon));
+        OnPropertyChanged(nameof(IsNearExploreState));
+    }
+
     public bool IsExploreMode => CurrentAppMode == AppMode.Explore;
     public bool IsRealMode => CurrentAppMode == AppMode.Real;
     public bool IsVirtualMode => CurrentAppMode == AppMode.Virtual;
@@ -423,7 +451,14 @@ public partial class MainViewModel : ObservableObject
     public bool IsLegacyExperienceVisible => IsLegacyMapVisible || IsRealMode || IsVirtualMode || IsDetailMode;
     public bool IsFarExploreState => CurrentExploreState == ExploreState.Far;
     public bool IsNearExploreState => CurrentExploreState == ExploreState.Near;
+    // MainPage does not have a dedicated minimized InZone layout.
+    // Keep InZone content visible there to avoid blank screen after returning from ExploreMapPage.
     public bool IsInZoneExploreState => CurrentExploreState == ExploreState.InZone;
+    public bool IsInZoneMinimizedExploreState => ViewState == MapViewState.InZoneMinimized;
+    public bool IsInZoneDashboardVisible =>
+        CurrentExploreState == ExploreState.InZone &&
+        ViewState != MapViewState.InZoneMinimized;
+    public string MapHeaderBackIcon => ViewState == MapViewState.InZoneActive ? "\U000F0140" : "\U000F004D";
     public bool IsFarHeroVisible => IsExploreStateScreenVisible && IsFarExploreState;
     /// <summary>True when the Explore screen is in Legacy map mode (user tapped "Xem bản đồ").</summary>
     public bool IsMapModeVisible => CurrentAppMode == AppMode.Explore && IsLegacyMapVisible;
@@ -443,6 +478,16 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     public void SwitchToRealModeFromVirtual() => SwitchToRealModeRequested?.Invoke(this, EventArgs.Empty);
+
+    [RelayCommand]
+    private void MinimizeInZone()
+    {
+        if (CurrentExploreState == ExploreState.InZone)
+        {
+            _userManuallyExitedInZone = true;
+            ViewState = MapViewState.InZoneMinimized;
+        }
+    }
 
     [ObservableProperty] private ObservableCollection<string> statusLog = new();
     [ObservableProperty] private string sessionSummary = "—";

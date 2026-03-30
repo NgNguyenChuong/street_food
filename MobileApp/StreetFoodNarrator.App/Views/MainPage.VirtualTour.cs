@@ -412,10 +412,10 @@ public partial class MainPage
     }
 
     private static Task<bool> DisplayAlertAsync(string title, string msg, string accept, string cancel)
-        => Shell.Current?.CurrentPage?.DisplayAlert(title, msg, accept, cancel) ?? Task.FromResult(false);
+        => CustomAlert.ShowConfirmAsync(title, msg, accept, cancel, AlertType.Warning);
 
     private static Task DisplayInfoAsync(string title, string msg, string accept)
-        => Shell.Current?.CurrentPage?.DisplayAlert(title, msg, accept) ?? Task.CompletedTask;
+        => CustomAlert.ShowAsync(title, msg, accept, AlertType.Info);
 
     private async Task HandleVirtualJournalPlaybackStartedAsync(POI poi)
     {

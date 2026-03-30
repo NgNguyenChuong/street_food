@@ -54,6 +54,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Itinero" Version="1.5.1" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.0" />
     <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.0" />
     <!-- Mapsui: offline-capable OSM map (replaces MAUI Maps / Google Maps) -->

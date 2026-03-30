@@ -204,9 +204,11 @@ public partial class POIDetailViewModel : ObservableObject
         AudioDurationText = FormatTime(_duration);
         AudioPositionText = FormatTime(_currentPosition);
         AudioProgress = _duration > 0 ? Math.Clamp(_currentPosition / _duration, 0, 1) : 0;
-        IsAudioPlaying = isPlaying;
+        // If position is moving but service cannot report IsPlaying (native fallback),
+        // keep the UI in playing state so progress remains real-time.
+        IsAudioPlaying = isPlaying || position > 0;
 
-        if (isPlaying)
+        if (IsAudioPlaying)
             StartProgressTimer();
     }
 
@@ -260,17 +262,24 @@ public partial class POIDetailViewModel : ObservableObject
         AudioPositionText = "00:00";
         AudioProgress = 0;
 
+        // Start UI playback state immediately so progress is real-time even when
+        // SpeakAsync falls back to native TTS (which can complete only after speaking).
+        _ownsCurrentPlayback = true;
+        _isNativeTts = true;
+        _nativeTtsDuration = _duration;
+        _nativeTtsStartTime = DateTime.Now;
+        IsAudioPlaying = true;
+        StartProgressTimer();
+
         var ok = await _tts.SpeakAsync(text, lang, poiId: _poi.Id);
-
-        if (ok)
+        if (!ok)
         {
-            _ownsCurrentPlayback = true;
-            _isNativeTts = true;
-            _nativeTtsDuration = _duration;
-            _nativeTtsStartTime = DateTime.Now;
-
-            IsAudioPlaying = true;
-            StartProgressTimer();
+            _isNativeTts = false;
+            _ownsCurrentPlayback = false;
+            _progressTimer?.Stop();
+            IsAudioPlaying = false;
+            AudioProgress = 0;
+            AudioPositionText = "00:00";
         }
     }
 
@@ -304,10 +313,6 @@ public partial class POIDetailViewModel : ObservableObject
                 AudioDurationText = FormatTime(_duration);
                 AudioPositionText = FormatTime(_currentPosition);
                 AudioProgress = Math.Clamp(progress, 0, 1);
-
-                // Keep the UI in sync if playback was paused/stopped from outside this page.
-                if (!_tts.IsPlaying() && IsAudioPlaying)
-                    IsAudioPlaying = false;
             });
         };
         _progressTimer.Start();

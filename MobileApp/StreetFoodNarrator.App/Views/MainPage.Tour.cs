@@ -14,6 +14,7 @@ using StreetFoodNarrator.App.ViewModels;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Views.Components;
+using StreetFoodNarrator.App.Helpers;
 
 namespace StreetFoodNarrator.App.Views;
 
@@ -320,7 +321,7 @@ public partial class MainPage
     {
         if (string.IsNullOrWhiteSpace(_vm.VirtualTourStatus))
         {
-            _ = DisplayAlert("Chưa thể xem ảo", "Chế độ xem ảo chỉ nên dùng khi bạn đang ở xa khu POI hơn 1km.", "OK");
+            _ = CustomAlert.ShowAsync("Chưa thể xem ảo", "Chế độ xem ảo chỉ nên dùng khi bạn đang ở xa khu POI hơn 1km.", "OK", AlertType.Warning);
             return;
         }
 
@@ -394,7 +395,7 @@ public partial class MainPage
 
         if (spots.Count == 0)
         {
-            await DisplayAlert("Thông báo", "Không có điểm tham quan nào.", "OK");
+            await CustomAlert.ShowAsync("Thông báo", "Không có điểm tham quan nào.", "OK", AlertType.Info);
             return;
         }
 
@@ -518,10 +519,10 @@ public partial class MainPage
             {
                 await MainThread.InvokeOnMainThreadAsync(async () =>
                 {
-                    await DisplayAlert(
+                    await CustomAlert.ShowAsync(
                         "Tour hoàn thành! 🎉",
                         $"Bạn đã tham quan tất cả {spots.Count} điểm ẩm thực trên Phố Vĩnh Khánh!",
-                        "OK");
+                        "OK", AlertType.Success);
                 });
             }
         }

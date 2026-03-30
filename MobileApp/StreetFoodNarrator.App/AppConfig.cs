@@ -33,8 +33,9 @@ public static class AppConfig
     // ── Default Map Center (Cổng chào Phố ẩm thực Vĩnh Khánh, Q.4) ──────
     //10.761921196165435, 106.70190931342479  
     // 10.7628 106.7028
-    public const double DefaultLatitude  =  10.761921196165435;  // Cổng chính — 11 Đường Vĩnh Khánh, P.8, Q.4
-    public const double DefaultLongitude = 106.70190931342479;
+    //10.76146206331572, 106.70031339896585
+    public const double DefaultLatitude  =  10.7628;  // Cổng chính — 11 Đường Vĩnh Khánh, P.8, Q.4
+    public const double DefaultLongitude = 106.7028;
     public const double DefaultZoom      = 24;
 
     // ── Backend API ───────────────────────────────────────────────
@@ -49,6 +50,8 @@ public static class AppConfig
     public static bool UseBackendApi { get; set; } = true;
     public const string DataVersionKey = "pois_data_version";
     public const string LanguagePrefKey = "app_language";
+    public const string OfflineRouterDbAssetName = "routing/vinhkhanh_q4.routerdb";
+    public const string OfflineRouterDbFileName = "vinhkhanh_q4.routerdb";
 
     // ── GPS Settings ──────────────────────────────────────────────
     public const double DebounceMeters = 5.0;
@@ -59,6 +62,16 @@ public static class AppConfig
     public const double TrackingNearMeters = 250.0;
     public const double FallbackInZoneMeters = 120.0;
     public const double FallbackNearMeters = 400.0;
+    public const double SpotZoneMinMeters = 15.0;
+    public const double SpotZoneMaxMeters = 40.0;
+    public const double SpotZoneGpsErrorBufferMeters = 8.0;
+    public const double SpotZoneConfidenceThreshold = 0.7;
+    public const int SpotZoneActivationDelayMs = 4000;
+    public const int SpotZoneSwitchCooldownMs = 700;
+    public const int SpotZoneApproachToastCooldownMs = 2500;
+    public const double SpotZoneDeactivationBuffer = 1.3;
+    public const double SpotZoneSwitchLeadMeters = 6.0;
+    public const double SpotZoneSwitchHysteresisMeters = 3.0;
 
     // ── Feature flags ──────────────────────────────────────────────
     public const bool UseSimulatedGPS = true;     // Máy thật: dùng GPS thật của thiết bị

@@ -11,10 +11,7 @@ using Mapsui.Tiling;
 using Mapsui.Tiling.Layers;
 using Microsoft.Extensions.DependencyInjection;
 using NetTopologySuite.Geometries;
-using System.Globalization;
-using System.Net.Http;
 using System.Text.Json;
-using Microsoft.Maui.Dispatching;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.ViewModels;
@@ -30,43 +27,58 @@ public partial class ExploreMapPage : ContentPage
     private readonly MainViewModel _vm;
     private readonly ITTSService _tts;
     private readonly LanguageService _lang;
+    private readonly IAudioCacheService? _audioCache;
+    private readonly IOfflineRoutingService? _offlineRouting;
     private readonly bool _isNearFocusMode;
     private readonly List<POI> _nearFocusNearbyPois = new();
+    private readonly HttpClient _routeHttpClient = new() { Timeout = TimeSpan.FromSeconds(6) };
+    private MemoryLayer? _routeLayer;
     private MemoryLayer? _pinsLayer;
     private MemoryLayer? _userPinLayer;
-    private MemoryLayer? _routeLayer;
-    private MemoryLayer? _zoneRingLayer;
+    private MemoryLayer? _spotZoneLayer;
     private bool _isMapInitialized;
     private bool _isFirstLocation = true;
     private bool _eventsHooked;
     private bool _isClosing;
-    private int? _previewPoiId;
-    private bool _isPreviewPaused;
-    private readonly HttpClient _routeHttpClient = new() { Timeout = TimeSpan.FromSeconds(6) };
+    private bool _isDetailPageOpen;
+    private int? _pendingPoiIdWhileDetailOpen;
+    private int? _activeSpotZonePoiId;
+    private int? _candidateSpotZonePoiId;
+    private DateTime _candidateSpotSeenUtc = DateTime.MinValue;
+    private int? _lastApproachingToastPoiId;
+    private DateTime _lastApproachingToastUtc = DateTime.MinValue;
+    private int? _approachingToastPoiId;
+    private DateTime _lastAutoPoiSwitchUtc = DateTime.MinValue;
+    private CancellationTokenSource? _simulateThreeStopsCts;
+    private IDispatcherTimer? _nearFocusAudioTimer;
+    private readonly SemaphoreSlim _previewAudioLock = new(1, 1);
     private bool _isNearRouteActive;
     private int? _nearRouteTargetPoiId;
-    private double _nearRouteInitialDistanceMeters;
-    private double _nearRouteDistanceMeters;
-    private double _nearRouteDurationSeconds;
-    private Coordinate[]? _nearRouteCoordinates;
+    private DateTime _lastRouteRedraw = DateTime.MinValue;
+
     private bool _isNearSheetCollapsed;
     private MainViewModel.ExploreState _lastNearFocusState = MainViewModel.ExploreState.Far;
-    private IDispatcherTimer? _previewUiTimer;
-    private bool _syncPrimaryZoneOnNextAppearing;
-    private bool _isOpeningPoiDetail;
-    private int? _lastAutoNarratedPoiId;
-    private int? _lastInZoneFocusedPoiId;
-    private int? _activeSpotZonePoiId;
-    private DateTime _lastSpotZoneSwitchAtUtc = DateTime.MinValue;
+    private MainViewModel.ExploreState _previousExploreState = MainViewModel.ExploreState.Far;
+    private CancellationTokenSource? _inZoneToastCts;
+    private CancellationTokenSource? _approachingToastCts;
     private const int DefaultMapZoomLevel = (int)AppConfig.DefaultZoom + 1;
     private const int NearFocusZoomLevel = 18;
     private const int InZoneFocusZoomLevel = 19;
     private const double NearFocusMidpointMeters = 800;
-    private const double SpotZoneHysteresisMeters = 8;
-    private static readonly TimeSpan SpotZoneSwitchCooldown = TimeSpan.FromSeconds(8);
+    private const double NearRouteArrivalMeters = 25;
     private const string IconHeart = "\U000F02D1";
     private const string IconPlay = "\U000F040A";
     private const string IconPause = "\U000F03E4";
+
+    private sealed class SpotZoneEntry
+    {
+        public POI Poi { get; init; } = null!;
+        public double Distance { get; init; }
+        public double Radius { get; init; }
+        public double Confidence { get; init; }
+        public bool IsInside => Distance <= Radius;
+        public bool IsReliable => Radius > 0 && (Distance / Radius) <= AppConfig.SpotZoneConfidenceThreshold;
+    }
 
     public ExploreMapPage()
         : this(null, false)
@@ -81,6 +93,8 @@ public partial class ExploreMapPage : ContentPage
         _vm = viewModel ?? ResolveRequiredService<MainViewModel>();
         _tts = ResolveRequiredService<ITTSService>();
         _lang = ResolveRequiredService<LanguageService>();
+        _audioCache = ResolveOptionalService<IAudioCacheService>();
+        _offlineRouting = ResolveOptionalService<IOfflineRoutingService>();
         BindingContext = _vm;
         TabMapComponent.BindingContext = _vm;
     }
@@ -94,7 +108,6 @@ public partial class ExploreMapPage : ContentPage
             EnsureMapInitialized();
             UpdateZonePins();
             UpdateUserPin();
-            UpdateNearFocusRoute();
         }
         catch (Exception ex)
         {
@@ -109,19 +122,21 @@ public partial class ExploreMapPage : ContentPage
         var focusPoi = ResolveNearFocusPoi();
         if (focusPoi != null)
         {
-            SetNearRoutingCandidate(focusPoi, clearActiveRoute: true);
+            SetNearRoutingCandidate(focusPoi);
         }
 
         CenterMapForCurrentState();
         UpdateNearFocusOverlayState();
-        UpdateNearFocusRoute();
     }
 
     private POI? ResolveNearFocusPoi()
     {
-        var preferred = _vm.NavigationTarget
-            ?? _vm.SelectedPinPOI
+        var preferred = _vm.SelectedPinPOI
             ?? _vm.PrimaryZone;
+
+        // In InZone, always prioritize the live active spot instead of the initial navigation target.
+        if (preferred == null)
+            preferred = _vm.NavigationTarget;
         if (preferred != null)
             return preferred;
 
@@ -132,54 +147,16 @@ public partial class ExploreMapPage : ContentPage
         return _vm.AllPOIs.FirstOrDefault(p => p.ZoneType == "Spot");
     }
 
-    private void SetNearRoutingCandidate(POI poi, bool clearActiveRoute)
+    private void SetNearRoutingCandidate(POI poi)
     {
         _vm.NavigationTarget = poi;
         _vm.SelectedPinPOI = poi;
         _vm.VisitedPOIIds.Add(poi.Id);
 
-        if (clearActiveRoute)
+        if (_isNearRouteActive)
         {
-            _isNearRouteActive = false;
-            _nearRouteTargetPoiId = null;
-            _nearRouteInitialDistanceMeters = 0;
-            _nearRouteDistanceMeters = 0;
-            _nearRouteDurationSeconds = 0;
-            _nearRouteCoordinates = null;
+            _nearRouteTargetPoiId = poi.Id;
         }
-    }
-
-    private void SyncNearFocusPoiFromPrimaryZone()
-    {
-        if (!_isNearFocusMode)
-            return;
-
-        if (ResolveOverlayExploreState() != MainViewModel.ExploreState.InZone)
-            return;
-
-        var primary = _vm.PrimaryZone;
-        if (primary == null || primary.ZoneType != "Spot")
-            return;
-
-        SetNearRoutingCandidate(primary, clearActiveRoute: true);
-    }
-
-    private void EnsurePreviewUiTimer()
-    {
-        if (_previewUiTimer != null || Dispatcher == null)
-            return;
-
-        _previewUiTimer = Dispatcher.CreateTimer();
-        _previewUiTimer.Interval = TimeSpan.FromMilliseconds(350);
-        _previewUiTimer.IsRepeating = true;
-        _previewUiTimer.Tick += (_, _) =>
-        {
-            if (!_isNearFocusMode || !IsVisible)
-                return;
-
-            if (_tts.IsPlaying() || _isPreviewPaused)
-                UpdateNearFocusOverlayState();
-        };
     }
 
     protected override void OnAppearing()
@@ -187,19 +164,9 @@ public partial class ExploreMapPage : ContentPage
         base.OnAppearing();
 
         HookEvents();
-        EnsurePreviewUiTimer();
-        _previewUiTimer?.Start();
         if (_vm.Categories.Count == 0)
             _vm.BuildMapCategories();
         EnsureMapInitialized();
-
-        if (_isNearFocusMode &&
-            (_syncPrimaryZoneOnNextAppearing || ResolveOverlayExploreState() == MainViewModel.ExploreState.InZone))
-        {
-            _syncPrimaryZoneOnNextAppearing = false;
-            SyncNearFocusPoiFromPrimaryZone();
-        }
-
         if (_isNearFocusMode)
         {
             TabMapComponent.IsVisible = false;
@@ -215,21 +182,25 @@ public partial class ExploreMapPage : ContentPage
 
         UpdateZonePins();
         UpdateUserPin();
+        _ = EvaluateInZoneSpotPlaybackAsync(forceSwitch: true);
+        StartNearFocusAudioTimer();
         if (!_isNearFocusMode)
         {
             TabMapComponent.InitializeChips(_vm.SelectedCategory);
             TabMapComponent.RefreshLikeIcon();
         }
         UpdatePreviewAudioUiState();
-        if (_isNearFocusMode)
-            _ = EnsureInZoneNarrationAndFocusAsync();
+        _previousExploreState = _vm.CurrentExploreState;
         _ = _vm.StartTrackingAsync();
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        _previewUiTimer?.Stop();
+        _inZoneToastCts?.Cancel();
+        _approachingToastCts?.Cancel();
+        _simulateThreeStopsCts?.Cancel();
+        StopNearFocusAudioTimer();
         UnhookEvents();
     }
 
@@ -304,17 +275,32 @@ public partial class ExploreMapPage : ContentPage
         if (MapView?.Map == null)
             return;
 
-        var cacheDb = Path.Combine(FileSystem.AppDataDirectory, "map_cache", "tiles.db");
-        var tileCache = new StreetFoodNarrator.App.Services.SimpleTileCache(cacheDb);
-        var tileSource = new HttpTileSource(
-            new GlobalSphericalMercator(),
-            "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-            name: "Carto",
-            persistentCache: tileCache);
-
         MapView.Map.Layers.Clear();
         MapView.Map.Widgets.Clear();
-        MapView.Map.Layers.Add(new TileLayer(tileSource) { Name = "BaseMap" });
+        var cacheDb = Path.Combine(FileSystem.AppDataDirectory, "map_cache", "tiles.db");
+        var isOffline = Connectivity.Current.NetworkAccess != NetworkAccess.Internet &&
+                        Connectivity.Current.NetworkAccess != NetworkAccess.ConstrainedInternet;
+
+        try
+        {
+            var tileCache = new StreetFoodNarrator.App.Services.SimpleTileCache(cacheDb);
+            var tileSource = new HttpTileSource(
+                new GlobalSphericalMercator(),
+                "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+                name: "Carto",
+                persistentCache: tileCache);
+
+            MapView.Map.Layers.Add(new TileLayer(tileSource) { Name = "BaseMap" });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] Base tile init failed: {ex.Message}");
+            isOffline = true;
+        }
+
+        var offlineNoCache = isOffline && !HasUsableTileCache(cacheDb);
+        if (offlineNoCache)
+            MapView.Map.Layers.Add(CreateOfflineFallbackLayer());
 
         var darkOverlay = new MemoryLayer("DarkOverlay")
         {
@@ -339,11 +325,11 @@ public partial class ExploreMapPage : ContentPage
         MapView.Map.Layers.Add(darkOverlay);
 
         _routeLayer = new MemoryLayer("RouteLayer");
-        MapView.Map.Layers.Add(_routeLayer);
-        _zoneRingLayer = new MemoryLayer("ZoneRingLayer");
-        MapView.Map.Layers.Add(_zoneRingLayer);
+        _spotZoneLayer = new MemoryLayer("SpotZone");
         _userPinLayer = new MemoryLayer("UserPin");
         _pinsLayer = new MemoryLayer("Pins");
+        MapView.Map.Layers.Add(_routeLayer);
+        MapView.Map.Layers.Add(_spotZoneLayer);
         MapView.Map.Layers.Add(_userPinLayer);
         MapView.Map.Layers.Add(_pinsLayer);
 
@@ -448,46 +434,8 @@ public partial class ExploreMapPage : ContentPage
 
             _pinsLayer.Features = features;
             _pinsLayer.DataHasChanged();
-            UpdateInZoneZoneRing();
             MapView.RefreshGraphics();
         });
-    }
-
-    private void UpdateInZoneZoneRing()
-    {
-        if (!_isMapInitialized || _zoneRingLayer == null || MapView?.Map == null)
-            return;
-
-        var inZoneState = ResolveOverlayExploreState() == MainViewModel.ExploreState.InZone;
-        var zonePoi = ResolveCurrentSpotZonePoi();
-        if (!inZoneState || zonePoi == null || !IsUserInsidePoiZone(zonePoi))
-        {
-            _zoneRingLayer.Features = Array.Empty<IFeature>();
-            _zoneRingLayer.DataHasChanged();
-            _lastInZoneFocusedPoiId = null;
-            _lastAutoNarratedPoiId = null;
-            _activeSpotZonePoiId = null;
-            return;
-        }
-
-        var radiusMeters = GetPoiAudioZoneRadiusMeters(zonePoi);
-        var ringCoords = CreateZoneRingCoordinates(zonePoi.Latitude, zonePoi.Longitude, radiusMeters);
-        if (ringCoords.Length < 4)
-        {
-            _zoneRingLayer.Features = Array.Empty<IFeature>();
-            _zoneRingLayer.DataHasChanged();
-            return;
-        }
-
-        var ring = new GeometryFeature(new Polygon(new LinearRing(ringCoords)));
-        ring.Styles.Add(new VectorStyle
-        {
-            Fill = new MapsBrush(new MapsColor(52, 211, 153, 42)),
-            Outline = new Pen(new MapsColor(52, 211, 153, 190), 2.5f)
-        });
-
-        _zoneRingLayer.Features = new IFeature[] { ring };
-        _zoneRingLayer.DataHasChanged();
     }
 
     private void UpdateUserPin()
@@ -495,10 +443,10 @@ public partial class ExploreMapPage : ContentPage
         if (!_isMapInitialized || _userPinLayer == null || MapView?.Map == null)
             return;
 
-        var hasUserFix = _vm.CurrentLat != 0 || _vm.CurrentLon != 0;
-        var pinLat = hasUserFix ? _vm.CurrentLat : AppConfig.DefaultLatitude;
-        var pinLon = hasUserFix ? _vm.CurrentLon : AppConfig.DefaultLongitude;
-        var (ux, uy) = SphericalMercator.FromLonLat(pinLon, pinLat);
+        if (_vm.CurrentLat == 0)
+            return;
+
+        var (ux, uy) = SphericalMercator.FromLonLat(_vm.CurrentLon, _vm.CurrentLat);
         var userFeature = new PointFeature(new MPoint(ux, uy));
         userFeature.Styles.Add(new SymbolStyle
         {
@@ -518,6 +466,521 @@ public partial class ExploreMapPage : ContentPage
         }
 
         MapView.RefreshGraphics();
+    }
+
+    private double GetSpotActivationRadius(POI poi)
+    {
+        var rawRadius = poi.Radius > 0 ? poi.Radius : 15;
+        return Math.Clamp(rawRadius, AppConfig.SpotZoneMinMeters, AppConfig.SpotZoneMaxMeters);
+    }
+
+    private void UpdateSpotZoneOverlay(POI? poi)
+    {
+        if (_spotZoneLayer == null)
+            return;
+
+        if (poi == null)
+        {
+            _spotZoneLayer.Features = Array.Empty<IFeature>();
+            _spotZoneLayer.DataHasChanged();
+            MapView?.RefreshGraphics();
+            return;
+        }
+
+        var radiusMeters = GetSpotActivationRadius(poi);
+        var feature = BuildCircleFeature(poi.Latitude, poi.Longitude, radiusMeters);
+        feature.Styles.Add(new VectorStyle
+        {
+            Fill = new MapsBrush(new MapsColor(74, 222, 128, 38)),
+            Outline = new Pen(new MapsColor(74, 222, 128, 220), 2f)
+        });
+
+        _spotZoneLayer.Features = new[] { feature };
+        _spotZoneLayer.DataHasChanged();
+        MapView?.RefreshGraphics();
+    }
+
+    private static GeometryFeature BuildCircleFeature(double centerLat, double centerLon, double radiusMeters)
+    {
+        const int segments = 48;
+        var coordinates = new List<Coordinate>(segments + 1);
+        var latRadians = centerLat * Math.PI / 180.0;
+
+        for (var i = 0; i <= segments; i++)
+        {
+            var angle = (2 * Math.PI * i) / segments;
+            var deltaLat = (radiusMeters / 111_320.0) * Math.Cos(angle);
+            var deltaLon = (radiusMeters / (111_320.0 * Math.Cos(latRadians))) * Math.Sin(angle);
+            var lon = centerLon + deltaLon;
+            var lat = centerLat + deltaLat;
+            var (x, y) = SphericalMercator.FromLonLat(lon, lat);
+            coordinates.Add(new Coordinate(x, y));
+        }
+
+        var ring = new LinearRing(coordinates.ToArray());
+        return new GeometryFeature
+        {
+            Geometry = new Polygon(ring)
+        };
+    }
+
+    private static bool HasUsableTileCache(string cacheDbPath)
+    {
+        try
+        {
+            var info = new FileInfo(cacheDbPath);
+            return info.Exists && info.Length > 12 * 1024;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static MemoryLayer CreateOfflineFallbackLayer()
+    {
+        var layer = new MemoryLayer("OfflineFallbackGrid");
+        var features = new List<IFeature>();
+
+        var latMin = AppConfig.DefaultLatitude - 0.01;
+        var latMax = AppConfig.DefaultLatitude + 0.01;
+        var lonMin = AppConfig.DefaultLongitude - 0.01;
+        var lonMax = AppConfig.DefaultLongitude + 0.01;
+
+        var step = 0.0015;
+        for (var lat = latMin; lat <= latMax; lat += step)
+        {
+            var (x1, y1) = SphericalMercator.FromLonLat(lonMin, lat);
+            var (x2, y2) = SphericalMercator.FromLonLat(lonMax, lat);
+            features.Add(new GeometryFeature
+            {
+                Geometry = new LineString(new[] { new Coordinate(x1, y1), new Coordinate(x2, y2) }),
+                Styles = new[] { new VectorStyle { Line = new Pen(new MapsColor(120, 138, 128, 90), 1f) } }
+            });
+        }
+
+        for (var lon = lonMin; lon <= lonMax; lon += step)
+        {
+            var (x1, y1) = SphericalMercator.FromLonLat(lon, latMin);
+            var (x2, y2) = SphericalMercator.FromLonLat(lon, latMax);
+            features.Add(new GeometryFeature
+            {
+                Geometry = new LineString(new[] { new Coordinate(x1, y1), new Coordinate(x2, y2) }),
+                Styles = new[] { new VectorStyle { Line = new Pen(new MapsColor(120, 138, 128, 90), 1f) } }
+            });
+        }
+
+        layer.Features = features;
+        return layer;
+    }
+
+    private async Task DrawNearFocusRouteAsync()
+    {
+        if (!_isNearFocusMode || !_isNearRouteActive || !_nearRouteTargetPoiId.HasValue)
+        {
+            ClearNearFocusRoute();
+            return;
+        }
+
+        if (!_isMapInitialized || MapView?.Map == null || _routeLayer == null)
+            return;
+
+        var target = _vm.AllPOIs.FirstOrDefault(p => p.Id == _nearRouteTargetPoiId.Value);
+        if (target == null)
+        {
+            ClearNearFocusRoute();
+            return;
+        }
+
+        var hasCurrentLocation = _vm.CurrentLat != 0 && _vm.CurrentLon != 0;
+        var startLon = hasCurrentLocation ? _vm.CurrentLon : AppConfig.DefaultLongitude;
+        var startLat = hasCurrentLocation ? _vm.CurrentLat : AppConfig.DefaultLatitude;
+        var endLon = target.Longitude;
+        var endLat = target.Latitude;
+
+        var (startPx, startPy) = SphericalMercator.FromLonLat(startLon, startLat);
+        var (endPx, endPy) = SphericalMercator.FromLonLat(endLon, endLat);
+
+        Coordinate[] routeCoords;
+        var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
+                       Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
+        var offlineCoords = await FetchOfflineRouteAsync(startLat, startLon, endLat, endLon);
+        if (offlineCoords is { Length: >= 2 })
+        {
+            routeCoords = offlineCoords;
+        }
+        else if (isOnline && hasCurrentLocation)
+        {
+            var osrmCoords = await FetchOsrmRouteAsync(startLon, startLat, endLon, endLat);
+            routeCoords = osrmCoords ?? new[]
+            {
+                new Coordinate(startPx, startPy),
+                new Coordinate(endPx, endPy)
+            };
+        }
+        else
+        {
+            routeCoords = new[]
+            {
+                new Coordinate(startPx, startPy),
+                new Coordinate(endPx, endPy)
+            };
+        }
+
+        var feature = new GeometryFeature(new LineString(routeCoords));
+        feature.Styles.Add(new VectorStyle
+        {
+            Line = new Pen(new MapsColor(75, 226, 119), 4f)
+            {
+                PenStyle = PenStyle.Solid
+            }
+        });
+
+        _routeLayer.Features = new[] { feature };
+        _routeLayer.DataHasChanged();
+        MapView.RefreshGraphics();
+    }
+
+    private void ClearNearFocusRoute()
+    {
+        if (_routeLayer == null)
+            return;
+
+        _routeLayer.Features = Array.Empty<IFeature>();
+        _routeLayer.DataHasChanged();
+        MapView?.RefreshGraphics();
+    }
+
+    private async Task<Coordinate[]?> FetchOfflineRouteAsync(
+        double srcLat,
+        double srcLon,
+        double dstLat,
+        double dstLon)
+    {
+        if (_offlineRouting == null)
+            return null;
+
+        try
+        {
+            var result = await _offlineRouting.TryBuildWalkingRouteAsync(
+                new GeoCoordinate(srcLat, srcLon),
+                new GeoCoordinate(dstLat, dstLon),
+                CancellationToken.None);
+
+            if (result?.Path is null || result.Path.Count < 2)
+                return null;
+
+            var coords = result.Path
+                .Select(point =>
+                {
+                    var (x, y) = SphericalMercator.FromLonLat(point.Longitude, point.Latitude);
+                    return new Coordinate(x, y);
+                })
+                .ToArray();
+
+            return coords.Length >= 2 ? coords : null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] Offline route fallback: {ex.Message}");
+            return null;
+        }
+    }
+
+    private async Task<Coordinate[]?> FetchOsrmRouteAsync(
+        double srcLon,
+        double srcLat,
+        double dstLon,
+        double dstLat)
+    {
+        try
+        {
+            var ic = System.Globalization.CultureInfo.InvariantCulture;
+            var url = $"https://router.project-osrm.org/route/v1/walking/" +
+                      $"{srcLon.ToString(ic)},{srcLat.ToString(ic)};" +
+                      $"{dstLon.ToString(ic)},{dstLat.ToString(ic)}" +
+                      "?geometries=geojson&overview=full";
+
+            var json = await _routeHttpClient.GetStringAsync(url);
+            using var doc = JsonDocument.Parse(json);
+
+            var routes = doc.RootElement.GetProperty("routes");
+            if (routes.GetArrayLength() == 0)
+                return null;
+
+            var coords = routes[0]
+                .GetProperty("geometry")
+                .GetProperty("coordinates")
+                .EnumerateArray()
+                .Select(c =>
+                {
+                    if (c.ValueKind != JsonValueKind.Array || c.GetArrayLength() < 2)
+                        return new Coordinate(0, 0);
+
+                    var (x, y) = SphericalMercator.FromLonLat(c[0].GetDouble(), c[1].GetDouble());
+                    return new Coordinate(x, y);
+                })
+                .Where(coord => coord.X != 0 || coord.Y != 0)
+                .ToArray();
+
+            return coords.Length >= 2 ? coords : null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] OSRM fallback (straight line): {ex.Message}");
+            return null;
+        }
+    }
+
+    private async Task SwitchToInZoneSpotAsync(POI poi, bool forceAudioRestart)
+    {
+        var switchingToDifferentPoi = _vm.PlayingPoiId.HasValue && _vm.PlayingPoiId.Value != poi.Id;
+
+        _vm.NavigationTarget = poi;
+        _vm.SelectedPinPOI = poi;
+        _vm.PrimaryZone = poi;
+        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
+        _vm.PrimaryZoneType = poi.ZoneType ?? poi.Category ?? string.Empty;
+        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? string.Empty;
+        _vm.PrimaryZoneAddress = poi.Address ?? "Đang cập nhật";
+        _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
+        _vm.VisitedPOIIds.Add(poi.Id);
+        UpdateZonePins();
+
+        CenterMapOnPoi(poi, InZoneFocusZoomLevel);
+
+        if (switchingToDifferentPoi && (_tts.IsPlaying() || _vm.IsAudioPaused))
+            await StopPreviewAudioAsync();
+
+        var isSamePlaying = _vm.PlayingPoiId == poi.Id && (_tts.IsPlaying() || _vm.IsAudioPaused);
+        if (!isSamePlaying || forceAudioRestart || switchingToDifferentPoi)
+            await PlayPreviewAudioAsync(poi, allowToggleCurrent: false, showErrorAlert: false);
+    }
+
+    private async Task EvaluateInZoneSpotPlaybackAsync(bool forceSwitch = false)
+    {
+        if (_isNearRouteActive && _nearRouteTargetPoiId.HasValue)
+        {
+            var routePoi = _vm.AllPOIs.FirstOrDefault(p => p.Id == _nearRouteTargetPoiId.Value);
+            if (routePoi != null)
+            {
+                _vm.NavigationTarget = routePoi;
+                _vm.SelectedPinPOI = routePoi;
+                EvaluateNearRouteCompletion(routePoi);
+                UpdateNearFocusOverlayState();
+                return;
+            }
+        }
+
+        if (!_isNearFocusMode || _vm.CurrentExploreState != MainViewModel.ExploreState.InZone)
+        {
+            _activeSpotZonePoiId = null;
+            _candidateSpotZonePoiId = null;
+            UpdateSpotZoneOverlay(null);
+            HideInZoneToastIfVisible();
+            return;
+        }
+
+        if (_vm.CurrentLat == 0 && _vm.CurrentLon == 0)
+            return;
+
+        var spotEntries = BuildSpotZoneEntries();
+
+        if (spotEntries.Count == 0)
+            return;
+
+        var candidate = spotEntries
+            .Where(s => s.IsInside)
+            .OrderByDescending(s => s.Poi.Priority)
+            .ThenByDescending(s => s.Confidence)
+            .ThenBy(s => s.Distance)
+            .ThenBy(s => s.Poi.Id)
+            .FirstOrDefault();
+
+        var currentEntry = _activeSpotZonePoiId.HasValue
+            ? spotEntries.FirstOrDefault(s => s.Poi.Id == _activeSpotZonePoiId.Value)
+            : null;
+
+        if (currentEntry != null &&
+            currentEntry.Distance <= (currentEntry.Radius * AppConfig.SpotZoneDeactivationBuffer))
+        {
+            // Keep current spot immediately only when there is no competing candidate.
+            // If a different candidate exists, continue into debounce path so we can switch
+            // after stability delay instead of getting "stuck" on the old spot.
+            var hasCompetingCandidate = candidate != null && candidate.Poi.Id != currentEntry.Poi.Id;
+            if (!hasCompetingCandidate)
+            {
+                UpdateSpotZoneOverlay(currentEntry.Poi);
+                if (currentEntry.Distance <= currentEntry.Radius * 0.9)
+                    HideApproachingToastForPoi(currentEntry.Poi.Id);
+                if (_vm.SelectedPinPOI?.Id != currentEntry.Poi.Id && !_isDetailPageOpen)
+                    await SwitchToInZoneSpotAsync(currentEntry.Poi, forceAudioRestart: _vm.PlayingPoiId != currentEntry.Poi.Id);
+                return;
+            }
+        }
+
+        if (candidate == null)
+        {
+            _activeSpotZonePoiId = null;
+            _candidateSpotZonePoiId = null;
+            UpdateSpotZoneOverlay(null);
+            HideInZoneToastIfVisible();
+            return;
+        }
+
+        if (_activeSpotZonePoiId.HasValue && _activeSpotZonePoiId.Value != candidate.Poi.Id)
+            ShowApproachingNextPoiToastIfNeeded(candidate.Poi, candidate.Distance);
+
+        if (!forceSwitch)
+        {
+            if (_candidateSpotZonePoiId != candidate.Poi.Id)
+            {
+                _candidateSpotZonePoiId = candidate.Poi.Id;
+                _candidateSpotSeenUtc = DateTime.UtcNow;
+                if (_activeSpotZonePoiId.HasValue && _activeSpotZonePoiId.Value != candidate.Poi.Id)
+                    ShowApproachingNextPoiToastIfNeeded(candidate.Poi, candidate.Distance);
+                return;
+            }
+
+            if ((DateTime.UtcNow - _candidateSpotSeenUtc).TotalMilliseconds < AppConfig.SpotZoneActivationDelayMs)
+                return;
+        }
+
+        _candidateSpotZonePoiId = null;
+        _activeSpotZonePoiId = candidate.Poi.Id;
+        UpdateSpotZoneOverlay(candidate.Poi);
+        HideApproachingToastForPoi(candidate.Poi.Id);
+
+        if (_isDetailPageOpen)
+        {
+            _pendingPoiIdWhileDetailOpen = candidate.Poi.Id;
+            return;
+        }
+
+        var tooSoon = !forceSwitch &&
+                      (DateTime.UtcNow - _lastAutoPoiSwitchUtc).TotalMilliseconds < AppConfig.SpotZoneSwitchCooldownMs;
+        if (tooSoon && _vm.SelectedPinPOI?.Id != candidate.Poi.Id)
+            return;
+
+        await SwitchToInZoneSpotAsync(candidate.Poi, forceAudioRestart: _vm.PlayingPoiId != candidate.Poi.Id);
+        _lastAutoPoiSwitchUtc = DateTime.UtcNow;
+    }
+
+    private List<SpotZoneEntry> BuildSpotZoneEntries()
+    {
+        var spots = _vm.AllPOIs.Where(p => p.ZoneType == "Spot").ToList();
+        if (spots.Count == 0)
+            return new List<SpotZoneEntry>();
+
+        return spots.Select(p =>
+        {
+            var distance = HaversineDistance(_vm.CurrentLat, _vm.CurrentLon, p.Latitude, p.Longitude);
+            var radius = GetDynamicSpotActivationRadius(p, spots);
+            var confidence = radius > 0
+                ? Math.Max(0.0, 1.0 - (distance / radius))
+                : 0.0;
+
+            return new SpotZoneEntry
+            {
+                Poi = p,
+                Distance = distance,
+                Radius = radius,
+                Confidence = confidence
+            };
+        }).ToList();
+    }
+
+    private double GetDynamicSpotActivationRadius(POI targetPoi, IReadOnlyCollection<POI> allSpots)
+    {
+        var nearestDistance = allSpots
+            .Where(p => p.Id != targetPoi.Id)
+            .Select(p => HaversineDistance(targetPoi.Latitude, targetPoi.Longitude, p.Latitude, p.Longitude))
+            .DefaultIfEmpty(double.MaxValue)
+            .Min();
+
+        if (double.IsInfinity(nearestDistance) || nearestDistance == double.MaxValue)
+            return Math.Clamp(GetSpotActivationRadius(targetPoi), AppConfig.SpotZoneMinMeters, AppConfig.SpotZoneMaxMeters);
+
+        var dynamicRadius = (nearestDistance / 2.0) - AppConfig.SpotZoneGpsErrorBufferMeters;
+        return Math.Clamp(dynamicRadius, AppConfig.SpotZoneMinMeters, AppConfig.SpotZoneMaxMeters);
+    }
+
+    private void ShowApproachingNextPoiToastIfNeeded(POI poi, double distanceMeters)
+    {
+        var tooSoon = _lastApproachingToastPoiId == poi.Id &&
+                      (DateTime.UtcNow - _lastApproachingToastUtc).TotalMilliseconds < AppConfig.SpotZoneApproachToastCooldownMs;
+        if (tooSoon)
+            return;
+
+        _lastApproachingToastPoiId = poi.Id;
+        _lastApproachingToastUtc = DateTime.UtcNow;
+
+        var poiName = poi.Name_Vi ?? poi.Name_En ?? "điểm tiếp theo";
+        var distText = distanceMeters < 1000 ? $"{distanceMeters:F0}m" : $"{distanceMeters / 1000:F1}km";
+        _ = ShowApproachingToastCompactAsync(poi.Id, $"→ {poiName} {distText}");
+    }
+
+    private async Task ShowApproachingToastCompactAsync(int poiId, string message)
+    {
+        if (InZoneToast == null || InZoneToastLabel == null)
+            return;
+
+        _approachingToastCts?.Cancel();
+        _approachingToastCts = new CancellationTokenSource();
+        var token = _approachingToastCts.Token;
+
+        _approachingToastPoiId = poiId;
+        await MainThread.InvokeOnMainThreadAsync(async () =>
+        {
+            InZoneToastLabel.Text = message;
+            InZoneToast.IsVisible = true;
+            InZoneToast.Opacity = 1;
+        });
+
+        try
+        {
+            await Task.Delay(2600, token);
+            if (token.IsCancellationRequested)
+                return;
+
+            // Auto-hide compact toast if user has not reached this candidate yet.
+            if (_approachingToastPoiId == poiId)
+            {
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    InZoneToast.Opacity = 0;
+                    InZoneToast.IsVisible = false;
+                });
+                _approachingToastPoiId = null;
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Ignore
+        }
+    }
+
+    private void HideApproachingToastForPoi(int poiId)
+    {
+        if (_approachingToastPoiId == poiId)
+            HideInZoneToastIfVisible();
+    }
+
+    private void OnInZoneToastCloseTapped(object? sender, TappedEventArgs e)
+    {
+        HideInZoneToastIfVisible();
+    }
+
+    private void HideInZoneToastIfVisible()
+    {
+        _inZoneToastCts?.Cancel();
+        _approachingToastCts?.Cancel();
+        _approachingToastPoiId = null;
+        if (InZoneToast == null)
+            return;
+
+        InZoneToast.Opacity = 0;
+        InZoneToast.IsVisible = false;
     }
 
     private void OnMapInfoTapped(object? sender, Mapsui.MapInfoEventArgs e)
@@ -550,13 +1013,12 @@ public partial class ExploreMapPage : ContentPage
 
             if (_isNearFocusMode)
             {
-                // In InZone map, pin selection is locked to live geofence flow.
-                if (ResolveOverlayExploreState() == MainViewModel.ExploreState.InZone)
+                if (_vm.CurrentExploreState == MainViewModel.ExploreState.Near ||
+                    _vm.CurrentExploreState == MainViewModel.ExploreState.InZone)
                     return;
 
-                SetNearRoutingCandidate(nearest, clearActiveRoute: true);
+                SetNearRoutingCandidate(nearest);
                 UpdateNearFocusOverlayState();
-                UpdateNearFocusRoute();
                 UpdateZonePins();
                 return;
             }
@@ -570,7 +1032,7 @@ public partial class ExploreMapPage : ContentPage
 
     private async void OnBackRequested(object? sender, EventArgs e)
     {
-        await ClosePageAsync();
+        await HandleBackOrMinimizeAsync();
     }
 
     private async void OnSavedRequested(object? sender, EventArgs e)
@@ -588,7 +1050,23 @@ public partial class ExploreMapPage : ContentPage
     }
 
     private async void OnNearFocusBackTapped(object? sender, EventArgs e)
-        => await ClosePageAsync();
+        => await HandleBackOrMinimizeAsync();
+
+    private async Task HandleBackOrMinimizeAsync()
+    {
+        var shouldMinimizeInZone = _isNearFocusMode &&
+                                   _vm.CurrentExploreState == MainViewModel.ExploreState.InZone &&
+                                   _vm.ViewState == MainViewModel.MapViewState.InZoneActive;
+
+        if (shouldMinimizeInZone)
+        {
+            _vm.MinimizeInZoneCommand.Execute(null);
+            await ClosePageAsync(preservePreviewAudio: true);
+            return;
+        }
+
+        await ClosePageAsync();
+    }
 
     private void OnNearFocusSettingsTapped(object? sender, EventArgs e)
         => OnSettingsRequested(sender, e);
@@ -609,19 +1087,12 @@ public partial class ExploreMapPage : ContentPage
 
     private async void OnNearFocusSeeMoreTapped(object? sender, EventArgs e)
     {
-        try
-        {
-            var poi = ResolveNearFocusPoi();
-            if (poi == null)
-                return;
+        var poi = ResolveNearFocusPoi();
+        if (poi == null)
+            return;
 
-            await OpenPoiDetailAsync(poi);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] OnNearFocusSeeMoreTapped: {ex}");
-            await DisplayAlertAsync("Lỗi", "Không thể mở trang chi tiết quán lúc này.", "OK");
-        }
+        OnViewDetailRequested(sender, poi);
+        await Task.CompletedTask;
     }
 
     private async void OnNearFocusPlayPauseTapped(object? sender, EventArgs e)
@@ -654,56 +1125,20 @@ public partial class ExploreMapPage : ContentPage
 
     private void SelectNearNearbyPoi(int index)
     {
-        if (ResolveOverlayExploreState() != MainViewModel.ExploreState.Near)
-            return;
-
         if (index < 0 || index >= _nearFocusNearbyPois.Count)
             return;
 
         var poi = _nearFocusNearbyPois[index];
-        SetNearRoutingCandidate(poi, clearActiveRoute: true);
+        SetNearRoutingCandidate(poi);
         CenterMapForNearFocus();
-        UpdateNearFocusRoute();
         UpdateNearFocusOverlayState();
         UpdateZonePins();
     }
 
-    private void OnNearFocusStartRouteTapped(object? sender, EventArgs e)
-    {
-        if (_vm.CurrentExploreState != MainViewModel.ExploreState.Near)
-            return;
-
-        var poi = ResolveNearFocusPoi();
-        if (poi == null)
-            return;
-
-        SetNearRoutingCandidate(poi, clearActiveRoute: false);
-        _isNearRouteActive = true;
-        _nearRouteTargetPoiId = poi.Id;
-        var currentDistance = ComputeDistanceFromCurrentToPoi(poi);
-        _nearRouteInitialDistanceMeters = currentDistance > 0 ? currentDistance : _nearRouteInitialDistanceMeters;
-        _nearRouteCoordinates = null;
-        UpdateNearFocusRoute();
-        UpdateNearFocusOverlayState();
-    }
-
-    private void OnNearFocusSkipRouteTapped(object? sender, EventArgs e)
-    {
-        _isNearRouteActive = false;
-        _nearRouteTargetPoiId = null;
-        _nearRouteInitialDistanceMeters = 0;
-        _nearRouteDistanceMeters = 0;
-        _nearRouteDurationSeconds = 0;
-        _nearRouteCoordinates = null;
-        UpdateNearFocusRoute();
-        UpdateNearFocusOverlayState();
-    }
-
     private void OnNearFocusSheetToggleTapped(object? sender, EventArgs e)
     {
-        var overlayState = ResolveOverlayExploreState();
-        var isFocusState = overlayState == MainViewModel.ExploreState.Near ||
-                           overlayState == MainViewModel.ExploreState.InZone;
+        var isFocusState = _vm.CurrentExploreState == MainViewModel.ExploreState.Near ||
+                           _vm.CurrentExploreState == MainViewModel.ExploreState.InZone;
         if (!_isNearFocusMode || !isFocusState)
             return;
 
@@ -714,12 +1149,11 @@ public partial class ExploreMapPage : ContentPage
 
     private void UpdateNearFocusSheetState()
     {
-        var overlayState = ResolveOverlayExploreState();
         var isFocusState = _isNearFocusMode &&
-                           (overlayState == MainViewModel.ExploreState.Near ||
-                            overlayState == MainViewModel.ExploreState.InZone);
+                           (_vm.CurrentExploreState == MainViewModel.ExploreState.Near ||
+                            _vm.CurrentExploreState == MainViewModel.ExploreState.InZone);
 
-        if (overlayState == MainViewModel.ExploreState.InZone &&
+        if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone &&
             _lastNearFocusState != MainViewModel.ExploreState.InZone)
         {
             _isNearSheetCollapsed = false;
@@ -729,58 +1163,34 @@ public partial class ExploreMapPage : ContentPage
         NearFocusCollapsedContent.IsVisible = !isFocusState || _isNearSheetCollapsed;
         NearFocusSheetToggleHandle.IsVisible = isFocusState;
         NearFocusSheetToggleLabel.Text = _isNearSheetCollapsed ? "Mở rộng" : "Thu gọn";
-        _lastNearFocusState = overlayState;
+        _lastNearFocusState = _vm.CurrentExploreState;
     }
 
     private void UpdateNearRouteActionVisibility()
     {
-        var overlayState = ResolveOverlayExploreState();
         var isNearState = _isNearFocusMode &&
-                          overlayState == MainViewModel.ExploreState.Near;
+                          _vm.CurrentExploreState == MainViewModel.ExploreState.Near;
         var isInZoneState = _isNearFocusMode &&
-                            overlayState == MainViewModel.ExploreState.InZone;
+                            _vm.CurrentExploreState == MainViewModel.ExploreState.InZone;
+        var shouldShowRouteActions = isNearState || (isInZoneState && _isNearRouteActive);
+        var isCollapsed = _isNearSheetCollapsed;
 
-        NearFocusStartRouteButton.IsVisible = isNearState && !_isNearSheetCollapsed;
-        NearFocusSkipRouteButton.IsVisible = isNearState && !_isNearSheetCollapsed;
-        NearFocusRouteActionsSection.IsVisible = isNearState && !_isNearSheetCollapsed;
-        NearFocusCollapsedNearActions.IsVisible = isNearState && _isNearSheetCollapsed;
-        NearFocusCollapsedStartRouteButton.IsVisible = isNearState && _isNearSheetCollapsed;
-        NearFocusCollapsedSkipRouteButton.IsVisible = isNearState && _isNearSheetCollapsed;
-
-        NearFocusCollapsedInZoneActions.IsVisible = isInZoneState;
+        NearFocusCollapsedInZoneActions.IsVisible = isInZoneState && !shouldShowRouteActions;
         NearFocusCollapsedProgressSection.IsVisible = isInZoneState;
+        NearRouteCollapsedActions.IsVisible = shouldShowRouteActions && isCollapsed;
 
-        NearFocusRouteStatusLabel.IsVisible = isNearState || isInZoneState;
+        NearFocusRouteStatusLabel.IsVisible = isNearState;
         NearFocusRouteMetaLabel.IsVisible = false;
 
-        if (!isNearState && _isNearRouteActive)
-        {
-            _isNearRouteActive = false;
-            _nearRouteTargetPoiId = null;
-            _nearRouteInitialDistanceMeters = 0;
-            _nearRouteDistanceMeters = 0;
-            _nearRouteDurationSeconds = 0;
-            _nearRouteCoordinates = null;
-            UpdateNearFocusRoute();
-        }
+        NearRouteContinueButton.IsVisible = shouldShowRouteActions;
+        NearRouteCancelButton.IsVisible = shouldShowRouteActions;
+
+        var continueText = _isNearRouteActive ? "Tiếp tục chỉ đường" : "Bắt đầu chỉ đường";
+        NearRouteContinueButton.Text = continueText;
+        NearRouteCollapsedContinueButton.Text = continueText;
     }
 
-    private MainViewModel.ExploreState ResolveOverlayExploreState()
-    {
-        if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone ||
-            _vm.IsInsideAnyZone ||
-            _vm.PrimaryZone != null)
-        {
-            return MainViewModel.ExploreState.InZone;
-        }
-
-        if (_vm.CurrentExploreState == MainViewModel.ExploreState.Near)
-            return MainViewModel.ExploreState.Near;
-
-        return _vm.CurrentExploreState;
-    }
-
-    private async Task ClosePageAsync()
+    private async Task ClosePageAsync(bool preservePreviewAudio = false)
     {
         if (_isClosing)
             return;
@@ -789,21 +1199,14 @@ public partial class ExploreMapPage : ContentPage
 
         try
         {
-            await StopPreviewAudioAsync();
+            if (!preservePreviewAudio)
+                await StopPreviewAudioAsync();
             _vm.SelectedPinPOI = null;
             TabMapComponent.HideSuggestions();
-
-            // InZone back action should exit the flow to Welcome page.
-            if (_isNearFocusMode && ResolveOverlayExploreState() == MainViewModel.ExploreState.InZone)
-            {
-                if (Shell.Current != null)
-                {
-                    await Shell.Current.GoToAsync("//WelcomePage");
-                    return;
-                }
-            }
-
-            await Navigation.PopAsync();
+            if (Navigation.ModalStack.Any())
+                await Navigation.PopModalAsync();
+            else
+                await Navigation.PopAsync();
         }
         finally
         {
@@ -842,10 +1245,129 @@ public partial class ExploreMapPage : ContentPage
         CenterMapForCurrentState();
     }
 
-    private void OnNearFocusCenterUserTapped(object? sender, EventArgs e)
+    private void OnNearFocusCenterUserTapped(object? sender, TappedEventArgs e)
     {
         EnsureMapInitialized();
-        CenterMapOnUserLocation();
+        CenterMapForCurrentState();
+    }
+
+    private async void OnNearFocusSimulateThreeStopsTapped(object? sender, TappedEventArgs e)
+    {
+        await RunSimulateThreeStopsAsync();
+    }
+
+    private async Task RunSimulateThreeStopsAsync()
+    {
+        try
+        {
+            _simulateThreeStopsCts?.Cancel();
+            _simulateThreeStopsCts = new CancellationTokenSource();
+            var token = _simulateThreeStopsCts.Token;
+
+            var startLat = _vm.CurrentLat != 0 ? _vm.CurrentLat : AppConfig.DefaultLatitude;
+            var startLon = _vm.CurrentLon != 0 ? _vm.CurrentLon : AppConfig.DefaultLongitude;
+
+            var spots = _vm.AllPOIs
+                .Where(p => p.ZoneType == "Spot")
+                .OrderBy(p => HaversineDistance(startLat, startLon, p.Latitude, p.Longitude))
+                .Take(3)
+                .ToList();
+
+            if (spots.Count == 0)
+            {
+                await ShowInZoneToastAsync("Chưa có dữ liệu quán để giả lập.");
+                return;
+            }
+
+            await ShowApproachingToastCompactAsync(spots[0].Id, $"→ Bắt đầu giả lập {spots.Count} quán");
+
+            foreach (var spot in spots)
+            {
+                token.ThrowIfCancellationRequested();
+                var spotName = spot.Name_Vi ?? spot.Name_En ?? "quán tiếp theo";
+                await ShowApproachingToastCompactAsync(spot.Id, $"→ Tiến tới {spotName}");
+
+                var currentLat = _vm.CurrentLat != 0 ? _vm.CurrentLat : AppConfig.DefaultLatitude;
+                var currentLon = _vm.CurrentLon != 0 ? _vm.CurrentLon : AppConfig.DefaultLongitude;
+                var spotsForRadius = _vm.AllPOIs.Where(p => p.ZoneType == "Spot").ToList();
+                var zoneRadius = GetDynamicSpotActivationRadius(spot, spotsForRadius);
+
+                var edgePoint = GetPointTowardsTargetByDistance(
+                    currentLat, currentLon,
+                    spot.Latitude, spot.Longitude,
+                    Math.Max(2.5, zoneRadius * 0.65));
+
+                const int steps = 12;
+                for (var i = 1; i <= steps; i++)
+                {
+                    token.ThrowIfCancellationRequested();
+
+                    var t = i / (double)steps;
+                    var nextLat = Lerp(currentLat, edgePoint.Lat, t);
+                    var nextLon = Lerp(currentLon, edgePoint.Lon, t);
+                    SetVirtualLocation(nextLat, nextLon);
+                    UpdateUserPin();
+
+                    await EvaluateInZoneSpotPlaybackAsync(forceSwitch: false);
+                    await Task.Delay(280, token);
+                }
+
+                SetVirtualLocation(edgePoint.Lat, edgePoint.Lon);
+                UpdateUserPin();
+                CenterMapOnPoi(spot, InZoneFocusZoomLevel);
+
+                // Hold at this spot for 4s so debounce can confirm and switch UI/audio reliably.
+                var holdUntil = DateTime.UtcNow.AddMilliseconds(4000);
+                while (DateTime.UtcNow < holdUntil)
+                {
+                    token.ThrowIfCancellationRequested();
+                    await EvaluateInZoneSpotPlaybackAsync(forceSwitch: false);
+                    await Task.Delay(250, token);
+                }
+
+                // One final pass to ensure bottom sheet/audio reflect the new spot.
+                await EvaluateInZoneSpotPlaybackAsync(forceSwitch: false);
+            }
+
+            HideInZoneToastIfVisible();
+        }
+        catch (TaskCanceledException)
+        {
+            // Ignore
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] RunSimulateThreeStopsAsync error: {ex}");
+            await DisplayAlertAsync("Lỗi", "Không thể chạy giả lập 3 quán lúc này.", "OK");
+        }
+    }
+
+    private void SetVirtualLocation(double lat, double lon)
+    {
+        _vm.HasLocationFix = true;
+        _vm.CurrentLat = lat;
+        _vm.CurrentLon = lon;
+        _vm.CoordDisplay = $"{lat:F6}, {lon:F6}";
+        _vm.RefreshExploreState();
+    }
+
+    private static double Lerp(double from, double to, double t)
+        => from + ((to - from) * t);
+
+    private static (double Lat, double Lon) GetPointTowardsTargetByDistance(
+        double startLat, double startLon,
+        double targetLat, double targetLon,
+        double stopDistanceMeters)
+    {
+        var total = HaversineDistance(startLat, startLon, targetLat, targetLon);
+        if (total <= stopDistanceMeters || total <= 0.001)
+            return (targetLat, targetLon);
+
+        var ratio = (total - stopDistanceMeters) / total;
+        ratio = Math.Clamp(ratio, 0.0, 1.0);
+        var lat = Lerp(startLat, targetLat, ratio);
+        var lon = Lerp(startLon, targetLon, ratio);
+        return (lat, lon);
     }
 
     private async Task StopPreviewAudioAsync()
@@ -860,8 +1382,8 @@ public partial class ExploreMapPage : ContentPage
         }
         finally
         {
-            _previewPoiId = null;
-            _isPreviewPaused = false;
+            _vm.PlayingPoiId = null;
+            _vm.IsAudioPaused = false;
             UpdatePreviewAudioUiState();
         }
     }
@@ -871,39 +1393,28 @@ public partial class ExploreMapPage : ContentPage
         if (poi == null)
             return;
 
-        await OpenPoiDetailAsync(poi);
-    }
+        _vm.SelectedPinPOI = poi;
+        _vm.PrimaryZone = poi;
+        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
+        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? "";
+        _vm.PrimaryZoneAddress = poi.Address ?? "Đang cập nhật";
+        _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
 
-    private async Task OpenPoiDetailAsync(POI poi)
-    {
-        if (poi == null || _isOpeningPoiDetail)
-            return;
-
-        _isOpeningPoiDetail = true;
+        _isDetailPageOpen = true;
         try
         {
-            // Keep current narration alive when opening POI detail from map.
-            _vm.SelectedPinPOI = poi;
-            _vm.PrimaryZone = poi;
-            _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
-            _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? "";
-            _vm.PrimaryZoneAddress = poi.Address ?? "Đang cập nhật";
-            _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
-            _syncPrimaryZoneOnNextAppearing = true;
-
-            if (Shell.Current?.Navigation != null)
-                await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi, keepCurrentAudio: true));
-            else
-                await Navigation.PushModalAsync(new POIDetailPage(poi, keepCurrentAudio: true));
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] OpenPoiDetailAsync: {ex}");
-            await DisplayAlertAsync("Lỗi", "Không thể mở trang chi tiết quán lúc này.", "OK");
+            await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi));
         }
         finally
         {
-            _isOpeningPoiDetail = false;
+            _isDetailPageOpen = false;
+            if (_pendingPoiIdWhileDetailOpen.HasValue)
+            {
+                var pendingPoi = _vm.AllPOIs.FirstOrDefault(p => p.Id == _pendingPoiIdWhileDetailOpen.Value);
+                _pendingPoiIdWhileDetailOpen = null;
+                if (pendingPoi != null)
+                    await SwitchToInZoneSpotAsync(pendingPoi, forceAudioRestart: true);
+            }
         }
     }
 
@@ -919,8 +1430,8 @@ public partial class ExploreMapPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] OnPreviewAudioRequested: {ex}");
-            _previewPoiId = null;
-            _isPreviewPaused = false;
+            _vm.PlayingPoiId = null;
+            _vm.IsAudioPaused = false;
             UpdatePreviewAudioUiState();
             await DisplayAlertAsync("Lỗi", $"Không thể phát nghe thử: {ex.Message}", "OK");
         }
@@ -1072,27 +1583,26 @@ public partial class ExploreMapPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() => TabMapComponent.ShowSuggestions(_vm.SearchSuggestions));
     }
 
-    private void CenterMapOnPoi(POI poi)
+    private void CenterMapOnPoi(POI poi, int? zoomLevel = null)
     {
         if (MapView?.Map == null)
             return;
 
         var (px, py) = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
         MapView.Map.Navigator.CenterOn(new MPoint(px, py));
+
+        if (zoomLevel.HasValue)
+        {
+            var resolutions = MapView.Map.Navigator.Resolutions?.ToList();
+            if (resolutions != null && resolutions.Count > 0)
+            {
+                var safeZoom = Math.Clamp(zoomLevel.Value, 0, resolutions.Count - 1);
+                MapView.Map.Navigator.ZoomToLevel(safeZoom);
+                return;
+            }
+        }
+
         ZoomToDefaultLevel();
-    }
-
-    private void CenterMapOnUserLocation()
-    {
-        if (MapView?.Map == null)
-            return;
-
-        var hasUserFix = _vm.CurrentLat != 0 || _vm.CurrentLon != 0;
-        var lat = hasUserFix ? _vm.CurrentLat : AppConfig.DefaultLatitude;
-        var lon = hasUserFix ? _vm.CurrentLon : AppConfig.DefaultLongitude;
-        var (ux, uy) = SphericalMercator.FromLonLat(lon, lat);
-        MapView.Map.Navigator.CenterOn(new MPoint(ux, uy));
-        MapView.Map.Navigator.ZoomToLevel(Math.Max(17, NearFocusZoomLevel));
     }
 
     private void CenterMapForCurrentState()
@@ -1159,132 +1669,6 @@ public partial class ExploreMapPage : ContentPage
         MapView.Map.Navigator.ZoomToLevel(NearFocusZoomLevel);
     }
 
-    private void UpdateNearFocusRoute()
-        => _ = UpdateNearFocusRouteAsync();
-
-    private async Task UpdateNearFocusRouteAsync()
-    {
-        if (_routeLayer == null || MapView?.Map == null)
-            return;
-
-        var target = ResolveNearFocusPoi();
-        if (target == null || !_isNearRouteActive || _nearRouteTargetPoiId != target.Id)
-        {
-            _routeLayer.Features = Array.Empty<IFeature>();
-            _routeLayer.DataHasChanged();
-            MapView.RefreshGraphics();
-            return;
-        }
-
-        var hasCurrentLocation = _vm.CurrentLat != 0 && _vm.CurrentLon != 0;
-        var startLon = hasCurrentLocation ? _vm.CurrentLon : AppConfig.DefaultLongitude;
-        var startLat = hasCurrentLocation ? _vm.CurrentLat : AppConfig.DefaultLatitude;
-
-        var coords = _nearRouteCoordinates;
-        if (coords == null || coords.Length < 2)
-        {
-            var routeResult = await FetchNearRouteAsync(startLon, startLat, target.Longitude, target.Latitude);
-            coords = routeResult?.Coordinates;
-            if (coords != null && coords.Length >= 2)
-            {
-                _nearRouteCoordinates = coords;
-                _nearRouteDistanceMeters = routeResult?.DistanceMeters ?? ComputeDistanceFromCurrentToPoi(target);
-                _nearRouteDurationSeconds = routeResult?.DurationSeconds ?? EstimateWalkingSeconds(_nearRouteDistanceMeters);
-            }
-        }
-
-        if (coords == null || coords.Length < 2)
-        {
-            var (startPx, startPy) = SphericalMercator.FromLonLat(startLon, startLat);
-            var (endPx, endPy) = SphericalMercator.FromLonLat(target.Longitude, target.Latitude);
-            coords = new[]
-            {
-                new Coordinate(startPx, startPy),
-                new Coordinate(endPx, endPy)
-            };
-
-            _nearRouteDistanceMeters = ComputeDistanceFromCurrentToPoi(target);
-            _nearRouteDurationSeconds = EstimateWalkingSeconds(_nearRouteDistanceMeters);
-        }
-        else
-        {
-            // Keep route path stable (cached) and continuously refresh ETA by current distance.
-            _nearRouteDistanceMeters = ComputeDistanceFromCurrentToPoi(target);
-            _nearRouteDurationSeconds = EstimateWalkingSeconds(_nearRouteDistanceMeters);
-        }
-
-        if (_nearRouteInitialDistanceMeters <= 0)
-            _nearRouteInitialDistanceMeters = Math.Max(1, _nearRouteDistanceMeters);
-
-        var feature = new GeometryFeature(new LineString(coords));
-        feature.Styles.Add(new VectorStyle
-        {
-            Line = new Pen(new MapsColor(75, 226, 119), 4)
-            {
-                PenStyle = PenStyle.Dash
-            }
-        });
-
-        _routeLayer.Features = new IFeature[] { feature };
-        _routeLayer.DataHasChanged();
-        MapView.RefreshGraphics();
-    }
-
-    private sealed class NearRouteResult
-    {
-        public required Coordinate[] Coordinates { get; init; }
-        public double DistanceMeters { get; init; }
-        public double DurationSeconds { get; init; }
-    }
-
-    private async Task<NearRouteResult?> FetchNearRouteAsync(double srcLon, double srcLat, double dstLon, double dstLat)
-    {
-        try
-        {
-            var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
-                           Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
-            if (!isOnline)
-                return null;
-
-            var url = string.Create(
-                CultureInfo.InvariantCulture,
-                $"https://router.project-osrm.org/route/v1/walking/{srcLon},{srcLat};{dstLon},{dstLat}?geometries=geojson&overview=full");
-
-            var json = await _routeHttpClient.GetStringAsync(url);
-            using var doc = JsonDocument.Parse(json);
-            var routes = doc.RootElement.GetProperty("routes");
-            if (routes.GetArrayLength() == 0)
-                return null;
-            var route = routes[0];
-            var geometry = route.GetProperty("geometry").GetProperty("coordinates");
-            var coords = geometry.EnumerateArray()
-                .Select(c =>
-                {
-                    if (c.ValueKind != JsonValueKind.Array || c.GetArrayLength() < 2)
-                        return new Coordinate(0, 0);
-                    var (x, y) = SphericalMercator.FromLonLat(c[0].GetDouble(), c[1].GetDouble());
-                    return new Coordinate(x, y);
-                })
-                .Where(coord => coord.X != 0 || coord.Y != 0)
-                .ToArray();
-
-            if (coords.Length < 2)
-                return null;
-
-            return new NearRouteResult
-            {
-                Coordinates = coords,
-                DistanceMeters = route.TryGetProperty("distance", out var distanceEl) ? distanceEl.GetDouble() : 0,
-                DurationSeconds = route.TryGetProperty("duration", out var durationEl) ? durationEl.GetDouble() : 0
-            };
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] OSRM fallback route: {ex.Message}");
-            return null;
-        }
-    }
-
     private void UpdateNearFocusOverlayState()
     {
         if (!_isNearFocusMode)
@@ -1297,27 +1681,28 @@ public partial class ExploreMapPage : ContentPage
         if (poi == null)
             return;
 
-        var overlayState = ResolveOverlayExploreState();
-        var isNearState = overlayState == MainViewModel.ExploreState.Near;
-        var isInZoneState = overlayState == MainViewModel.ExploreState.InZone;
+        var isNearState = _vm.CurrentExploreState == MainViewModel.ExploreState.Near;
+        var isInZoneState = _vm.CurrentExploreState == MainViewModel.ExploreState.InZone;
+        var isInsidePoiZone = IsUserInsidePoiActivationZone(poi);
+        if (NearFocusBottomSheet != null)
+            NearFocusBottomSheet.IsVisible = !isInZoneState || isInsidePoiZone || _isNearRouteActive;
+
+        if (isInZoneState && !isInsidePoiZone)
+            return;
 
         NearFocusLikeIcon.Text = IconHeart;
         NearFocusLikeIcon.TextColor = poi.IsLikedByUser
             ? MauiColor.FromArgb("#EF4444")
             : MauiColor.FromArgb("#D8E6DF");
 
-        var isCurrentPreview = _previewPoiId == poi.Id && (_tts.IsPlaying() || _isPreviewPaused);
+        var isCurrentPreview = _vm.PlayingPoiId == poi.Id && (_tts.IsPlaying() || _vm.IsAudioPaused);
         NearFocusPlayPauseIcon.Text = isCurrentPreview && _tts.IsPlaying() ? IconPause : IconPlay;
         NearFocusPlayPauseIcon.TextColor = MauiColor.FromArgb("#063014");
-        NearFocusCollapsedPlayPauseIcon.Text = isCurrentPreview && _tts.IsPlaying() ? IconPause : IconPlay;
-        NearFocusCollapsedPlayPauseIcon.TextColor = MauiColor.FromArgb("#063014");
 
         var currentDistance = ComputeDistanceFromCurrentToPoi(poi);
-        var durationSeconds = _nearRouteDurationSeconds > 0
-            ? _nearRouteDurationSeconds
-            : EstimateWalkingSeconds(currentDistance);
+        var durationSeconds = EstimateWalkingSeconds(currentDistance);
 
-        var routeMetaText = $"{FormatDistanceForRoute(currentDistance)}";
+        var routeMetaText = FormatDistance(currentDistance).ToUpperInvariant();
 
         NearFocusCollapsedThumb.Source = poi.DisplayImageUrl;
         NearFocusCollapsedNameLabel.Text = poi.Name_Vi ?? poi.Name_En ?? "Địa điểm";
@@ -1349,8 +1734,8 @@ public partial class ExploreMapPage : ContentPage
             NearFocusCollapsedMetaLabel.IsVisible = false;
 
             var tags = BuildNearFocusTags(poi);
-            NearFocusTag1Label.Text = tags.ElementAtOrDefault(0) ?? "#MONNGON";
-            NearFocusTag2Label.Text = tags.ElementAtOrDefault(1) ?? "#KHAMPHA";
+            NearFocusTag1Label.Text = tags[0];
+            NearFocusTag2Label.Text = tags[1];
         }
         else
         {
@@ -1374,23 +1759,16 @@ public partial class ExploreMapPage : ContentPage
 
         if (isInZoneState)
         {
-            var audioDuration = Math.Max(0, _tts.GetDuration());
-            var audioCurrent = Math.Max(0, _tts.GetCurrentPosition());
-            if (audioDuration > 0 && audioCurrent > audioDuration)
-                audioCurrent = audioDuration;
+            var poiAudioDuration = Math.Max(0, _tts.GetDuration());
+            var poiAudioCurrent = Math.Max(0, _tts.GetCurrentPosition());
+            if (poiAudioDuration > 0 && poiAudioCurrent > poiAudioDuration)
+                poiAudioCurrent = poiAudioDuration;
 
-            NearFocusProgressBar.Progress = audioDuration > 0
-                ? Math.Clamp(audioCurrent / audioDuration, 0, 1)
+            NearFocusProgressBar.Progress = poiAudioDuration > 0
+                ? Math.Clamp(poiAudioCurrent / poiAudioDuration, 0, 1)
                 : 0;
-            NearFocusElapsedLabel.Text = FormatAudioTime(audioCurrent);
-            NearFocusDurationLabel.Text = FormatAudioTime(audioDuration > 0 ? audioDuration : 0);
-        }
-        else if (_isNearRouteActive && _nearRouteTargetPoiId == poi.Id && _nearRouteInitialDistanceMeters > 0)
-        {
-            var progress = 1 - (currentDistance / _nearRouteInitialDistanceMeters);
-            NearFocusProgressBar.Progress = Math.Clamp(progress, 0, 1);
-            NearFocusElapsedLabel.Text = FormatDistance(currentDistance);
-            NearFocusDurationLabel.Text = $"~{Math.Max(1, (int)Math.Ceiling(durationSeconds / 60))} phút";
+            NearFocusElapsedLabel.Text = FormatAudioTime(poiAudioCurrent);
+            NearFocusDurationLabel.Text = FormatAudioTime(poiAudioDuration > 0 ? poiAudioDuration : 0);
         }
         else
         {
@@ -1400,23 +1778,37 @@ public partial class ExploreMapPage : ContentPage
         }
 
         // Compact in-zone card shows audio progress/time.
-        var compactAudioDuration = Math.Max(0, _tts.GetDuration());
-        var compactAudioCurrent = Math.Max(0, _tts.GetCurrentPosition());
-        if (compactAudioDuration > 0 && compactAudioCurrent > compactAudioDuration)
-            compactAudioCurrent = compactAudioDuration;
+        var audioDuration = Math.Max(0, _tts.GetDuration());
+        var audioCurrent = Math.Max(0, _tts.GetCurrentPosition());
+        if (audioDuration > 0 && audioCurrent > audioDuration)
+            audioCurrent = audioDuration;
 
-        NearFocusCollapsedProgressBar.Progress = compactAudioDuration > 0
-            ? Math.Clamp(compactAudioCurrent / compactAudioDuration, 0, 1)
+        NearFocusCollapsedProgressBar.Progress = audioDuration > 0
+            ? Math.Clamp(audioCurrent / audioDuration, 0, 1)
             : 0;
-        NearFocusCollapsedElapsedLabel.Text = FormatAudioTime(compactAudioCurrent);
-        NearFocusCollapsedDurationLabel.Text = FormatAudioTime(compactAudioDuration > 0 ? compactAudioDuration : 0);
+        NearFocusCollapsedElapsedLabel.Text = FormatAudioTime(audioCurrent);
+        NearFocusCollapsedDurationLabel.Text = FormatAudioTime(audioDuration > 0 ? audioDuration : 0);
 
-        if (isInZoneState && !_tts.IsPlaying() && !_isPreviewPaused)
+        if (isInZoneState && !_tts.IsPlaying() && !_vm.IsAudioPaused)
         {
             // Keep compact card stable even if audio not started yet.
             NearFocusCollapsedProgressBar.Progress = 0;
             NearFocusCollapsedElapsedLabel.Text = "00:00";
         }
+    }
+
+    private bool IsUserInsidePoiActivationZone(POI poi)
+    {
+        if (_vm.CurrentLat == 0 && _vm.CurrentLon == 0)
+            return false;
+
+        var spots = _vm.AllPOIs.Where(p => p.ZoneType == "Spot").ToList();
+        if (spots.Count == 0)
+            return false;
+
+        var distance = HaversineDistance(_vm.CurrentLat, _vm.CurrentLon, poi.Latitude, poi.Longitude);
+        var radius = GetDynamicSpotActivationRadius(poi, spots);
+        return distance <= radius;
     }
 
     private void UpdateNearFocusNearbySection(POI currentPoi)
@@ -1487,172 +1879,6 @@ public partial class ExploreMapPage : ContentPage
         return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
-    private static Coordinate[] CreateZoneRingCoordinates(double centerLat, double centerLon, double radiusMeters, int segments = 48)
-    {
-        if (radiusMeters <= 0)
-            return Array.Empty<Coordinate>();
-
-        const double EarthRadiusMeters = 6378137.0;
-        var centerLatRad = centerLat * Math.PI / 180.0;
-        var centerLonRad = centerLon * Math.PI / 180.0;
-        var angularDistance = radiusMeters / EarthRadiusMeters;
-        var coords = new List<Coordinate>(segments + 1);
-
-        for (var i = 0; i <= segments; i++)
-        {
-            var bearing = 2.0 * Math.PI * i / segments;
-            var sinLat = Math.Sin(centerLatRad) * Math.Cos(angularDistance) +
-                         Math.Cos(centerLatRad) * Math.Sin(angularDistance) * Math.Cos(bearing);
-            var latRad = Math.Asin(sinLat);
-            var lonRad = centerLonRad + Math.Atan2(
-                Math.Sin(bearing) * Math.Sin(angularDistance) * Math.Cos(centerLatRad),
-                Math.Cos(angularDistance) - Math.Sin(centerLatRad) * Math.Sin(latRad));
-
-            var lat = latRad * 180.0 / Math.PI;
-            var lon = lonRad * 180.0 / Math.PI;
-            var (x, y) = SphericalMercator.FromLonLat(lon, lat);
-            coords.Add(new Coordinate(x, y));
-        }
-
-        return coords.ToArray();
-    }
-
-    private bool IsUserInsidePoiZone(POI poi)
-    {
-        var distanceMeters = ComputeDistanceFromCurrentToPoi(poi);
-        var zoneRadius = GetPoiAudioZoneRadiusMeters(poi);
-        return distanceMeters <= zoneRadius;
-    }
-
-    private async Task EnsureInZoneNarrationAndFocusAsync()
-    {
-        if (!_isNearFocusMode || !IsVisible || _isOpeningPoiDetail)
-            return;
-
-        if (ResolveOverlayExploreState() != MainViewModel.ExploreState.InZone)
-            return;
-
-        var poi = ResolveCurrentSpotZonePoi();
-        if (poi == null)
-            return;
-
-        if (!IsUserInsidePoiZone(poi))
-            return;
-
-        if (_vm.SelectedPinPOI?.Id != poi.Id)
-            _vm.SelectedPinPOI = poi;
-
-        if (_lastInZoneFocusedPoiId != poi.Id)
-        {
-            var (px, py) = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
-            MapView?.Map?.Navigator.CenterOn(new MPoint(px, py));
-            MapView?.Map?.Navigator.ZoomToLevel(InZoneFocusZoomLevel);
-            _lastInZoneFocusedPoiId = poi.Id;
-        }
-
-        if (_lastAutoNarratedPoiId == poi.Id && (_tts.IsPlaying() || _isPreviewPaused))
-            return;
-
-        var played = await PlayPreviewAudioAsync(poi, allowToggleCurrent: false, showErrorAlert: false);
-        if (played)
-        {
-            _lastAutoNarratedPoiId = poi.Id;
-            _previewPoiId = poi.Id;
-            _isPreviewPaused = false;
-            UpdatePreviewAudioUiState();
-        }
-    }
-
-    private POI? ResolveCurrentSpotZonePoi()
-    {
-        var spots = _vm.AllPOIs
-            .Where(p => p.ZoneType == "Spot")
-            .ToList();
-        if (spots.Count == 0)
-        {
-            _activeSpotZonePoiId = null;
-            return null;
-        }
-
-        var candidates = spots
-            .Select(p => new
-            {
-                Poi = p,
-                Distance = ComputeDistanceFromCurrentToPoi(p),
-                Radius = GetPoiAudioZoneRadiusMeters(p)
-            })
-            .ToList();
-
-        var activeCandidate = _activeSpotZonePoiId.HasValue
-            ? candidates.FirstOrDefault(x => x.Poi.Id == _activeSpotZonePoiId.Value)
-            : null;
-
-        if (activeCandidate != null && activeCandidate.Distance <= activeCandidate.Radius + SpotZoneHysteresisMeters)
-            return activeCandidate.Poi;
-
-        var insideSpots = candidates
-            .Where(x => x.Distance <= x.Radius)
-            .OrderBy(x => x.Poi.Priority)
-            .ThenBy(x => x.Distance)
-            .ThenBy(x => x.Radius)
-            .ThenBy(x => x.Poi.Id)
-            .ToList();
-
-        if (insideSpots.Count > 0)
-        {
-            var best = insideSpots.First();
-
-            if (activeCandidate != null)
-            {
-                var samePriority = best.Poi.Priority == activeCandidate.Poi.Priority;
-                var distanceDelta = best.Distance - activeCandidate.Distance;
-                var withinSwitchCooldown = DateTime.UtcNow - _lastSpotZoneSwitchAtUtc < SpotZoneSwitchCooldown;
-
-                if (samePriority && distanceDelta <= SpotZoneHysteresisMeters)
-                    best = activeCandidate;
-                else if (withinSwitchCooldown && activeCandidate.Distance <= activeCandidate.Radius + (SpotZoneHysteresisMeters * 2))
-                    best = activeCandidate;
-            }
-
-            if (_activeSpotZonePoiId != best.Poi.Id)
-            {
-                _activeSpotZonePoiId = best.Poi.Id;
-                _lastSpotZoneSwitchAtUtc = DateTime.UtcNow;
-            }
-
-            return best.Poi;
-        }
-
-        if (activeCandidate != null && activeCandidate.Distance <= activeCandidate.Radius + (SpotZoneHysteresisMeters * 2))
-            return activeCandidate.Poi;
-
-        _activeSpotZonePoiId = null;
-
-        var selectedSpot = _vm.SelectedPinPOI?.ZoneType == "Spot"
-            ? _vm.SelectedPinPOI
-            : null;
-        if (selectedSpot != null)
-            return selectedSpot;
-
-        var primarySpot = _vm.PrimaryZone?.ZoneType == "Spot"
-            ? _vm.PrimaryZone
-            : null;
-        if (primarySpot != null)
-            return primarySpot;
-
-        return candidates
-            .OrderBy(x => x.Distance)
-            .Select(x => x.Poi)
-            .FirstOrDefault();
-    }
-
-    private static double GetPoiAudioZoneRadiusMeters(POI poi)
-    {
-        var raw = poi.Radius > 0 ? poi.Radius : AppConfig.TrackingInsideMeters;
-        // Keep trigger/ring to small per-POI zone, not the larger Explore InZone radius.
-        return Math.Clamp(raw, 20, 55);
-    }
-
     private double ComputeDistanceFromCurrentToPoi(POI poi)
     {
         var hasCurrentLocation = _vm.CurrentLat != 0 || _vm.CurrentLon != 0;
@@ -1675,16 +1901,6 @@ public partial class ExploreMapPage : ContentPage
         return meters < 1000
             ? $"{meters:F0}m"
             : $"{meters / 1000:F1}km";
-    }
-
-    private static string FormatDistanceForRoute(double meters)
-    {
-        if (meters <= 0)
-            return "—";
-
-        return meters < 1000
-            ? $"{meters:F0}M"
-            : $"{meters / 1000:F1}KM";
     }
 
     private static IReadOnlyList<string> BuildNearFocusTags(POI poi)
@@ -1745,12 +1961,25 @@ public partial class ExploreMapPage : ContentPage
             e.PropertyName == nameof(MainViewModel.CurrentLon))
         {
             UpdateUserPin();
-            UpdateZonePins();
+            _ = EvaluateInZoneSpotPlaybackAsync();
             if (_isNearFocusMode)
             {
-                UpdateNearFocusRoute();
                 UpdateNearFocusOverlayState();
-                _ = EnsureInZoneNarrationAndFocusAsync();
+            }
+
+            if (_isNearRouteActive && _nearRouteTargetPoiId.HasValue)
+            {
+                var routePoi = _vm.AllPOIs.FirstOrDefault(p => p.Id == _nearRouteTargetPoiId.Value);
+                if (routePoi != null)
+                {
+                    EvaluateNearRouteCompletion(routePoi);
+                    var now = DateTime.UtcNow;
+                    if ((now - _lastRouteRedraw).TotalMilliseconds >= 1500)
+                    {
+                        _lastRouteRedraw = now;
+                        _ = DrawNearFocusRouteAsync();
+                    }
+                }
             }
         }
         else if (e.PropertyName == nameof(MainViewModel.ActiveZoneCount) ||
@@ -1760,8 +1989,9 @@ public partial class ExploreMapPage : ContentPage
             TabMapComponent.RefreshLikeIcon();
             if (_isNearFocusMode)
             {
-                UpdateNearFocusRoute();
                 UpdateNearFocusOverlayState();
+                if (_isNearRouteActive)
+                    _ = DrawNearFocusRouteAsync();
             }
             UpdatePreviewAudioUiState();
         }
@@ -1782,26 +2012,51 @@ public partial class ExploreMapPage : ContentPage
         {
             if (_isNearFocusMode)
             {
-                UpdateNearFocusRoute();
                 UpdateNearFocusOverlayState();
-                UpdateZonePins();
-                _ = EnsureInZoneNarrationAndFocusAsync();
+                TryShowInZoneToastTransition();
+                _ = EvaluateInZoneSpotPlaybackAsync(forceSwitch: true);
             }
         }
-        else if (e.PropertyName == nameof(MainViewModel.PrimaryZone))
+    }
+
+    private void TryShowInZoneToastTransition()
+    {
+        // UX requirement: do not show transition toast between Near <-> InZone.
+        // Keep only destination arrival toast when route tracking completes.
+        _previousExploreState = _vm.CurrentExploreState;
+    }
+
+    private async Task ShowInZoneToastAsync(string message)
+    {
+        if (InZoneToast == null || InZoneToastLabel == null)
+            return;
+
+        _inZoneToastCts?.Cancel();
+        _inZoneToastCts = new CancellationTokenSource();
+        var token = _inZoneToastCts.Token;
+        _approachingToastPoiId = null;
+
+        try
         {
-            if (_isNearFocusMode && IsVisible && !_isOpeningPoiDetail)
-            {
-                SyncNearFocusPoiFromPrimaryZone();
-                UpdateNearFocusRoute();
-                UpdateNearFocusOverlayState();
-                UpdateZonePins();
-                _ = EnsureInZoneNarrationAndFocusAsync();
-            }
-            else
-            {
-                _syncPrimaryZoneOnNextAppearing = true;
-            }
+            InZoneToastLabel.Text = message;
+            InZoneToast.Opacity = 0;
+            InZoneToast.IsVisible = true;
+            await InZoneToast.FadeToAsync(1, 180);
+            await Task.Delay(1400, token);
+            if (token.IsCancellationRequested)
+                return;
+
+            await InZoneToast.FadeToAsync(0, 220);
+            InZoneToast.IsVisible = false;
+        }
+        catch (TaskCanceledException)
+        {
+            // Ignore cancellation
+        }
+        finally
+        {
+            if (!token.IsCancellationRequested && InZoneToast.Opacity <= 0.01)
+                InZoneToast.IsVisible = false;
         }
     }
 
@@ -1809,15 +2064,15 @@ public partial class ExploreMapPage : ContentPage
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            _previewPoiId = null;
-            _isPreviewPaused = false;
+            _vm.PlayingPoiId = null;
+            _vm.IsAudioPaused = false;
             UpdatePreviewAudioUiState();
         });
     }
 
     private void UpdatePreviewAudioUiState()
     {
-        TabMapComponent.SetPreviewAudioState(_previewPoiId, _tts.IsPlaying(), _isPreviewPaused);
+        TabMapComponent.SetPreviewAudioState(_vm.PlayingPoiId, _tts.IsPlaying(), _vm.IsAudioPaused);
         UpdateNearFocusOverlayState();
     }
 
@@ -1825,10 +2080,10 @@ public partial class ExploreMapPage : ContentPage
     {
         try
         {
-            if (_previewPoiId == null || !_tts.IsPlaying())
+            if (_vm.PlayingPoiId == null || !_tts.IsPlaying())
                 return;
 
-            if (_previewPoiId == poi.Id)
+            if (_vm.PlayingPoiId == poi.Id)
             {
                 UpdatePreviewAudioUiState();
                 return;
@@ -1839,59 +2094,126 @@ public partial class ExploreMapPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] SwitchPreviewToPoiIfNeededAsync: {ex}");
-            _previewPoiId = null;
-            _isPreviewPaused = false;
+            _vm.PlayingPoiId = null;
+            _vm.IsAudioPaused = false;
             UpdatePreviewAudioUiState();
         }
     }
 
     private async Task<bool> PlayPreviewAudioAsync(POI poi, bool allowToggleCurrent, bool showErrorAlert)
     {
-        if (_previewPoiId == poi.Id)
+        await _previewAudioLock.WaitAsync();
+        try
         {
-            if (_tts.IsPlaying())
-            {
-                if (allowToggleCurrent)
-                {
-                    _tts.Pause();
-                    _isPreviewPaused = true;
-                }
-                else
-                {
-                    _isPreviewPaused = false;
-                }
+            var switchingToDifferentPoi = _vm.PlayingPoiId.HasValue && _vm.PlayingPoiId.Value != poi.Id;
+            if (switchingToDifferentPoi && (_tts.IsPlaying() || _vm.IsAudioPaused))
+                await StopPreviewAudioAsync();
 
-                UpdatePreviewAudioUiState();
-                return true;
-            }
-
-            if (_isPreviewPaused)
+            if (_vm.PlayingPoiId == poi.Id)
             {
-                _tts.Resume();
                 if (_tts.IsPlaying())
                 {
-                    _isPreviewPaused = false;
+                    if (allowToggleCurrent)
+                    {
+                        _tts.Pause();
+                        _vm.IsAudioPaused = true;
+                    }
+                    else
+                    {
+                        _vm.IsAudioPaused = false;
+                    }
+
                     UpdatePreviewAudioUiState();
                     return true;
                 }
+
+                if (_vm.IsAudioPaused)
+                {
+                    _tts.Resume();
+                    if (_tts.IsPlaying())
+                    {
+                        _vm.IsAudioPaused = false;
+                        UpdatePreviewAudioUiState();
+                        return true;
+                    }
+                }
             }
+
+            await StopPreviewAudioAsync();
+
+            if (_isNearFocusMode &&
+                _vm.CurrentExploreState == MainViewModel.ExploreState.InZone &&
+                !await CanPlayPoiAudioWithoutTtsFallbackAsync(poi))
+            {
+                if (showErrorAlert)
+                    await DisplayAlertAsync("Âm thanh", "Điểm này chưa có audio xuất bản để phát.", "OK");
+                return false;
+            }
+
+            var ok = await _tts.SpeakAsync(
+                ResolvePreviewNarrationText(poi),
+                ResolvePreviewLanguageCode(),
+                poiId: poi.Id);
+
+            _vm.PlayingPoiId = ok ? poi.Id : null;
+            _vm.IsAudioPaused = false;
+            UpdatePreviewAudioUiState();
+
+            if (!ok && showErrorAlert)
+                await DisplayAlertAsync("Âm thanh", "Không thể phát nghe thử lúc này.", "OK");
+
+            return ok;
         }
+        finally
+        {
+            _previewAudioLock.Release();
+        }
+    }
 
-        await StopPreviewAudioAsync();
+    private async Task<bool> CanPlayPoiAudioWithoutTtsFallbackAsync(POI poi)
+    {
+        if (_audioCache == null)
+            return false;
 
-        var ok = await _tts.SpeakAsync(
-            ResolvePreviewNarrationText(poi),
-            ResolvePreviewLanguageCode(),
-            poiId: poi.Id);
+        var language = ResolvePreviewLanguageCode();
+        if (_audioCache.IsCached(poi.Id, language))
+            return true;
 
-        _previewPoiId = ok ? poi.Id : null;
-        _isPreviewPaused = false;
-        UpdatePreviewAudioUiState();
+        if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+            return false;
 
-        if (!ok && showErrorAlert)
-            await DisplayAlertAsync("Âm thanh", "Không thể phát nghe thử lúc này.", "OK");
+        var url = await _audioCache.GetAudioUrlAsync(poi.Id, language);
+        return !string.IsNullOrWhiteSpace(url);
+    }
 
-        return ok;
+    private void StartNearFocusAudioTimer()
+    {
+        if (_nearFocusAudioTimer != null || Dispatcher == null)
+            return;
+
+        _nearFocusAudioTimer = Dispatcher.CreateTimer();
+        _nearFocusAudioTimer.Interval = TimeSpan.FromMilliseconds(250);
+        _nearFocusAudioTimer.Tick += (_, _) =>
+        {
+            if (!_isNearFocusMode || !IsVisible)
+                return;
+
+            if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone &&
+                (_tts.IsPlaying() || _vm.IsAudioPaused))
+            {
+                UpdateNearFocusOverlayState();
+            }
+        };
+        _nearFocusAudioTimer.Start();
+    }
+
+    private void StopNearFocusAudioTimer()
+    {
+        if (_nearFocusAudioTimer == null)
+            return;
+
+        _nearFocusAudioTimer.Stop();
+        _nearFocusAudioTimer = null;
     }
 
     private string ResolvePreviewLanguageCode()
@@ -1909,6 +2231,50 @@ public partial class ExploreMapPage : ContentPage
             "zh" => poi.Description_Zh ?? poi.Name_Zh ?? poi.Name_En ?? poi.Name_Vi,
             _ => poi.Description_Vi ?? poi.Name_Vi ?? poi.Name_En
         } ?? "Chào mừng đến với điểm tham quan.";
+
+    private void OnNearRouteContinueClicked(object? sender, EventArgs e)
+    {
+        var poi = ResolveNearFocusPoi();
+        if (poi == null)
+            return;
+
+        _isNearRouteActive = true;
+        _nearRouteTargetPoiId = poi.Id;
+        _vm.NavigationTarget = poi;
+        _vm.SelectedPinPOI = poi;
+        _vm.VisitedPOIIds.Add(poi.Id);
+        _lastRouteRedraw = DateTime.MinValue;
+        UpdateNearFocusOverlayState();
+        CenterMapForNearFocus();
+        _ = DrawNearFocusRouteAsync();
+    }
+
+    private void OnNearRouteCancelClicked(object? sender, EventArgs e)
+    {
+        var cancelledPoiId = _nearRouteTargetPoiId;
+        _isNearRouteActive = false;
+        _nearRouteTargetPoiId = null;
+
+        if (cancelledPoiId.HasValue && _vm.NavigationTarget?.Id == cancelledPoiId.Value)
+            _vm.NavigationTarget = null;
+
+        ClearNearFocusRoute();
+        UpdateNearFocusOverlayState();
+    }
+
+    private void EvaluateNearRouteCompletion(POI routePoi)
+    {
+        var distance = ComputeDistanceFromCurrentToPoi(routePoi);
+        if (distance > NearRouteArrivalMeters)
+            return;
+
+        _isNearRouteActive = false;
+        _nearRouteTargetPoiId = null;
+        _vm.NavigationTarget = routePoi;
+        ClearNearFocusRoute();
+        UpdateNearFocusOverlayState();
+        _ = ShowInZoneToastAsync($"Bạn đã đến {routePoi.Name_Vi ?? routePoi.Name_En ?? "điểm đến"}");
+    }
 
     private static T ResolveRequiredService<T>() where T : notnull
     {
@@ -1935,4 +2301,32 @@ public partial class ExploreMapPage : ContentPage
 
         throw new InvalidOperationException($"Unable to resolve service {typeof(T).Name}.");
     }
+
+    private static T? ResolveOptionalService<T>() where T : class
+    {
+        var providers = new IServiceProvider?[]
+        {
+            Application.Current?.Handler?.MauiContext?.Services,
+            Application.Current?.Windows.FirstOrDefault()?.Page?.Handler?.MauiContext?.Services,
+            MauiProgram.Services
+        };
+
+        foreach (var provider in providers)
+        {
+            if (provider == null)
+                continue;
+
+            try
+            {
+                return provider.GetService<T>();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        return null;
+    }
 }
+
+

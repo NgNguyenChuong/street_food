@@ -16,6 +16,10 @@ public partial class AppShell : Shell
         {
             WelcomeShellContent.ContentTemplate = new DataTemplate(() => new WelcomePage());
         }
+        else
+        {
+            WelcomeShellContent.IsVisible = false;
+        }
 
         // Cache MainPage once so navigation is instant (no DI resolution each time)
         // DEFENSIVE: If DI fails, create MainPage without injected dependencies
@@ -65,40 +69,9 @@ public partial class AppShell : Shell
         return ResolveActiveServices().GetRequiredService<SettingsPage>();
     }
 
+    // Tối ưu hóa DI tránh vòng lặp Exception chậm chạp
     private static IServiceProvider ResolveActiveServices()
     {
-        var providers = new IServiceProvider?[]
-        {
-            Application.Current?.Handler?.MauiContext?.Services,
-            Application.Current?.Windows.FirstOrDefault()?.Page?.Handler?.MauiContext?.Services,
-            MauiProgram.Services
-        };
-
-        List<Exception> errors = new();
-        foreach (var provider in providers)
-        {
-            if (provider == null) continue;
-            try
-            {
-                System.Diagnostics.Debug.WriteLine($"[ServiceProvider] Checking provider availability...");
-                _ = provider.GetService<IServiceProvider>();
-                System.Diagnostics.Debug.WriteLine($"[ServiceProvider] ✓ Provider is available");
-                return provider;
-            }
-            catch (ObjectDisposedException ode)
-            {
-                // Try next available provider.
-                System.Diagnostics.Debug.WriteLine($"[ServiceProvider] Provider stale: {ode.Message}");
-                errors.Add(ode);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[ServiceProvider] Provider check failed: {ex.GetType().Name}: {ex.Message}");
-                errors.Add(ex);
-            }
-        }
-
-        System.Diagnostics.Debug.WriteLine($"[ServiceProvider] ✗ No active service provider found after checking {errors.Count + 1} provider(s)");
-        throw new InvalidOperationException("No active service provider is available.", errors.FirstOrDefault());
+        return MauiProgram.Services;
     }
 }

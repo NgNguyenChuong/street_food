@@ -367,5 +367,15 @@
                 </Grid>
             </Grid>
         </Grid>
+        <!-- Instant Start Loading Overlay -->
+        <Grid x:Name="StartLoadingOverlay"
+              BackgroundColor="#E60A1612"
+              IsVisible="False"
+              InputTransparent="False">
+            <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="20">
+                <ActivityIndicator IsRunning="True" Color="#22C55E" WidthRequest="60" HeightRequest="60" HorizontalOptions="Center" />
+                <Label Text="Đang khởi động..." FontSize="18" FontAttributes="Bold" TextColor="#F9FAFB" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Grid>
     </Grid>
 </ContentPage>

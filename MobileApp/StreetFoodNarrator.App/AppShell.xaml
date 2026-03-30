@@ -26,7 +26,6 @@
     <ShellContent
         x:Name="WelcomeShellContent"
         Route="WelcomePage"
-        ContentTemplate="{DataTemplate pages:WelcomePage}"
         Shell.NavBarIsVisible="False"
         Shell.TabBarIsVisible="False" />
 

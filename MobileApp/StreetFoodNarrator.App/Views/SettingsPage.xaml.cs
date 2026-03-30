@@ -480,7 +480,7 @@ public partial class SettingsPage : ContentPage
             // Last resort only when no previous page is available.
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync("//WelcomePage");
+                await Shell.Current.GoToAsync("//MapPage");
             }
         }
         catch (Exception ex)

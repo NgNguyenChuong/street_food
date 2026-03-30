@@ -13,6 +13,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.ViewModels;
 using System.IO;
 
@@ -21,10 +22,12 @@ namespace StreetFoodNarrator.App.Views;
 public partial class MainPage : ContentPage
 {
     private const string AutoOpenInZoneOnNextMainPageKey = "auto_open_inzone_on_next_mainpage";
+    private const string HasOnboardedPreferenceKey = "has_onboarded";
     private readonly MainViewModel _vm;
     private readonly ITTSService _tts;
     private readonly LanguageService _lang;
     private readonly IAudioCacheService? _audioCache;
+    private readonly IOfflineRoutingService? _offlineRouting;
     private readonly IVirtualTourViewModel _virtualTourVm;
     private bool _isMapInitialized;
     private Window? _lifecycleWindow;
@@ -45,14 +48,16 @@ public partial class MainPage : ContentPage
     private bool _dismissNearTransitionSuggestion;
     private bool _dismissInZoneTransitionSuggestion;
     private bool _autoOpenInZoneDirectly;
+    private IDispatcherTimer? _exploreAudioUiTimer;
 
     public MainPage()
-        : this(null, null, null, null)
+        : this(null, null, null, null, null)
     {
     }
 
     public MainPage(MainViewModel? viewModel = null, ITTSService? ttsService = null,
-        LanguageService? languageService = null, IAudioCacheService? audioCache = null)
+        LanguageService? languageService = null, IAudioCacheService? audioCache = null,
+        IOfflineRoutingService? offlineRouting = null)
     {
         try
         {
@@ -120,6 +125,7 @@ public partial class MainPage : ContentPage
 
             // Resolve IAudioCacheService (optional)
             _audioCache = audioCache ?? ResolveOptionalService<IAudioCacheService>();
+            _offlineRouting = offlineRouting ?? ResolveOptionalService<IOfflineRoutingService>();
 
             // Resolve IVirtualTourViewModel
             try
@@ -141,6 +147,7 @@ public partial class MainPage : ContentPage
             _vm.PropertyChanged += OnViewModelPropertyChanged;
             _vm.SwitchToRealModeRequested += OnVmSwitchToRealModeRequested;
             Loaded += OnPageLoaded;
+            Unloaded += OnPageUnloaded;
         }
         catch (Exception ex)
         {
@@ -161,6 +168,14 @@ public partial class MainPage : ContentPage
         catch { /* safe */ }
     }
 
+    private void OnPageUnloaded(object? sender, EventArgs e)
+    {
+        _vm.PropertyChanged -= OnViewModelPropertyChanged;
+        _vm.SwitchToRealModeRequested -= OnVmSwitchToRealModeRequested;
+        Loaded -= OnPageLoaded;
+        Unloaded -= OnPageUnloaded;
+    }
+
     private async void OnVmSwitchToRealModeRequested(object? sender, EventArgs e)
     {
         await SwitchToRealModeAsync();
@@ -179,9 +194,50 @@ public partial class MainPage : ContentPage
 
     private async void OnWelcomeButtonClicked(object? sender, EventArgs e)
     {
-        if (Shell.Current != null)
+        // Button is hidden. Does nothing.
+    }
+
+    private async void OnLogoutButtonClicked(object? sender, EventArgs e)
+    {
+        try
         {
-            await Shell.Current.GoToAsync("//WelcomePage");
+            bool confirmed = await CustomAlert.ShowConfirmAsync(
+                "Đăng xuất",
+                "Bạn có chắc chắn muốn đăng xuất và thoát ứng dụng không?",
+                "Đăng xuất",
+                "Hủy",
+                AlertType.Warning);
+
+            if (!confirmed)
+                return;
+
+            // Clear navigation/session preferences so app returns to onboarding shell.
+            Preferences.Remove(HasOnboardedPreferenceKey);
+            Preferences.Remove("hasSeenOnboarding"); // legacy key
+            Preferences.Remove(AutoOpenInZoneOnNextMainPageKey);
+
+            // Exit app immediately after confirmed logout.
+            QuitApplication();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnLogoutButtonClicked error: {ex}");
+        }
+    }
+
+    private static void QuitApplication()
+    {
+        try
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                Application.Current?.Quit();
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] QuitApplication fallback: {ex.Message}");
+            Environment.Exit(0);
         }
     }
 
@@ -189,6 +245,12 @@ public partial class MainPage : ContentPage
     {
         try
         {
+            if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone &&
+                _vm.ViewState == MainViewModel.MapViewState.InZoneMinimized)
+            {
+                _preserveNarrationOnNextDisappearing = true;
+            }
+
             switch (_vm.CurrentExploreState)
             {
                 case MainViewModel.ExploreState.Far:
@@ -216,6 +278,12 @@ public partial class MainPage : ContentPage
     {
         try
         {
+            if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone &&
+                _vm.ViewState == MainViewModel.MapViewState.InZoneMinimized)
+            {
+                _preserveNarrationOnNextDisappearing = true;
+            }
+
             var shouldOpenFocusedMap = _vm.CurrentExploreState == MainViewModel.ExploreState.Near ||
                                        _vm.CurrentExploreState == MainViewModel.ExploreState.InZone;
             await OpenExploreMapPageAsync(nearFocusMode: shouldOpenFocusedMap);
@@ -239,7 +307,19 @@ public partial class MainPage : ContentPage
             await DisplayAlertAsync("Lỗi", "Không thể mở bản đồ lúc này. Vui lòng thử lại.", "OK");
         }
     }
-
+    private void OnInZoneMiniPlayPauseClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            EnsurePrimaryZoneFromCurrentAudioContext();
+            OnPlayPauseTapped(sender, e);
+            UpdateInZoneMiniAudioUi();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] OnInZoneMiniPlayPauseClicked error: {ex}");
+        }
+    }
     private void OnShuffleClicked(object? sender, EventArgs e)
     {
         var cards = new List<MainViewModel.ExplorePoiCard>();
@@ -257,7 +337,7 @@ public partial class MainPage : ContentPage
         _vm.ExploreHeroImage = rotated[0].ImageUrl;
         _vm.ExploreAudioQuote = rotated[0].QuoteText;
 
-        // ✅ FIX: Defer collection modification to avoid "Cannot change ObservableCollection
+        // FIX: Defer collection modification to avoid "Cannot change ObservableCollection
         // during a CollectionChanged event"
         MainThread.BeginInvokeOnMainThread(() =>
         {
@@ -635,7 +715,6 @@ public partial class MainPage : ContentPage
             }
 
             var exploreMapPage = new ExploreMapPage(_vm, nearFocusMode);
-            exploreMapPage.Prewarm();
             await nav.PushAsync(exploreMapPage);
         }
         catch (Exception ex)
@@ -849,89 +928,12 @@ public partial class MainPage : ContentPage
 
     private static T ResolveRequiredService<T>() where T : notnull
     {
-        var serviceName = typeof(T).Name;
-        var providers = new IServiceProvider?[]
-        {
-            Application.Current?.Handler?.MauiContext?.Services,
-            Application.Current?.Windows.FirstOrDefault()?.Page?.Handler?.MauiContext?.Services,
-            MauiProgram.Services
-        };
-
-        List<Exception> resolveErrors = new();
-        foreach (var provider in providers)
-        {
-            if (provider == null) continue;
-            try
-            {
-                System.Diagnostics.Debug.WriteLine($"[ServiceResolution] Attempting to get {serviceName} from provider...");
-                var service = provider.GetRequiredService<T>();
-                System.Diagnostics.Debug.WriteLine($"[ServiceResolution] ✓ Successfully resolved {serviceName}");
-                return service;
-            }
-            catch (ObjectDisposedException ode)
-            {
-                // Provider is stale, keep looking for an active one
-                System.Diagnostics.Debug.WriteLine($"[ServiceResolution] Provider stale for {serviceName}: {ode.Message}");
-                resolveErrors.Add(ode);
-            }
-            catch (Exception ex)
-            {
-                // Catch other exceptions (InvalidOperationException, etc.) but keep trying other providers
-                System.Diagnostics.Debug.WriteLine($"[ServiceResolution] Failed to resolve {serviceName} from provider: {ex.GetType().Name}: {ex.Message}");
-                resolveErrors.Add(ex);
-            }
-        }
-
-        // If we get here, no provider worked
-        var errorMsg = $"No active service provider found for {serviceName}. Tried {resolveErrors.Count} provider(s).";
-        System.Diagnostics.Debug.WriteLine($"[ServiceResolution] ✗ {errorMsg}");
-        foreach (var err in resolveErrors)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ServiceResolution]   Error: {err.GetType().Name}: {err.Message}");
-        }
-        throw new InvalidOperationException(errorMsg, resolveErrors.FirstOrDefault());
+        return MauiProgram.Services.GetRequiredService<T>();
     }
 
     private static T? ResolveOptionalService<T>() where T : class
     {
-        var serviceName = typeof(T).Name;
-        var providers = new IServiceProvider?[]
-        {
-            Application.Current?.Handler?.MauiContext?.Services,
-            Application.Current?.Windows.FirstOrDefault()?.Page?.Handler?.MauiContext?.Services,
-            MauiProgram.Services
-        };
-
-        List<Exception> resolveErrors = new();
-        foreach (var provider in providers)
-        {
-            if (provider == null) continue;
-            try
-            {
-                System.Diagnostics.Debug.WriteLine($"[ServiceResolution] Attempting to get optional {serviceName} from provider...");
-                var service = provider.GetService<T>();
-                if (service != null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[ServiceResolution] ✓ Successfully resolved optional {serviceName}");
-                    return service;
-                }
-            }
-            catch (ObjectDisposedException ode)
-            {
-                // Provider is stale, keep looking for an active one
-                System.Diagnostics.Debug.WriteLine($"[ServiceResolution] Provider stale for optional {serviceName}: {ode.Message}");
-                resolveErrors.Add(ode);
-            }
-            catch (Exception ex)
-            {
-                // Catch other exceptions but keep trying
-                System.Diagnostics.Debug.WriteLine($"[ServiceResolution] Failed to resolve optional {serviceName}: {ex.GetType().Name}: {ex.Message}");
-                resolveErrors.Add(ex);
-            }
-        }
-
-        System.Diagnostics.Debug.WriteLine($"[ServiceResolution] Optional service {serviceName} not found or not available, returning null");
-        return null;
+        return MauiProgram.Services.GetService<T>();
     }
 
     private void OnPageLoaded(object? sender, EventArgs e)
@@ -943,7 +945,7 @@ public partial class MainPage : ContentPage
             OnTourPageLoaded();
             HookWindowLifecycle();
 
-            // Begin loading data — hide loading overlay when done
+            // Begin loading data - hide loading overlay when done
             _ = InitializePageAsync();
         }
         catch (Exception ex)
@@ -991,7 +993,7 @@ public partial class MainPage : ContentPage
 
     private async Task InitializePageAsync()
     {
-        // Load POI data from cache immediately — no network needed if cached
+        // Load POI data from cache immediately - no network needed if cached
         SetLoadingStatus("Đang tải dữ liệu...");
         try
         {
@@ -1009,7 +1011,7 @@ public partial class MainPage : ContentPage
         // Hide loading only after initial state is decided.
         try { HideLoadingOverlay(); } catch { /* safe */ }
 
-        // Everything below runs in background — does NOT block UI
+        // Everything below runs in background - does NOT block UI
         _ = Task.Run(async () =>
         {
             // Start GPS tracking
@@ -1199,7 +1201,7 @@ public partial class MainPage : ContentPage
 
     private void WireComponentEvents()
     {
-        // Map tab overlays — null-check because Loaded fires before XAML fully resolves in release
+        // Map tab overlays - null-check because Loaded fires before XAML fully resolves in release
         if (TabMapComponent != null)
         {
             TabMapComponent.BackRequested      += OnBackClicked;
@@ -1324,7 +1326,7 @@ public partial class MainPage : ContentPage
     private void OnProfileNavClicked(object? sender, EventArgs e)
         => _ = Shell.Current?.GoToAsync("//ProfilePage");
 
-    // Map pin like/save button tapped — toggle save state for this POI and update map pins to reflect new state.
+    // Map pin like/save button tapped - toggle save state for this POI and update map pins to reflect new state.
     private async void OnMapLikeRequested(object? sender, Core.Models.POI poi)
     {
         if (poi == null) return;
@@ -1341,14 +1343,14 @@ public partial class MainPage : ContentPage
         }
     }
 
-    /// <summary>Explore nav tap — go to Explore mode.</summary>
+    /// <summary>Explore nav tap - go to Explore mode.</summary>
     private void OnExploreNavTapped(object? sender, EventArgs e)
     {
         _vm.CurrentAppMode = MainViewModel.AppMode.Explore;
         _vm.IsLegacyMapVisible = false;
     }
 
-    // Map category chip selected — filter POIs by this category and update map pins.
+    // Map category chip selected - filter POIs by this category and update map pins.
     private void OnCategorySelected(object? sender, string category)
     {
         _vm.SelectCategoryCommand.Execute(category);
@@ -1358,7 +1360,7 @@ public partial class MainPage : ContentPage
         UpdateZonePins();
     }
 
-    // Search query changed — update FilteredPOIs based on search and update map pins.
+    // Search query changed - update FilteredPOIs based on search and update map pins.
     private void OnSearchQueryChanged(object? sender, Microsoft.Maui.Controls.TextChangedEventArgs e)
     {
         _vm.SearchQuery = e.NewTextValue ?? "";
@@ -1393,7 +1395,7 @@ public partial class MainPage : ContentPage
         // The card updates when audio actually starts playing (in OnPlayPauseTapped)
         _vm.RefreshJournalQueueOnly();
 
-        // Switch audio in background — fire and forget so UI is instant
+        // Switch audio in background - fire and forget so UI is instant
         _queueAudioSwitchCts?.Cancel();
         _queueAudioSwitchCts = new CancellationTokenSource();
         _ = SwitchAudioForQueueItemAsync(_queueAudioSwitchCts.Token);
@@ -1618,7 +1620,7 @@ public partial class MainPage : ContentPage
         });
     }
 
-    // Map category chip selected — update UI to highlight selected chip.
+    // Map category chip selected - update UI to highlight selected chip.
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainViewModel.CurrentLat) ||
@@ -1740,12 +1742,92 @@ public partial class MainPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        if (!ReferenceEquals(BindingContext, _vm))
+            BindingContext = _vm;
+
         _autoOpenInZoneDirectly = Preferences.Get(AutoOpenInZoneOnNextMainPageKey, false);
         if (_autoOpenInZoneDirectly)
             Preferences.Set(AutoOpenInZoneOnNextMainPageKey, false);
         OnTourAppearing();
+        StartExploreAudioUiTimer();
+        EnsurePrimaryZoneFromCurrentAudioContext();
+        UpdateInZoneMiniAudioUi();
         _vm.RefreshExploreState();
         _ = TryAutoOpenInZoneMapAsync();
+    }
+
+    private void StartExploreAudioUiTimer()
+    {
+        if (_exploreAudioUiTimer != null || Dispatcher == null)
+            return;
+
+        _exploreAudioUiTimer = Dispatcher.CreateTimer();
+        _exploreAudioUiTimer.Interval = TimeSpan.FromMilliseconds(250);
+        _exploreAudioUiTimer.Tick += (_, _) =>
+        {
+            if (!IsVisible)
+                return;
+
+            if (_vm.CurrentAppMode != MainViewModel.AppMode.Explore)
+                return;
+
+            EnsurePrimaryZoneFromCurrentAudioContext();
+            UpdateInZoneMiniAudioUi();
+        };
+        _exploreAudioUiTimer.Start();
+    }
+
+    private void StopExploreAudioUiTimer()
+    {
+        if (_exploreAudioUiTimer == null)
+            return;
+
+        _exploreAudioUiTimer.Stop();
+        _exploreAudioUiTimer = null;
+    }
+
+    private void EnsurePrimaryZoneFromCurrentAudioContext()
+    {
+        if (_vm.PrimaryZone != null)
+            return;
+
+        if (_vm.PlayingPoiId.HasValue)
+        {
+            var playingPoi = _vm.AllPOIs.FirstOrDefault(p => p.Id == _vm.PlayingPoiId.Value);
+            if (playingPoi != null)
+            {
+                _vm.PrimaryZone = playingPoi;
+                _vm.PrimaryZoneName = playingPoi.Name_Vi ?? playingPoi.Name_En ?? "-";
+                return;
+            }
+        }
+
+        var featuredPoiId = _vm.FeaturedExplorePoi?.Id;
+        if (featuredPoiId.HasValue)
+        {
+            var featuredPoi = _vm.AllPOIs.FirstOrDefault(p => p.Id == featuredPoiId.Value);
+            if (featuredPoi != null)
+            {
+                _vm.PrimaryZone = featuredPoi;
+                _vm.PrimaryZoneName = featuredPoi.Name_Vi ?? featuredPoi.Name_En ?? "-";
+            }
+        }
+    }
+
+    private void UpdateInZoneMiniAudioUi()
+    {
+        var current = Math.Max(0, _tts.GetCurrentPosition());
+        var duration = Math.Max(0, _tts.GetDuration());
+        if (duration > 0 && current > duration)
+            current = duration;
+
+        _vm.IsAudioPlaying = _tts.IsPlaying();
+        _vm.AudioProgress = duration > 0 ? Math.Clamp(current / duration, 0, 1) : 0;
+        _vm.AudioTimeElapsed = FormatDuration(current);
+        _vm.AudioDuration = duration > 0 ? FormatDuration(duration) : "0:00";
+
+        if (InZoneMiniPlayPauseButton != null)
+            InZoneMiniPlayPauseButton.Text = _tts.IsPlaying() ? "\U000F03E4" : "\U000F040A";
     }
 
     private async Task PromptFarToNearSuggestionAsync()
@@ -1753,6 +1835,9 @@ public partial class MainPage : ContentPage
         try
         {
             if (_dismissNearTransitionSuggestion || _isStateTransitionPromptOpen)
+                return;
+
+            if (!IsTopNavigationPage())
                 return;
 
             if (_vm.CurrentExploreState != MainViewModel.ExploreState.Near)
@@ -1793,6 +1878,14 @@ public partial class MainPage : ContentPage
         try
         {
             if (_dismissInZoneTransitionSuggestion || _isStateTransitionPromptOpen)
+                return;
+
+            if (!IsTopNavigationPage())
+                return;
+
+            // User just minimized ExploreMap InZone sheet and returned to MainPage.
+            // Do not prompt again in this handoff transition.
+            if (_vm.ViewState == MainViewModel.MapViewState.InZoneMinimized)
                 return;
 
             if (_vm.CurrentExploreState != MainViewModel.ExploreState.InZone)
@@ -1839,6 +1932,7 @@ public partial class MainPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+        StopExploreAudioUiTimer();
 
         // Opening POIDetail from VirtualMode is a modal transition; keep current narration alive.
         if (_preserveNarrationOnNextDisappearing)
@@ -1851,6 +1945,22 @@ public partial class MainPage : ContentPage
         UnhookWindowLifecycle();
         _ = StopNarrationAsync(resetProgress: true, clearResumeState: true);
     }
+
+    private bool IsTopNavigationPage()
+    {
+        var nav = Shell.Current?.Navigation ?? Navigation;
+        if (nav == null)
+            return false;
+
+        if (nav.ModalStack.Count > 0)
+            return ReferenceEquals(nav.ModalStack[nav.ModalStack.Count - 1], this);
+
+        if (nav.NavigationStack.Count > 0)
+            return ReferenceEquals(nav.NavigationStack[nav.NavigationStack.Count - 1], this);
+
+        return IsVisible;
+    }
 }
+
 
 

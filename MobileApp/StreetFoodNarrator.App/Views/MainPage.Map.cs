@@ -22,6 +22,7 @@ using StreetFoodNarrator.App.Core.Services;
 using NetTopologySuite.Geometries;
 using Mapsui.Nts;
 using System.Text.Json;
+using StreetFoodNarrator.App.Helpers;
 
 namespace StreetFoodNarrator.App.Views;
 
@@ -77,11 +78,22 @@ public partial class MainPage
                 var baseLayer = new TileLayer(tileSource) { Name = "BaseMap" };
                 MapView.Map.Layers.Add(baseLayer);
                 Console.WriteLine("[Map] OSM tile layer added");
+
+                var offlineNoCache = !HasUsableTileCache(cacheDb) &&
+                                     Connectivity.Current.NetworkAccess != NetworkAccess.Internet &&
+                                     Connectivity.Current.NetworkAccess != NetworkAccess.ConstrainedInternet;
+                if (offlineNoCache)
+                {
+                    MapView.Map.Layers.Add(CreateOfflineFallbackLayer());
+                    Console.WriteLine("[Map] Offline fallback layer enabled (no tile cache)");
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[Map] OSM tile error (offline?): {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"[Map] OSM tile error (offline?): {ex.Message}");
+                MapView.Map.Layers.Add(CreateOfflineFallbackLayer());
+                Console.WriteLine("[Map] Fallback layer enabled after tile error");
             }
 
             try
@@ -237,6 +249,56 @@ public partial class MainPage
         });
     }
 
+    private static bool HasUsableTileCache(string cacheDbPath)
+    {
+        try
+        {
+            var info = new FileInfo(cacheDbPath);
+            return info.Exists && info.Length > 12 * 1024;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static MemoryLayer CreateOfflineFallbackLayer()
+    {
+        var layer = new MemoryLayer("OfflineFallbackGrid");
+        var features = new List<IFeature>();
+
+        var latMin = AppConfig.DefaultLatitude - 0.01;
+        var latMax = AppConfig.DefaultLatitude + 0.01;
+        var lonMin = AppConfig.DefaultLongitude - 0.01;
+        var lonMax = AppConfig.DefaultLongitude + 0.01;
+
+        var step = 0.0015;
+        for (var lat = latMin; lat <= latMax; lat += step)
+        {
+            var (x1, y1) = SphericalMercator.FromLonLat(lonMin, lat);
+            var (x2, y2) = SphericalMercator.FromLonLat(lonMax, lat);
+            features.Add(new GeometryFeature
+            {
+                Geometry = new LineString(new[] { new Coordinate(x1, y1), new Coordinate(x2, y2) }),
+                Styles = new[] { new VectorStyle { Line = new Pen(new MapsColor(120, 138, 128, 90), 1f) } }
+            });
+        }
+
+        for (var lon = lonMin; lon <= lonMax; lon += step)
+        {
+            var (x1, y1) = SphericalMercator.FromLonLat(lon, latMin);
+            var (x2, y2) = SphericalMercator.FromLonLat(lon, latMax);
+            features.Add(new GeometryFeature
+            {
+                Geometry = new LineString(new[] { new Coordinate(x1, y1), new Coordinate(x2, y2) }),
+                Styles = new[] { new VectorStyle { Line = new Pen(new MapsColor(120, 138, 128, 90), 1f) } }
+            });
+        }
+
+        layer.Features = features;
+        return layer;
+    }
+
     public async Task DrawNavigationRouteAsync()
     {
         if (!_isMapInitialized || MapView?.IsVisible != true)
@@ -259,8 +321,14 @@ public partial class MainPage
             Coordinate[] routeCoords;
             var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
                            Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
+            var offlineCoords = await FetchOfflineRouteAsync(
+                startLat, startLon, target.Latitude, target.Longitude);
 
-            if (isOnline && !_vm.IsVirtualNavigation && hasCurrentLocation)
+            if (offlineCoords is { Length: >= 2 })
+            {
+                routeCoords = offlineCoords;
+            }
+            else if (isOnline && !_vm.IsVirtualNavigation && hasCurrentLocation)
             {
                 var osrmCoords = await FetchOsrmRouteAsync(
                     startLon, startLat, target.Longitude, target.Latitude);
@@ -324,6 +392,40 @@ public partial class MainPage
         _routeLayer.Features = features;
         _routeLayer.DataHasChanged();
         MapView.RefreshGraphics();
+    }
+
+    private async Task<Coordinate[]?> FetchOfflineRouteAsync(
+        double srcLat, double srcLon, double dstLat, double dstLon)
+    {
+        if (_offlineRouting == null || _vm.IsVirtualNavigation)
+            return null;
+
+        try
+        {
+            var result = await _offlineRouting.TryBuildWalkingRouteAsync(
+                new GeoCoordinate(srcLat, srcLon),
+                new GeoCoordinate(dstLat, dstLon),
+                CancellationToken.None);
+
+            if (result?.Path is null || result.Path.Count < 2)
+                return null;
+
+            var coords = result.Path
+                .Select(point =>
+                {
+                    var (x, y) = SphericalMercator.FromLonLat(point.Longitude, point.Latitude);
+                    return new Coordinate(x, y);
+                })
+                .ToArray();
+
+            Console.WriteLine($"[Map] Offline route: {coords.Length} points, source={result.Source}");
+            return coords.Length >= 2 ? coords : null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Map] Offline route fallback: {ex.Message}");
+            return null;
+        }
     }
 
     private async Task<Coordinate[]?> FetchOsrmRouteAsync(
@@ -470,11 +572,11 @@ public partial class MainPage
         {
             Console.WriteLine("[Map] Reset database button clicked!");
 
-            bool confirm = await DisplayAlertAsync(
+            bool confirm = await CustomAlert.ShowConfirmAsync(
                 "Reset Database",
                 "Xoa toan bo du lieu va seed lai mock POIs voi toa do dung?",
                 "Reset",
-                "Huy");
+                "Huy", AlertType.Warning);
 
             if (!confirm)
             {
@@ -485,12 +587,12 @@ public partial class MainPage
             await _vm.ResetDatabaseAsync();
             UpdateZonePins();
 
-            await DisplayAlertAsync("Hoan tat", "Database da duoc reset voi toa do dung!", "OK");
+            await CustomAlert.ShowAsync("Hoan tat", "Database da duoc reset voi toa do dung!", "OK", AlertType.Success);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Map] OnResetDatabaseClicked error: {ex.Message}");
-            await DisplayAlertAsync("Loi", $"Khong the reset database: {ex.Message}", "OK");
+            await CustomAlert.ShowAsync("Loi", $"Khong the reset database: {ex.Message}", "OK", AlertType.Error);
         }
     }
 }

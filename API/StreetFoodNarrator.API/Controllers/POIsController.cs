@@ -125,17 +125,22 @@ public class POIsController : ControllerBase
     public async Task<ActionResult<POISyncResponse>> SyncPOIs([FromQuery] long sinceVersion = 0)
     {
         var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
-                     // Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
                      Builders<POI>.Filter.Eq(p => p.IsActive, true);
 
-        var latest = await _db.POIs
+        var pois = await _db.POIs
             .Find(filter)
-            .SortByDescending(p => p.POI_ID)
-            .Limit(1)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-        // Use POI_ID as version — always strictly increasing, never ties
-        var serverVersion = latest?.POI_ID ?? 0;
+        long serverVersion = 0;
+        foreach (var p in pois)
+        {
+            long ticks = Math.Max(p.UpdatedAt?.Ticks ?? 0, p.CreatedAt.Ticks);
+            if (ticks > serverVersion)
+            {
+                serverVersion = ticks;
+            }
+        }
+
         if (serverVersion <= sinceVersion)
         {
             return Ok(new POISyncResponse
@@ -145,11 +150,6 @@ public class POIsController : ControllerBase
             });
         }
 
-        var pois = await _db.POIs
-            .Find(filter)
-            .SortByDescending(p => p.POI_ID)
-            .ToListAsync();
-
         var poiDtos = await BuildPoiDtosAsync(pois);
 
         return Ok(new POISyncResponse
@@ -157,6 +157,28 @@ public class POIsController : ControllerBase
             DataVersion = serverVersion,
             Data = poiDtos
         });
+    }
+
+    /// <summary>
+    /// Return the current global data version as a string for mobile app update checks
+    /// </summary>
+    [HttpGet("/api/data/version")]
+    public async Task<IActionResult> GetDataVersion()
+    {
+        var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
+                     Builders<POI>.Filter.Eq(p => p.IsActive, true);
+
+        var projection = Builders<POI>.Projection.Expression(p => new { p.CreatedAt, p.UpdatedAt });
+        var pois = await _db.POIs.Find(filter).Project(projection).ToListAsync();
+
+        long serverVersion = 0;
+        foreach (var p in pois)
+        {
+            long ticks = Math.Max(p.UpdatedAt?.Ticks ?? 0, p.CreatedAt.Ticks);
+            if (ticks > serverVersion) serverVersion = ticks;
+        }
+
+        return Ok(new { version = serverVersion.ToString() });
     }
 
     private async Task<List<POIDto>> BuildPoiDtosAsync(List<POI> pois)

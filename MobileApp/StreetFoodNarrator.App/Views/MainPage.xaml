@@ -31,7 +31,7 @@
         </Grid>
 
         <!-- Far-state hero image: sibling layer (not inside StateContentLayer) so Far state
-             hero + content don't stack/overlap — positioned below map+gradient, above StateContentLayer -->
+             hero + content don't stack/overlap, positioned below map+gradient, above StateContentLayer -->
         <Grid x:Name="FarStateHeroLayer"
               AbsoluteLayout.LayoutBounds="0,0,1,1"
               AbsoluteLayout.LayoutFlags="All"
@@ -50,8 +50,8 @@
             <Grid Grid.Row="0" Padding="20,36,20,8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                 <Button Grid.Column="0" WidthRequest="50" HeightRequest="50" CornerRadius="25"
                         BackgroundColor="#0F1D18" BorderColor="#1C3024" BorderWidth="1"
-                        FontFamily="MDI" Text="&#xF004D;" FontSize="24" TextColor="#4BE277"
-                        Clicked="OnWelcomeButtonClicked" />
+                        FontFamily="MDI" Text="&#xF0343;" FontSize="22" TextColor="#E57373"
+                        Clicked="OnLogoutButtonClicked" />
                 <Label Grid.Column="1" Text="STREET FOOD NARRATOR"
                        VerticalTextAlignment="Center"
                        TextColor="#4BE277" FontSize="15" FontAttributes="Bold"
@@ -190,7 +190,7 @@
                         </ScrollView>
                     </VerticalStackLayout>
 
-                    <VerticalStackLayout IsVisible="{Binding IsInZoneExploreState}" Spacing="20" Margin="0,8,0,0">
+                    <VerticalStackLayout IsVisible="{Binding IsInZoneMinimizedExploreState}" Spacing="18" Margin="0,8,0,0">
                         <Border BackgroundColor="#17231FDD" Stroke="#25362E" StrokeThickness="1" Padding="14,10" HorizontalOptions="Start">
                             <Border.StrokeShape><RoundRectangle CornerRadius="22" /></Border.StrokeShape>
                             <HorizontalStackLayout Spacing="10">
@@ -198,6 +198,103 @@
                                 <Label Text="{Binding ExploreStateBadge}" FontSize="12" FontAttributes="Bold" CharacterSpacing="1.8" TextColor="#4BE277" />
                             </HorizontalStackLayout>
                         </Border>
+
+                        <Label Text="Bạn đang trong khu ẩm thực" FontSize="30" FontAttributes="Bold" TextColor="#E7EFE9" LineHeight="1.05" />
+                        <Label Text="Vĩnh Khánh" FontSize="52" FontAttributes="Bold" TextColor="#4BE277" LineHeight="0.95" />
+                        <Label Text="Hãy để âm thanh dẫn lối bạn qua những gian hàng ẩm thực danh tiếng của Quận 4."
+                               FontSize="14" LineHeight="1.35" TextColor="#BFD0C8" />
+
+                                                <Border BackgroundColor="#111A17" Stroke="#1F2C27" StrokeThickness="1" Padding="16">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="24" /></Border.StrokeShape>
+                            <VerticalStackLayout Spacing="12">
+                                <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12">
+                                    <Border WidthRequest="64" HeightRequest="64" StrokeThickness="0">
+                                        <Border.StrokeShape><RoundRectangle CornerRadius="14" /></Border.StrokeShape>
+                                        <Image x:Name="InZoneMiniNowPlayingImage"
+                                               Source="{Binding PrimaryZone.DisplayImageUrl, TargetNullValue=welcome_streetfood.png, FallbackValue=welcome_streetfood.png}"
+                                               Aspect="AspectFill" />
+                                    </Border>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                                        <Label Text="ĐANG NGHE" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.8" TextColor="#8FBDA4" />
+                                        <Label x:Name="InZoneMiniNowPlayingName"
+                                               Text="{Binding PrimaryZoneName}"
+                                               FontSize="24"
+                                               FontAttributes="Bold"
+                                               TextColor="#E7EFE9"
+                                               LineBreakMode="TailTruncation"
+                                               MaxLines="1" />
+                                    </VerticalStackLayout>
+                                    <Button x:Name="InZoneMiniPlayPauseButton"
+                                            Grid.Column="2"
+                                            WidthRequest="46"
+                                            HeightRequest="46"
+                                            CornerRadius="23"
+                                            BackgroundColor="#163227"
+                                            FontFamily="MDI"
+                                            Text="&#xF040A;"
+                                            FontSize="22"
+                                            TextColor="#4BE277"
+                                            Clicked="OnInZoneMiniPlayPauseClicked" />
+                                </Grid>
+                                <ProgressBar x:Name="InZoneMiniProgressBar"
+                                             Progress="{Binding AudioProgress}"
+                                             ProgressColor="#4BE277"
+                                             BackgroundColor="#24342E"
+                                             HeightRequest="7" />
+                                <Grid ColumnDefinitions="Auto,* ,Auto">
+                                    <Label x:Name="InZoneMiniElapsedLabel"
+                                           Text="{Binding AudioTimeElapsed}"
+                                           FontSize="16"
+                                           TextColor="#D8E6DF" />
+                                    <Label x:Name="InZoneMiniDurationLabel"
+                                           Grid.Column="2"
+                                           Text="{Binding AudioDuration}"
+                                           FontSize="16"
+                                           TextColor="#D8E6DF99" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Button Text="Tiếp tục khám phá"
+                                HeightRequest="64"
+                                CornerRadius="32"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                TextColor="#082111"
+                                Clicked="OnPrimaryExploreActionClicked">
+                            <Button.Background>
+                                <LinearGradientBrush EndPoint="1,0">
+                                    <GradientStop Color="#4BE277" Offset="0.0" />
+                                    <GradientStop Color="#22C55E" Offset="1.0" />
+                                </LinearGradientBrush>
+                            </Button.Background>
+                        </Button>
+
+                        <Button Text="Xem vị trí của bạn"
+                                HeightRequest="64"
+                                CornerRadius="32"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                BackgroundColor="#102019CC"
+                                BorderColor="#23352E"
+                                BorderWidth="1"
+                                TextColor="#E5EFE9"
+                                Clicked="OnSecondaryExploreActionClicked" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout IsVisible="{Binding IsInZoneDashboardVisible}" Spacing="20" Margin="0,8,0,0">
+                        <Border BackgroundColor="#17231FDD" Stroke="#25362E" StrokeThickness="1" Padding="14,10" HorizontalOptions="Start">
+                            <Border.StrokeShape><RoundRectangle CornerRadius="22" /></Border.StrokeShape>
+                            <HorizontalStackLayout Spacing="10">
+                                <BoxView WidthRequest="12" HeightRequest="12" CornerRadius="6" BackgroundColor="#4BE277" VerticalOptions="Center" />
+                                <Label Text="{Binding ExploreStateBadge}" FontSize="12" FontAttributes="Bold" CharacterSpacing="1.8" TextColor="#4BE277" />
+                            </HorizontalStackLayout>
+                        </Border>
+                        <Label Text="Bạn đang trong khu ẩm thực"
+                               FontSize="30"
+                               FontAttributes="Bold"
+                               TextColor="#E7EFE9"
+                               LineHeight="1.05" />
 
                         <Border BackgroundColor="#141F1BDD" Stroke="#22322C" StrokeThickness="1" Padding="0">
                             <Border.StrokeShape><RoundRectangle CornerRadius="28" /></Border.StrokeShape>
@@ -265,7 +362,7 @@
                                                 <Label Text="{Binding DistanceText}" FontSize="14" TextColor="#D0DDD5CC" />
                                                 <Label Text="{Binding MetaText}" FontSize="12" TextColor="#9FB0A8CC" LineBreakMode="TailTruncation" />
                                             </VerticalStackLayout>
-                                            <Label Grid.Column="2" Text="›" FontSize="32" VerticalTextAlignment="Center" TextColor="#4BE277" />
+                                            <Label Grid.Column="2" Text=">" FontSize="32" VerticalTextAlignment="Center" TextColor="#4BE277" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -313,7 +410,7 @@
                             <Label x:Name="NearPopupTitleLabel" Text="Bún bò Nam Bộ" FontSize="20" FontAttributes="Bold" TextColor="#EAF2ED" />
                             <HorizontalStackLayout Spacing="8">
                                 <Label x:Name="NearPopupDistanceAreaLabel" Text="📍 400M • QUẬN 4" FontSize="13" FontAttributes="Bold" TextColor="#C5D6CE" />
-                                <Label Text="•" FontSize="12" TextColor="#61716A" VerticalTextAlignment="Center" />
+                                <Label Text="." FontSize="12" TextColor="#61716A" VerticalTextAlignment="Center" />
                                 <Label x:Name="NearPopupTagLineLabel" Text="🔥 MÓN NÊN THỬ" FontSize="13" FontAttributes="Bold" TextColor="#FFB690" />
                             </HorizontalStackLayout>
 
@@ -327,11 +424,11 @@
                             <HorizontalStackLayout Spacing="8">
                                 <Border BackgroundColor="#283833" Padding="12,6">
                                     <Border.StrokeShape><RoundRectangle CornerRadius="9" /></Border.StrokeShape>
-                                    <Label x:Name="NearPopupChip1Label" Text="NHANH GỌN" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.2" TextColor="#DCE8E1" />
+                                    <Label x:Name="NearPopupChip1Label" Text="SIÊU GẦN" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.2" TextColor="#DCE8E1" />
                                 </Border>
                                 <Border BackgroundColor="#283833" Padding="12,6">
                                     <Border.StrokeShape><RoundRectangle CornerRadius="9" /></Border.StrokeShape>
-                                    <Label x:Name="NearPopupChip2Label" Text="ĐẶC SẢN" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.2" TextColor="#DCE8E1" />
+                                    <Label x:Name="NearPopupChip2Label" Text="ĐẶC SẮC" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.2" TextColor="#DCE8E1" />
                                 </Border>
                                 <Border BackgroundColor="#283833" Padding="12,6">
                                     <Border.StrokeShape><RoundRectangle CornerRadius="9" /></Border.StrokeShape>
@@ -472,3 +569,4 @@
         </Grid>
     </AbsoluteLayout>
 </ContentPage>
+
