@@ -68,8 +68,21 @@ public static class DbInitializer
             Builders<VendorProfile>.IndexKeys.Ascending(v => v.VendorId),
             new CreateIndexOptions { Unique = true, Name = "ux_vendor_profile_vendor_id" });
 
+        var idempotencyKeyIndex = new CreateIndexModel<SubmissionIdempotency>(
+            Builders<SubmissionIdempotency>.IndexKeys.Ascending(x => x.IdempotencyKey),
+            new CreateIndexOptions { Unique = true, Name = "ux_submission_idempotency_key" });
+
+        var idempotencyCreatedAtTtlIndex = new CreateIndexModel<SubmissionIdempotency>(
+            Builders<SubmissionIdempotency>.IndexKeys.Ascending(x => x.CreatedAt),
+            new CreateIndexOptions
+            {
+                Name = "ttl_submission_idempotency_created_at",
+                ExpireAfter = TimeSpan.FromHours(24)
+            });
+
         await db.POIs.Indexes.CreateManyAsync(new[] { poiIdIndex, poiVendorIndex });
         await db.VendorProfiles.Indexes.CreateOneAsync(vendorIdIndex);
+        await db.SubmissionIdempotencies.Indexes.CreateManyAsync(new[] { idempotencyKeyIndex, idempotencyCreatedAtTtlIndex });
     }
 
     // ─────────────────────────────────────────────────────────────

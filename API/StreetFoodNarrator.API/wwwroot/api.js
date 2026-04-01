@@ -717,7 +717,7 @@ class API {
 
     
 
-    async getPOIsWithoutAudio(language = 'vi-VN') {
+    async getPOIsWithoutAudio(language = 'vi') {
 
         return this.request(`/Audio/pois-without-audio?language=${language}`);
 
@@ -830,7 +830,7 @@ const AudioApi = {
         if (ttsText) fd.append('TTSText', ttsText);
         return api.uploadAudio(fd);
     },
-    poisWithoutAudio: (language = 'vi-VN') => api.request('/Audio/pois-without-audio' + qs({ language })),
+    poisWithoutAudio: (language = 'vi') => api.request('/Audio/pois-without-audio' + qs({ language })),
     generateFile: (id) => api.request(`/Audio/${id}/generate-file`, { method: 'POST' }),
     submit: (id) => api.request(`/Audio/${id}/submit`, { method: 'POST' }),
     approve: (id) => api.request(`/Audio/${id}/approve`, { method: 'POST' }),
@@ -893,6 +893,17 @@ const ToursApi = {
     update: (id, data) => api.request(`/Tours/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id) => api.request(`/Tours/${id}`, { method: 'DELETE' }),
     stats: () => api.request('/Tours/stats')
+};
+
+const UsersApi = {
+    list: ({ page = 1, pageSize = 20, search, role, includeDeleted } = {}) =>
+        api.request('/Users' + qs({ page, pageSize, search, role, includeDeleted })),
+    get: (id) => api.request(`/Users/${id}`),
+    create: (data) => api.request('/Users', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => api.request(`/Users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id) => api.request(`/Users/${id}`, { method: 'DELETE' }),
+    lock: (id) => api.request(`/Users/${id}/lock`, { method: 'POST' }),
+    unlock: (id) => api.request(`/Users/${id}/unlock`, { method: 'POST' })
 };
 
 

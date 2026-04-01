@@ -4,7 +4,10 @@ using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
 using System.Security.Claims;
+using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace StreetFoodNarrator.API.Controllers;
 
@@ -92,9 +95,9 @@ public class POIsController : ControllerBase
         }
         else if (User.Identity?.IsAuthenticated != true)
         {
-            // Public: only active (ReviewStatus disabled temporarily)
-            // filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
-            filter &= Builders<POI>.Filter.Eq(p => p.IsActive, true);
+            // Public users can only see approved and active POIs.
+            filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
+                      Builders<POI>.Filter.Eq(p => p.IsActive, true);
         }
 
         var total = await _db.POIs.CountDocumentsAsync(filter);
@@ -125,6 +128,7 @@ public class POIsController : ControllerBase
     public async Task<ActionResult<POISyncResponse>> SyncPOIs([FromQuery] long sinceVersion = 0)
     {
         var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
+                     Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
                      Builders<POI>.Filter.Eq(p => p.IsActive, true);
 
         var pois = await _db.POIs
@@ -166,6 +170,7 @@ public class POIsController : ControllerBase
     public async Task<IActionResult> GetDataVersion()
     {
         var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
+                     Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
                      Builders<POI>.Filter.Eq(p => p.IsActive, true);
 
         var projection = Builders<POI>.Projection.Expression(p => new { p.CreatedAt, p.UpdatedAt });
@@ -247,9 +252,9 @@ public class POIsController : ControllerBase
             return NotFound(new { message = "POI not found" });
         }
 
-        // Public access: only active (ReviewStatus temporarily disabled)
+        // Public access: only approved + active content.
         if (User.Identity?.IsAuthenticated != true &&
-            !poi.IsActive) // && (poi.ReviewStatus != "approved" || !poi.IsActive))
+            (poi.ReviewStatus != "approved" || !poi.IsActive))
         {
             return NotFound(new { message = "POI not found" });
         }
@@ -301,13 +306,22 @@ public class POIsController : ControllerBase
     /// <summary>
     /// Create a new POI
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpPost]
     public async Task<ActionResult<POI>> CreatePOI([FromBody] CreatePOIModel model)
     {
+        if (string.IsNullOrWhiteSpace(model.Name_Vi))
+            return BadRequest(new { message = "Name_Vi is required" });
+
+        if (string.IsNullOrWhiteSpace(model.Description_Vi))
+            return BadRequest(new { message = "Description_Vi is required" });
+
+        if (string.IsNullOrWhiteSpace(model.Address))
+            return BadRequest(new { message = "Address is required" });
+
         // Vendor must only create POIs under their own VendorId.
         int? vendorId = null;
-        var isVendor = User.IsInRole("Vendor");
+        string? actorUserId = null;
         if (User.IsInRole("Vendor"))
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -315,6 +329,8 @@ public class POIsController : ControllerBase
             {
                 return Forbid();
             }
+
+            actorUserId = userId;
 
             var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
             if (vendor == null)
@@ -329,23 +345,37 @@ public class POIsController : ControllerBase
 
             vendorId = vendor.VendorId;
         }
-        else if (User.IsInRole("Admin"))
-        {
-            if (!model.VendorId.HasValue)
-            {
-                return BadRequest(new { message = "VendorId is required when admin creates a POI" });
-            }
 
-            var vendorProfile = await _db.VendorProfiles
-                .Find(v => v.VendorId == model.VendorId.Value)
+        if (!vendorId.HasValue)
+            return Forbid();
+
+        var idempotencyKey = Request.Headers["Idempotency-Key"].FirstOrDefault()?.Trim();
+        if (!string.IsNullOrWhiteSpace(idempotencyKey) && !string.IsNullOrWhiteSpace(actorUserId))
+        {
+            var existingSubmission = await _db.SubmissionIdempotencies
+                .Find(x => x.IdempotencyKey == idempotencyKey && x.ActorUserId == actorUserId && x.TargetType == "poi_create")
                 .FirstOrDefaultAsync();
 
-            if (vendorProfile == null)
+            if (existingSubmission?.ResponsePoiId is int existingPoiId)
             {
-                return BadRequest(new { message = "VendorId does not exist" });
-            }
+                var existingPoi = await _db.POIs
+                    .Find(p => p.POI_ID == existingPoiId && p.DeletedAt == null)
+                    .FirstOrDefaultAsync();
 
-            vendorId = model.VendorId.Value;
+                if (existingPoi != null)
+                    return Ok(existingPoi);
+            }
+        }
+
+        var duplicate = await FindDuplicatePoiAsync(vendorId.Value, model);
+        if (duplicate != null)
+        {
+            return Conflict(new
+            {
+                code = "DUPLICATE_POI_SUSPECTED",
+                message = "A similar POI already exists for this vendor",
+                existingPoiId = duplicate.POI_ID
+            });
         }
 
         var nextId = await _sequence.GetNextAsync("poi_id");
@@ -356,14 +386,6 @@ public class POIsController : ControllerBase
         var priority = model.Priority ?? 5;
         var maxPlays = model.MaxPlaysPerSession ?? 1;
         var reviewStatus = "pending";
-        if (!isVendor && !string.IsNullOrWhiteSpace(model.ReviewStatus))
-        {
-            reviewStatus = model.ReviewStatus.ToLowerInvariant();
-        }
-        else if (!isVendor)
-        {
-            reviewStatus = "approved";
-        }
 
         var poi = new POI
         {
@@ -403,23 +425,40 @@ public class POIsController : ControllerBase
             CooldownMinutes = cooldown,
             ParentZoneId = model.ParentZoneId,
             MaxPlaysPerSession = maxPlays,
-            IsActive = model.IsActive,
+            IsActive = false,
             VendorId = vendorId,
             ReviewStatus = reviewStatus,
             ReviewNote = null,
-            ReviewedAt = reviewStatus == "approved" ? DateTime.UtcNow : null,
-            ReviewedBy = reviewStatus == "approved" ? "admin" : null,
+            ReviewedAt = null,
+            ReviewedBy = null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             Location = GeoJsonLocation.FromLatLon((double)model.Latitude, (double)model.Longitude)
         };
 
-        if (isVendor || reviewStatus != "approved")
-        {
-            poi.IsActive = false;
-        }
-
         await _db.POIs.InsertOneAsync(poi);
+
+        if (!string.IsNullOrWhiteSpace(idempotencyKey) && !string.IsNullOrWhiteSpace(actorUserId))
+        {
+            var idempotencyRecord = new SubmissionIdempotency
+            {
+                IdempotencyKey = idempotencyKey,
+                ActorUserId = actorUserId,
+                TargetType = "poi_create",
+                TargetHash = ComputePoiSubmissionHash(vendorId.Value, model),
+                ResponsePoiId = poi.POI_ID,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            try
+            {
+                await _db.SubmissionIdempotencies.InsertOneAsync(idempotencyRecord);
+            }
+            catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+            {
+                // Another concurrent request with the same idempotency key has already been persisted.
+            }
+        }
 
         return CreatedAtAction(nameof(GetPOI), new { id = poi.POI_ID }, poi);
     }
@@ -460,34 +499,41 @@ public class POIsController : ControllerBase
         }
 
         int? effectiveVendorId = poi.VendorId;
+        var isAdmin = User.IsInRole("Admin");
 
-        if (User.IsInRole("Admin") && model.VendorId.HasValue)
-        {
-            var vendorExists = await _db.VendorProfiles
-                .Find(v => v.VendorId == model.VendorId.Value)
-                .AnyAsync();
-
-            if (!vendorExists)
-            {
-                return BadRequest(new { message = "VendorId does not exist" });
-            }
-
-            effectiveVendorId = model.VendorId.Value;
-        }
-
-        if (!effectiveVendorId.HasValue && !User.IsInRole("Admin"))
+        if (!effectiveVendorId.HasValue)
         {
             return BadRequest(new { message = "POI must belong to a vendor" });
         }
 
-        var zoneType = string.IsNullOrWhiteSpace(model.ZoneType) ? poi.ZoneType : model.ZoneType;
-        var zoneLevel = model.ZoneLevel ?? (zoneType == "Area" ? 1 : zoneType == "District" ? 2 : 3);
-        var cooldown = model.CooldownMinutes ?? (zoneType == "Spot" ? 0 : 30);
-        var triggerRadius = model.TriggerRadius ?? poi.TriggerRadius;
-        var priority = model.Priority ?? poi.Priority;
-        var maxPlays = model.MaxPlaysPerSession ?? poi.MaxPlaysPerSession;
+        var zoneType = isAdmin
+            ? (string.IsNullOrWhiteSpace(model.ZoneType) ? poi.ZoneType : model.ZoneType)
+            : poi.ZoneType;
+        var zoneLevel = isAdmin
+            ? (model.ZoneLevel ?? (zoneType == "Area" ? 1 : zoneType == "District" ? 2 : 3))
+            : poi.ZoneLevel;
+        var cooldown = isAdmin
+            ? (model.CooldownMinutes ?? (zoneType == "Spot" ? 0 : 30))
+            : poi.CooldownMinutes;
+        var triggerRadius = isAdmin ? (model.TriggerRadius ?? poi.TriggerRadius) : poi.TriggerRadius;
+        var priority = isAdmin ? (model.Priority ?? poi.Priority) : poi.Priority;
+        var maxPlays = isAdmin ? (model.MaxPlaysPerSession ?? poi.MaxPlaysPerSession) : poi.MaxPlaysPerSession;
         var latitude = model.Latitude.HasValue ? (double)model.Latitude.Value : poi.Location.Latitude;
         var longitude = model.Longitude.HasValue ? (double)model.Longitude.Value : poi.Location.Longitude;
+
+        var imageUrl = !string.IsNullOrWhiteSpace(model.ImageUrl) ? model.ImageUrl : poi.ImageUrl;
+        var imageUrls = isAdmin
+            ? (model.ImageUrls ?? poi.ImageUrls)
+            : (!string.IsNullOrWhiteSpace(model.ImageUrl)
+                ? new List<string> { model.ImageUrl }
+                : poi.ImageUrls);
+        var parentZoneId = isAdmin ? (model.ParentZoneId ?? poi.ParentZoneId) : poi.ParentZoneId;
+        var audioUrlVi = isAdmin ? (model.AudioUrl_Vi ?? poi.AudioUrl_Vi) : poi.AudioUrl_Vi;
+        var audioUrlEn = isAdmin ? (model.AudioUrl_En ?? poi.AudioUrl_En) : poi.AudioUrl_En;
+        var audioUrlZh = isAdmin ? (model.AudioUrl_Zh ?? poi.AudioUrl_Zh) : poi.AudioUrl_Zh;
+        var scriptVi = isAdmin ? (model.Script_Vi ?? poi.Script_Vi) : poi.Script_Vi;
+        var scriptEn = isAdmin ? (model.Script_En ?? poi.Script_En) : poi.Script_En;
+        var scriptZh = isAdmin ? (model.Script_Zh ?? poi.Script_Zh) : poi.Script_Zh;
 
         var update = Builders<POI>.Update
             .Set(p => p.Name_Vi, model.Name_Vi ?? poi.Name_Vi)
@@ -510,23 +556,22 @@ public class POIsController : ControllerBase
             .Set(p => p.PriceLevel, model.PriceLevel ?? poi.PriceLevel)
             .Set(p => p.Rating, model.Rating ?? poi.Rating)
             .Set(p => p.Tags, model.Tags ?? poi.Tags)
-            .Set(p => p.ImageUrl, model.ImageUrl ?? poi.ImageUrl)
-            .Set(p => p.ImageUrls, model.ImageUrls ?? poi.ImageUrls)
+            .Set(p => p.ImageUrl, imageUrl)
+            .Set(p => p.ImageUrls, imageUrls)
             .Set(p => p.FunFact, model.FunFact ?? poi.FunFact)
-            .Set(p => p.AudioUrl_Vi, model.AudioUrl_Vi ?? poi.AudioUrl_Vi)
-            .Set(p => p.AudioUrl_En, model.AudioUrl_En ?? poi.AudioUrl_En)
-            .Set(p => p.AudioUrl_Zh, model.AudioUrl_Zh ?? poi.AudioUrl_Zh)
-            .Set(p => p.Script_Vi, model.Script_Vi ?? poi.Script_Vi)
-            .Set(p => p.Script_En, model.Script_En ?? poi.Script_En)
-            .Set(p => p.Script_Zh, model.Script_Zh ?? poi.Script_Zh)
+            .Set(p => p.AudioUrl_Vi, audioUrlVi)
+            .Set(p => p.AudioUrl_En, audioUrlEn)
+            .Set(p => p.AudioUrl_Zh, audioUrlZh)
+            .Set(p => p.Script_Vi, scriptVi)
+            .Set(p => p.Script_En, scriptEn)
+            .Set(p => p.Script_Zh, scriptZh)
             .Set(p => p.ZoneType, zoneType)
             .Set(p => p.ZoneLevel, zoneLevel)
             .Set(p => p.Priority, priority)
             .Set(p => p.TriggerRadius, triggerRadius)
             .Set(p => p.CooldownMinutes, cooldown)
-            .Set(p => p.ParentZoneId, model.ParentZoneId ?? poi.ParentZoneId)
+            .Set(p => p.ParentZoneId, parentZoneId)
             .Set(p => p.MaxPlaysPerSession, maxPlays)
-            .Set(p => p.IsActive, model.IsActive ?? poi.IsActive)
             .Set(p => p.UpdatedAt, DateTime.UtcNow);
 
         if (effectiveVendorId.HasValue)
@@ -534,50 +579,12 @@ public class POIsController : ControllerBase
             update = update.Set(p => p.VendorId, effectiveVendorId.Value);
         }
 
-        if (User.IsInRole("Vendor"))
-        {
-            update = update
-                .Set(p => p.ReviewStatus, "pending")
-                .Set(p => p.ReviewNote, null)
-                .Set(p => p.ReviewedAt, null)
-                .Set(p => p.ReviewedBy, null)
-                .Set(p => p.IsActive, false);
-        }
-        else if (User.IsInRole("Admin") && !string.IsNullOrWhiteSpace(model.ReviewStatus))
-        {
-            var status = model.ReviewStatus.ToLowerInvariant();
-
-            if (status == "approved")
-            {
-                if (!effectiveVendorId.HasValue)
-                {
-                    return BadRequest(new { message = "Cannot approve POI without VendorId" });
-                }
-
-                var vendor = await _db.VendorProfiles
-                    .Find(v => v.VendorId == effectiveVendorId.Value)
-                    .FirstOrDefaultAsync();
-
-                if (vendor == null)
-                {
-                    return BadRequest(new { message = "Cannot approve POI because VendorId does not exist" });
-                }
-
-                if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
-                {
-                    return BadRequest(new { message = "Cannot approve POI while vendor is not approved" });
-                }
-            }
-
-            update = update
-                .Set(p => p.ReviewStatus, status)
-                .Set(p => p.ReviewNote, model.ReviewNote)
-                .Set(p => p.ReviewedAt, DateTime.UtcNow)
-                .Set(p => p.ReviewedBy, "admin");
-
-            if (status != "approved")
-                update = update.Set(p => p.IsActive, false);
-        }
+        update = update
+            .Set(p => p.ReviewStatus, "pending")
+            .Set(p => p.ReviewNote, null)
+            .Set(p => p.ReviewedAt, null)
+            .Set(p => p.ReviewedBy, null)
+            .Set(p => p.IsActive, false);
 
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id, update);
 
@@ -792,7 +799,7 @@ public class POIsController : ControllerBase
     /// <summary>
     /// Resolve Google Maps link to coordinates
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpPost("resolve-map-link")]
     public async Task<ActionResult> ResolveMapLink([FromBody] ResolveMapLinkRequest request)
     {
@@ -800,6 +807,11 @@ public class POIsController : ControllerBase
             return BadRequest(new { message = "URL is required" });
 
         var url = request.Url.Trim();
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return BadRequest(new { message = "Invalid URL format" });
+
+        if (!IsGoogleMapsHost(uri.Host))
+            return BadRequest(new { message = "URL must be a Google Maps link" });
 
         try
         {
@@ -810,45 +822,14 @@ public class POIsController : ControllerBase
                 url = response.RequestMessage?.RequestUri?.ToString() ?? url;
             }
 
-            // Extract lat/lng via regex
-            // Pattern 1: @10.760741,106.703301
-            var match = Regex.Match(url, @"@(-?\d+\.\d+),(-?\d+\.\d+)");
-            if (match.Success)
-            {
-                return Ok(new
-                {
-                    latitude = double.Parse(match.Groups[1].Value),
-                    longitude = double.Parse(match.Groups[2].Value)
-                });
-            }
-
-            // Pattern 2: ?q=10.760741,106.703301 or &q=...
-            var qMatch = Regex.Match(url, @"[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)");
-            if (qMatch.Success)
-            {
-                return Ok(new
-                {
-                    latitude = double.Parse(qMatch.Groups[1].Value),
-                    longitude = double.Parse(qMatch.Groups[2].Value)
-                });
-            }
-
-            // Pattern 3: search/10.760741,106.703301
-            var sMatch = Regex.Match(url, @"search/(-?\d+\.\d+),(-?\d+\.\d+)");
-            if (sMatch.Success)
-            {
-                return Ok(new
-                {
-                    latitude = double.Parse(sMatch.Groups[1].Value),
-                    longitude = double.Parse(sMatch.Groups[2].Value)
-                });
-            }
+            if (TryExtractCoordinates(url, out var latitude, out var longitude))
+                return Ok(new { latitude, longitude });
 
             return BadRequest(new { message = "Could not extract coordinates from this Google Maps link" });
         }
-        catch (Exception ex)
+        catch
         {
-            return StatusCode(500, new { message = "Error resolving map link", error = ex.Message });
+            return BadRequest(new { message = "Could not resolve this Google Maps link" });
         }
     }
 
@@ -908,6 +889,131 @@ public class POIsController : ControllerBase
             return new List<string> { single };
         return null;
     }
+
+    private static bool IsGoogleMapsHost(string host)
+    {
+        var normalized = host.Trim().ToLowerInvariant();
+        return normalized == "maps.google.com"
+            || normalized.EndsWith(".google.com")
+            || normalized == "goo.gl"
+            || normalized.EndsWith(".goo.gl");
+    }
+
+    private static bool TryExtractCoordinates(string url, out double latitude, out double longitude)
+    {
+        latitude = 0;
+        longitude = 0;
+
+        var patterns = new[]
+        {
+            @"@(-?\d+\.\d+),(-?\d+\.\d+)",
+            @"[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)",
+            @"search/(-?\d+\.\d+),(-?\d+\.\d+)"
+        };
+
+        foreach (var pattern in patterns)
+        {
+            var match = Regex.Match(url, pattern);
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            if (!double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out latitude))
+            {
+                continue;
+            }
+
+            if (!double.TryParse(match.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out longitude))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<POI?> FindDuplicatePoiAsync(int vendorId, CreatePOIModel model)
+    {
+        var recentPois = await _db.POIs
+            .Find(p => p.VendorId == vendorId && p.DeletedAt == null)
+            .SortByDescending(p => p.CreatedAt)
+            .Limit(100)
+            .ToListAsync();
+
+        var normalizedIncomingName = NormalizeForComparison(model.Name_Vi);
+        var normalizedIncomingAddress = NormalizeForComparison(model.Address);
+        var hasCoordinates = model.Latitude != 0 || model.Longitude != 0;
+
+        foreach (var candidate in recentPois)
+        {
+            if (!string.Equals(normalizedIncomingName, NormalizeForComparison(candidate.Name_Vi), StringComparison.Ordinal))
+                continue;
+
+            var addressMatched = !string.IsNullOrWhiteSpace(normalizedIncomingAddress)
+                && string.Equals(normalizedIncomingAddress, NormalizeForComparison(candidate.Address), StringComparison.Ordinal);
+
+            var distanceMatched = false;
+            if (hasCoordinates && candidate.Location != null)
+            {
+                var distanceMeters = CalculateDistanceMeters(
+                    (double)model.Latitude,
+                    (double)model.Longitude,
+                    candidate.Location.Latitude,
+                    candidate.Location.Longitude);
+                distanceMatched = distanceMeters <= 30;
+            }
+
+            if (addressMatched || distanceMatched)
+                return candidate;
+        }
+
+        return null;
+    }
+
+    private static string NormalizeForComparison(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return string.Empty;
+
+        var lowered = input.Trim().ToLowerInvariant();
+        lowered = Regex.Replace(lowered, @"\s+", " ");
+        return lowered;
+    }
+
+    private static string ComputePoiSubmissionHash(int vendorId, CreatePOIModel model)
+    {
+        var payload = string.Join("|", new[]
+        {
+            vendorId.ToString(CultureInfo.InvariantCulture),
+            NormalizeForComparison(model.Name_Vi),
+            NormalizeForComparison(model.Address),
+            model.Latitude.ToString("F6", CultureInfo.InvariantCulture),
+            model.Longitude.ToString("F6", CultureInfo.InvariantCulture),
+            NormalizeForComparison(model.Description_Vi)
+        });
+
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
+        return Convert.ToHexString(bytes);
+    }
+
+    private static double CalculateDistanceMeters(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double earthRadius = 6371000;
+
+        var dLat = DegreesToRadians(lat2 - lat1);
+        var dLon = DegreesToRadians(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(DegreesToRadians(lat1)) * Math.Cos(DegreesToRadians(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+        return earthRadius * c;
+    }
+
+    private static double DegreesToRadians(double degrees) => degrees * (Math.PI / 180);
 }
 
 // DTOs
@@ -928,15 +1034,9 @@ public class POIDto
     public int POI_ID { get; set; }
     public string Name_Vi { get; set; } = null!;
     public string? Name_En { get; set; }
-    public string? Name_Ja { get; set; }
-    public string? Name_Fr { get; set; }
-    public string? Name_Ko { get; set; }
     public string? Name_Zh { get; set; }
     public string? Description_Vi { get; set; }
     public string? Description_En { get; set; }
-    public string? Description_Ja { get; set; }
-    public string? Description_Fr { get; set; }
-    public string? Description_Ko { get; set; }
     public string? Description_Zh { get; set; }
     public string Address { get; set; } = null!;
     public decimal Latitude { get; set; }
@@ -957,9 +1057,6 @@ public class POIDto
     public string? FunFact { get; set; }
     public string? AudioUrl_Vi { get; set; }
     public string? AudioUrl_En { get; set; }
-    public string? AudioUrl_Ja { get; set; }
-    public string? AudioUrl_Fr { get; set; }
-    public string? AudioUrl_Ko { get; set; }
     public string? AudioUrl_Zh { get; set; }
     public string? Script_Vi { get; set; }
     public string? Script_En { get; set; }
@@ -992,15 +1089,9 @@ public class CreatePOIModel
 {
     public string Name_Vi { get; set; } = null!;
     public string? Name_En { get; set; }
-    public string? Name_Ja { get; set; }
-    public string? Name_Fr { get; set; }
-    public string? Name_Ko { get; set; }
     public string? Name_Zh { get; set; }
     public string? Description_Vi { get; set; }
     public string? Description_En { get; set; }
-    public string? Description_Ja { get; set; }
-    public string? Description_Fr { get; set; }
-    public string? Description_Ko { get; set; }
     public string? Description_Zh { get; set; }
     public string Address { get; set; } = null!;
     public decimal Latitude { get; set; }
@@ -1024,9 +1115,6 @@ public class CreatePOIModel
     public string? FunFact { get; set; }
     public string? AudioUrl_Vi { get; set; }
     public string? AudioUrl_En { get; set; }
-    public string? AudioUrl_Ja { get; set; }
-    public string? AudioUrl_Fr { get; set; }
-    public string? AudioUrl_Ko { get; set; }
     public string? AudioUrl_Zh { get; set; }
     public string? Script_Vi { get; set; }
     public string? Script_En { get; set; }
@@ -1037,25 +1125,15 @@ public class CreatePOIModel
     public int? CooldownMinutes { get; set; }
     public int? ParentZoneId { get; set; }
     public int? MaxPlaysPerSession { get; set; }
-    public int? VendorId { get; set; }
-    public string? ReviewStatus { get; set; }
-    public string? ReviewNote { get; set; }
-    public bool IsActive { get; set; } = true;
 }
 
 public class UpdatePOIModel
 {
     public string? Name_Vi { get; set; }
     public string? Name_En { get; set; }
-    public string? Name_Ja { get; set; }
-    public string? Name_Fr { get; set; }
-    public string? Name_Ko { get; set; }
     public string? Name_Zh { get; set; }
     public string? Description_Vi { get; set; }
     public string? Description_En { get; set; }
-    public string? Description_Ja { get; set; }
-    public string? Description_Fr { get; set; }
-    public string? Description_Ko { get; set; }
     public string? Description_Zh { get; set; }
     public string? Address { get; set; }
     public decimal? Latitude { get; set; }
@@ -1079,9 +1157,6 @@ public class UpdatePOIModel
     public string? FunFact { get; set; }
     public string? AudioUrl_Vi { get; set; }
     public string? AudioUrl_En { get; set; }
-    public string? AudioUrl_Ja { get; set; }
-    public string? AudioUrl_Fr { get; set; }
-    public string? AudioUrl_Ko { get; set; }
     public string? AudioUrl_Zh { get; set; }
     public string? Script_Vi { get; set; }
     public string? Script_En { get; set; }
@@ -1092,8 +1167,4 @@ public class UpdatePOIModel
     public int? CooldownMinutes { get; set; }
     public int? ParentZoneId { get; set; }
     public int? MaxPlaysPerSession { get; set; }
-    public int? VendorId { get; set; }
-    public string? ReviewStatus { get; set; }
-    public string? ReviewNote { get; set; }
-    public bool? IsActive { get; set; }
 }

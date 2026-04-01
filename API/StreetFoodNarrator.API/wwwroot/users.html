@@ -2,10 +2,231 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Chuyển hướng...</title>
-    <script>window.location.replace('history');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý người dùng - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --dark: #1A1A2E;
+            --border: #E8ECF1;
+            --muted: #6B7280;
+            --bg: #F5F7FB;
+            --success: #06D6A0;
+            --danger: #EF476F;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--dark); }
+        .main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; }
+        .title { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 900; }
+        .tools { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .input, .select {
+            border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.8rem;
+            background: white; min-width: 180px;
+        }
+        .btn {
+            border: none; border-radius: 10px; padding: 0.65rem 0.95rem; font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: white; border: 1px solid var(--border); }
+        .card { background: white; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.85rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.9rem; }
+        th { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: .4px; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .78rem; }
+        .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 700; }
+        .b-admin { background: #ffe7dd; color: #b45309; }
+        .b-vendor { background: #e6f9ef; color: #047857; }
+        .b-locked { background: #fee2e2; color: #b91c1c; }
+        .b-active { background: #e0f2fe; color: #0369a1; }
+        .actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+        .btn-xs { border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 0.35rem 0.55rem; cursor: pointer; font-size: 0.75rem; }
+        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 0.9rem; }
+        .muted { color: var(--muted); font-size: 0.82rem; }
+    </style>
 </head>
 <body>
-    <p>Đang chuyển hướng đến <a href="history">Người dùng & Lịch sử</a>...</p>
+    <main class="main">
+        <div class="header">
+            <h1 class="title">Quản lý người dùng</h1>
+            <div class="tools">
+                <input id="searchInput" class="input" placeholder="Tìm email / tên" />
+                <select id="roleFilter" class="select">
+                    <option value="">Tất cả role</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Vendor">Vendor</option>
+                </select>
+                <button class="btn btn-outline" onclick="reloadUsers()"><i class="fa-solid fa-rotate"></i> Tải lại</button>
+                <button class="btn btn-primary" onclick="createUser()"><i class="fa-solid fa-user-plus"></i> Tạo user</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Vendor ID</th>
+                        <th>Trạng thái</th>
+                        <th>Tạo lúc</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="usersBody">
+                    <tr><td colspan="6" class="muted">Đang tải...</td></tr>
+                </tbody>
+            </table>
+            <div class="pagination">
+                <div class="muted" id="pagingText">-</div>
+                <div class="actions">
+                    <button class="btn-xs" onclick="changePage(-1)">Trước</button>
+                    <button class="btn-xs" onclick="changePage(1)">Sau</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="api.js"></script>
+    <script>
+        const role = (TokenManager.getRoleContext() || '').toLowerCase();
+        if (role !== 'admin') {
+            window.location.href = 'dashboard';
+        }
+
+        let page = 1;
+        let pageSize = 5;
+        let totalPages = 1;
+
+        function roleBadge(roleName) {
+            if ((roleName || '').toLowerCase() === 'admin') return '<span class="badge b-admin">Admin</span>';
+            return '<span class="badge b-vendor">Vendor</span>';
+        }
+
+        function lockBadge(isLocked) {
+            return isLocked ? '<span class="badge b-locked">Locked</span>' : '<span class="badge b-active">Active</span>';
+        }
+
+        async function reloadUsers() {
+            const tbody = document.getElementById('usersBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="muted">Đang tải...</td></tr>';
+
+            try {
+                const search = document.getElementById('searchInput').value.trim() || undefined;
+                const roleFilter = document.getElementById('roleFilter').value || undefined;
+                const res = await UsersApi.list({ page, pageSize, search, role: roleFilter });
+
+                totalPages = Math.max(1, res.totalPages || 1);
+                const rows = (res.data || []).map(u => {
+                    const primaryRole = (u.roles || [])[0] || 'Vendor';
+                    return `
+                        <tr>
+                            <td>
+                                <div><strong>${u.fullName || 'N/A'}</strong></div>
+                                <div class="muted">${u.email || '-'}</div>
+                                <div class="mono">${u.id}</div>
+                            </td>
+                            <td>${roleBadge(primaryRole)}</td>
+                            <td>${u.vendorId ?? '-'}</td>
+                            <td>${lockBadge(!!u.isLocked)}</td>
+                            <td>${u.createdAt ? new Date(u.createdAt).toLocaleString('vi-VN') : '-'}</td>
+                            <td>
+                                <div class="actions">
+                                    <button class="btn-xs" onclick="editUser('${u.id}', '${u.fullName || ''}', '${u.phoneNumber || ''}', '${primaryRole}')">Sửa</button>
+                                    ${u.isLocked ? `<button class="btn-xs" onclick="unlockUser('${u.id}')">Mở khóa</button>` : `<button class="btn-xs" onclick="lockUser('${u.id}')">Khóa</button>`}
+                                    <button class="btn-xs" onclick="deleteUser('${u.id}')">Xóa</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tbody.innerHTML = rows || '<tr><td colspan="6" class="muted">Không có dữ liệu</td></tr>';
+                document.getElementById('pagingText').textContent = `Trang ${res.page || page}/${totalPages} - ${res.total || 0} user`;
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" class="muted">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
+            }
+        }
+
+        function changePage(delta) {
+            const next = page + delta;
+            if (next < 1 || next > totalPages) return;
+            page = next;
+            reloadUsers();
+        }
+
+        async function createUser() {
+            const email = prompt('Email user mới:');
+            if (!email) return;
+            const password = prompt('Mật khẩu tạm:');
+            if (!password) return;
+            const fullName = prompt('Họ tên:') || '';
+            const phoneNumber = prompt('Số điện thoại:') || '';
+            const role = (prompt('Role (Admin/Vendor):', 'Vendor') || 'Vendor').trim();
+
+            try {
+                await UsersApi.create({ email, password, fullName, phoneNumber, role });
+                alert('Tạo user thành công');
+                reloadUsers();
+            } catch (err) {
+                alert('Lỗi: ' + err.message);
+            }
+        }
+
+        async function editUser(id, fullName, phoneNumber, role) {
+            const newFullName = prompt('Họ tên mới:', fullName || '');
+            if (newFullName === null) return;
+            const newPhone = prompt('Số điện thoại mới:', phoneNumber || '');
+            if (newPhone === null) return;
+            const newRole = prompt('Role mới (Admin/Vendor):', role || 'Vendor');
+            if (newRole === null) return;
+
+            try {
+                await UsersApi.update(id, { fullName: newFullName, phoneNumber: newPhone, role: newRole });
+                alert('Cập nhật user thành công');
+                reloadUsers();
+            } catch (err) {
+                alert('Lỗi: ' + err.message);
+            }
+        }
+
+        async function lockUser(id) {
+            if (!confirm('Khóa user này?')) return;
+            try {
+                await UsersApi.lock(id);
+                reloadUsers();
+            } catch (err) {
+                alert('Lỗi: ' + err.message);
+            }
+        }
+
+        async function unlockUser(id) {
+            try {
+                await UsersApi.unlock(id);
+                reloadUsers();
+            } catch (err) {
+                alert('Lỗi: ' + err.message);
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Xóa (soft delete) user này?')) return;
+            try {
+                await UsersApi.delete(id);
+                reloadUsers();
+            } catch (err) {
+                alert('Lỗi: ' + err.message);
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('change', () => { page = 1; reloadUsers(); });
+        document.getElementById('roleFilter').addEventListener('change', () => { page = 1; reloadUsers(); });
+
+        reloadUsers();
+    </script>
 </body>
 </html>

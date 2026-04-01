@@ -9,8 +9,6 @@
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Leaflet CSS – OSM map (replaces Google Maps) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="sidebar.js"></script>
     <style>
         :root {
@@ -858,60 +856,55 @@
                     </div>
                 </div>
 
-                <!-- Admin Only: Coordinates -->
-                <div class="form-group admin-only">
-                    <label class="form-label">Link bản đồ Google hoặc Tọa độ GPS</label>
-                    <div class="coordinate-group">
-                        <div>
-                            <input type="text" class="form-input" id="latitude" placeholder="Latitude (VD: 10.7623)">
-                            <div class="form-help">
-                                <i class="fas fa-globe"></i>
-                                Vĩ độ
-                            </div>
-                        </div>
-                        <div>
-                            <input type="text" class="form-input" id="longitude" placeholder="Longitude (VD: 106.7024)">
-                            <div class="form-help">
-                                <i class="fas fa-globe"></i>
-                                Kinh độ
-                            </div>
-                        </div>
-                    </div>
-                    <div id="mapPreview" class="map-preview">
-                        <div
-                            style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #999;">
-                            <i class="fas fa-map-marked-alt" style="font-size: 3rem;"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Vendor Location / Admin Map Link -->
                 <div class="form-group">
                     <label class="form-label">
-                        Link Bản Đồ Google (Google Maps Link)
+                        Tọa độ GPS
                         <span class="required">*</span>
                     </label>
-                    <div class="input-group">
-                        <input type="url" class="form-input" id="mapUrl" placeholder="VD: https://maps.app.goo.gl/..."
-                            required>
-                        <button type="button" class="btn btn-primary" id="btnResolveMap" style="white-space: nowrap;">
-                            <i class="fas fa-search-location"></i> Xác nhận vị trí
-                        </button>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label class="form-label" style="font-size: 0.85rem;">Cách nhập tọa độ</label>
+                        <select class="form-select" id="gpsInputMode">
+                            <option value="manual">Nhập thủ công lat/lng</option>
+                            <option value="maplink">Dán link Google Maps</option>
+                        </select>
                     </div>
-                    <div class="form-help" id="mapUrlStatus">
-                        <i class="fas fa-link"></i>
-                        Copy link chia sẻ từ Google Maps dán vào đây để hệ thống tự lấy tọa độ
+
+                    <div id="gpsManualGroup">
+                        <div class="coordinate-group">
+                            <div>
+                                <input type="text" class="form-input" id="latitude" placeholder="Latitude (VD: 10.7623)">
+                                <div class="form-help">
+                                    <i class="fas fa-globe"></i>
+                                    Vĩ độ
+                                </div>
+                            </div>
+                            <div>
+                                <input type="text" class="form-input" id="longitude" placeholder="Longitude (VD: 106.7024)">
+                                <div class="form-help">
+                                    <i class="fas fa-globe"></i>
+                                    Kinh độ
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <!-- Hidden fields wrapper for Vendor to store coordinates -->
-                    <div class="vendor-only">
-                        <input type="hidden" id="vendorLat">
-                        <input type="hidden" id="vendorLng">
+
+                    <div id="gpsMapLinkGroup" style="display:none; margin-top: 0.75rem;">
+                        <div class="input-group">
+                            <input type="url" class="form-input" id="mapUrl" placeholder="VD: https://maps.app.goo.gl/...">
+                            <button type="button" class="btn btn-primary" id="btnResolveMap" style="white-space: nowrap;">
+                                <i class="fas fa-search-location"></i> Lấy tọa độ
+                            </button>
+                        </div>
+                        <div class="form-help" id="mapUrlStatus">
+                            <i class="fas fa-link"></i>
+                            Dán link chia sẻ Google Maps để tự điền Lat/Lng
+                        </div>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">
-                        Ảnh minh họa (Image)
+                        Ảnh minh họa
                     </label>
                     <input type="file" class="form-input" id="imageFile" accept="image/jpeg, image/png, image/webp">
                     <input type="hidden" id="imageUrl">
@@ -933,79 +926,75 @@
             </div>
 
             <!-- Geofence & Playback -->
-            <div class="form-section">
+            <div class="form-section admin-only">
                 <h2 class="section-title">
                     <i class="fas fa-bullseye"></i>
-                    Geofence & Playback
+                    Cài đặt Geofence & phát thuyết minh
                 </h2>
 
                 <div class="section-subtitle">
                     <i class="fas fa-info-circle"></i>
-                    Used by the mobile app to trigger narration and resolve overlaps.
+                    Dùng cho ứng dụng di động để kích hoạt thuyết minh và xử lý chồng lấn vùng.
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Zone type</label>
+                    <label class="form-label">Loại vùng</label>
                     <select class="form-select" id="zoneType">
-                        <option value="Spot" selected>Spot (specific)</option>
-                        <option value="District">District</option>
-                        <option value="Area">Area</option>
+                        <option value="Spot" selected>Điểm cụ thể</option>
+                        <option value="District">Cấp quận</option>
+                        <option value="Area">Cấp khu vực</option>
                     </select>
                 </div>
 
                 <div class="geofence-grid">
                     <div class="form-group">
-                        <label class="form-label">Trigger radius (m)</label>
+                        <label class="form-label">Bán kính kích hoạt (m)</label>
                         <input type="number" class="form-input" id="triggerRadius" min="10" max="500" value="50">
                         <div class="form-help">
                             <i class="fas fa-circle-notch"></i>
-                            10-500 meters
+                            10-500 mét
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Priority (1-10)</label>
+                        <label class="form-label">Mức ưu tiên (1-10)</label>
                         <input type="number" class="form-input" id="priority" min="1" max="10" value="5">
                         <div class="form-help">
                             <i class="fas fa-layer-group"></i>
-                            Higher wins when zones overlap
+                            Ưu tiên cao hơn khi vùng bị chồng lấn
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Cooldown (minutes)</label>
+                        <label class="form-label">Thời gian chờ (phút)</label>
                         <input type="number" class="form-input" id="cooldownMinutes" min="0" max="240" value="0">
                         <div class="form-help">
                             <i class="fas fa-stopwatch"></i>
-                            0 for spots, 30 for areas
+                            0 cho Spot, 30 cho Area
                         </div>
                     </div>
                 </div>
 
                 <div class="geofence-grid">
                     <div class="form-group">
-                        <label class="form-label">Max plays per session</label>
+                        <label class="form-label">Số lần phát tối đa mỗi phiên</label>
                         <input type="number" class="form-input" id="maxPlaysPerSession" min="1" max="10" value="1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Parent zone ID</label>
-                        <input type="number" class="form-input" id="parentZoneId" placeholder="Optional">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Fun fact</label>
-                        <input type="text" class="form-input" id="funFact" placeholder="Optional short fact">
+                        <label class="form-label">Mã vùng cha</label>
+                        <input type="number" class="form-input" id="parentZoneId" placeholder="Tùy chọn">
                     </div>
                 </div>
 
                 <div class="audio-grid">
                     <div class="form-group">
-                        <label class="form-label">Audio URL (VI)</label>
+                        <label class="form-label">Liên kết Audio (VI)</label>
                         <input type="text" class="form-input" id="audioUrlVi" placeholder="https://...">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Audio URL (EN)</label>
+                        <label class="form-label">Liên kết Audio (EN)</label>
                         <input type="text" class="form-input" id="audioUrlEn" placeholder="https://...">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Audio URL (ZH)</label>
+                        <label class="form-label">Liên kết Audio (ZH)</label>
                         <input type="text" class="form-input" id="audioUrlZh" placeholder="https://...">
                     </div>
                 </div>
@@ -1019,7 +1008,7 @@
                     <div class="form-group">
                         <label class="form-label">Kịch bản Audio (EN)</label>
                         <textarea class="form-textarea" id="scriptEn"
-                            placeholder="English narration script..."></textarea>
+                            placeholder="Kịch bản thuyết minh tiếng Anh..."></textarea>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Kịch bản Audio (ZH)</label>
@@ -1141,6 +1130,15 @@
                         Món ăn ngon nhất, nổi tiếng nhất của quán
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label">Thông tin thú vị</label>
+                    <input type="text" class="form-input" id="funFact" placeholder="Thông tin thú vị ngắn về quán (tùy chọn)">
+                    <div class="form-help">
+                        <i class="fas fa-lightbulb"></i>
+                        Thông tin này sẽ hiển thị kèm nội dung POI.
+                    </div>
+                </div>
             </div>
 
             <!-- Help Card -->
@@ -1170,8 +1168,6 @@
         </form>
     </div>
 
-    <!-- Leaflet JS – OSM map, free, no API key -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="api.js"></script>
     <script>
         // Check authentication
@@ -1180,8 +1176,14 @@
             window.location.href = '/index';
         }
 
-        const isAdmin = user?.roles?.includes('Admin');
-        const isVendor = user?.roles?.includes('Vendor');
+        const roleContext = (TokenManager.getRoleContext() || '').toLowerCase();
+        if (roleContext === 'admin') {
+            window.location.href = 'poi-list';
+        }
+
+        const userRoles = Array.isArray(user?.roles) ? user.roles : [];
+        const isAdmin = userRoles.includes('Admin');
+        const isVendor = userRoles.includes('Vendor') || roleContext === 'vendor';
         let currentVendorProfile = null;
 
         // Apply role-based UI
@@ -1263,13 +1265,12 @@
 
             toggle.classList.toggle('active');
 
-            if (toggle.classList.contains('active')) {
+                if (toggle.classList.contains('active')) {
                 body.classList.remove('vendor-mode');
                 body.classList.add('admin-mode');
                 info.textContent = 'Chế độ nâng cao: Điền đầy đủ thông tin đa ngôn ngữ';
                 document.querySelectorAll('.vendor-only').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
-                setTimeout(initAdminMap, 50);
             } else {
                 body.classList.remove('admin-mode');
                 body.classList.add('vendor-mode');
@@ -1338,15 +1339,11 @@
                     row.addEventListener('click', () => {
                         input.value = item.display_name || '';
 
-                        // Auto-fill coordinates for admin
-                        if (isAdmin && document.body.classList.contains('admin-mode')) {
-                            const lat = parseFloat(item.lat);
-                            const lng = parseFloat(item.lon);
-                            if (!isNaN(lat) && !isNaN(lng)) {
-                                document.getElementById('latitude').value = lat.toFixed(6);
-                                document.getElementById('longitude').value = lng.toFixed(6);
-                                if (typeof initMap === 'function') initMap(lat, lng);
-                            }
+                        const lat = parseFloat(item.lat);
+                        const lng = parseFloat(item.lon);
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            document.getElementById('latitude').value = lat.toFixed(6);
+                            document.getElementById('longitude').value = lng.toFixed(6);
                         }
 
                         hideBox();
@@ -1391,113 +1388,12 @@
             });
         }
 
-        let poiMap = null;
-        let poiMarker = null;
-        const vinhKhanhBounds = {
-            south: 10.7535,
-            west: 106.7005,
-            north: 10.7635,
-            east: 106.7135
-        };
-
-        function clampToVinhKhanh(lat, lng) {
-            const safeLat = Math.min(Math.max(lat, vinhKhanhBounds.south), vinhKhanhBounds.north);
-            const safeLng = Math.min(Math.max(lng, vinhKhanhBounds.west), vinhKhanhBounds.east);
-            return { lat: safeLat, lng: safeLng };
-        }
-
-        function initMap(lat, lng) {
-            const mapEl = document.getElementById('mapPreview');
-            if (!mapEl) return;
-            if (typeof google === 'undefined' || !google.maps) {
-                mapEl.textContent = 'Không tải được bản đồ.';
-                return;
-            }
-
-            const defaultLat = 10.7586;
-            const defaultLng = 106.7049;
-            const rawLat = (lat ?? defaultLat);
-            const rawLng = (lng ?? defaultLng);
-            const clamped = clampToVinhKhanh(rawLat, rawLng);
-            const safeLat = clamped.lat;
-            const safeLng = clamped.lng;
-
-            if (!poiMap) {
-                mapEl.innerHTML = '';
-                poiMap = new google.maps.Map(mapEl, {
-                    center: { lat: safeLat, lng: safeLng },
-                    zoom: 16,
-                    mapTypeId: 'roadmap',
-                    mapId: 'poi_create_map',
-                    mapTypeControl: false,
-                    streetViewControl: false,
-                    fullscreenControl: false,
-                    restriction: {
-                        latLngBounds: {
-                            south: vinhKhanhBounds.south,
-                            north: vinhKhanhBounds.north,
-                            west: vinhKhanhBounds.west,
-                            east: vinhKhanhBounds.east
-                        },
-                        strictBounds: false
-                    }
-                });
-                poiMarker = new google.maps.marker.AdvancedMarkerElement({
-                    position: { lat: safeLat, lng: safeLng },
-                    map: poiMap,
-                    gmpDraggable: isAdmin
-                });
-                if (isAdmin) {
-                    poiMarker.addListener('dragend', (e) => {
-                        setMarker(e.latLng.lat(), e.latLng.lng());
-                    });
-                    poiMap.addListener('click', (e) => {
-                        setMarker(e.latLng.lat(), e.latLng.lng());
-                    });
-                }
-            } else {
-                poiMap.setCenter({ lat: safeLat, lng: safeLng });
-                if (poiMarker) poiMarker.position = { lat: safeLat, lng: safeLng };
-            }
-        }
-
-        function setMarker(lat, lng) {
-            const clamped = clampToVinhKhanh(lat, lng);
-            if (!poiMarker) {
-                initMap(clamped.lat, clamped.lng);
-            } else {
-                poiMarker.position = { lat: clamped.lat, lng: clamped.lng };
-                if (poiMap) poiMap.setCenter({ lat: clamped.lat, lng: clamped.lng });
-            }
-            updateLatLngInputs(clamped.lat, clamped.lng);
-        }
-
-        function updateLatLngInputs(lat, lng) {
-            const latInput = document.getElementById('latitude');
-            const lngInput = document.getElementById('longitude');
-            if (latInput) latInput.value = lat.toFixed(6);
-            if (lngInput) lngInput.value = lng.toFixed(6);
-        }
-
-        function refreshMapFromInputs() {
-            const lat = parseFloat(document.getElementById('latitude')?.value);
-            const lng = parseFloat(document.getElementById('longitude')?.value);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                initMap(lat, lng);
-            }
-        }
-
-        function initAdminMap() {
-            if (!isAdmin) return;
-            const latInput = document.getElementById('latitude');
-            const lngInput = document.getElementById('longitude');
-            const lat = parseFloat(latInput?.value);
-            const lng = parseFloat(lngInput?.value);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                initMap(lat, lng);
-                return;
-            }
-            initMap();
+        function applyGpsInputMode() {
+            const mode = document.getElementById('gpsInputMode')?.value || 'manual';
+            const manualGroup = document.getElementById('gpsManualGroup');
+            const mapLinkGroup = document.getElementById('gpsMapLinkGroup');
+            if (manualGroup) manualGroup.style.display = '';
+            if (mapLinkGroup) mapLinkGroup.style.display = mode === 'maplink' ? '' : 'none';
         }
 
         // Opening hours preset
@@ -1708,40 +1604,42 @@
                 poiData.vendorId = myVendorId;
             }
 
-            const zoneType = document.getElementById('zoneType')?.value || 'Spot';
-            poiData.zoneType = zoneType;
-
-            const triggerRadius = parseInt(document.getElementById('triggerRadius')?.value || '', 10);
-            if (!Number.isNaN(triggerRadius)) poiData.triggerRadius = triggerRadius;
-
-            const priority = parseInt(document.getElementById('priority')?.value || '', 10);
-            if (!Number.isNaN(priority)) poiData.priority = priority;
-
-            const cooldown = parseInt(document.getElementById('cooldownMinutes')?.value || '', 10);
-            if (!Number.isNaN(cooldown)) poiData.cooldownMinutes = cooldown;
-
-            const maxPlays = parseInt(document.getElementById('maxPlaysPerSession')?.value || '', 10);
-            if (!Number.isNaN(maxPlays)) poiData.maxPlaysPerSession = maxPlays;
-
-            const parentZoneId = parseInt(document.getElementById('parentZoneId')?.value || '', 10);
-            if (!Number.isNaN(parentZoneId)) poiData.parentZoneId = parentZoneId;
-
             const funFact = document.getElementById('funFact')?.value?.trim();
             if (funFact) poiData.funFact = funFact;
 
-            const audioUrlVi = document.getElementById('audioUrlVi')?.value?.trim();
-            if (audioUrlVi) poiData.audioUrl_Vi = audioUrlVi;
-            const audioUrlEn = document.getElementById('audioUrlEn')?.value?.trim();
-            if (audioUrlEn) poiData.audioUrl_En = audioUrlEn;
-            const audioUrlZh = document.getElementById('audioUrlZh')?.value?.trim();
-            if (audioUrlZh) poiData.audioUrl_Zh = audioUrlZh;
+            if (isAdmin) {
+                const zoneType = document.getElementById('zoneType')?.value || 'Spot';
+                poiData.zoneType = zoneType;
 
-            const scriptVi = document.getElementById('scriptVi')?.value?.trim();
-            if (scriptVi) poiData.script_Vi = scriptVi;
-            const scriptEn = document.getElementById('scriptEn')?.value?.trim();
-            if (scriptEn) poiData.script_En = scriptEn;
-            const scriptZh = document.getElementById('scriptZh')?.value?.trim();
-            if (scriptZh) poiData.script_Zh = scriptZh;
+                const triggerRadius = parseInt(document.getElementById('triggerRadius')?.value || '', 10);
+                if (!Number.isNaN(triggerRadius)) poiData.triggerRadius = triggerRadius;
+
+                const priority = parseInt(document.getElementById('priority')?.value || '', 10);
+                if (!Number.isNaN(priority)) poiData.priority = priority;
+
+                const cooldown = parseInt(document.getElementById('cooldownMinutes')?.value || '', 10);
+                if (!Number.isNaN(cooldown)) poiData.cooldownMinutes = cooldown;
+
+                const maxPlays = parseInt(document.getElementById('maxPlaysPerSession')?.value || '', 10);
+                if (!Number.isNaN(maxPlays)) poiData.maxPlaysPerSession = maxPlays;
+
+                const parentZoneId = parseInt(document.getElementById('parentZoneId')?.value || '', 10);
+                if (!Number.isNaN(parentZoneId)) poiData.parentZoneId = parentZoneId;
+
+                const audioUrlVi = document.getElementById('audioUrlVi')?.value?.trim();
+                if (audioUrlVi) poiData.audioUrl_Vi = audioUrlVi;
+                const audioUrlEn = document.getElementById('audioUrlEn')?.value?.trim();
+                if (audioUrlEn) poiData.audioUrl_En = audioUrlEn;
+                const audioUrlZh = document.getElementById('audioUrlZh')?.value?.trim();
+                if (audioUrlZh) poiData.audioUrl_Zh = audioUrlZh;
+
+                const scriptVi = document.getElementById('scriptVi')?.value?.trim();
+                if (scriptVi) poiData.script_Vi = scriptVi;
+                const scriptEn = document.getElementById('scriptEn')?.value?.trim();
+                if (scriptEn) poiData.script_En = scriptEn;
+                const scriptZh = document.getElementById('scriptZh')?.value?.trim();
+                if (scriptZh) poiData.script_Zh = scriptZh;
+            }
 
             // Add multilingual data if in advanced mode
             if (isAdvancedMode) {
@@ -1764,11 +1662,13 @@
                 poiData.name_Zh = autoNameZh || null;
                 poiData.description_En = autoDescEn || null;
                 poiData.description_Zh = autoDescZh || null;
-                const lat = parseFloat(document.getElementById('vendorLat')?.value);
-                const lng = parseFloat(document.getElementById('vendorLng')?.value);
-                if (!isNaN(lat)) { poiData.latitude = lat; }
-                else {
-                    errorDiv.textContent = '❌ Xin vui lòng Bấm "Xác nhận vị trí" từ link Google Maps.';
+                const lat = parseFloat(document.getElementById('latitude')?.value);
+                const lng = parseFloat(document.getElementById('longitude')?.value);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    poiData.latitude = lat;
+                    poiData.longitude = lng;
+                } else {
+                    errorDiv.textContent = '❌ Vui lòng nhập Lat/Lng thủ công hoặc dán link Google Maps để lấy tọa độ.';
                     errorDiv.style.display = 'block';
                     submitBtns.forEach(btn => {
                         btn.disabled = false;
@@ -1777,7 +1677,6 @@
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     return;
                 }
-                if (!isNaN(lng)) poiData.longitude = lng;
             }
 
             // Set image URL if successfully uploaded
@@ -1811,13 +1710,11 @@
             await loadAdminVendorOptions();
             setupAddressSuggestions();
             updateHoursPreview();
-            initAdminMap();
+            applyGpsInputMode();
         })();
 
-        const latInput = document.getElementById('latitude');
-        const lngInput = document.getElementById('longitude');
-        if (latInput) latInput.addEventListener('input', refreshMapFromInputs);
-        if (lngInput) lngInput.addEventListener('input', refreshMapFromInputs);
+        const gpsInputMode = document.getElementById('gpsInputMode');
+        if (gpsInputMode) gpsInputMode.addEventListener('change', applyGpsInputMode);
         const zoneTypeSelect = document.getElementById('zoneType');
         const cooldownInput = document.getElementById('cooldownMinutes');
         if (cooldownInput) {
@@ -1909,20 +1806,10 @@
 
                 const data = await response.json();
 
-                // Update Admin fields if present
                 const latInput = document.getElementById('latitude');
                 const lngInput = document.getElementById('longitude');
                 if (latInput) latInput.value = data.latitude;
                 if (lngInput) lngInput.value = data.longitude;
-
-                // Update hidden Vendor fields
-                const vLat = document.getElementById('vendorLat');
-                const vLng = document.getElementById('vendorLng');
-                if (vLat) vLat.value = data.latitude;
-                if (vLng) vLng.value = data.longitude;
-
-                // Move map
-                initMap(data.latitude, data.longitude);
 
                 statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Đã lấy tọa độ thành công!';
                 statusDiv.style.color = 'var(--success)';
