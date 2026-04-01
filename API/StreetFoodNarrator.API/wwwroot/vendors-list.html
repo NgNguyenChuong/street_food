@@ -1102,7 +1102,7 @@
                     const id = p.pOI_ID ?? p.poI_ID ?? p.POI_ID ?? p.poi_ID ?? p.poiId ?? p.id ?? '';
                     const name = p.name_Vi || p.name || p.Name || '?';
                     const isActive = p.isActive ?? p.IsActive ?? true;
-                    const link = id ? `poi-detail.html?id=${id}` : null;
+                    const link = id ? `poi-detail?id=${id}` : null;
                     return `
                         <div class="poi-item">
                                                         <span style="color:#999;font-size:0.85rem;min-width:20px;">${idx + 1}.</span>

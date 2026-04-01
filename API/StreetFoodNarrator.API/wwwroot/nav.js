@@ -24,12 +24,12 @@ class Navigation {
         this.session = localStorage.getItem('userSession') || sessionStorage.getItem('userSession');
         
         // Allow access to login and register pages without auth
-        const publicPages = ['index.html', 'login.html', 'register.html'];
-        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        const publicPages = ['index', 'login', 'register'];
+        const currentPage = window.location.pathname.split('/').pop()?.replace('.html', '') || 'index';
         
         if (!this.session && !publicPages.includes(currentPage)) {
             // Redirect silently without alert
-            window.location.href = '/index.html';
+            window.location.href = '/';
             return false;
         }
         
@@ -50,57 +50,57 @@ class Navigation {
                 </div>
                 
                 <div class="nav-menu">
-                    <a href="admin-dashboard.html" class="nav-item ${this.isActive('admin-dashboard')}">
+                    <a href="admin-dashboard" class="nav-item ${this.isActive('admin-dashboard')}">
                         <i class="fas fa-home"></i>
                         <span>Dashboard</span>
                     </a>
-                    
+
                     <div class="nav-section">
                         <div class="nav-section-title">Quản lý</div>
-                        
-                        <a href="poi-list.html" class="nav-item ${this.isActive('poi-list')}">
+
+                        <a href="poi-list" class="nav-item ${this.isActive('poi-list')}">
                             <i class="fas fa-map-marker-alt"></i>
                             <span>POI</span>
                         </a>
-                        
-                        <a href="audio-list.html" class="nav-item ${this.isActive('audio-list')}">
+
+                        <a href="audio-list" class="nav-item ${this.isActive('audio-list')}">
                             <i class="fas fa-music"></i>
                             <span>Audio</span>
                         </a>
-                        
+
                         ${this.user.role === 'Admin' ? `
-                        <a href="vendors-list.html" class="nav-item ${this.isActive('vendors-list')}">
+                        <a href="vendors-list" class="nav-item ${this.isActive('vendors-list')}">
                             <i class="fas fa-store"></i>
                             <span>Vendors</span>
                         </a>
                         ` : ''}
                     </div>
-                    
+
                     <div class="nav-section">
                         <div class="nav-section-title">Công cụ</div>
-                        
-                        <a href="poi-create.html" class="nav-item ${this.isActive('poi-create')}">
+
+                        <a href="poi-create" class="nav-item ${this.isActive('poi-create')}">
                             <i class="fas fa-plus-circle"></i>
                             <span>Tạo POI</span>
                         </a>
-                        
-                        <a href="audio-bulk-generate.html" class="nav-item ${this.isActive('audio-bulk-generate')}">
+
+                        <a href="audio-bulk-generate" class="nav-item ${this.isActive('audio-bulk-generate')}">
                             <i class="fas fa-microphone"></i>
                             <span>Tạo Audio</span>
                         </a>
-                        
+
                         ${this.user.role === 'Admin' ? `
-                        <a href="analytics.html" class="nav-item ${this.isActive('analytics')}">
+                        <a href="analytics" class="nav-item ${this.isActive('analytics')}">
                             <i class="fas fa-chart-line"></i>
                             <span>Thống kê</span>
                         </a>
                         ` : ''}
                     </div>
-                    
+
                     <div class="nav-section">
                         <div class="nav-section-title">Cài đặt</div>
-                        
-                        <a href="settings.html" class="nav-item ${this.isActive('settings')}">
+
+                        <a href="settings" class="nav-item ${this.isActive('settings')}">
                             <i class="fas fa-cog"></i>
                             <span>Cài đặt</span>
                         </a>
@@ -133,8 +133,8 @@ class Navigation {
     }
 
     isActive(page) {
-        const currentPage = window.location.pathname.split('/').pop();
-        return currentPage === `${page}.html` ? 'active' : '';
+        const currentPage = window.location.pathname.split('/').pop()?.replace('.html', '');
+        return currentPage === page ? 'active' : '';
     }
 
     getUserInitials() {
@@ -165,7 +165,7 @@ class Navigation {
             sessionStorage.removeItem('userSession');
             localStorage.removeItem('authToken');
             sessionStorage.removeItem('authToken');
-            window.location.href = '/index.html';
+            window.location.href = '/';
         }
     }
 
@@ -397,9 +397,9 @@ class Navigation {
 let nav;
 document.addEventListener('DOMContentLoaded', function() {
     // Skip nav on login/register pages
-        const publicPages = ['index.html', 'login.html', 'register.html'];
-    const currentPage = window.location.pathname.split('/').pop();
-    
+    const publicPages = ['index', 'login', 'register'];
+    const currentPage = window.location.pathname.split('/').pop()?.replace('.html', '');
+
     if (!publicPages.includes(currentPage)) {
         nav = new Navigation();
     }

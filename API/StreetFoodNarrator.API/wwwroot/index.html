@@ -138,7 +138,7 @@
             Đăng nhập
         </button>
         <div class="links">
-            Chưa có tài khoản? <a href="register.html">Đăng ký</a>
+            Chưa có tài khoản? <a href="register">Đăng ký</a>
         </div>
     </div>
 
@@ -168,7 +168,9 @@
                 const data = await api.login(email, pw);
                 if (data && data.token) {
                     localStorage.setItem('last_email', email);
-                    window.location.href = 'dashboard.html';
+                    console.log('Login success, redirecting to: dashboard');
+                    // Force clean redirect without .html extension
+                    window.location.replace('/dashboard');
                 } else {
                     errMsg.textContent = 'Đăng nhập thất bại, vui lòng thử lại';
                     errBox.style.display = 'flex';

@@ -171,7 +171,7 @@
 <script src="api.js"></script>
 <script>
     if (!TokenManager.isAuthenticated() && !localStorage.getItem('userSession')) {
-        window.location.href = 'index.html';
+        window.location.href = 'index';
     }
 
     let allDevices = [];
@@ -313,11 +313,17 @@
         // Admin-only page
         var role = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
         if (role !== 'admin') {
-            window.location.href = 'dashboard.html';
+            window.location.href = 'dashboard';
             return;
         }
         loadAll();
     });
+
+
+    function setDevPageass(page) {
+        devPage = page;
+        renderDevTable(filteredDevices);
+    }
 </script>
 </body>
 </html>

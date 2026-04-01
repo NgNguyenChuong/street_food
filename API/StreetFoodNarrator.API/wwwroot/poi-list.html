@@ -537,7 +537,7 @@
                     <i class="fas fa-arrow-left"></i>
                     <span>Quay lại</span>
                 </button>
-                <a href="poi-create.html" class="btn btn-primary">
+                <a href="poi-create" class="btn btn-primary">
                     <i class="fas fa-plus"></i>
                     <span>Thêm POI mới</span>
                 </a>
@@ -798,7 +798,7 @@
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="9" style="text-align: center; padding: 2rem; color: #999;">
-                            Chưa có POI nào. <a href="poi-create.html" style="color: var(--primary);">Tạo POI đầu tiên</a>
+                            Chưa có POI nào. <a href="poi-create" style="color: var(--primary);">Tạo POI đầu tiên</a>
                         </td>
                     </tr>
                 `;
@@ -930,11 +930,11 @@
 
         // Actions
         function viewPOI(id) {
-            window.location.href = `poi-detail.html?id=${id}`;
+            window.location.href = `poi-detail?id=${id}`;
         }
 
         function editPOI(id) {
-            window.location.href = `poi-edit.html?id=${id}`;
+            window.location.href = `poi-edit?id=${id}`;
         }
 
         async function deletePOI(id) {
