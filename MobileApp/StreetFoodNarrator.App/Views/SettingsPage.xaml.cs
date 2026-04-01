@@ -1,4 +1,5 @@
 using Microsoft.Maui.Storage;
+using Microsoft.Maui.Networking;
 using Microsoft.Extensions.DependencyInjection;
 using Plugin.Maui.Audio;
 using StreetFoodNarrator.App;
@@ -75,7 +76,31 @@ public partial class SettingsPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
+        UpdateOfflineBanner();
         await UpdateOfflineStats();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
+    }
+
+    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
+        => MainThread.BeginInvokeOnMainThread(UpdateOfflineBanner);
+
+    private void UpdateOfflineBanner()
+    {
+        var offline = Connectivity.Current.NetworkAccess != NetworkAccess.Internet &&
+                      Connectivity.Current.NetworkAccess != NetworkAccess.ConstrainedInternet;
+        OfflineBanner.IsVisible = offline && !OfflineBannerSessionState.IsDismissed;
+    }
+
+    private void OnDismissOfflineBannerClicked(object sender, EventArgs e)
+    {
+        OfflineBannerSessionState.IsDismissed = true;
+        UpdateOfflineBanner();
     }
     
     private void SetupCustomLangPicker()
@@ -480,7 +505,7 @@ public partial class SettingsPage : ContentPage
             // Last resort only when no previous page is available.
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync("//WelcomePage");
+                await Shell.Current.GoToAsync("//MapPage");
             }
         }
         catch (Exception ex)

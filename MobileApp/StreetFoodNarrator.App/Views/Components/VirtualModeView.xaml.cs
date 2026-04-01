@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.ViewModels;
@@ -31,7 +31,7 @@ public partial class VirtualModeView : ContentView
     public event EventHandler? CurrentlyPlayingSeeMoreTapped;
 
     private MainViewModel? _boundVm;
-
+    private DateTime _lastQueueSeeMoreTapAt = DateTime.MinValue;
     public VirtualModeView()
     {
         InitializeComponent();
@@ -86,12 +86,18 @@ public partial class VirtualModeView : ContentView
 
     private void OnQueueItemTapped(object? sender, TappedEventArgs e)
     {
+        // Ignore parent-card tap fired right after tapping the nested "Xem thêm" button.
+        if ((DateTime.UtcNow - _lastQueueSeeMoreTapAt).TotalMilliseconds < 320)
+            return;
+
         if (sender is View view && view.BindingContext is POI poi)
             QueueItemTapped?.Invoke(this, poi);
     }
 
     private void OnQueueSeeMoreTapped(object? sender, TappedEventArgs e)
     {
+        _lastQueueSeeMoreTapAt = DateTime.UtcNow;
+
         if (sender is View view && view.BindingContext is POI poi)
             QueueSeeMoreTapped?.Invoke(this, poi);
     }

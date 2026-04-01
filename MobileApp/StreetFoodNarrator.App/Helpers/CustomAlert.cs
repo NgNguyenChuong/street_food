@@ -9,6 +9,10 @@ namespace StreetFoodNarrator.App.Helpers;
 /// </summary>
 public static class CustomAlert
 {
+    private static readonly SemaphoreSlim AlertGate = new(1, 1);
+    private const string OverlayClassId = "__custom_alert_overlay";
+    private const string WrapperClassId = "__custom_alert_wrapper";
+
     /// <summary>
     /// Hiện alert đơn giản với 1 nút OK
     /// </summary>
@@ -80,14 +84,18 @@ public static class CustomAlert
         AlertType type,
         string? dontShowAgainText)
     {
+        await AlertGate.WaitAsync();
+        try
+        {
         System.Diagnostics.Debug.WriteLine($"[CustomAlert] Showing: {title}");
 
-        var tcs = new TaskCompletionSource<AlertResult>();
+        var tcs = new TaskCompletionSource<AlertResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         bool dontShowAgain = false;
 
         var overlay = new Grid
         {
-            BackgroundColor = Color.FromArgb("#66000000")
+            BackgroundColor = Color.FromArgb("#66000000"),
+            ClassId = OverlayClassId
         };
 
         var dialog = new Border
@@ -174,6 +182,24 @@ public static class CustomAlert
         }
 
         // ── Buttons ───────────────────────────────────────────────
+        var isClosing = false;
+
+        async Task ResolveAndCloseAsync(bool accepted)
+        {
+            if (isClosing)
+                return;
+
+            isClosing = true;
+            try
+            {
+                await CloseDialogAsync(overlay);
+            }
+            finally
+            {
+                tcs.TrySetResult(new AlertResult(accepted, dontShowAgain));
+            }
+        }
+
         if (string.IsNullOrEmpty(secondaryText))
         {
             var okButton = new Button
@@ -193,11 +219,7 @@ public static class CustomAlert
                     Offset = new Point(0, 4)
                 }
             };
-            okButton.Clicked += (s, e) =>
-            {
-                tcs.TrySetResult(new AlertResult(true, dontShowAgain));
-                CloseDialog(overlay);
-            };
+            okButton.Clicked += async (s, e) => await ResolveAndCloseAsync(true);
             content.Add(okButton);
         }
         else
@@ -223,11 +245,7 @@ public static class CustomAlert
                 HeightRequest = 48,
                 CornerRadius = 12
             };
-            cancelButton.Clicked += (s, e) =>
-            {
-                tcs.TrySetResult(new AlertResult(false, dontShowAgain));
-                CloseDialog(overlay);
-            };
+            cancelButton.Clicked += async (s, e) => await ResolveAndCloseAsync(false);
             Grid.SetColumn(cancelButton, 0);
             buttonGrid.Add(cancelButton);
 
@@ -241,11 +259,7 @@ public static class CustomAlert
                 HeightRequest = 48,
                 CornerRadius = 12
             };
-            confirmButton.Clicked += (s, e) =>
-            {
-                tcs.TrySetResult(new AlertResult(true, dontShowAgain));
-                CloseDialog(overlay);
-            };
+            confirmButton.Clicked += async (s, e) => await ResolveAndCloseAsync(true);
             Grid.SetColumn(confirmButton, 1);
             buttonGrid.Add(confirmButton);
 
@@ -268,12 +282,20 @@ public static class CustomAlert
 
         if (currentPage is ContentPage contentPage && contentPage.Content != null)
         {
-            var originalContent = contentPage.Content;
-            var wrapper = new Grid();
-            contentPage.Content = null;
-            wrapper.Children.Add(originalContent);
-            wrapper.Children.Add(overlay);
-            contentPage.Content = wrapper;
+            if (contentPage.Content is Layout rootLayout)
+            {
+                RemoveStaleOverlays(rootLayout);
+                rootLayout.Children.Add(overlay);
+            }
+            else
+            {
+                var originalContent = contentPage.Content;
+                var wrapper = new Grid { ClassId = WrapperClassId };
+                contentPage.Content = null;
+                wrapper.Children.Add(originalContent);
+                wrapper.Children.Add(overlay);
+                contentPage.Content = wrapper;
+            }
         }
         else
         {
@@ -284,35 +306,67 @@ public static class CustomAlert
         dialog.Opacity = 0;
         dialog.Scale = 0.8;
         await Task.WhenAll(
-            dialog.FadeToAsync(1, 250, Easing.CubicOut),
-            dialog.ScaleToAsync(1, 250, Easing.CubicOut)
+            dialog.FadeToAsync(1, 140, Easing.CubicOut),
+            dialog.ScaleToAsync(1, 140, Easing.CubicOut)
         );
 
         return await tcs.Task;
+        }
+        finally
+        {
+            AlertGate.Release();
+        }
     }
 
-    private static async void CloseDialog(Grid overlay)
+    private static async Task CloseDialogAsync(Grid overlay)
     {
-        if (overlay.Children.FirstOrDefault() is Border dialog)
+        try
         {
-            await Task.WhenAll(
-                dialog.FadeToAsync(0, 200, Easing.CubicIn),
-                dialog.ScaleToAsync(0.8, 200, Easing.CubicIn)
-            );
-        }
-
-        if (overlay.Parent is Grid parentGrid)
-        {
-            parentGrid.Children.Remove(overlay);
-            if (parentGrid.Children.Count == 1 && parentGrid.Parent is ContentPage page)
+            if (overlay.Children.FirstOrDefault() is Border dialog)
             {
-                if (parentGrid.Children[0] is View originalContent)
+                await Task.WhenAll(
+                    dialog.FadeToAsync(0, 120, Easing.CubicIn),
+                    dialog.ScaleToAsync(0.8, 120, Easing.CubicIn)
+                );
+            }
+        }
+        catch
+        {
+            // Ignore animation errors; always continue removal.
+        }
+        finally
+        {
+            if (overlay.Parent is Layout parentLayout)
+            {
+                parentLayout.Children.Remove(overlay);
+
+                if (parentLayout is Grid parentGrid &&
+                    parentGrid.ClassId == WrapperClassId &&
+                    parentGrid.Children.Count == 1 &&
+                    parentGrid.Parent is ContentPage page)
                 {
-                    parentGrid.Children.Clear();
-                    page.Content = originalContent;
+                    if (parentGrid.Children[0] is View originalContent)
+                    {
+                        parentGrid.Children.Clear();
+                        page.Content = originalContent;
+                    }
                 }
             }
         }
+    }
+
+    private static void RemoveStaleOverlays(Layout layout)
+    {
+        var stale = layout.Children
+            .OfType<View>()
+            .Where(c => c.ClassId == OverlayClassId)
+            .ToList();
+
+        foreach (var ov in stale)
+            layout.Children.Remove(ov);
+
+        foreach (var childLayout in layout.Children.OfType<Layout>().ToList())
+            RemoveStaleOverlays(childLayout);
     }
 
     // ══════════════════════════════════════════════════════════════

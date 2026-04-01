@@ -327,6 +327,20 @@
             font-size: 0.9rem;
         }
 
+        .table-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .pagination-info {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
         table {
             width: 100%;
             border-collapse: separate;
@@ -695,6 +709,18 @@
             <tbody id="vendorBody"></tbody>
         </table>
 
+        <div class="table-pagination" id="vendorPagination" style="display:none;">
+            <div class="pagination-info" id="vendorPagingInfo">Trang 1/1</div>
+            <div class="action-buttons">
+                <button class="btn btn-outline btn-sm" id="vendorPrevBtn" onclick="changeVendorPage(-1)">
+                    <i class="fas fa-chevron-left"></i> Trước
+                </button>
+                <button class="btn btn-outline btn-sm" id="vendorNextBtn" onclick="changeVendorPage(1)">
+                    Sau <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
         <div class="empty-state" id="emptyState" style="display:none;">
             <i class="fas fa-store-slash"></i>
             <h3>Không có vendor nào</h3>
@@ -870,6 +896,9 @@
     let currentTab = '';
     let currentSort = '';
     let searchTimer = null;
+    let vendorsAll = [];
+    let vendorPage = 1;
+    const vendorPageSize = 5;
 
     // ═══ Init ═══
     document.addEventListener('DOMContentLoaded', () => {
@@ -879,10 +908,14 @@
 
         document.getElementById('searchInput').addEventListener('input', (e) => {
             clearTimeout(searchTimer);
+            vendorPage = 1;
             searchTimer = setTimeout(() => loadVendors(), 400);
         });
 
-        document.getElementById('sortSelect').addEventListener('change', () => loadVendors());
+        document.getElementById('sortSelect').addEventListener('change', () => {
+            vendorPage = 1;
+            loadVendors();
+        });
     });
 
     // ═══ API Calls ═══
@@ -909,8 +942,8 @@
 
         try {
             const res = await VendorApi.list({ search, status: currentTab, sort });
-            renderVendors(res.data || []);
-            document.getElementById('tableCount').textContent = `${(res.data || []).length} vendor`;
+            vendorsAll = res.data || [];
+            renderVendorPage();
         } catch (err) {
             console.error('Load vendors error:', err);
             showToast('Lỗi tải danh sách vendors', 'error');
@@ -941,10 +974,12 @@
         const tbody = document.getElementById('vendorBody');
         const table = document.getElementById('vendorTable');
         const empty = document.getElementById('emptyState');
+        const pagination = document.getElementById('vendorPagination');
 
         if (!vendors.length) {
             table.style.display = 'none';
             empty.style.display = 'block';
+            pagination.style.display = 'none';
             return;
         }
 
@@ -1011,6 +1046,39 @@
         `).join('');
     }
 
+    function renderVendorPage() {
+        const total = vendorsAll.length;
+        const totalPages = Math.max(1, Math.ceil(total / vendorPageSize));
+        if (vendorPage > totalPages) vendorPage = totalPages;
+        if (vendorPage < 1) vendorPage = 1;
+
+        const start = (vendorPage - 1) * vendorPageSize;
+        const pageItems = vendorsAll.slice(start, start + vendorPageSize);
+
+        renderVendors(pageItems);
+        document.getElementById('tableCount').textContent = `${total} vendor`;
+
+        const pagination = document.getElementById('vendorPagination');
+        const info = document.getElementById('vendorPagingInfo');
+        const prevBtn = document.getElementById('vendorPrevBtn');
+        const nextBtn = document.getElementById('vendorNextBtn');
+
+        if (!total) {
+            pagination.style.display = 'none';
+            return;
+        }
+
+        pagination.style.display = 'flex';
+        info.textContent = `Trang ${vendorPage}/${totalPages} - ${total} vendor`;
+        prevBtn.disabled = vendorPage <= 1;
+        nextBtn.disabled = vendorPage >= totalPages;
+    }
+
+    function changeVendorPage(delta) {
+        vendorPage += delta;
+        renderVendorPage();
+    }
+
     function escapeAttr(str) {
         if (!str) return '';
         return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -1025,6 +1093,7 @@
     // ═══ Tabs ═══
     function switchTab(status) {
         currentTab = status;
+        vendorPage = 1;
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
 
         if (status === '') document.getElementById('tabAll').classList.add('active');

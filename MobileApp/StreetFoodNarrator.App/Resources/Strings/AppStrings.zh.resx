@@ -31,14 +31,28 @@
     <value>关闭</value>
   </data>
   <data name="Welcome_AppTitle" xml:space="preserve">
-    <value>Street Food Narrator</value>
+    <value>探索永庆街头美食</value>
   </data>
   <data name="Welcome_Subtitle" xml:space="preserve">
-    <value>探索街头美食之旅
-永庆美食</value>
+    <value>应用将自动引导您的美食之旅</value>
   </data>
   <data name="Welcome_StartTour" xml:space="preserve">
-    <value>🚀  开始游览</value>
+    <value>🚀  开始</value>
+  </data>
+  <data name="Onboarding_Popup_Title" xml:space="preserve">
+    <value>下载数据以便离线使用？</value>
+  </data>
+  <data name="Onboarding_Popup_Message" xml:space="preserve">
+    <value>您可以下载数据以便在无网络时使用，或立即开始稍后下载。</value>
+  </data>
+  <data name="Onboarding_Popup_Download" xml:space="preserve">
+    <value>📥 下载数据</value>
+  </data>
+  <data name="Onboarding_Popup_UseNow" xml:space="preserve">
+    <value>⚡ 立即使用</value>
+  </data>
+  <data name="Onboarding_OfflineNoNetwork" xml:space="preserve">
+    <value>无网络，将使用内置数据</value>
   </data>
   <data name="Welcome_Feature_Auto_Title" xml:space="preserve">
     <value>自动播放</value>

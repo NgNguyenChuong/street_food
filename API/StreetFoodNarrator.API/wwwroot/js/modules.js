@@ -50,7 +50,7 @@ function filterTrans() {
   });
   renderTrans(filtered);
 }
-function editTrans(id) { toast('Edit translation (stub)','info'); }
+function editTrans(id) { toast('Chỉnh sửa bản dịch (đang phát triển)','info'); }
 function deleteTrans(id, btn) {
   if(!confirm('Xác nhận xóa chuỗi dịch này?')) return;
   btn.closest('tr').remove();
@@ -154,7 +154,7 @@ function openTourDetail(id) {
   openModal('tour-detail');
 }
 
-function editTour(id) { toast('Edit tour (stub)','info'); }
+function editTour(id) { toast('Chỉnh sửa tour (đang phát triển)','info'); }
 function saveTour() {
   closeModal();
   toast('Đã lưu tour','success');
@@ -248,7 +248,7 @@ function renderUsers(data) {
       <td onclick="event.stopPropagation()">
         <div class="actions">
           <button class="a-btn a-edit" onclick="viewDevice(${u.id})">👁️</button>
-          ${u.status==='active' ? `<button class="a-btn a-del" onclick="blockDevice(${u.id},this)">🚫</button>` : `<button class="a-btn a-approve" onclick="toast('Unblock device (stub)','info')">✅</button>`}
+          ${u.status==='active' ? `<button class="a-btn a-del" onclick="blockDevice(${u.id},this)">🚫</button>` : `<button class="a-btn a-approve" onclick="toast('Mở chặn thiết bị (đang phát triển)','info')">✅</button>`}
         </div>
       </td>
     </tr>

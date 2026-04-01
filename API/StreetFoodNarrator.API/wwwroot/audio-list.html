@@ -805,8 +805,8 @@
                 <div class="filter-group">
                     <label class="filter-label">Số dùng</label>
                     <select class="filter-select" id="pageSizeFilter">
-                        <option value="5">5</option>
-                        <option value="6" selected>6</option>
+                        <option value="5" selected>5</option>
+                        <option value="6">6</option>
                     </select>
                 </div>
 
@@ -928,7 +928,7 @@
     const isVendor = user?.roles?.includes('Vendor');
 
     let currentPage     = 1;
-    let groupsPerPage   = 6;   // Number of POI cards shown per page
+    let groupsPerPage   = 5;   // Number of POI cards shown per page
     let currentLanguage = '';
     let currentPoiQuery = '';
     let currentStatus   = '';
@@ -1028,7 +1028,7 @@
     function applyFilters() {
         currentLanguage = document.getElementById('languageFilter').value;
         currentPoiQuery = document.getElementById('poiFilter').value.trim();
-        groupsPerPage   = parseInt(document.getElementById('pageSizeFilter').value, 10) || 6;
+        groupsPerPage   = parseInt(document.getElementById('pageSizeFilter').value, 10) || 5;
         currentStatus   = document.getElementById('statusFilter').value;
         currentPage     = 1;
         backendFetchPage = 1;

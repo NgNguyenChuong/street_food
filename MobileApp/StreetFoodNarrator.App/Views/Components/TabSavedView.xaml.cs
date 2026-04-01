@@ -26,7 +26,7 @@ public partial class TabSavedView : ContentView
 
         if (e.CurrentSelection.FirstOrDefault() is POI poi)
         {
-            await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi));
+            await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi, keepCurrentAudio: true));
         }
     }
 
@@ -42,6 +42,6 @@ public partial class TabSavedView : ContentView
     private async void OnDetailTapped(object sender, EventArgs e)
     {
         if (sender is BindableObject bindable && bindable.BindingContext is POI poi)
-            await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi));
+            await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi, keepCurrentAudio: true));
     }
 }

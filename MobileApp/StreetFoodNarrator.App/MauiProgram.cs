@@ -53,6 +53,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ITourEngagementService, TourEngagementService>();
         builder.Services.AddSingleton<IPopupService, PopupService>();
         builder.Services.AddSingleton<IVirtualTourViewModel, VirtualTourViewModel>();
+        builder.Services.AddSingleton<IOfflineRoutingService, OfflineRoutingService>();
 
         // Location: use Simulated GPS by default (great for emulator)
         if (AppConfig.UseSimulatedGPS)

@@ -86,7 +86,7 @@
                         </button>
                         <ul class="submenu">
                             <li><a href="${poiListHref}" class="nav-sublink">${poiListLabel}</a></li>
-                            <li><a href="poi-create" class="nav-sublink">Tạo POI</a></li>
+                            ${isVendor ? '<li><a href="poi-create" class="nav-sublink">Tạo POI</a></li>' : ''}
                         </ul>
                     </li>
 
@@ -119,13 +119,13 @@
                         </button>
                         <ul class="submenu">
                             <li><a href="audio-list" class="nav-sublink">Danh sách âm thanh</a></li>
-                            <li><a href="audio-bulk-generate" class="nav-sublink">TTS hàng loạt</a></li>
-                            <li><a href="audio-list#upload" class="nav-sublink">Upload audio</a></li>
+                            ${isVendor ? '<li><a href="audio-bulk-generate" class="nav-sublink">TTS hàng loạt</a></li>' : ''}
+                            ${isVendor ? '<li><a href="audio-list#upload" class="nav-sublink">Upload audio</a></li>' : ''}
                         </ul>
                     </li>
                     ${isAdmin ? `
                     <li class="nav-item">
-                        <a href="history" class="nav-link">
+                        <a href="users" class="nav-link">
                             <i class="nav-icon fas fa-users"></i>
                             <span>Người dùng</span>
                         </a>

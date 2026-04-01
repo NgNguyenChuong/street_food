@@ -31,14 +31,28 @@
     <value>Đóng</value>
   </data>
   <data name="Welcome_AppTitle" xml:space="preserve">
-    <value>Street Food Narrator</value>
+    <value>Khám phá ẩm thực Vĩnh Khánh</value>
   </data>
   <data name="Welcome_Subtitle" xml:space="preserve">
-    <value>Khám phá hành trình
-ẩm thực Vĩnh Khánh</value>
+    <value>Ứng dụng sẽ dẫn bạn đi ăn tự động</value>
   </data>
   <data name="Welcome_StartTour" xml:space="preserve">
-    <value>🚀  Bắt đầu Tour</value>
+    <value>🚀  Bắt đầu khám phá Vĩnh Khánh  </value>
+  </data>
+  <data name="Onboarding_Popup_Title" xml:space="preserve">
+    <value>Tải dữ liệu để dùng offline?</value>
+  </data>
+  <data name="Onboarding_Popup_Message" xml:space="preserve">
+    <value>Bạn có thể tải dữ liệu để sử dụng khi không có mạng, hoặc bắt đầu ngay và tải sau.</value>
+  </data>
+  <data name="Onboarding_Popup_Download" xml:space="preserve">
+    <value>📥 Tải dữ liệu</value>
+  </data>
+  <data name="Onboarding_Popup_UseNow" xml:space="preserve">
+    <value>⚡ Dùng ngay</value>
+  </data>
+  <data name="Onboarding_OfflineNoNetwork" xml:space="preserve">
+    <value>Không có mạng, sẽ dùng dữ liệu có sẵn</value>
   </data>
   <data name="Welcome_Feature_Auto_Title" xml:space="preserve">
     <value>Tự động phát</value>

@@ -47,6 +47,7 @@ public static class DbInitializer
         await SeedVendors(serviceProvider, userManager);
         // Keep vendor-POI ownership mapping in sync for existing datasets.
         await LinkExistingPoisToVendors(serviceProvider);
+        await SeedMenuItems(serviceProvider);
         await SeedTours(serviceProvider);
         await SeedAnalyticsData(serviceProvider, userManager);
     }
@@ -67,8 +68,21 @@ public static class DbInitializer
             Builders<VendorProfile>.IndexKeys.Ascending(v => v.VendorId),
             new CreateIndexOptions { Unique = true, Name = "ux_vendor_profile_vendor_id" });
 
+        var idempotencyKeyIndex = new CreateIndexModel<SubmissionIdempotency>(
+            Builders<SubmissionIdempotency>.IndexKeys.Ascending(x => x.IdempotencyKey),
+            new CreateIndexOptions { Unique = true, Name = "ux_submission_idempotency_key" });
+
+        var idempotencyCreatedAtTtlIndex = new CreateIndexModel<SubmissionIdempotency>(
+            Builders<SubmissionIdempotency>.IndexKeys.Ascending(x => x.CreatedAt),
+            new CreateIndexOptions
+            {
+                Name = "ttl_submission_idempotency_created_at",
+                ExpireAfter = TimeSpan.FromHours(24)
+            });
+
         await db.POIs.Indexes.CreateManyAsync(new[] { poiIdIndex, poiVendorIndex });
         await db.VendorProfiles.Indexes.CreateOneAsync(vendorIdIndex);
+        await db.SubmissionIdempotencies.Indexes.CreateManyAsync(new[] { idempotencyKeyIndex, idempotencyCreatedAtTtlIndex });
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -286,6 +300,90 @@ public static class DbInitializer
     // ─────────────────────────────────────────────────────────────
     // SEED TOURS (3 tours theo nhóm đặc điểm)
     // ─────────────────────────────────────────────────────────────
+    private static async Task SeedMenuItems(IServiceProvider serviceProvider)
+    {
+        var db = serviceProvider.GetRequiredService<MongoDbContext>();
+        var sequence = serviceProvider.GetRequiredService<MongoSequenceService>();
+
+        var existingPoiIds = await db.MenuItems
+            .Find(m => !m.IsDeleted)
+            .Project(m => m.POI_ID)
+            .ToListAsync();
+        var existingPoiSet = existingPoiIds.ToHashSet();
+
+        var pois = await db.POIs
+            .Find(p => p.IsActive && p.DeletedAt == null && p.ZoneType == "Spot")
+            .SortBy(p => p.POI_ID)
+            .ToListAsync();
+
+        if (pois.Count == 0)
+            return;
+
+        var now = DateTime.UtcNow;
+        var items = new List<MenuItem>();
+
+        foreach (var poi in pois)
+        {
+            if (existingPoiSet.Contains(poi.POI_ID))
+                continue;
+
+            var dishNames = (poi.SignatureDishes ?? new List<string>())
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(4)
+                .ToList();
+
+            if (dishNames.Count == 0)
+            {
+                dishNames = new List<string>
+                {
+                    "Mon dac trung",
+                    "Mon ban chay",
+                    "Mon duoc yeu thich"
+                };
+            }
+
+            var basePrice = poi.AveragePrice.GetValueOrDefault(45000m);
+            if (basePrice < 10000m)
+                basePrice = 10000m;
+
+            for (var i = 0; i < dishNames.Count; i++)
+            {
+                var itemName = dishNames[i];
+                items.Add(new MenuItem
+                {
+                    MenuItemId = await sequence.GetNextAsync("menu_item_id"),
+                    POI_ID = poi.POI_ID,
+                    VendorId = poi.VendorId ?? 0,
+                    Name_Vi = itemName,
+                    Name_En = itemName,
+                    Name_Zh = itemName,
+                    Description_Vi = poi.Description_Vi,
+                    Description_En = poi.Description_En ?? poi.Description_Vi,
+                    Description_Zh = poi.Description_Zh ?? poi.Description_Vi,
+                    ImageUrl = poi.ImageUrl,
+                    ImageUrls = poi.ImageUrls,
+                    Price = basePrice + (i * 10000m),
+                    PriceUnit = "VND",
+                    Category = poi.Category,
+                    Tags = poi.Tags,
+                    IsSignatureDish = i == 0,
+                    IsAvailable = true,
+                    SortOrder = i,
+                    IsDeleted = false,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+            }
+        }
+
+        if (items.Count > 0)
+            await db.MenuItems.InsertManyAsync(items);
+
+        Console.WriteLine($"Seeded {items.Count} menu items.");
+    }
+
     private static async Task SeedTours(IServiceProvider serviceProvider)
     {
         var db = serviceProvider.GetRequiredService<MongoDbContext>();

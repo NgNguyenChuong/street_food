@@ -1,8 +1,7 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <!--
-    SavedPage.xaml – Tab Đã lưu
-    Gộp Browse + Bookmarks với segment control bên trong
-    Offline Ready
+    SavedPage.xaml - Tab Đã lưu
+    Gộp Danh sách tour + Đã lưu
 -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
@@ -16,14 +15,45 @@
     <Grid>
         <Grid RowDefinitions="Auto,*" Padding="0,0,0,100">
 
-        <!-- Segment: Danh sách / Đã lưu -->
+        <Border Grid.RowSpan="2"
+                Margin="16,10,16,0"
+                Padding="10,8"
+                HorizontalOptions="Fill"
+                VerticalOptions="Start"
+                BackgroundColor="#D97706EE"
+                Stroke="#F59E0B"
+                StrokeThickness="1"
+                IsVisible="{Binding ShowOfflineBanner}"
+                ZIndex="2000">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="12" />
+            </Border.StrokeShape>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Label Text="Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm tốt hơn."
+                       FontSize="11"
+                       TextColor="White"
+                       VerticalTextAlignment="Center"/>
+                <Button Grid.Column="1"
+                        WidthRequest="26"
+                        HeightRequest="26"
+                        CornerRadius="13"
+                        Padding="0"
+                        FontFamily="MDI"
+                        FontSize="14"
+                        Text="&#xF0156;"
+                        TextColor="White"
+                        BackgroundColor="#00000000"
+                        Command="{Binding DismissOfflineBannerCommand}" />
+            </Grid>
+        </Border>
+
         <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="16,12" ColumnSpacing="8">
             <Border Grid.Column="0" StrokeShape="RoundRectangle 12"
                     BackgroundColor="#1C3024" Padding="0,10">
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnSegmentBrowseTapped"/>
                 </Border.GestureRecognizers>
-                <Label x:Name="LabelBrowse" Text="Danh sách" FontSize="12"
+                <Label x:Name="LabelBrowse" Text="Danh sách tour" FontSize="12"
                        TextColor="#6B7280" HorizontalOptions="Center"/>
             </Border>
             <Border Grid.Column="1" StrokeShape="RoundRectangle 12"
@@ -36,12 +66,8 @@
             </Border>
         </Grid>
 
-        <!-- Content segment -->
         <Grid Grid.Row="1">
-            <!-- Browse content (TabMenuView) - default HIDDEN -->
             <components:TabMenuView x:Name="BrowseContent" IsVisible="False"/>
-            
-            <!-- Saved content (TabSavedView) - default VISIBLE -->
             <components:TabSavedView x:Name="SavedContent" IsVisible="True"/>
         </Grid>
 

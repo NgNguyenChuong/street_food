@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using StreetFoodNarrator.App.Converters;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using System.Collections.ObjectModel;
 using System.Net.Http;
 using System.Text.Json;
@@ -11,6 +12,17 @@ namespace StreetFoodNarrator.App.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    public sealed class TourListItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int EstimatedDurationMinutes { get; set; }
+        public int PoiCount { get; set; }
+        public string CoverImageUrl { get; set; } = "welcome_streetfood.png";
+        public bool IsActive { get; set; } = true;
+    }
+
     public enum AppMode
     {
         Explore,
@@ -26,12 +38,23 @@ public partial class MainViewModel : ObservableObject
         InZone
     }
 
+    public enum MapViewState
+    {
+        NearOverview,
+        InZoneActive,
+        InZoneMinimized
+    }
+
     public sealed class ExplorePoiCard
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string ImageUrl { get; set; } = "welcome_streetfood.png";
         public string DistanceText { get; set; } = "—";
+        public string SuggestionInfoText { get; set; } = "— • 4.5★";
+        public string PriceTierText { get; set; } = "$";
+        public string AreaText { get; set; } = string.Empty;
+        public string ShortDescription { get; set; } = string.Empty;
         public double DistanceMeters { get; set; }
         public string StatusText { get; set; } = string.Empty;
         public string MetaText { get; set; } = string.Empty;
@@ -65,8 +88,15 @@ public partial class MainViewModel : ObservableObject
         _simulator = location as SimulatedLocationService;
         _fallbackSimulator = new SimulatedLocationService();
         IsReviewOnline = HasInternetAccess();
+        IsNetworkOffline = !HasInternetAccess();
+        IsOfflineHintDismissed = OfflineBannerSessionState.IsDismissed;
         Connectivity.Current.ConnectivityChanged += (_, _) =>
-            MainThread.BeginInvokeOnMainThread(() => IsReviewOnline = HasInternetAccess());
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                var hasInternet = HasInternetAccess();
+                IsReviewOnline = hasInternet;
+                IsNetworkOffline = !hasInternet;
+            });
 
         // Default to AppConfig location until GPS/sim updates arrive
         if (CurrentLat == 0 && CurrentLon == 0)
@@ -221,9 +251,14 @@ public partial class MainViewModel : ObservableObject
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
+                // If demo lock was turned on earlier, real/sim GPS updates should unlock it.
+                if (IsExploreStateDemoLocked)
+                    IsExploreStateDemoLocked = false;
+
                 HasLocationFix = true;
                 CurrentLat = loc.Latitude;
                 CurrentLon = loc.Longitude;
+                UpdateTrackingProximityState(loc.Latitude, loc.Longitude);
                 RefreshExploreExperience();
                 CoordDisplay = $"{loc.Latitude:F6}, {loc.Longitude:F6}";
                 var actSim = _isUsingFallback ? _fallbackSimulator : _simulator;
@@ -284,6 +319,52 @@ public partial class MainViewModel : ObservableObject
         return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
+    private ILocationService GetActiveLocationService()
+        => _isUsingFallback ? _fallbackSimulator : _location;
+
+    private void UpdateTrackingProximityState(double lat, double lon)
+    {
+        var nearestSpot = AllPOIs
+            .Where(p => p.ZoneType == "Spot")
+            .OrderBy(p => HaversineDistance(lat, lon, p.Latitude, p.Longitude))
+            .FirstOrDefault();
+
+        if (nearestSpot == null)
+        {
+            GetActiveLocationService().SetTrackingState(TrackingProximityState.Far);
+            return;
+        }
+
+        var nearestDistance = HaversineDistance(lat, lon, nearestSpot.Latitude, nearestSpot.Longitude);
+        var inZoneRadius = Math.Max(nearestSpot.Radius, AppConfig.TrackingInsideMeters);
+        var nextState = nearestDistance <= inZoneRadius
+            ? TrackingProximityState.Inside
+            : nearestDistance <= AppConfig.TrackingNearMeters
+                ? TrackingProximityState.Near
+                : TrackingProximityState.Far;
+
+        GetActiveLocationService().SetTrackingState(nextState);
+    }
+
+    public void ReduceTrackingForBackground()
+    {
+        if (!IsTracking)
+            return;
+
+        GetActiveLocationService().SetTrackingState(TrackingProximityState.Far);
+    }
+
+    public void RestoreTrackingFromBackground()
+    {
+        if (!IsTracking)
+            return;
+
+        if (HasLocationFix && (CurrentLat != 0 || CurrentLon != 0))
+            UpdateTrackingProximityState(CurrentLat, CurrentLon);
+        else
+            GetActiveLocationService().SetTrackingState(TrackingProximityState.Near);
+    }
+
     // ── Observable Properties ─────────────────────────────────
     [ObservableProperty] private POI? primaryZone;
     [ObservableProperty] private string primaryZoneName = "—";
@@ -306,6 +387,10 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string latestStatus = "Sẵn sàng.";
     [ObservableProperty] private string simStepLabel = "";
     [ObservableProperty] private bool isTracking = false;
+    [ObservableProperty] private MapViewState viewState = MapViewState.NearOverview;
+    [ObservableProperty] private int? playingPoiId = null;
+    [ObservableProperty] private bool isAudioPaused = false;
+    private bool _userManuallyExitedInZone;
     [ObservableProperty] private bool isSimulated = AppConfig.UseSimulatedGPS;
     [ObservableProperty] private bool hasLocationFix = false;
     [ObservableProperty] private AppMode currentAppMode = AppMode.Explore;
@@ -332,6 +417,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsExploreMode));
         OnPropertyChanged(nameof(IsRealMode));
         OnPropertyChanged(nameof(IsVirtualMode));
+        OnPropertyChanged(nameof(IsNotVirtualMode));
         OnPropertyChanged(nameof(IsDetailMode));
         OnPropertyChanged(nameof(IsRealOrVirtualMode));
         OnPropertyChanged(nameof(IsBottomNavVisible));
@@ -343,6 +429,14 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnCurrentExploreStateChanged(ExploreState value)
     {
+        if (value == ExploreState.InZone && !_userManuallyExitedInZone && ViewState == MapViewState.NearOverview)
+            ViewState = MapViewState.InZoneActive;
+        else if (value != ExploreState.InZone && ViewState != MapViewState.NearOverview)
+        {
+            _userManuallyExitedInZone = false;
+            ViewState = MapViewState.NearOverview;
+        }
+
         OnPropertyChanged(nameof(IsFarExploreState));
         OnPropertyChanged(nameof(IsNearExploreState));
         OnPropertyChanged(nameof(IsInZoneExploreState));
@@ -358,9 +452,19 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsFarHeroVisible));
     }
 
+    partial void OnViewStateChanged(MapViewState value)
+    {
+        OnPropertyChanged(nameof(IsInZoneExploreState));
+        OnPropertyChanged(nameof(IsInZoneMinimizedExploreState));
+        OnPropertyChanged(nameof(IsInZoneDashboardVisible));
+        OnPropertyChanged(nameof(MapHeaderBackIcon));
+        OnPropertyChanged(nameof(IsNearExploreState));
+    }
+
     public bool IsExploreMode => CurrentAppMode == AppMode.Explore;
     public bool IsRealMode => CurrentAppMode == AppMode.Real;
     public bool IsVirtualMode => CurrentAppMode == AppMode.Virtual;
+    public bool IsNotVirtualMode => CurrentAppMode != AppMode.Virtual;
     public bool IsDetailMode => CurrentAppMode == AppMode.Detail;
     public bool IsRealOrVirtualMode => IsRealMode || IsVirtualMode;
     public bool IsBottomNavVisible => IsExploreMode || IsRealMode;
@@ -368,7 +472,14 @@ public partial class MainViewModel : ObservableObject
     public bool IsLegacyExperienceVisible => IsLegacyMapVisible || IsRealMode || IsVirtualMode || IsDetailMode;
     public bool IsFarExploreState => CurrentExploreState == ExploreState.Far;
     public bool IsNearExploreState => CurrentExploreState == ExploreState.Near;
+    // MainPage does not have a dedicated minimized InZone layout.
+    // Keep InZone content visible there to avoid blank screen after returning from ExploreMapPage.
     public bool IsInZoneExploreState => CurrentExploreState == ExploreState.InZone;
+    public bool IsInZoneMinimizedExploreState => ViewState == MapViewState.InZoneMinimized;
+    public bool IsInZoneDashboardVisible =>
+        CurrentExploreState == ExploreState.InZone &&
+        ViewState != MapViewState.InZoneMinimized;
+    public string MapHeaderBackIcon => ViewState == MapViewState.InZoneActive ? "\U000F0140" : "\U000F004D";
     public bool IsFarHeroVisible => IsExploreStateScreenVisible && IsFarExploreState;
     /// <summary>True when the Explore screen is in Legacy map mode (user tapped "Xem bản đồ").</summary>
     public bool IsMapModeVisible => CurrentAppMode == AppMode.Explore && IsLegacyMapVisible;
@@ -388,6 +499,16 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     public void SwitchToRealModeFromVirtual() => SwitchToRealModeRequested?.Invoke(this, EventArgs.Empty);
+
+    [RelayCommand]
+    private void MinimizeInZone()
+    {
+        if (CurrentExploreState == ExploreState.InZone)
+        {
+            _userManuallyExitedInZone = true;
+            ViewState = MapViewState.InZoneMinimized;
+        }
+    }
 
     [ObservableProperty] private ObservableCollection<string> statusLog = new();
     [ObservableProperty] private string sessionSummary = "—";
@@ -442,9 +563,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<POI> allPOIs = new();
     [ObservableProperty] private ObservableCollection<POI> filteredPOIs = new();
     [ObservableProperty] private ObservableCollection<POI> savedPOIs = new();
+    [ObservableProperty] private ObservableCollection<TourListItem> allTours = new();
+    [ObservableProperty] private ObservableCollection<TourListItem> filteredTours = new();
     [ObservableProperty] private string searchQuery = "";
+    [ObservableProperty] private string tourSearchQuery = "";
     [ObservableProperty] private ObservableCollection<POI> searchSuggestions = new();
     [ObservableProperty] private bool hasSearchText = false;
+    [ObservableProperty] private bool isToursLoading = false;
+    [ObservableProperty] private bool isTourDataStale = false;
     [ObservableProperty] private ObservableCollection<POI> virtualTourPOIs = new();
     [ObservableProperty] private bool isVirtualTourPopupShown = false;
     [ObservableProperty] private POI? selectedPinPOI;
@@ -486,11 +612,28 @@ public partial class MainViewModel : ObservableObject
     // ── Categories & Filters ──────────────────────────────────
     [ObservableProperty] private ObservableCollection<string> categories = new();
     [ObservableProperty] private string selectedCategory = "Tất cả";
+    private readonly object _applyFilterLock = new();
+    private CancellationTokenSource? _applyFilterCts;
+    private readonly object _tourSyncLock = new();
+    private bool _isTourSyncInFlight;
+    private readonly SemaphoreSlim _liveSyncGate = new(1, 1);
+    private bool _isLiveSyncInFlight;
+    private const string ToursCacheJsonKey = "tours_cache_json_v1";
+    private const string LastTourSyncTimeKey = "LastTourSyncTime";
+    private const string LastPoiSyncTimeKey = "LastSyncTime";
+    private static readonly JsonSerializerOptions TourJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     partial void OnSelectedCategoryChanged(string value)
     {
-        ApplyFilter();
-        UpdateSearchSuggestions();
+        _ = ApplyFilterAsync();
+    }
+
+    partial void OnTourSearchQueryChanged(string value)
+    {
+        ApplyTourFilterCore();
     }
 
     /// <summary>
@@ -509,17 +652,23 @@ public partial class MainViewModel : ObservableObject
             .OrderBy(c => c)
             .ToList();
 
-        Categories.Clear();
-        Categories.Add("Tất cả");
-        foreach (var c in cats)
-            Categories.Add(c);
+        var nextCategories = new List<string> { "Tất cả" };
+        nextCategories.AddRange(cats);
 
-        // Reset to "Tất cả" if current selection is no longer valid
-        if (!Categories.Contains(SelectedCategory))
-            SelectedCategory = "Tất cả";
+        void apply()
+        {
+            Categories = new ObservableCollection<string>(nextCategories);
 
-        // Notify UI that categories are ready so chip highlights can be refreshed
-        CategoriesUpdated?.Invoke(this, EventArgs.Empty);
+            // Reset to "Tất cả" if current selection is no longer valid
+            if (!nextCategories.Contains(SelectedCategory))
+                SelectedCategory = "Tất cả";
+
+            // Notify UI that categories are ready so chip highlights can be refreshed
+            CategoriesUpdated?.Invoke(this, EventArgs.Empty);
+        }
+
+        if (MainThread.IsMainThread) apply();
+        else MainThread.BeginInvokeOnMainThread(apply);
     }
 
     // ── Navigation routing ───────────────────────────────────────────────
@@ -547,7 +696,21 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<POI> journalQueueItems = new();
 
     private const string JournalMilestonePopupDateKey = "journal_milestone_popup_last_date";
+    private const int MaxVirtualQueueItems = 6;
     private readonly HashSet<int> _journalCompletedPoiIds = new();
+    private void ReplaceJournalQueueItems(IEnumerable<POI> queueItems)
+    {
+        var snapshot = queueItems.ToList();
+
+        void apply()
+        {
+            // Replace whole collection instead of Clear/Add to avoid ObservableCollection re-entrancy crashes.
+            JournalQueueItems = new ObservableCollection<POI>(snapshot);
+        }
+
+        if (MainThread.IsMainThread) apply();
+        else MainThread.BeginInvokeOnMainThread(apply);
+    }
 
     /// <summary>Populates Journal properties from the current zone and tour state.</summary>
     public void RefreshJournalState()
@@ -561,7 +724,7 @@ public partial class MainViewModel : ObservableObject
             JournalTotalCount = 0;
             JournalCurrentCount = 0;
             JournalProgressFraction = 0;
-            JournalQueueItems.Clear();
+            ReplaceJournalQueueItems(Array.Empty<POI>());
             _journalCompletedPoiIds.Clear();
             return;
         }
@@ -589,13 +752,16 @@ public partial class MainViewModel : ObservableObject
         JournalCurrentlyPlayingImage = current.DisplayImageUrl;
         JournalCurrentlyPlayingPoi = current;
 
-        // Queue: show ALL POIs — currently playing first, then the rest in order (wrap-around)
-        JournalQueueItems.Clear();
-        for (var i = 1; i < spots.Count; i++)
+        // Queue: show all remaining POIs in order (wrap-around)
+        var queueItems = new List<POI>();
+        var queueCount = Math.Min(MaxVirtualQueueItems, Math.Max(0, spots.Count - 1));
+        for (var i = 1; i <= queueCount; i++)
         {
             var idx = (currentIdx + i) % spots.Count;
-            JournalQueueItems.Add(spots[idx]);
+            queueItems.Add(spots[idx]);
         }
+
+        ReplaceJournalQueueItems(queueItems);
     }
 
     /// <summary>
@@ -606,9 +772,10 @@ public partial class MainViewModel : ObservableObject
     public void RefreshJournalQueueOnly()
     {
         var spots = AllPOIs.Where(p => p.ZoneType == "Spot").OrderBy(p => p.Id).ToList();
+        var queueItems = new List<POI>();
         if (spots.Count == 0)
         {
-            JournalQueueItems.Clear();
+            ReplaceJournalQueueItems(Array.Empty<POI>());
             return;
         }
 
@@ -619,12 +786,14 @@ public partial class MainViewModel : ObservableObject
             if (found >= 0) currentIdx = found;
         }
 
-        JournalQueueItems.Clear();
-        for (var i = 1; i < spots.Count; i++)
+        var queueCount = Math.Min(MaxVirtualQueueItems, Math.Max(0, spots.Count - 1));
+        for (var i = 1; i <= queueCount; i++)
         {
             var idx = (currentIdx + i) % spots.Count;
-            JournalQueueItems.Add(spots[idx]);
+            queueItems.Add(spots[idx]);
         }
+
+        ReplaceJournalQueueItems(queueItems);
     }
 
     public bool MarkJournalPoiCompleted(POI? poi)
@@ -656,7 +825,7 @@ public partial class MainViewModel : ObservableObject
 
     public bool ShouldShowJournalMilestonePopup()
     {
-        if (JournalCurrentCount < 3)
+        if (JournalCurrentCount < 4)
             return false;
 
         var notInsideZone = !IsInsideAnyZone && CurrentExploreState != ExploreState.InZone;
@@ -700,6 +869,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string userComment = "";
     [ObservableProperty] private bool isSubmittingReview = false;
     [ObservableProperty] private bool isReviewOnline = true;
+    [ObservableProperty] private bool isNetworkOffline = false;
+    [ObservableProperty] private bool isOfflineHintDismissed = false;
     [ObservableProperty] private string reviewSubmitMessage = "";
     [ObservableProperty] private bool hasMoreReviews = false;
     [ObservableProperty] private string loadMoreReviewsText = "Xem thêm";
@@ -710,6 +881,30 @@ public partial class MainViewModel : ObservableObject
     {
         var access = Connectivity.Current.NetworkAccess;
         return access == NetworkAccess.Internet || access == NetworkAccess.ConstrainedInternet;
+    }
+
+    public bool ShowOfflineBanner => IsNetworkOffline && !OfflineBannerSessionState.IsDismissed;
+
+    partial void OnIsNetworkOfflineChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowOfflineBanner));
+    }
+
+    partial void OnIsOfflineHintDismissedChanged(bool value)
+        => OnPropertyChanged(nameof(ShowOfflineBanner));
+
+    [RelayCommand]
+    private void DismissOfflineBanner()
+    {
+        IsOfflineHintDismissed = true;
+        OfflineBannerSessionState.IsDismissed = true;
+        OnPropertyChanged(nameof(ShowOfflineBanner));
+    }
+
+    public void RefreshOfflineBannerSession()
+    {
+        IsOfflineHintDismissed = OfflineBannerSessionState.IsDismissed;
+        OnPropertyChanged(nameof(ShowOfflineBanner));
     }
 
     private void InitializeExploreDemoData()
@@ -723,6 +918,10 @@ public partial class MainViewModel : ObservableObject
             ImageUrl = "welcome_streetfood.png",
             DistanceMeters = 300,
             DistanceText = "300m",
+            SuggestionInfoText = "300M • 4.9★",
+            PriceTierText = "$$",
+            AreaText = "Quận 4",
+            ShortDescription = "Nước dùng ngọt thanh, thơm quế hồi, chuẩn vị phố cổ.",
             StatusText = "Đang mở cửa",
             MetaText = "4.9 (2K+) • Phở gia truyền",
             TagText = "Món ngon gần nhất",
@@ -737,6 +936,10 @@ public partial class MainViewModel : ObservableObject
             ImageUrl = "welcome_streetfood.png",
             DistanceMeters = 120,
             DistanceText = "120m",
+            SuggestionInfoText = "120M • 4.8★",
+            PriceTierText = "$",
+            AreaText = "Quận 4",
+            ShortDescription = "Bún bò trộn vị đậm đà, lạc rang giòn và rau thơm tươi.",
             StatusText = "4.8 ★",
             MetaText = "Bò xào • Rau thơm • Nước mắm chua ngọt",
             TagText = "Gần bạn còn",
@@ -751,6 +954,10 @@ public partial class MainViewModel : ObservableObject
             ImageUrl = "welcome_streetfood.png",
             DistanceMeters = 350,
             DistanceText = "350m",
+            SuggestionInfoText = "350M • 4.5★",
+            PriceTierText = "$$",
+            AreaText = "Quận 4",
+            ShortDescription = "Ốc cay, nước chấm đậm vị, ăn là nhớ.",
             StatusText = "4.5 ★",
             MetaText = "Ốc cay • Nước chấm đậm vị",
             TagText = "Gần bạn còn",
@@ -772,7 +979,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         var featured = candidateCards.FirstOrDefault();
-        var nearby = candidateCards.Skip(1).Take(2).ToList();
+        var nearby = BuildNearbyExploreSuggestions(resolvedState, featured, candidateCards);
 
         CurrentExploreState = resolvedState;
         ApplyExploreStateContent(resolvedState, featured, nearby);
@@ -795,20 +1002,39 @@ public partial class MainViewModel : ObservableObject
             if (nearestSpot != null)
             {
                 var nearestDistance = HaversineDistance(CurrentLat, CurrentLon, nearestSpot.Latitude, nearestSpot.Longitude);
-                var inZoneRadius = Math.Max(nearestSpot.Radius, 60);
+                var inZoneRadius = Math.Max(nearestSpot.Radius, AppConfig.InZoneRadiusMeters);
 
                 if (nearestDistance <= inZoneRadius)
                 {
                     return ExploreState.InZone;
                 }
 
-                if (nearestDistance <= 1000)
+                if (nearestDistance <= AppConfig.NearRadiusMeters)
                 {
                     return ExploreState.Near;
                 }
 
+                // Guard against stale/misaligned POI coordinates:
+                // fallback to food-street center distance before declaring Far.
+                var centerDistance = HaversineDistance(
+                    CurrentLat, CurrentLon,
+                    AppConfig.DefaultLatitude, AppConfig.DefaultLongitude);
+                if (centerDistance <= AppConfig.FallbackInZoneMeters)
+                    return ExploreState.InZone;
+                if (centerDistance <= AppConfig.FallbackNearMeters)
+                    return ExploreState.Near;
+
                 return ExploreState.Far;
             }
+
+            // If spots are not available yet, estimate by configured food-street center.
+            var fallbackCenterDistance = HaversineDistance(
+                CurrentLat, CurrentLon,
+                AppConfig.DefaultLatitude, AppConfig.DefaultLongitude);
+            if (fallbackCenterDistance <= AppConfig.FallbackInZoneMeters)
+                return ExploreState.InZone;
+            if (fallbackCenterDistance <= AppConfig.FallbackNearMeters)
+                return ExploreState.Near;
         }
 
         if (PrimaryZone != null || IsInsideAnyZone)
@@ -828,7 +1054,7 @@ public partial class MainViewModel : ObservableObject
     {
         var source = AllPOIs
             .Where(p => p.ZoneType == "Spot")
-            .Select(CreateExploreCardFromPoi)
+            .Select(p => CreateExploreCardFromPoi(p))
             .Where(card => card != null)
             .Cast<ExplorePoiCard>()
             .OrderBy(card => card.DistanceMeters)
@@ -847,13 +1073,57 @@ public partial class MainViewModel : ObservableObject
         return source;
     }
 
-    private ExplorePoiCard? CreateExploreCardFromPoi(POI? poi)
+    private List<ExplorePoiCard> BuildNearbyExploreSuggestions(
+        ExploreState state,
+        ExplorePoiCard? featured,
+        IReadOnlyCollection<ExplorePoiCard> candidateCards)
+    {
+        if (state == ExploreState.Near && !IsExploreStateDemoLocked && featured != null)
+        {
+            var featuredPoi = AllPOIs.FirstOrDefault(p => p.ZoneType == "Spot" && p.Id == featured.Id);
+            if (featuredPoi != null)
+            {
+                var nearbyFromFeatured = AllPOIs
+                    .Where(p => p.ZoneType == "Spot" && p.Id != featuredPoi.Id)
+                    .Select(p => new
+                    {
+                        Poi = p,
+                        DistanceFromFeatured = HaversineDistance(
+                            featuredPoi.Latitude,
+                            featuredPoi.Longitude,
+                            p.Latitude,
+                            p.Longitude)
+                    })
+                    .OrderBy(x => x.DistanceFromFeatured)
+                    .Take(8)
+                    .Select(x => CreateExploreCardFromPoi(x.Poi, x.DistanceFromFeatured))
+                    .Where(card => card != null)
+                    .Cast<ExplorePoiCard>()
+                    .Take(2)
+                    .ToList();
+
+                if (nearbyFromFeatured.Count > 0)
+                {
+                    return nearbyFromFeatured;
+                }
+            }
+        }
+
+        return candidateCards
+            .Where(card => featured == null || card.Id != featured.Id)
+            .Take(2)
+            .ToList();
+    }
+
+    private ExplorePoiCard? CreateExploreCardFromPoi(POI? poi, double? distanceOverrideMeters = null)
     {
         if (poi == null) return null;
 
-        var distanceMeters = poi.DistanceFromUser > 0
+        var distanceMeters = distanceOverrideMeters ?? (poi.DistanceFromUser > 0
             ? poi.DistanceFromUser
-            : HaversineDistance(CurrentLat, CurrentLon, poi.Latitude, poi.Longitude);
+            : HaversineDistance(CurrentLat, CurrentLon, poi.Latitude, poi.Longitude));
+        var priceTier = BuildPriceTierText(poi.AveragePrice);
+        var ratingText = BuildRatingBadgeText(poi.Rating ?? 4.7);
         var hours = poi.OpeningHoursText ?? poi.EstimatedHours;
         var metaParts = new List<string>();
 
@@ -883,6 +1153,10 @@ public partial class MainViewModel : ObservableObject
             ImageUrl = poi.DisplayImageUrl,
             DistanceMeters = distanceMeters,
             DistanceText = FormatDistance(distanceMeters),
+            SuggestionInfoText = $"{FormatSuggestionDistance(distanceMeters)} • {ratingText}",
+            PriceTierText = priceTier,
+            AreaText = ExtractAreaText(poi.Address),
+            ShortDescription = BuildExploreDescriptionSnippet(poi),
             StatusText = !string.IsNullOrWhiteSpace(hours) ? "Đang mở cửa" : "Sẵn sàng khám phá",
             MetaText = string.Join(" • ", metaParts.Where(part => !string.IsNullOrWhiteSpace(part))),
             TagText = poi.Category ?? poi.Type ?? "Ẩm thực đường phố",
@@ -896,6 +1170,48 @@ public partial class MainViewModel : ObservableObject
         var raw = poi.Description_Vi ?? poi.FunFact ?? poi.SignatureDish ?? "Một hương vị đáng thử trên hành trình của bạn.";
         var trimmed = raw.Length > 88 ? $"{raw[..88].Trim()}..." : raw.Trim();
         return $"\"{trimmed}\"";
+    }
+
+    private static string BuildExploreDescriptionSnippet(POI poi)
+    {
+        var raw = poi.Description_Vi ?? poi.FunFact ?? poi.SignatureDish ?? "Một quán nổi bật đáng để khám phá.";
+        var normalized = raw.Replace("\r", " ").Replace("\n", " ").Trim();
+        return normalized.Length > 120 ? $"{normalized[..120].Trim()}..." : normalized;
+    }
+
+    private static string BuildPriceTierText(decimal? averagePrice)
+    {
+        if (!averagePrice.HasValue || averagePrice.Value <= 0) return "$";
+        if (averagePrice.Value <= 50000) return "$";
+        if (averagePrice.Value <= 120000) return "$$";
+        return "$$$";
+    }
+
+    private static string BuildRatingBadgeText(double rating)
+    {
+        if (rating <= 0)
+            rating = 4.5;
+
+        return $"{rating:F1}★";
+    }
+
+    private static string FormatSuggestionDistance(double meters)
+    {
+        if (meters <= 0) return "—";
+        if (meters < 1000) return $"{meters:F0}M";
+        return $"{meters / 1000:F1}KM";
+    }
+
+    private static string ExtractAreaText(string? address)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+            return "Khu ẩm thực";
+
+        var parts = address.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return parts[1];
+
+        return address.Trim();
     }
 
     private void ApplyExploreStateContent(
@@ -919,8 +1235,8 @@ public partial class MainViewModel : ObservableObject
             case ExploreState.Near:
                 ExploreStateBadge = "GPS ACTIVE • NEAR MODE";
                 ExploreHeadline = "Bạn đang đến gần khu ẩm thực";
-                ExploreSubtitle = "Khám phá hương vị bản địa ngay tại tọa độ của bạn.";
-                ExplorePrimaryActionText = "🎧 Bắt đầu khám phá";
+                ExploreSubtitle = "Khám phá hương vị bản địa ngay tại vị trí của bạn.";
+                ExplorePrimaryActionText = "Bắt đầu khám phá";
                 ExploreSecondaryActionText = "🗺️ Xem bản đồ";
                 HasSecondaryExploreAction = false;
                 IsExploreAudioAvailable = false;
@@ -929,8 +1245,8 @@ public partial class MainViewModel : ObservableObject
 
             default:
                 ExploreStateBadge = "GPS ACTIVE • IN-ZONE";
-                ExploreHeadline = "Ứng dụng đang dẫn bạn trong đời thực";
-                ExploreSubtitle = "Lắng nghe thuyết minh và di chuyển giữa các quán nổi bật gần bạn.";
+                ExploreHeadline = "Ứng dụng đã nhận diện khu ẩm thực";
+                ExploreSubtitle = "Cùng bạn đồng hành trong chuyến đi thưởng thức và tìm hiểu ẩm thực đặc trưng vùng Vĩnh Khánh .";
                 ExplorePrimaryActionText = "➡️ Chỉ đường";
                 ExploreSecondaryActionText = "🗺️ Xem bản đồ";
                 HasSecondaryExploreAction = true;
@@ -945,11 +1261,9 @@ public partial class MainViewModel : ObservableObject
         ExploreAudioProgressValue = AudioProgress > 0 ? AudioProgress : 0.32;
         ExploreAudioProgressText = AudioDuration != "0:00" ? AudioDuration : "01:12";
 
-        NearbyExplorePois.Clear();
-        foreach (var item in nearby)
-        {
-            NearbyExplorePois.Add(item);
-        }
+        // Replace collection instance to avoid ObservableCollection re-entrancy
+        // when location/geofence updates arrive during UI CollectionChanged handling.
+        NearbyExplorePois = new ObservableCollection<ExplorePoiCard>(nearby);
     }
 
     private static string FormatDistance(double meters)
@@ -979,8 +1293,7 @@ public partial class MainViewModel : ObservableObject
 
         reviews = reviews.OrderByDescending(r => r.CreatedAt).ToList();
 
-        PoiReviews.Clear();
-        foreach (var r in reviews) PoiReviews.Add(r);
+        PoiReviews = new ObservableCollection<Review>(reviews);
 
         _visibleReviewCount = 5;
         RebuildVisibleReviews();
@@ -1027,11 +1340,8 @@ public partial class MainViewModel : ObservableObject
             menuItems = BuildFallbackMenuItems(poi);
         }
 
-        VirtualMenuItems.Clear();
-        foreach (var item in menuItems.OrderByDescending(m => m.IsSignatureDish).ThenBy(m => m.Name_Vi))
-        {
-            VirtualMenuItems.Add(item);
-        }
+        VirtualMenuItems = new ObservableCollection<MenuItemDto>(
+            menuItems.OrderByDescending(m => m.IsSignatureDish).ThenBy(m => m.Name_Vi));
     }
 
     private static List<MenuItemDto> BuildFallbackMenuItems(POI poi)
@@ -1059,11 +1369,7 @@ public partial class MainViewModel : ObservableObject
 
     private void RebuildVisibleReviews()
     {
-        VisiblePoiReviews.Clear();
-        foreach (var review in PoiReviews.Take(_visibleReviewCount))
-        {
-            VisiblePoiReviews.Add(review);
-        }
+        VisiblePoiReviews = new ObservableCollection<Review>(PoiReviews.Take(_visibleReviewCount));
 
         HasMoreReviews = PoiReviews.Count > _visibleReviewCount;
         var remaining = Math.Max(0, PoiReviews.Count - _visibleReviewCount);
@@ -1090,9 +1396,7 @@ public partial class MainViewModel : ObservableObject
         // ✅ Check cache first
         if (_menuCache.TryGetValue(PrimaryZone.Id, out var cachedMenu))
         {
-            VirtualMenuItems.Clear();
-            foreach (var item in cachedMenu)
-                VirtualMenuItems.Add(item);
+            VirtualMenuItems = new ObservableCollection<MenuItemDto>(cachedMenu);
             return;
         }
 
@@ -1117,9 +1421,7 @@ public partial class MainViewModel : ObservableObject
         // ✅ Check cache first
         if (_reviewCache.TryGetValue(PrimaryZone.Id, out var cachedReviews))
         {
-            PoiReviews.Clear();
-            foreach (var review in cachedReviews)
-                PoiReviews.Add(review);
+            PoiReviews = new ObservableCollection<Review>(cachedReviews);
             RebuildVisibleReviews();
             return;
         }
@@ -1218,9 +1520,14 @@ public partial class MainViewModel : ObservableObject
     public async Task StartTrackingAsync()
     {
         if (IsTracking) return;
+        var activeLoc = GetActiveLocationService();
         IsTracking = true;
+        if (HasLocationFix && (CurrentLat != 0 || CurrentLon != 0))
+            UpdateTrackingProximityState(CurrentLat, CurrentLon);
+        else
+            activeLoc.SetTrackingState(TrackingProximityState.Near);
         LatestStatus = "📡 GPS đang chạy...";
-        await _location.StartAsync();
+        await activeLoc.StartAsync();
     }
 
     // ── Commands ──────────────────────────────────────────────
@@ -1231,6 +1538,10 @@ public partial class MainViewModel : ObservableObject
 
         if (!IsTracking)
         {
+            if (HasLocationFix && (CurrentLat != 0 || CurrentLon != 0))
+                UpdateTrackingProximityState(CurrentLat, CurrentLon);
+            else
+                activeLoc.SetTrackingState(TrackingProximityState.Near);
             await activeLoc.StartAsync();
             IsTracking = true;
             LatestStatus = _isUsingFallback ? "👣 Xem Ảo đang chạy..." : "📡 GPS đang chạy...";
@@ -1388,17 +1699,23 @@ public partial class MainViewModel : ObservableObject
         await _repository.LoadLocalAsync();
 
         var zones = _repository.GetAllActiveZones();
-        AllPOIs.Clear();
-        foreach (var z in zones) AllPOIs.Add(z);
+        if (zones.Count == 0)
+        {
+            Console.WriteLine("[MainViewModel] Cache is empty, forcing immediate sync/fallback...");
+            await _repository.SyncFromMongoAsync();
+            await _repository.LoadLocalAsync();
+            zones = _repository.GetAllActiveZones();
+        }
+
+        AllPOIs = new ObservableCollection<POI>(zones);
 
         // 2. ✅ Populate VirtualTourPOIs (Spots only for FIX 5)
-        VirtualTourPOIs.Clear();
-        foreach (var poi in AllPOIs.Where(p => p.ZoneType == "Spot"))
-            VirtualTourPOIs.Add(poi);
+        VirtualTourPOIs = new ObservableCollection<POI>(AllPOIs.Where(p => p.ZoneType == "Spot"));
 
         // 3. ✅ Build map filter categories from loaded POI data
         BuildMapCategories();
-        ApplyFilter();
+        _ = ApplyFilterAsync();
+        _ = LoadToursAsync(forceSyncNow);
         RefreshDataSourceState();
         await LoadSavedPOIsAsync();
         RefreshExploreExperience();
@@ -1419,20 +1736,17 @@ public partial class MainViewModel : ObservableObject
                     {
                         await _repository.LoadLocalAsync();
                         var updatedZones = _repository.GetAllActiveZones();
-                        AllPOIs.Clear();
-                        foreach (var z in updatedZones) AllPOIs.Add(z);
-
-                        VirtualTourPOIs.Clear();
-                        foreach (var poi in AllPOIs.Where(p => p.ZoneType == "Spot"))
-                            VirtualTourPOIs.Add(poi);
+                        AllPOIs = new ObservableCollection<POI>(updatedZones);
+                        VirtualTourPOIs = new ObservableCollection<POI>(AllPOIs.Where(p => p.ZoneType == "Spot"));
 
                         BuildMapCategories();
-                        ApplyFilter();
+                        _ = ApplyFilterAsync();
                         RefreshDataSourceState();
                     });
 
                     // Update last sync time
-                    Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
+                    if (_repository.CurrentDataSource == DataSourceKind.LiveApi)
+                        Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
                     Console.WriteLine("[MainViewModel] ✅ Background sync completed");
                 }
                 catch (Exception ex)
@@ -1450,26 +1764,254 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     private bool ShouldSyncNow()
     {
+        if (AllPOIs.Count == 0 || _repository.CurrentDataSource == DataSourceKind.Unknown)
+            return true;
+
         var lastSyncStr = Preferences.Get("LastSyncTime", "");
         if (string.IsNullOrEmpty(lastSyncStr))
             return true;
 
         if (DateTime.TryParse(lastSyncStr, out var lastSync))
         {
-            return (DateTime.Now - lastSync).TotalMinutes > 5;
+            return (DateTime.Now - lastSync).TotalSeconds > 20;
         }
         return true;
+    }
+
+    private bool ShouldSyncToursNow()
+    {
+        if (AllTours.Count == 0)
+            return true;
+
+        var lastSyncStr = Preferences.Get(LastTourSyncTimeKey, "");
+        if (string.IsNullOrWhiteSpace(lastSyncStr))
+            return true;
+
+        if (DateTime.TryParse(lastSyncStr, out var lastSync))
+            return (DateTime.Now - lastSync).TotalSeconds > 20;
+
+        return true;
+    }
+
+    public async Task LiveSyncIfDueAsync()
+    {
+        if (_isLiveSyncInFlight)
+            return;
+
+        if (!HasInternetAccess())
+            return;
+
+        if (!ShouldSyncNow() && !ShouldSyncToursNow())
+            return;
+
+        await _liveSyncGate.WaitAsync();
+        try
+        {
+            if (_isLiveSyncInFlight)
+                return;
+            _isLiveSyncInFlight = true;
+
+            await _repository.SyncFromMongoAsync();
+            await _repository.LoadLocalAsync();
+            var updatedZones = _repository.GetAllActiveZones();
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                AllPOIs = new ObservableCollection<POI>(updatedZones);
+                VirtualTourPOIs = new ObservableCollection<POI>(AllPOIs.Where(p => p.ZoneType == "Spot"));
+                BuildMapCategories();
+                _ = ApplyFilterAsync();
+                RefreshExploreExperience();
+                RefreshDataSourceState();
+            });
+
+            Preferences.Set(LastPoiSyncTimeKey, DateTime.Now.ToString("O"));
+            await LoadToursAsync(forceSyncNow: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] LiveSyncIfDueAsync error: {ex.Message}");
+        }
+        finally
+        {
+            _isLiveSyncInFlight = false;
+            _liveSyncGate.Release();
+        }
+    }
+
+    public async Task LoadToursAsync(bool forceSyncNow = false)
+    {
+        try
+        {
+            IsToursLoading = true;
+
+            // 1) cache-first for instant UI
+            var cachedTours = ReadToursFromCache();
+            if (cachedTours.Count > 0)
+            {
+                AllTours = new ObservableCollection<TourListItem>(cachedTours);
+                ApplyTourFilterCore();
+            }
+
+            if (!AppConfig.UseBackendApi || !HasInternetAccess())
+            {
+                IsTourDataStale = true;
+                return;
+            }
+
+            if (!forceSyncNow && !ShouldSyncToursNow())
+            {
+                IsTourDataStale = false;
+                return;
+            }
+
+            lock (_tourSyncLock)
+            {
+                if (_isTourSyncInFlight)
+                    return;
+                _isTourSyncInFlight = true;
+            }
+
+            try
+            {
+                var liveTours = await FetchToursFromApiAsync();
+                if (liveTours.Count > 0)
+                {
+                    AllTours = new ObservableCollection<TourListItem>(liveTours);
+                    ApplyTourFilterCore();
+                    WriteToursToCache(liveTours);
+                }
+
+                Preferences.Set(LastTourSyncTimeKey, DateTime.Now.ToString("O"));
+                IsTourDataStale = false;
+            }
+            finally
+            {
+                lock (_tourSyncLock)
+                {
+                    _isTourSyncInFlight = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] LoadToursAsync error: {ex.Message}");
+            IsTourDataStale = true;
+        }
+        finally
+        {
+            IsToursLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshToursAsync()
+    {
+        await LoadToursAsync(forceSyncNow: true);
+    }
+
+    private void ApplyTourFilterCore()
+    {
+        var q = (TourSearchQuery ?? string.Empty).Trim().ToLowerInvariant();
+
+        var results = string.IsNullOrEmpty(q)
+            ? AllTours.ToList()
+            : AllTours.Where(t =>
+                    t.Name.ToLowerInvariant().Contains(q) ||
+                    t.Description.ToLowerInvariant().Contains(q))
+                .ToList();
+
+        FilteredTours = new ObservableCollection<TourListItem>(results);
+    }
+
+    private List<TourListItem> ReadToursFromCache()
+    {
+        var json = Preferences.Get(ToursCacheJsonKey, string.Empty);
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<TourListItem>();
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<TourListItem>>(json, TourJsonOptions) ?? new List<TourListItem>();
+        }
+        catch
+        {
+            return new List<TourListItem>();
+        }
+    }
+
+    private void WriteToursToCache(List<TourListItem> tours)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(tours, TourJsonOptions);
+            Preferences.Set(ToursCacheJsonKey, json);
+        }
+        catch
+        {
+            // Ignore cache write errors to keep UI smooth.
+        }
+    }
+
+    private async Task<List<TourListItem>> FetchToursFromApiAsync()
+    {
+        var baseUrl = AppConfig.GetResolvedApiBaseUrl();
+        using var http = new HttpClient
+        {
+            BaseAddress = new Uri(baseUrl),
+            Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds)
+        };
+
+        var response = await http.GetAsync("api/Tours?page=1&pageSize=100&isActive=true");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        var payload = JsonSerializer.Deserialize<TourListResponseDto>(json, TourJsonOptions);
+        var data = payload?.Data ?? new List<TourDto>();
+
+        return data
+            .Where(t => t.IsActive)
+            .Select(t => new TourListItem
+            {
+                Id = t.Id ?? string.Empty,
+                Name = string.IsNullOrWhiteSpace(t.TourName) ? "Tour ẩm thực" : t.TourName,
+                Description = t.Description ?? string.Empty,
+                EstimatedDurationMinutes = Math.Max(1, t.EstimatedDurationMinutes),
+                PoiCount = t.Pois?.Count ?? 0,
+                CoverImageUrl = "welcome_streetfood.png",
+                IsActive = t.IsActive
+            })
+            .ToList();
+    }
+
+    private sealed class TourListResponseDto
+    {
+        public List<TourDto> Data { get; set; } = new();
+    }
+
+    private sealed class TourDto
+    {
+        public string? Id { get; set; }
+        public string TourName { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int EstimatedDurationMinutes { get; set; }
+        public bool IsActive { get; set; }
+        public List<TourPoiDto>? Pois { get; set; }
+    }
+
+    private sealed class TourPoiDto
+    {
+        public string Id { get; set; } = string.Empty;
     }
 
     /// <summary>Called automatically when SearchQuery changes.</summary>
     partial void OnSearchQueryChanged(string value)
     {
         HasSearchText = !string.IsNullOrWhiteSpace(value);
-        ApplyFilter();
-        UpdateSearchSuggestions();
+        _ = ApplyFilterAsync();
     }
 
-    public void ApplyFilter()
+    private void ApplyFilterCore()
     {
         var q = (SearchQuery ?? "").Trim().ToLower();
         var cat = SelectedCategory ?? "Tất cả";
@@ -1483,31 +2025,71 @@ public partial class MainViewModel : ObservableObject
             (p.SignatureDish?.ToLower().Contains(q) == true) ||
             (p.SignatureDishesJson?.ToLower().Contains(q) == true) ||
             (p.Description_Vi?.ToLower().Contains(q) == true) ||
-            (p.Type?.ToLower().Contains(q) == true));
+            (p.Type?.ToLower().Contains(q) == true)).ToList();
 
-        FilteredPOIs.Clear();
-        foreach (var p in results) FilteredPOIs.Add(p);
+        var suggestions = HasSearchText ? results.Take(6).ToList() : new List<POI>();
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            FilteredPOIs = new ObservableCollection<POI>(results);
+            SearchSuggestions = new ObservableCollection<POI>(suggestions);
+        });
     }
 
-    private void UpdateSearchSuggestions()
+    public void ApplyFilter()
     {
-        SearchSuggestions.Clear();
+        ApplyFilterCore();
+    }
 
-        if (!HasSearchText)
-            return;
+    private Task ApplyFilterAsync()
+    {
+        CancellationToken token;
+        lock (_applyFilterLock)
+        {
+            _applyFilterCts?.Cancel();
+            _applyFilterCts = new CancellationTokenSource();
+            token = _applyFilterCts.Token;
+        }
 
-        foreach (var poi in FilteredPOIs.Take(6))
-            SearchSuggestions.Add(poi);
+        return Task.Run(async () =>
+        {
+            await Task.Delay(80, token);
+            token.ThrowIfCancellationRequested();
+
+            var q = (SearchQuery ?? "").Trim().ToLower();
+            var cat = SelectedCategory ?? "Tất cả";
+            var byCategory = cat == "Tất cả"
+                ? AllPOIs.Where(p => p.ZoneType == "Spot")
+                : AllPOIs.Where(p => p.ZoneType == "Spot" && p.Type == cat);
+
+            var results = byCategory.Where(p =>
+                string.IsNullOrEmpty(q) ||
+                (p.Name_Vi?.ToLower().Contains(q) == true) ||
+                (p.SignatureDish?.ToLower().Contains(q) == true) ||
+                (p.SignatureDishesJson?.ToLower().Contains(q) == true) ||
+                (p.Description_Vi?.ToLower().Contains(q) == true) ||
+                (p.Type?.ToLower().Contains(q) == true)).ToList();
+
+            var suggestions = HasSearchText ? results.Take(6).ToList() : new List<POI>();
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (token.IsCancellationRequested)
+                    return;
+
+                FilteredPOIs = new ObservableCollection<POI>(results);
+                SearchSuggestions = new ObservableCollection<POI>(suggestions);
+            });
+        }, token);
     }
 
     public async Task LoadSavedPOIsAsync()
     {
         var liked = await _db.GetLikedPOIsAsync();
-        SavedPOIs.Clear();
         SavedPOIIds.Clear();
+        SavedPOIs = new ObservableCollection<POI>(liked);
         foreach (var poi in liked)
         {
-            SavedPOIs.Add(poi);
             SavedPOIIds.Add(poi.Id);
         }
     }
@@ -1533,7 +2115,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         // Rebuild FilteredPOIs so heart colors reflect the new liked state
-        MainThread.BeginInvokeOnMainThread(ApplyFilter);
+        ApplyFilterCore();
     }
 
     [RelayCommand]
@@ -1580,11 +2162,9 @@ public partial class MainViewModel : ObservableObject
             await _repository.ResetAndSyncAsync();
             
             // Reload toàn bộ POIs vào UI
-            AllPOIs.Clear();
-            foreach (var poi in _repository.GetAllActiveZones())
-            {
-                AllPOIs.Add(poi);
-            }
+            AllPOIs = new ObservableCollection<POI>(_repository.GetAllActiveZones());
+            VirtualTourPOIs = new ObservableCollection<POI>(AllPOIs.Where(p => p.ZoneType == "Spot"));
+            _ = ApplyFilterAsync();
             
             RefreshDataSourceState();
             RefreshExploreExperience();
@@ -1598,5 +2178,3 @@ public partial class MainViewModel : ObservableObject
         }
     }
 }
-
-

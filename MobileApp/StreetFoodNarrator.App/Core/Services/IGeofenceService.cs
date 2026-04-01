@@ -129,9 +129,28 @@ public class GeofenceService : IGeofenceService
             return;
         }
 
-        // THE CORE SORT: Priority first, then Radius as tiebreaker
-        var sorted = insideZones.OrderBy(z => z.Priority).ThenBy(z => z.Radius).ToList();
+        // Stable sort for overlapping zones: highest priority first, then nearest distance, then tighter radius.
+        // Convention: Priority 1-10, HIGHER = more important (Spot > District > Area).
+        var sorted = insideZones
+            .OrderByDescending(z => z.Priority)
+            .ThenBy(z => z.DistanceFromUser)
+            .ThenBy(z => z.Radius)
+            .ThenBy(z => z.Id)
+            .ToList();
         var bestZone = sorted.First();
+
+        // Hysteresis: when priorities are equal and user is on overlap boundary, keep current zone briefly.
+        if (_primaryZone != null)
+        {
+            var current = insideZones.FirstOrDefault(z => z.Id == _primaryZone.Id);
+            if (current != null)
+            {
+                var samePriority = current.Priority == bestZone.Priority;
+                var distanceDelta = bestZone.DistanceFromUser - current.DistanceFromUser;
+                if (samePriority && distanceDelta <= 8.0)
+                    bestZone = current;
+            }
+        }
         var previousId = _primaryZone?.Id;
 
         if (bestZone.Id == previousId)

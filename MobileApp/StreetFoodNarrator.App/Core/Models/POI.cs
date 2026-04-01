@@ -1,4 +1,5 @@
 using SQLite;
+using System.Text.RegularExpressions;
 
 namespace StreetFoodNarrator.App.Core.Models;
 
@@ -156,7 +157,61 @@ public class POI
     /// Giờ mở cửa chi tiết (text format)
     /// </summary>
     public string? OpeningHoursText { get; set; }
-    
+
+    /// <summary>
+    /// Opening hours compact display for UI.
+    /// Example:
+    /// - "T2-T6: 10:00-22:00; T7-CN: 09:00-23:00"
+    /// - "Hàng ngày: 17:00-23:00"
+    /// - "24/7"
+    /// </summary>
+    [Ignore]
+    public string DisplayOpeningHoursText
+    {
+        get
+        {
+            var raw = string.IsNullOrWhiteSpace(OpeningHoursText)
+                ? (string.IsNullOrWhiteSpace(EstimatedHours) ? string.Empty : EstimatedHours!)
+                : OpeningHoursText!;
+
+            if (string.IsNullOrWhiteSpace(raw))
+                return "Đang cập nhật";
+
+            return CompactOpeningHours(raw);
+        }
+    }
+
+    private static string CompactOpeningHours(string input)
+    {
+        var text = input.Trim();
+
+        // Normalize separators and spaces
+        text = text.Replace("–", "-").Replace("—", "-");
+        text = Regex.Replace(text, @"\s+", " ");
+
+        // Common always-open patterns
+        var lower = text.ToLowerInvariant();
+        if (lower.Contains("24/7") || lower.Contains("24h") || lower.Contains("24 giờ") || lower.Contains("00:00-00:00"))
+            return "24/7";
+
+        // If already short enough, keep it
+        if (text.Length <= 42)
+            return text;
+
+        // Convert "Hàng ngày: HH:mm-HH:mm ..." => "Hàng ngày: HH:mm-HH:mm"
+        var dailyMatch = Regex.Match(text, @"(?i)(hàng ngày|mỗi ngày)\s*:\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})");
+        if (dailyMatch.Success)
+            return $"Hàng ngày: {dailyMatch.Groups[2].Value}-{dailyMatch.Groups[3].Value}";
+
+        // Pattern: "Mon-Sun HH:mm-HH:mm" or "Thứ 2 - Chủ Nhật HH:mm-HH:mm"
+        var timeRange = Regex.Match(text, @"(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})");
+        if (timeRange.Success)
+            return $"Hàng ngày: {timeRange.Groups[1].Value}-{timeRange.Groups[2].Value}";
+
+        // Fallback with max length to avoid layout break
+        return text.Length > 48 ? text.Substring(0, 45) + "..." : text;
+    }
+
     /// <summary>
     /// Danh sách món ăn đặc trưng (JSON serialized as comma-separated string)
     /// </summary>

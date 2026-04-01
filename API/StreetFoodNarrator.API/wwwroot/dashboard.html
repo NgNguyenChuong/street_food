@@ -180,6 +180,11 @@
     if (!user || !roleContext) window.location.href = '/index';
 
     const isVendor = roleContext?.toLowerCase() === 'vendor';
+    const createPoiButton = document.querySelector('.header-actions .btn-primary');
+
+    if (!isVendor && createPoiButton) {
+        createPoiButton.style.display = 'none';
+    }
 
     // Apply vendor-specific UI adjustments
     if (isVendor) {
@@ -231,7 +236,8 @@
             // Recent POIs table
             const tbody = document.getElementById('poisTableBody');
             if (!pois.length) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#999">Chưa có POI nào. <a href=\'poi-create\' style="color:var(--primary)">Tạo mới</a></td></tr>';
+                const cta = isVendor ? '<a href=\'poi-create\' style="color:var(--primary)">Tạo mới</a>' : 'Chờ vendor gửi POI để duyệt';
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#999">Chưa có POI nào. ${cta}</td></tr>`;
             } else {
                 tbody.innerHTML = pois.slice(0, 5).map(p => `
                     <tr>

@@ -407,6 +407,10 @@
     <script>
         const user = TokenManager.getUser();
         if (!user) window.location.href = TokenManager.getLoginUrl();
+        const roleContext = (TokenManager.getRoleContext() || '').toLowerCase();
+        if (roleContext !== 'vendor') {
+            window.location.href = 'audio-list';
+        }
 
         // ─── CONSTANTS ───────────────────────────────────────────────────────────────
         const MAX_TTS_SECONDS = 30;

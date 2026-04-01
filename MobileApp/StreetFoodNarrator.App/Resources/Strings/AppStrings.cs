@@ -38,6 +38,11 @@ public static class AppStrings
     public static string Welcome_AppTitle => GetString("Welcome_AppTitle");
     public static string Welcome_Subtitle => GetString("Welcome_Subtitle");
     public static string Welcome_StartTour => GetString("Welcome_StartTour");
+    public static string Onboarding_Popup_Title => GetString("Onboarding_Popup_Title");
+    public static string Onboarding_Popup_Message => GetString("Onboarding_Popup_Message");
+    public static string Onboarding_Popup_Download => GetString("Onboarding_Popup_Download");
+    public static string Onboarding_Popup_UseNow => GetString("Onboarding_Popup_UseNow");
+    public static string Onboarding_OfflineNoNetwork => GetString("Onboarding_OfflineNoNetwork");
     public static string Welcome_Feature_Auto_Title => GetString("Welcome_Feature_Auto_Title");
     public static string Welcome_Feature_Auto_Desc => GetString("Welcome_Feature_Auto_Desc");
     public static string Welcome_Feature_Offline_Title => GetString("Welcome_Feature_Offline_Title");

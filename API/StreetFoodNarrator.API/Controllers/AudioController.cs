@@ -69,7 +69,9 @@ public class AudioController : ControllerBase
 
         if (!string.IsNullOrEmpty(language))
         {
-            filter &= Builders<AudioContent>.Filter.Eq(a => a.Language, language);
+            var normalizedLanguage = NormalizeLanguage(language);
+            var langRegex = new BsonRegularExpression($"^{normalizedLanguage}", "i");
+            filter &= Builders<AudioContent>.Filter.Regex(a => a.Language, langRegex);
         }
 
         if (poiId.HasValue)
@@ -246,19 +248,12 @@ public class AudioController : ControllerBase
     [HttpGet("poi/{poiId}/{language}")]
     public async Task<ActionResult<AudioContent>> GetAudioForPoi(int poiId, string language)
     {
-        // Normalize language code (vi, vi-VN, etc → vi-VN)
-        var normalizedLang = language.ToLowerInvariant() switch
-        {
-            "vi" or "vi-vn" => "vi-VN",
-            "en" or "en-us" => "en-US",
-            "zh" or "zh-cn" => "zh-CN",
-            _ => language
-        };
+        var normalizedLang = NormalizeLanguage(language);
 
         // Find published audio matching POI + Language
         var filter = Builders<AudioContent>.Filter.And(
             Builders<AudioContent>.Filter.Eq(a => a.POI_ID, poiId),
-            Builders<AudioContent>.Filter.Eq(a => a.Language, normalizedLang),
+            Builders<AudioContent>.Filter.Regex(a => a.Language, new BsonRegularExpression($"^{normalizedLang}", "i")),
             Builders<AudioContent>.Filter.Eq(a => a.Status, AudioStatuses.Published),
             Builders<AudioContent>.Filter.Eq(a => a.IsActive, true),
             Builders<AudioContent>.Filter.Eq(a => a.IsDeleted, false)
@@ -348,7 +343,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Create audio content record (for TTS-generated files)
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpPost]
     public async Task<ActionResult<AudioContent>> CreateAudioContent([FromBody] CreateAudioModel model)
     {
@@ -372,7 +367,7 @@ public class AudioController : ControllerBase
 
             var nextId = await _sequence.GetNextAsync("audio_content_id");
             var role = GetPrimaryRole();
-            var status = role == "Admin" ? AudioStatuses.Published : AudioStatuses.Draft;
+            var status = AudioStatuses.Pending;
 
             // If file is in temp uploads, move it to final audio folder before saving
             if (!string.IsNullOrWhiteSpace(model.FilePath) && IsTempAudioPath(model.FilePath))
@@ -407,7 +402,7 @@ public class AudioController : ControllerBase
                 AudioContent_ID = nextId,
                 Title = model.Title ?? "Untitled",
                 Description = model.Description ?? "",
-                Language = model.Language ?? "vi-VN",
+                Language = NormalizeLanguage(model.Language),
                 AudioUrl = model.FilePath ?? "",
                 FileSize = model.FileSize,
                 Duration = model.Duration > 0 ? (int)Math.Round(model.Duration) : null,
@@ -449,7 +444,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Upload audio file for a POI
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpPost("upload")]
     public async Task<ActionResult<AudioContent>> UploadAudio([FromForm] UploadAudioModel model)
     {
@@ -500,7 +495,7 @@ public class AudioController : ControllerBase
 
         var nextId = await _sequence.GetNextAsync("audio_content_id");
         var role = GetPrimaryRole();
-        var status = role == "Admin" ? AudioStatuses.Published : AudioStatuses.Draft;
+        var status = AudioStatuses.Pending;
 
         // Create audio record
             var audio = new AudioContent
@@ -508,7 +503,7 @@ public class AudioController : ControllerBase
                 AudioContent_ID = nextId,
                 Title = model.Title,
                 Description = model.Description,
-                Language = model.Language,
+                Language = NormalizeLanguage(model.Language),
                 AudioUrl = $"/uploads/audio/{fileName}",
                 FileSize = model.AudioFile.Length,
                 TTSText = model.TTSText,
@@ -531,7 +526,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Replace audio file for an existing audio record
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpPost("{id}/replace-file")]
     public async Task<ActionResult<AudioContent>> ReplaceAudioFile(int id, [FromForm] ReplaceAudioFileModel model)
     {
@@ -616,9 +611,9 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Get POIs without audio for a specific language
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpGet("pois-without-audio")]
-    public async Task<ActionResult<List<POIWithoutAudioDto>>> GetPOIsWithoutAudio([FromQuery] string language = "vi-VN")
+    public async Task<ActionResult<List<POIWithoutAudioDto>>> GetPOIsWithoutAudio([FromQuery] string language = "vi")
     {
         var normalizedLanguage = NormalizeLanguage(language);
         var langRegex = new BsonRegularExpression($"^{normalizedLanguage}", "i");
@@ -684,7 +679,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Update audio metadata
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateAudio(int id, [FromBody] UpdateAudioModel model)
     {
@@ -724,7 +719,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Delete audio
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteAudio(int id)
     {
@@ -767,7 +762,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Generate audio file for an existing audio record (using TTSText)
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpPost("{id}/generate-file")]
     public async Task<IActionResult> GenerateAudioFile(int id)
     {
@@ -880,12 +875,12 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Bulk generate audio files for POIs based on existing descriptions.
     /// </summary>
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Vendor")]
     [HttpPost("bulk-generate")]
     public async Task<IActionResult> BulkGenerate([FromBody] BulkGenerateAudioRequest request)
     {
         var languages = (request.Languages == null || request.Languages.Count == 0)
-            ? new List<string> { "vi-VN", "en-US" }
+            ? new List<string> { "vi", "en", "zh" }
             : request.Languages;
 
         var normalizedLanguageSet = new HashSet<string>(
@@ -944,14 +939,14 @@ public class AudioController : ControllerBase
                     AudioContent_ID = nextId,
                     Title = $"{poi.GetName(normalized)} - {language}",
                     Description = string.Empty,
-                    Language = language,
+                    Language = normalized,
                     AudioUrl = string.Empty,
                     FileSize = null,
                     Duration = null,
                     TTSText = null,
                     POI_ID = poi.POI_ID,
                     VendorId = poi.VendorId,
-                    Status = AudioStatuses.Published,
+                    Status = AudioStatuses.Pending,
                     CreatedByUserId = GetUserId(),
                     CreatedByRole = GetPrimaryRole(),
                     IsActive = true,
@@ -1132,9 +1127,6 @@ public class AudioController : ControllerBase
         var lang = language.Trim().ToLowerInvariant();
         if (lang.StartsWith("vi")) return "vi";
         if (lang.StartsWith("en")) return "en";
-        if (lang.StartsWith("ja")) return "ja";
-        if (lang.StartsWith("fr")) return "fr";
-        if (lang.StartsWith("ko")) return "ko";
         if (lang.StartsWith("zh")) return "zh";
         return "vi";
     }
@@ -1254,7 +1246,7 @@ public class UploadAudioModel
     public IFormFile AudioFile { get; set; } = null!;
     public string Title { get; set; } = null!;
     public string? Description { get; set; }
-    public string Language { get; set; } = "vi-VN";
+    public string Language { get; set; } = "vi";
     public int POI_ID { get; set; }
     public string? TTSText { get; set; }
 }
@@ -1274,7 +1266,7 @@ public class UpdateAudioModel
 public class CreateAudioModel
 {
     public int PoiId { get; set; }
-    public string Language { get; set; } = "vi-VN";
+    public string Language { get; set; } = "vi";
     public string Title { get; set; } = null!;
     public string? Description { get; set; }
     public string FileName { get; set; } = null!;
@@ -1303,15 +1295,9 @@ public class POIWithoutAudioDto
     public int POI_ID { get; set; }
     public string Name_Vi { get; set; } = null!;
     public string? Name_En { get; set; }
-    public string? Name_Ja { get; set; }
-    public string? Name_Fr { get; set; }
-    public string? Name_Ko { get; set; }
     public string? Name_Zh { get; set; }
     public string Description_Vi { get; set; } = null!;
     public string? Description_En { get; set; }
-    public string? Description_Ja { get; set; }
-    public string? Description_Fr { get; set; }
-    public string? Description_Ko { get; set; }
     public string? Description_Zh { get; set; }
     public string? Address { get; set; }
     public decimal Latitude { get; set; }

@@ -2,9 +2,11 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.Maui.Storage;
+using Microsoft.Maui.Networking;
 using StreetFoodNarrator.App;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.ViewModels;
 
 namespace StreetFoodNarrator.App.Views;
@@ -26,7 +28,31 @@ public partial class ProfilePage : ContentPage
     {
         base.OnAppearing();
         Console.WriteLine("[ProfilePage] OnAppearing");
+        Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
+        UpdateOfflineBanner();
         await LoadTourHistoryAsync();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
+    }
+
+    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
+        => MainThread.BeginInvokeOnMainThread(UpdateOfflineBanner);
+
+    private void UpdateOfflineBanner()
+    {
+        var offline = Connectivity.Current.NetworkAccess != NetworkAccess.Internet &&
+                      Connectivity.Current.NetworkAccess != NetworkAccess.ConstrainedInternet;
+        OfflineBanner.IsVisible = offline && !OfflineBannerSessionState.IsDismissed;
+    }
+
+    private void OnDismissOfflineBannerClicked(object sender, EventArgs e)
+    {
+        OfflineBannerSessionState.IsDismissed = true;
+        UpdateOfflineBanner();
     }
 
     private async Task LoadTourHistoryAsync()

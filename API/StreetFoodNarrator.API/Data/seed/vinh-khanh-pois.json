@@ -49,7 +49,7 @@
     "triggerRadius": 50,
     "zoneType": "Spot",
     "zoneLevel": 3,
-    "priority": 7
+    "priority": 5
   },
   {
     "nameVi": "Ốc Thảo",
@@ -75,7 +75,7 @@
     "triggerRadius": 50,
     "zoneType": "Spot",
     "zoneLevel": 3,
-    "priority": 7
+    "priority": 5
   },
   {
     "nameVi": "Ốc Sáu Nở",
@@ -101,7 +101,7 @@
     "triggerRadius": 50,
     "zoneType": "Spot",
     "zoneLevel": 3,
-    "priority": 8
+    "priority": 5
   },
   {
     "nameVi": "Ốc Oanh",
@@ -231,7 +231,7 @@
     "triggerRadius": 50,
     "zoneType": "Spot",
     "zoneLevel": 3,
-    "priority": 8
+    "priority": 7
   },
   {
     "nameVi": "Lãng Restaurant",
@@ -257,7 +257,7 @@
     "triggerRadius": 50,
     "zoneType": "Spot",
     "zoneLevel": 3,
-    "priority": 7
+    "priority": 6
   },
   {
     "nameVi": "Ốc Đêm Vĩnh Khánh",
@@ -283,7 +283,7 @@
     "triggerRadius": 50,
     "zoneType": "Spot",
     "zoneLevel": 3,
-    "priority": 7
+    "priority": 5
   },
   {
     "nameVi": "Quán ăn A Hiền",
@@ -335,7 +335,7 @@
     "triggerRadius": 50,
     "zoneType": "Spot",
     "zoneLevel": 3,
-    "priority": 7
+    "priority": 4
   },
   {
     "nameVi": "SHAOKAO Trung-Việt Vĩnh Khánh",
@@ -361,6 +361,6 @@
     "triggerRadius": 50,
     "zoneType": "Spot",
     "zoneLevel": 3,
-    "priority": 7
+    "priority": 4
   }
 ]

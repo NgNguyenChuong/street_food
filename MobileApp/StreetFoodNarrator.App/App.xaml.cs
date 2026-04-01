@@ -7,10 +7,14 @@ namespace StreetFoodNarrator.App;
 
 public partial class App : Application
 {
+    private const string PREF_ONBOARDED = "has_onboarded";
+    private const string PREF_LEGACY_ONBOARDED = "hasSeenOnboarding";
+    private const string PREF_LAST_SYNC_TIME = "LastSyncTime";
+
     public App()
     {
         InitializeComponent();
-        
+
         // Khôi phục ngôn ngữ đã lưu
         var languageService = new LanguageService();
         languageService.RestoreSavedLanguage();
@@ -18,6 +22,32 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        return new Window(new AppShell());
+        var hasOnboarded = Preferences.Get(PREF_ONBOARDED, false);
+        if (!hasOnboarded)
+        {
+            // Migrate legacy onboarding/session markers so returning users skip WelcomePage.
+            var legacyOnboarded = Preferences.Get(PREF_LEGACY_ONBOARDED, false);
+            var hasSyncedBefore = !string.IsNullOrWhiteSpace(Preferences.Get(PREF_LAST_SYNC_TIME, ""));
+            if (legacyOnboarded || hasSyncedBefore)
+            {
+                hasOnboarded = true;
+                Preferences.Set(PREF_ONBOARDED, true);
+            }
+        }
+
+        if (hasOnboarded)
+        {
+            // Returning user: skip WelcomePage, go directly to MainPage
+            return new Window(new AppShell(isOnboarding: false));
+        }
+
+        // First time user: show WelcomePage via AppShell
+        return new Window(new AppShell(isOnboarding: true));
+    }
+
+    /// <summary>Called by WelcomePage after user completes onboarding.</summary>
+    public static void CompleteOnboarding()
+    {
+        Preferences.Set(PREF_ONBOARDED, true);
     }
 }

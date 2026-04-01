@@ -19,7 +19,7 @@
               AbsoluteLayout.LayoutFlags="WidthProportional"
               InputTransparent="False"
               Padding="16,22,16,8"
-              BackgroundColor="#0A1612">
+              BackgroundColor="Transparent">
 
             <Grid ColumnDefinitions="48,*,48" VerticalOptions="Center">
 
@@ -348,7 +348,7 @@
                 <Shadow Brush="#000000" Offset="0,-6" Radius="32" Opacity="0.40"/>
             </Border.Shadow>
 
-            <Grid RowDefinitions="Auto,Auto" RowSpacing="14">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
 
                 <!-- ── Row 0: Info ── -->
                 <Grid Grid.Row="0"
@@ -381,44 +381,123 @@
                                            FallbackValue='4.8'}"
                                    FontSize="13" FontAttributes="Bold"
                                    TextColor="#F0F7F3"/>
-                            <Label Text="•" FontSize="12" TextColor="#8B9A93"/>
+                            <Label Text="•"
+                                   FontSize="12"
+                                   TextColor="#8B9A93"
+                                   IsVisible="{Binding IsNotVirtualMode}"/>
                             <Label Text="{Binding CurrentPoiDistanceText, FallbackValue='0.2 dặm'}"
-                                   FontSize="12" TextColor="#C6D2CC"/>
+                                   FontSize="12"
+                                   TextColor="#C6D2CC"
+                                   IsVisible="{Binding IsNotVirtualMode}"/>
                         </HorizontalStackLayout>
                     </VerticalStackLayout>
 
                     <!-- ♥ Like button — icon toggle bởi RefreshLikeIcon() trong .cs -->
-                    <Border Grid.Column="2"
+                    <Border x:Name="LikeButtonBorder"
+                            Grid.Column="2"
                             WidthRequest="40" HeightRequest="40"
-                            BackgroundColor="Transparent"
-                            StrokeThickness="0"
+                            BackgroundColor="#0E1E1718"
+                            Stroke="#1C3024"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 12"
                             VerticalOptions="Start">
                         <Border.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnLikeTapped"/>
                         </Border.GestureRecognizers>
-                        <!--
-                            Icon mặc định = outline &#xF1437; (sửa lỗi 5-hex cũ).
-                            .cs sẽ gọi RefreshLikeIcon() để đổi sang filled &#xF1438; khi saved.
-                        -->
                         <Label x:Name="LikeIcon"
-                               Text="&#xF1437;"
+                               Text="&#xF02D1;"
                                FontFamily="MDI" FontSize="24"
-                               TextColor="#6BFF8F"
+                               TextColor="#FFFFFF"
                                HorizontalOptions="Center"
                                VerticalOptions="Center"/>
                     </Border>
                 </Grid>
 
-                <!-- ── Row 1: Buttons ── -->
-                <Grid Grid.Row="1"
+                <!-- ── Row 1: Audio preview box ── -->
+                <Grid x:Name="PoiCardExpandedAudioSection"
+                      Grid.Row="1"
                       ColumnDefinitions="*">
-
-                    <!-- XEM CHI TIẾT — gradient xanh -->
                     <Border Grid.Column="0"
                             HeightRequest="52"
-                            Margin="6,0"
+                            BackgroundColor="#101916"
+                            Stroke="#20312A"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="8,0,14,0">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPreviewAudioTapped"/>
+                        </Border.GestureRecognizers>
+                        <Grid ColumnDefinitions="40,*"
+                              VerticalOptions="Center">
+                            <Border Grid.Column="0"
+                                    WidthRequest="34"
+                                    HeightRequest="34"
+                                    BackgroundColor="#1A2A23"
+                                    Stroke="#284036"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 17"
+                                    VerticalOptions="Center"
+                                    HorizontalOptions="Center">
+                                <Label x:Name="PreviewAudioToggleIcon"
+                                       Text="&#xF040A;"
+                                       FontFamily="MDI"
+                                       FontSize="18"
+                                       TextColor="#DCE8E2"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+
+                            <VerticalStackLayout Grid.Column="1"
+                                                 Spacing="1"
+                                                 VerticalOptions="Center">
+                                <Label x:Name="PreviewAudioActionLabel"
+                                       Text="Nghe thử"
+                                       FontSize="13"
+                                       FontAttributes="Bold"
+                                       TextColor="#DCE8E2"/>
+                                <Label Text="Mô tả nhanh quán này"
+                                       FontSize="11"
+                                       TextColor="#89A097"/>
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- ── Row 2: Main actions ── -->
+                <Grid x:Name="PoiCardExpandedActionSection"
+                      Grid.Row="2"
+                      ColumnDefinitions="*,*"
+                      ColumnSpacing="10">
+                    <Border Grid.Column="0"
+                            HeightRequest="50"
+                            BackgroundColor="#1B2823"
+                            Stroke="#214534"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 24">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnViewDetailTapped"/>
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="8"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center">
+                            <Label Text="XEM CHI TIẾT"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   CharacterSpacing="0.4"
+                                   TextColor="#DCE8E2"
+                                   VerticalOptions="Center"/>
+                            <Label Text="&#xF0142;"
+                                   FontFamily="MDI"
+                                   FontSize="16"
+                                   TextColor="#4BE277"
+                                   VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Border>
+
+                    <Border Grid.Column="1"
+                            HeightRequest="50"
                             StrokeThickness="0"
-                            StrokeShape="RoundRectangle 26">
+                            StrokeShape="RoundRectangle 24">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                                 <GradientStop Color="#4BE277" Offset="0.0"/>
@@ -429,17 +508,19 @@
                             <Shadow Brush="#4BE277" Offset="0,3" Radius="20" Opacity="0.20"/>
                         </Border.Shadow>
                         <Border.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnViewDetailTapped"/>
+                            <TapGestureRecognizer Tapped="OnStartFromHereTapped"/>
                         </Border.GestureRecognizers>
                         <HorizontalStackLayout Spacing="10"
                                                HorizontalOptions="Center"
                                                VerticalOptions="Center">
-                            <Label Text="XEM CHI TIẾT"
-                                   FontSize="13" FontAttributes="Bold"
-                                   CharacterSpacing="0.6"
+                            <Label Text="🚀"
+                                   FontSize="15"
+                                   VerticalOptions="Center"/>
+                            <Label Text="BẮT ĐẦU TỪ ĐÂY"
+                                   FontSize="12" FontAttributes="Bold"
+                                   CharacterSpacing="0.4"
                                    TextColor="#063014"
                                    VerticalOptions="Center"/>
-                            <!-- MDI arrow-right F0142 -->
                             <Label Text="&#xF0142;"
                                    FontFamily="MDI" FontSize="18"
                                    TextColor="#063014"
@@ -447,6 +528,107 @@
                         </HorizontalStackLayout>
                     </Border>
                 </Grid>
+
+                <Grid x:Name="PoiCardCollapsedSection"
+                      Grid.Row="1"
+                      IsVisible="False"
+                      RowDefinitions="Auto,Auto"
+                      RowSpacing="8">
+                    <Border Grid.Row="0"
+                            HeightRequest="44"
+                            BackgroundColor="#101916"
+                            Stroke="#20312A"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="10,0,12,0">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPreviewAudioTapped"/>
+                        </Border.GestureRecognizers>
+                        <Grid ColumnDefinitions="Auto,*"
+                              VerticalOptions="Center">
+                            <Border WidthRequest="30"
+                                    HeightRequest="30"
+                                    BackgroundColor="#1A2A23"
+                                    Stroke="#284036"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 15"
+                                    VerticalOptions="Center"
+                                    HorizontalOptions="Center">
+                                <Label Text="{Binding Source={x:Reference PreviewAudioToggleIcon}, Path=Text}"
+                                       FontFamily="MDI"
+                                       FontSize="16"
+                                       TextColor="#DCE8E2"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            <Label Grid.Column="1"
+                                   Text="Nghe thử nhanh"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="#DCE8E2"
+                                   VerticalOptions="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="1"
+                          ColumnDefinitions="*,*"
+                          ColumnSpacing="10">
+                        <Border Grid.Column="0"
+                                HeightRequest="46"
+                                BackgroundColor="#1B2823"
+                                Stroke="#214534"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 22">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnViewDetailTapped"/>
+                            </Border.GestureRecognizers>
+                            <Label Text="XEM CHI TIẾT"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="#DCE8E2"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+
+                        <Border Grid.Column="1"
+                                HeightRequest="46"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 22">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#4BE277" Offset="0.0"/>
+                                    <GradientStop Color="#22C55E" Offset="1.0"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnStartFromHereTapped"/>
+                            </Border.GestureRecognizers>
+                            <Label Text="BẮT ĐẦU TỪ ĐÂY"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="#063014"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <Border Grid.Row="3"
+                        BackgroundColor="#1A3128"
+                        Stroke="#2B4B40"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="12,4"
+                        HorizontalOptions="Center">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnTogglePoiCardTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label x:Name="PoiCardToggleLabel"
+                           Text="Thu gọn"
+                           FontSize="11"
+                           FontAttributes="Bold"
+                           TextColor="#9CCCB0"/>
+                </Border>
             </Grid>
         </Border>
 
@@ -459,9 +641,6 @@
             AbsoluteLayout.LayoutFlags="WidthProportional,PositionProportional"
             Margin="0,0,0,-10"
             InputTransparent="False"
-            SavedNavRequested="OnSavedNavTapped"
-            ProfileNavRequested="OnProfileNavTapped"
-            ExploreNavRequested="OnExploreNavTapped"
             ActiveTab="Explore"/>
 
     </AbsoluteLayout>

@@ -537,10 +537,6 @@
                     <i class="fas fa-arrow-left"></i>
                     <span>Quay lại</span>
                 </button>
-                <a href="poi-create" class="btn btn-primary">
-                    <i class="fas fa-plus"></i>
-                    <span>Thêm POI mới</span>
-                </a>
             </div>
         </div>
 
@@ -678,7 +674,7 @@
         const isVendor = roleContext ? roleContext === 'Vendor' : roles.includes('Vendor');
 
         let currentPage = 1;
-        let currentPageSize = 6;
+        let currentPageSize = 5;
         let currentSearch = '';
         let currentStatus = null;
         let currentSort = 'newest';
@@ -938,29 +934,29 @@
         }
 
         async function deletePOI(id) {
-            showConfirm('B?n c? ch?c mu?n x?a POI n?y?', async () => {
+            showConfirm('Bạn có chắc muốn xóa POI này?', async () => {
                 try {
                     await api.deletePOI(id);
-                    showAlert('?? x?a POI th?nh c?ng!');
+                    showAlert('Đã xóa POI thành công!');
                     loadPOIs();
                 } catch (error) {
-                    showAlert('L?i khi x?a POI: ' + error.message);
+                    showAlert('Lỗi khi xóa POI: ' + error.message);
                 }
             });
         }
 
         async function bulkDelete() {
-            showConfirm(`B?n c? ch?c mu?n x?a ${selectedPOIs.size} POI ?? ch?n?`, async () => {
+            showConfirm(`Bạn có chắc muốn xóa ${selectedPOIs.size} POI đã chọn?`, async () => {
                 try {
                     for (const id of selectedPOIs) {
                         await api.deletePOI(id);
                     }
-                    showAlert(`?? x?a ${selectedPOIs.size} POI th?nh c?ng!`);
+                    showAlert(`Đã xóa ${selectedPOIs.size} POI thành công!`);
                     selectedPOIs.clear();
                     updateBulkActions();
                     loadPOIs();
                 } catch (error) {
-                    showAlert('L?i khi x?a POI: ' + error.message);
+                    showAlert('Lỗi khi xóa POI: ' + error.message);
                 }
             });
         }
@@ -972,11 +968,11 @@
             overlay.className = 'app-confirm-overlay';
             overlay.innerHTML = `
                 <div class="app-confirm" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle">
-                    <div class="app-confirm-header" id="appConfirmTitle">X?c nh?n</div>
+                    <div class="app-confirm-header" id="appConfirmTitle">Xác nhận</div>
                     <div class="app-confirm-body" id="appConfirmMessage"></div>
                     <div class="app-confirm-actions">
-                        <button class="app-confirm-btn" id="appConfirmCancel">H?y</button>
-                        <button class="app-confirm-btn primary" id="appConfirmOk">??ng ?</button>
+                        <button class="app-confirm-btn" id="appConfirmCancel">Hủy</button>
+                        <button class="app-confirm-btn primary" id="appConfirmOk">Đồng ý</button>
                     </div>
                 </div>
             `;

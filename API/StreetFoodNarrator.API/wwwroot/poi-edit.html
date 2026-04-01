@@ -9,8 +9,6 @@
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Leaflet CSS – OSM map (replaces Google Maps) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="sidebar.js"></script>
     <style>
         :root {
@@ -566,6 +564,38 @@
             font-weight: 600;
         }
 
+        .vendor-status-box {
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .vendor-status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .vendor-status-chip.pending {
+            background: rgba(255, 210, 63, 0.2);
+            color: #a16207;
+        }
+
+        .vendor-status-chip.approved {
+            background: rgba(6, 214, 160, 0.2);
+            color: #047857;
+        }
+
+        .vendor-status-chip.rejected {
+            background: rgba(239, 71, 111, 0.18);
+            color: #b91c1c;
+        }
+
         /* Info Card */
         .info-card {
             padding: 1.5rem;
@@ -886,12 +916,12 @@
                             Chủ sở hữu POI (Vendor)
                             <span class="required">*</span>
                         </label>
-                        <select class="form-select" id="vendorSelect">
+                        <select class="form-select" id="vendorSelect" disabled>
                             <option value="">Đang tải danh sách vendor...</option>
                         </select>
                         <div class="form-help" id="vendorSelectHelp">
                             <i class="fas fa-user-tie"></i>
-                            Admin bắt buộc chọn vendor để POI luôn có chủ sở hữu.
+                            Chỉ hiển thị chủ quán đã đăng ký POI này.
                         </div>
                     </div>
 
@@ -904,48 +934,27 @@
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label" style="font-size:0.85rem;">Cách nhập tọa độ</label>
                                 <select class="form-select" id="gpsMode">
-                                    <option value="address">Nhập địa chỉ thủ công</option>
+                                    <option value="manual">Nhập thủ công lat/lng</option>
                                     <option value="maplink">Dán link Google Maps</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="map-search" id="mapSearchGroup">
-                            <input type="text" class="form-input" id="mapSearchInput" placeholder="Nhập địa chỉ để tìm">
-                            <button type="button" class="btn btn-primary" id="mapSearchBtn">
-                                <i class="fas fa-search"></i>
-                                <span>Tìm</span>
-                            </button>
-                            <button type="button" class="btn btn-outline" id="mapMyLocationBtn">
-                                <i class="fas fa-location-crosshairs"></i>
-                                <span>Vị trí của tôi</span>
-                            </button>
-                        </div>
-                        <div class="map-hint admin-only">
-                            <i class="fas fa-map-marker-alt"></i>
-                            Ưu tiên tìm theo địa chỉ, hoặc click/kéo marker trên bản đồ.
+
+                        <div id="mapUrlGroup" style="margin-top: 10px; display:none;">
+                            <div class="input-group" style="display:flex; gap:0.5rem;">
+                                <input type="url" class="form-input" id="mapUrlInput"
+                                    placeholder="VD: https://maps.app.goo.gl/... (Link Google Maps)">
+                                <button type="button" class="btn btn-primary" id="btnResolveMap" style="white-space: nowrap;">
+                                    <i class="fas fa-search-location"></i> Lấy tọa độ
+                                </button>
+                            </div>
+                            <div class="form-help" id="mapUrlStatus">
+                                <i class="fas fa-link"></i>
+                                Dán link Google Maps để tự điền Lat/Lng
+                            </div>
                         </div>
 
-                        <!-- Vendor / Admin Map Link -->
-                        <div class="map-search mt-2 pt-2 border-t border-gray-100" id="mapUrlGroup"
-                            style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
-                            <input type="url" class="form-input" id="mapUrlInput"
-                                placeholder="VD: https://maps.app.goo.gl/... (Link Google Maps)">
-                            <button type="button" class="btn btn-primary" id="btnResolveMap">
-                                <i class="fas fa-search-location"></i> Xác nhận vị trí
-                            </button>
-                        </div>
-                        <div class="form-help" id="mapUrlStatus">
-                            <i class="fas fa-link"></i>
-                            Copy link chia sẻ từ Google Maps dán vào đây để hệ thống tự lấy tọa độ
-                        </div>
-
-                        <!-- Hidden fields for Vendor -->
-                        <div class="vendor-only">
-                            <input type="hidden" id="vendorLat">
-                            <input type="hidden" id="vendorLng">
-                        </div>
-
-                        <div class="coordinate-group admin-only" id="coordinateGroup" style="margin-top: 10px;">
+                        <div class="coordinate-group" id="coordinateGroup" style="margin-top: 10px;">
                             <div>
                                 <input type="text" class="form-input" placeholder="Latitude (VD: 10.8231)" required
                                     id="latitude" value="">
@@ -963,15 +972,9 @@
                                 </div>
                             </div>
                         </div>
-                        <div id="mapPreview" class="map-preview">
-                            <div class="map-placeholder">
-                                <i class="fas fa-map-marked-alt" style="font-size: 3rem; color: #ccc;"></i>
-                                <span>Bản đồ xem trước</span>
-                            </div>
-                        </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group admin-only">
                         <label class="form-label">Bán kính Geofence (mét)</label>
                         <input type="number" class="form-input" placeholder="50" min="10" max="500" id="geofenceRadius"
                             value="">
@@ -981,56 +984,56 @@
                         </div>
                     </div>
 
-                    <div class="geofence-grid">
+                    <div class="geofence-grid admin-only">
                         <div class="form-group">
-                            <label class="form-label">Zone type</label>
+                            <label class="form-label">Loại vùng</label>
                             <select class="form-select" id="zoneType">
-                                <option value="Spot">Spot (specific)</option>
-                                <option value="District">District</option>
-                                <option value="Area">Area</option>
+                                <option value="Spot">Điểm cụ thể</option>
+                                <option value="District">Cấp quận</option>
+                                <option value="Area">Cấp khu vực</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Priority (1-10)</label>
+                            <label class="form-label">Mức ưu tiên (1-10)</label>
                             <input type="number" class="form-input" id="priority" min="1" max="10" value="">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Cooldown (minutes)</label>
+                            <label class="form-label">Thời gian chờ (phút)</label>
                             <input type="number" class="form-input" id="cooldownMinutes" min="0" max="240" value="">
                         </div>
                     </div>
 
                     <div class="geofence-grid">
-                        <div class="form-group">
-                            <label class="form-label">Max plays per session</label>
+                        <div class="form-group admin-only">
+                            <label class="form-label">Số lần phát tối đa mỗi phiên</label>
                             <input type="number" class="form-input" id="maxPlaysPerSession" min="1" max="10" value="">
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Parent zone ID</label>
-                            <input type="number" class="form-input" id="parentZoneId" placeholder="Optional">
+                        <div class="form-group admin-only">
+                            <label class="form-label">Mã vùng cha</label>
+                            <input type="number" class="form-input" id="parentZoneId" placeholder="Tùy chọn">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Fun fact</label>
-                            <input type="text" class="form-input" id="funFact" placeholder="Optional short fact">
+                            <label class="form-label">Thông tin thú vị</label>
+                            <input type="text" class="form-input" id="funFact" placeholder="Mẹo nhỏ thú vị (tùy chọn)">
                         </div>
                     </div>
 
-                    <div class="audio-grid">
+                    <div class="audio-grid admin-only">
                         <div class="form-group">
-                            <label class="form-label">Audio URL (VI)</label>
+                            <label class="form-label">Liên kết Audio (VI)</label>
                             <input type="text" class="form-input" id="audioUrlVi" placeholder="https://...">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Audio URL (EN)</label>
+                            <label class="form-label">Liên kết Audio (EN)</label>
                             <input type="text" class="form-input" id="audioUrlEn" placeholder="https://...">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Audio URL (ZH)</label>
+                            <label class="form-label">Liên kết Audio (ZH)</label>
                             <input type="text" class="form-input" id="audioUrlZh" placeholder="https://...">
                         </div>
                     </div>
 
-                    <div class="audio-grid mt-3" style="margin-top: 1rem;">
+                    <div class="audio-grid mt-3 admin-only" style="margin-top: 1rem;">
                         <div class="form-group">
                             <label class="form-label">Kịch bản Audio (VI)</label>
                             <textarea class="form-textarea" id="scriptVi"
@@ -1039,7 +1042,7 @@
                         <div class="form-group">
                             <label class="form-label">Kịch bản Audio (EN)</label>
                             <textarea class="form-textarea" id="scriptEn"
-                                placeholder="English narration script..."></textarea>
+                                placeholder="Kịch bản thuyết minh tiếng Anh..."></textarea>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Kịch bản Audio (ZH)</label>
@@ -1262,6 +1265,19 @@
                         </div>
                     </div>
 
+                    <div class="form-group vendor-only" id="vendorStatusReadonly">
+                        <label class="form-label">Trạng thái POI</label>
+                        <div class="vendor-status-box">
+                            <div id="vendorStatusChip" class="vendor-status-chip pending">
+                                <i class="fas fa-clock"></i>
+                                <span id="vendorStatusText">Chờ duyệt</span>
+                            </div>
+                            <div class="form-help" id="vendorStatusHelp" style="margin-top:0.75rem;">
+                                Trạng thái này do Admin quyết định.
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Info Card -->
@@ -1331,8 +1347,6 @@
         </div>
     </div>
 
-    <!-- Leaflet JS – OSM map, free, no API key -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="api.js"></script>
     <script>
         const user = TokenManager.getUser();
@@ -1348,9 +1362,6 @@
         let currentPoi = null;
         let currentImageUrl = null;
         let currentVendorProfile = null;
-        let poiMap = null;
-        let poiMarker = null;
-        let poiCircle = null;
 
         // Auto Translate Logic
 
@@ -1370,131 +1381,14 @@
             }
         }
 
-        function initMap(lat, lng) {
-            const mapEl = document.getElementById('mapPreview');
-            if (!mapEl) return;
-            const safeLat = lat ?? 10.762622;
-            const safeLng = lng ?? 106.702438;
-            if (!poiMap) {
-                mapEl.innerHTML = '';
-                poiMap = L.map(mapEl, {
-                    zoomControl: true,
-                    attributionControl: false
-                }).setView([safeLat, safeLng], 17);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 20,
-                    attribution: '© OpenStreetMap contributors'
-                }).addTo(poiMap);
-                poiMarker = L.marker([safeLat, safeLng], {
-                    draggable: !!isAdmin
-                }).addTo(poiMap);
-                if (isAdmin) {
-                    poiMarker.on('dragend', function (e) {
-                        const pos = e.target.getLatLng();
-                        updateLatLngInputs(pos.lat, pos.lng);
-                        updateCircle(pos.lat, pos.lng);
-                    });
-                    poiMap.on('click', function (e) {
-                        setMarker(e.latlng.lat, e.latlng.lng);
-                    });
-                }
-            } else {
-                poiMap.setView([safeLat, safeLng]);
-                if (poiMarker) poiMarker.setLatLng([safeLat, safeLng]);
-            }
-            updateCircle(safeLat, safeLng);
-        }
-
-        function refreshMapFromInputs() {
-            const lat = parseFloat(document.getElementById('latitude').value);
-            const lng = parseFloat(document.getElementById('longitude').value);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                initMap(lat, lng);
-            }
-        }
-
         function applyGpsMode() {
             const modeEl = document.getElementById('gpsMode');
-            const searchGroup = document.getElementById('mapSearchGroup');
             const urlGroup = document.getElementById('mapUrlGroup');
             const urlStatus = document.getElementById('mapUrlStatus');
-            const mode = modeEl?.value || 'address';
+            const mode = modeEl?.value || 'manual';
 
-            if (searchGroup) searchGroup.style.display = mode === 'address' ? '' : 'none';
             if (urlGroup) urlGroup.style.display = mode === 'maplink' ? '' : 'none';
             if (urlStatus) urlStatus.style.display = mode === 'maplink' ? '' : 'none';
-        }
-
-        function updateLatLngInputs(lat, lng) {
-            document.getElementById('latitude').value = lat.toFixed(6);
-            document.getElementById('longitude').value = lng.toFixed(6);
-        }
-
-        function updateCircle(lat, lng) {
-            const radiusInput = document.getElementById('geofenceRadius');
-            const radius = parseFloat(radiusInput?.value || '25');
-            if (!poiMap || isNaN(radius)) return;
-            if (!poiCircle) {
-                poiCircle = L.circle([lat, lng], {
-                    radius: radius,
-                    color: '#FF6B35',
-                    weight: 2,
-                    fillColor: '#FF6B35',
-                    fillOpacity: 0.15
-                }).addTo(poiMap);
-            } else {
-                poiCircle.setLatLng([lat, lng]);
-                poiCircle.setRadius(radius);
-            }
-        }
-
-        function buildSearchQuery(input) {
-            const base = (input || '').trim();
-            if (!base) return '';
-            const hasCity = /quận|q\./i.test(base) || /tp\.?hcm|hồ chí minh|ho chi minh/i.test(base);
-            return hasCity ? base : `${base}, Quận 4, TP.HCM`;
-        }
-
-        async function geocodeAddress(address) {
-            const query = buildSearchQuery(address);
-            const data = await api.geocode(query, 3);
-            if (data && data.length > 0) {
-                const pick = data.find(d => (d.address?.city || d.address?.state || '').toLowerCase().includes('ho chi minh'))
-                    || data.find(d => (d.address?.city_district || d.address?.county || '').toLowerCase().includes('4'))
-                    || data[0];
-                return { lat: parseFloat(pick.lat), lng: parseFloat(pick.lon) };
-            }
-            return null;
-        }
-
-        async function searchAddress() {
-            const input = document.getElementById('mapSearchInput');
-            if (!input) return;
-            const address = input.value.trim() || document.getElementById('poiAddress').value.trim();
-            if (!address) {
-                alert('Vui lòng nhập địa chỉ để tìm.');
-                return;
-            }
-            try {
-                const coords = await geocodeAddress(address);
-                if (!coords) {
-                    alert('Không tìm thấy địa chỉ. Hãy thử nhập chi tiết hơn.');
-                    return;
-                }
-                setMarker(coords.lat, coords.lng);
-                initMap(coords.lat, coords.lng);
-            } catch (error) {
-                alert('Lỗi khi tìm địa chỉ: ' + error.message);
-            }
-        }
-
-        function setMarker(lat, lng) {
-            if (!poiMap) initMap(lat, lng);
-            if (poiMarker) {
-                poiMarker.setLatLng([lat, lng]);
-            }
-            updateLatLngInputs(lat, lng);
-            updateCircle(lat, lng);
         }
 
         function extractPoiLatLng(poi) {
@@ -1522,21 +1416,6 @@
             }
 
             return { lat: null, lng: null };
-        }
-
-        function useMyLocation() {
-            if (!navigator.geolocation) {
-                alert('Trình duyệt không hỗ trợ định vị.');
-                return;
-            }
-            navigator.geolocation.getCurrentPosition((pos) => {
-                const lat = pos.coords.latitude;
-                const lng = pos.coords.longitude;
-                setMarker(lat, lng);
-                initMap(lat, lng);
-            }, (err) => {
-                alert('Không thể lấy vị trí: ' + err.message);
-            });
         }
 
         function getDayOrder() {
@@ -1694,36 +1573,66 @@
             const help = document.getElementById('vendorSelectHelp');
             select.innerHTML = '<option value="">Đang tải...</option>';
             try {
-                const resp = await api.getVendors('', 'approved', 'name-asc');
-                const vendors = resp.data || [];
-                if (vendors.length === 0) {
-                    select.innerHTML = '<option value="">Không có vendor đã duyệt</option>';
+                const vendorId = Number(selectedId);
+                if (!Number.isFinite(vendorId)) {
+                    select.innerHTML = '<option value="">POI chưa có chủ sở hữu</option>';
                     if (help) {
-                        help.textContent = 'Hiện chưa có vendor ở trạng thái approved để gán cho POI.';
+                        help.textContent = 'POI này chưa có Vendor hợp lệ.';
                         help.style.color = 'var(--danger)';
                     }
                     return;
                 }
 
-                const options = vendors.map(v => {
-                    const id = v.vendorId ?? v.VendorId;
-                    const contact = v.contactName ?? v.ContactName ?? 'N/A';
-                    const business = v.businessName ?? v.BusinessName ?? '';
-                    return `<option value="${id}" ${selectedId === id ? 'selected' : ''}>#${id} - ${contact}${business ? ` (${business})` : ''}</option>`;
-                }).join('');
-
-                select.innerHTML = `<option value="">Chọn Vendor sở hữu POI</option>${options}`;
+                const vendor = await VendorApi.get(vendorId);
+                const contact = vendor?.contactName ?? vendor?.ContactName ?? 'N/A';
+                const business = vendor?.businessName ?? vendor?.BusinessName ?? '';
+                select.innerHTML = `<option value="${vendorId}" selected>#${vendorId} - ${contact}${business ? ` (${business})` : ''}</option>`;
                 if (help) {
-                    help.innerHTML = '<i class="fas fa-user-tie"></i> Chọn đúng vendor để tránh POI không có chủ.';
+                    help.innerHTML = '<i class="fas fa-user-tie"></i> Chỉ hiển thị chủ quán đã gán cho POI này.';
                     help.style.color = '';
                 }
             } catch (error) {
-                select.innerHTML = '<option value="">Không tải được vendor</option>';
+                select.innerHTML = '<option value="">Không tải được chủ sở hữu</option>';
                 if (help) {
-                    help.textContent = 'Không tải được danh sách vendor. Vui lòng thử lại.';
+                    help.textContent = 'Không tải được thông tin chủ quán hiện tại.';
                     help.style.color = 'var(--danger)';
                 }
             }
+        }
+
+        function renderVendorStatus(poi) {
+            if (!isVendor) return;
+
+            const chip = document.getElementById('vendorStatusChip');
+            const textEl = document.getElementById('vendorStatusText');
+            const helpEl = document.getElementById('vendorStatusHelp');
+            if (!chip || !textEl || !helpEl) return;
+
+            const review = (poi?.reviewStatus || '').toLowerCase();
+            const isActive = !!(poi?.isActive);
+
+            let cls = 'pending';
+            let text = 'Chờ duyệt';
+            let help = 'Trạng thái này do Admin quyết định.';
+
+            if (review === 'approved' && isActive) {
+                cls = 'approved';
+                text = 'Đã duyệt - Đang hoạt động';
+                help = 'POI đang hiển thị cho người dùng cuối.';
+            } else if (review === 'approved' && !isActive) {
+                cls = 'pending';
+                text = 'Đã duyệt - Tạm tắt';
+                help = 'Admin đã duyệt nhưng đang tắt hiển thị tạm thời.';
+            } else if (review === 'rejected') {
+                cls = 'rejected';
+                text = 'Bị từ chối';
+                help = poi?.reviewNote ? `Lý do: ${poi.reviewNote}` : 'Admin đã từ chối nội dung này.';
+            }
+
+            chip.classList.remove('pending', 'approved', 'rejected');
+            chip.classList.add(cls);
+            textEl.textContent = text;
+            helpEl.textContent = help;
         }
 
         function applyRoleUi() {
@@ -1732,21 +1641,13 @@
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
                 document.querySelectorAll('.admin-only.map-search').forEach(el => el.style.display = 'flex');
                 document.querySelectorAll('.admin-only.coordinate-group').forEach(el => el.style.display = 'grid');
+                document.querySelectorAll('.admin-only.geofence-grid, .admin-only.audio-grid').forEach(el => el.style.display = 'grid');
             } else {
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.vendor-only').forEach(el => el.style.display = 'block');
             }
 
             if (!isVendor) return;
-
-            const lockedIds = ['poiCategory', 'poiAddress'];
-            lockedIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.disabled = true;
-                    el.classList.add('role-locked');
-                }
-            });
 
             const systemMetaSection = document.getElementById('systemMetaSection');
             if (systemMetaSection) systemMetaSection.classList.add('role-hidden');
@@ -1788,17 +1689,11 @@
                 document.getElementById('poiDescription').value = poi.description_Vi || '';
                 document.getElementById('poiAddress').value = poi.address || '';
 
-                const mapSearchEl = document.getElementById('mapSearchInput');
-                if (mapSearchEl) mapSearchEl.value = poi.address || '';
                 const latEl = document.getElementById('latitude');
                 const lngEl = document.getElementById('longitude');
                 const coords = extractPoiLatLng(poi);
                 if (latEl) latEl.value = coords.lat ?? '';
                 if (lngEl) lngEl.value = coords.lng ?? '';
-                const vLatEl = document.getElementById('vendorLat');
-                const vLngEl = document.getElementById('vendorLng');
-                if (vLatEl) vLatEl.value = coords.lat ?? '';
-                if (vLngEl) vLngEl.value = coords.lng ?? '';
 
                 document.getElementById('geofenceRadius').value = poi.triggerRadius ?? '';
                 const zoneTypeValue = poi.zoneType || 'Spot';
@@ -1867,9 +1762,8 @@
                     }
                 }
 
-                initMap(coords.lat, coords.lng);
-
                 setStatus(poi.isActive ? 'active' : 'inactive');
+                renderVendorStatus(poi);
 
                 document.getElementById('poiIdInfo').textContent = poi.poI_ID || '-';
                 document.getElementById('createdAtInfo').textContent = poi.createdAt ? new Date(poi.createdAt).toLocaleString('vi-VN') : '-';
@@ -1924,9 +1818,12 @@
             const avgPriceValue = parseFloat(document.getElementById('avgPrice').value);
             const hoursPayload = buildOpeningHours();
 
-            const btnHtml = event.target.innerHTML;
-            event.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
-            event.target.disabled = true;
+            const saveBtn = document.querySelector('.form-actions .btn-success');
+            const btnHtml = saveBtn ? saveBtn.innerHTML : null;
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+                saveBtn.disabled = true;
+            }
 
             try {
                 let nameEn = null, nameZh = null, descEn = null, descZh = null;
@@ -1965,6 +1862,7 @@
                         }
                         return catEl.value || null;
                     })(),
+                    address: document.getElementById('poiAddress').value || null,
                     openingHoursText: hoursPayload.openingHoursText || null,
                     openingHours: hoursPayload.openingHours || null,
                     phoneNumber: document.getElementById('phone').value || null,
@@ -1972,9 +1870,10 @@
                     signatureDish: specialtyText || null,
                     signatureDishes: specialties.length ? specialties : null,
                     specialties: specialties.length ? specialties : null,
-                    tags: tags.length ? tags : null,
-                    imageUrl: currentImageUrl || null
+                    tags: tags.length ? tags : null
                 };
+
+                data.imageUrl = currentImageUrl || null;
 
                 const zoneTypeValue = document.getElementById('zoneType')?.value;
                 if (zoneTypeValue) data.zoneType = zoneTypeValue;
@@ -2013,14 +1912,15 @@
 
                 if (isAdmin) {
                     const selectedVendorId = parseInt(document.getElementById('vendorSelect').value || '', 10);
-                    data.address = document.getElementById('poiAddress').value;
                     data.latitude = parseFloat(document.getElementById('latitude').value);
                     data.longitude = parseFloat(document.getElementById('longitude').value);
-                    data.vendorId = selectedVendorId;
+                    data.vendorId = Number.isNaN(selectedVendorId)
+                        ? parseInt((currentPoi?.vendorId ?? currentPoi?.VendorId ?? ''), 10)
+                        : selectedVendorId;
                     data.isActive = currentStatus;
                 } else {
-                    const lat = parseFloat(document.getElementById('vendorLat').value);
-                    const lng = parseFloat(document.getElementById('vendorLng').value);
+                    const lat = parseFloat(document.getElementById('latitude').value);
+                    const lng = parseFloat(document.getElementById('longitude').value);
                     if (!isNaN(lat) && !isNaN(lng)) {
                         data.latitude = lat;
                         data.longitude = lng;
@@ -2030,18 +1930,20 @@
                     if (!Number.isNaN(myVendorId)) {
                         data.vendorId = myVendorId;
                     }
-
-                    // Vendor sửa thì tự tắt để Admin bật lại khi cần.
-                    data.isActive = false;
                 }
 
                 await api.updatePOI(currentPoiId, data);
                 showToast('POI đã được cập nhật thành công!', 'success');
+                window.setTimeout(() => {
+                    window.location.href = 'poi-list';
+                }, 450);
             } catch (error) {
                 showToast('Lỗi khi lưu POI: ' + error.message, 'error');
             } finally {
-                event.target.innerHTML = btnHtml;
-                event.target.disabled = false;
+                if (saveBtn && btnHtml !== null) {
+                    saveBtn.innerHTML = btnHtml;
+                    saveBtn.disabled = false;
+                }
             }
         }
 
@@ -2054,9 +1956,6 @@
                 alert('Lỗi khi xóa POI: ' + error.message);
             }
         }
-
-        document.getElementById('latitude').addEventListener('input', refreshMapFromInputs);
-        document.getElementById('longitude').addEventListener('input', refreshMapFromInputs);
 
         const zoneTypeSelect = document.getElementById('zoneType');
         const cooldownInput = document.getElementById('cooldownMinutes');
@@ -2072,34 +1971,6 @@
         };
         if (zoneTypeSelect) zoneTypeSelect.addEventListener('change', applyZoneDefaults);
         applyZoneDefaults();
-        document.getElementById('geofenceRadius').addEventListener('input', () => {
-            const lat = parseFloat(document.getElementById('latitude').value);
-            const lng = parseFloat(document.getElementById('longitude').value);
-            if (!isNaN(lat) && !isNaN(lng)) updateCircle(lat, lng);
-        });
-
-        const mapSearchBtn = document.getElementById('mapSearchBtn');
-        if (mapSearchBtn) mapSearchBtn.addEventListener('click', searchAddress);
-        const mapSearchInput = document.getElementById('mapSearchInput');
-        if (mapSearchInput) mapSearchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                searchAddress();
-            }
-        });
-        let geocodeTimer = null;
-        const scheduleGeocode = () => {
-            if (isVendor) return;
-            if (geocodeTimer) clearTimeout(geocodeTimer);
-            geocodeTimer = setTimeout(() => {
-                searchAddress();
-            }, 800);
-        };
-        if (mapSearchInput) mapSearchInput.addEventListener('input', scheduleGeocode);
-        const poiAddressInput = document.getElementById('poiAddress');
-        if (poiAddressInput) poiAddressInput.addEventListener('input', scheduleGeocode);
-        const mapMyLocationBtn = document.getElementById('mapMyLocationBtn');
-        if (mapMyLocationBtn) mapMyLocationBtn.addEventListener('click', useMyLocation);
         // Resolve Map URL Feature
         document.getElementById('btnResolveMap')?.addEventListener('click', async () => {
             const urlInput = document.getElementById('mapUrlInput');
@@ -2132,15 +2003,8 @@
 
                 const data = await response.json();
 
-                if (isAdmin) {
-                    document.getElementById('latitude').value = data.latitude;
-                    document.getElementById('longitude').value = data.longitude;
-                }
-
-                document.getElementById('vendorLat').value = data.latitude;
-                document.getElementById('vendorLng').value = data.longitude;
-
-                initMap(data.latitude, data.longitude);
+                document.getElementById('latitude').value = data.latitude;
+                document.getElementById('longitude').value = data.longitude;
 
                 // Reverse geocode to fill address fields
                 try {
@@ -2150,9 +2014,7 @@
                         const display = revData.display_name || '';
                         if (display) {
                             const addrInput = document.getElementById('poiAddress');
-                            const searchInput = document.getElementById('mapSearchInput');
                             if (addrInput) addrInput.value = display;
-                            if (searchInput) searchInput.value = display;
                         }
                     }
                 } catch { /* ignore */ }
