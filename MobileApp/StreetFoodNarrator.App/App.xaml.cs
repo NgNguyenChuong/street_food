@@ -8,6 +8,8 @@ namespace StreetFoodNarrator.App;
 public partial class App : Application
 {
     private const string PREF_ONBOARDED = "has_onboarded";
+    private const string PREF_LEGACY_ONBOARDED = "hasSeenOnboarding";
+    private const string PREF_LAST_SYNC_TIME = "LastSyncTime";
 
     public App()
     {
@@ -21,6 +23,17 @@ public partial class App : Application
     protected override Window CreateWindow(IActivationState? activationState)
     {
         var hasOnboarded = Preferences.Get(PREF_ONBOARDED, false);
+        if (!hasOnboarded)
+        {
+            // Migrate legacy onboarding/session markers so returning users skip WelcomePage.
+            var legacyOnboarded = Preferences.Get(PREF_LEGACY_ONBOARDED, false);
+            var hasSyncedBefore = !string.IsNullOrWhiteSpace(Preferences.Get(PREF_LAST_SYNC_TIME, ""));
+            if (legacyOnboarded || hasSyncedBefore)
+            {
+                hasOnboarded = true;
+                Preferences.Set(PREF_ONBOARDED, true);
+            }
+        }
 
         if (hasOnboarded)
         {

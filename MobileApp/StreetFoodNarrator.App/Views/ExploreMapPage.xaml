@@ -21,6 +21,29 @@
                                InputTransparent="False"
                                CascadeInputTransparent="False" />
 
+        <Border x:Name="ExploreFarStateAdvanceButton"
+                AbsoluteLayout.LayoutBounds="1,0.62,-1,-1"
+                AbsoluteLayout.LayoutFlags="PositionProportional"
+                Margin="0,0,14,0"
+                WidthRequest="50"
+                HeightRequest="50"
+                IsVisible="False"
+                BackgroundColor="#173326"
+                Stroke="#2A5A44"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 20">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnExploreFarStateAdvanceTapped"/>
+            </Border.GestureRecognizers>
+            <Label x:Name="ExploreFarStateAdvanceLabel"
+                   Text="Near"
+                   FontSize="12"
+                   FontAttributes="Bold"
+                   TextColor="#4BE277"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center"/>
+        </Border>
+
         <!-- Near-focus map overlay (shown only when entering map from Near actions) -->
         <Grid x:Name="NearFocusOverlay"
               AbsoluteLayout.LayoutBounds="0,0,1,1"
@@ -181,6 +204,43 @@
                            HorizontalOptions="Center"
                            VerticalOptions="Center"/>
                 </Border>
+
+                <Border x:Name="NearFocusSimulateFarButton"
+                        BackgroundColor="#301D1D"
+                        Stroke="#5A2A2A"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        WidthRequest="46"
+                        HeightRequest="46">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnNearFocusSimulateFarTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label Text="⇱"
+                           FontSize="20"
+                           TextColor="#FCA5A5"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"/>
+                </Border>
+
+                <Border x:Name="VirtualStateAdvanceButton"
+                        BackgroundColor="#173326"
+                        Stroke="#2A5A44"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        WidthRequest="46"
+                        HeightRequest="46"
+                        IsVisible="False">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnVirtualStateAdvanceTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label x:Name="VirtualStateAdvanceLabel"
+                           Text="V"
+                           FontSize="15"
+                           FontAttributes="Bold"
+                           TextColor="#4BE277"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"/>
+                </Border>
             </VerticalStackLayout>
 
             <Border Grid.Row="1"
@@ -239,9 +299,18 @@
                           RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
                           RowSpacing="10">
                     <Grid Grid.Row="0"
-                          ColumnDefinitions="*,72"
+                          ColumnDefinitions="72,*"
                           ColumnSpacing="12">
-                        <VerticalStackLayout Spacing="4">
+                        <Border WidthRequest="72"
+                                HeightRequest="72"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 22">
+                            <Image Source="{Binding SelectedPinPOI.DisplayImageUrl, FallbackValue='welcome_streetfood.png'}"
+                                   Aspect="AspectFill"/>
+                        </Border>
+
+                        <VerticalStackLayout Grid.Column="1"
+                                             Spacing="4">
                             <Label Text="{Binding SelectedPinPOI.Name_Vi, FallbackValue='Địa điểm ẩm thực'}"
                                    FontSize="30"
                                    FontAttributes="Bold"
@@ -255,14 +324,6 @@
                                    LineBreakMode="TailTruncation"
                                    IsVisible="False"/>
                         </VerticalStackLayout>
-                        <Border Grid.Column="1"
-                                WidthRequest="72"
-                                HeightRequest="72"
-                                StrokeThickness="0"
-                                StrokeShape="RoundRectangle 22">
-                            <Image Source="{Binding SelectedPinPOI.DisplayImageUrl, FallbackValue='welcome_streetfood.png'}"
-                                   Aspect="AspectFill"/>
-                        </Border>
                     </Grid>
 
                     <HorizontalStackLayout x:Name="NearFocusTagsRow"
@@ -358,7 +419,7 @@
                           ColumnSpacing="10">
                         <Button x:Name="NearRouteContinueButton"
                                 Grid.Column="0"
-                                Text="Bắt đầu chỉ đường"
+                                Text="Chỉ đường"
                                 HeightRequest="42"
                                 CornerRadius="21"
                                 FontSize="13"
@@ -376,7 +437,7 @@
 
                         <Button x:Name="NearRouteCancelButton"
                                 Grid.Column="1"
-                                Text="Hủy"
+                                Text="Bỏ qua"
                                 HeightRequest="42"
                                 CornerRadius="21"
                                 FontSize="13"
@@ -622,7 +683,7 @@
                             </Button>
 
                             <Button x:Name="NearRouteCollapsedCancelButton"
-                                    Text="Hủy"
+                                    Text="Bỏ qua"
                                     HeightRequest="34"
                                     MinimumWidthRequest="86"
                                     CornerRadius="17"
@@ -633,6 +694,81 @@
                                     BorderWidth="1"
                                     TextColor="#D8E6DF"
                                     Clicked="OnNearRouteCancelClicked" />
+                        </HorizontalStackLayout>
+
+                        <HorizontalStackLayout x:Name="NearFocusCollapsedFarActions"
+                                               Grid.Row="0"
+                                               Grid.Column="2"
+                                               IsVisible="False"
+                                               Spacing="6"
+                                               VerticalOptions="Center">
+                            <Border BackgroundColor="#4BE277"
+                                    WidthRequest="30"
+                                    HeightRequest="30"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 15">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnNearFocusPlayPauseTapped"/>
+                                </Border.GestureRecognizers>
+                                <Label x:Name="NearFocusCollapsedFarPlayPauseIcon"
+                                       Text="&#xF040A;"
+                                       FontFamily="MDI"
+                                       FontSize="16"
+                                       TextColor="#063014"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+
+                            <Border BackgroundColor="#1B2823"
+                                    WidthRequest="30"
+                                    HeightRequest="30"
+                                    Stroke="#2B4B40"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 15">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnNearFocusCollapsedStartTapped"/>
+                                </Border.GestureRecognizers>
+                                <Label Text="&#xF04F4;"
+                                       FontFamily="MDI"
+                                       FontSize="15"
+                                       TextColor="#D8E6DF"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+
+                            <Border BackgroundColor="#1B2823"
+                                    WidthRequest="30"
+                                    HeightRequest="30"
+                                    Stroke="#2B4B40"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 15">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnNearFocusCollapsedDetailTapped"/>
+                                </Border.GestureRecognizers>
+                                <Label Text="&#xF0156;"
+                                       FontFamily="MDI"
+                                       FontSize="15"
+                                       TextColor="#D8E6DF"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+
+                            <Border BackgroundColor="#1B2823"
+                                    WidthRequest="30"
+                                    HeightRequest="30"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 15">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnNearFocusLikeTapped"/>
+                                </Border.GestureRecognizers>
+                                <Label x:Name="NearFocusCollapsedFarHeartIcon"
+                                       Text="&#xF02D1;"
+                                       FontFamily="MDI"
+                                       FontSize="16"
+                                       TextColor="#D8E6DF"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
                         </HorizontalStackLayout>
 
                         <VerticalStackLayout x:Name="NearFocusCollapsedProgressSection"
@@ -741,5 +877,44 @@
                 </Grid>
             </Border>
         </Grid>
+
+        <Border AbsoluteLayout.LayoutBounds="0.5,0,0.95,-1"
+                AbsoluteLayout.LayoutFlags="XProportional,WidthProportional"
+                Margin="0,44,0,0"
+                Padding="12,10"
+                BackgroundColor="#D97706EE"
+                Stroke="#F59E0B"
+                StrokeThickness="1"
+                IsVisible="{Binding ShowOfflineBanner}"
+                ZIndex="9800">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="14" />
+            </Border.StrokeShape>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <HorizontalStackLayout Spacing="8">
+                    <Label Text="&#xF1AF0;"
+                           FontFamily="MDI"
+                           FontSize="16"
+                           TextColor="White"
+                           VerticalOptions="Start" />
+                    <Label Text="Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm đầy đủ và cập nhật dữ liệu mới nhất."
+                           FontSize="12"
+                           LineBreakMode="WordWrap"
+                           TextColor="White"
+                           VerticalOptions="Center" />
+                </HorizontalStackLayout>
+                <Button Grid.Column="1"
+                        WidthRequest="28"
+                        HeightRequest="28"
+                        CornerRadius="14"
+                        Padding="0"
+                        FontFamily="MDI"
+                        FontSize="16"
+                        Text="&#xF0156;"
+                        TextColor="White"
+                        BackgroundColor="#00000000"
+                        Command="{Binding DismissOfflineBannerCommand}" />
+            </Grid>
+        </Border>
     </AbsoluteLayout>
 </ContentPage>

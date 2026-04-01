@@ -587,8 +587,8 @@ public partial class WelcomePage : ContentPage
                 // ✅ Size >= 5MB: Show popup asking user
                 else
                 {
-                    Console.WriteLine($"[WelcomePage] 📦 Update size large ({sizeInfo.totalMb:F1} MB >= {AUTO_SYNC_SIZE_THRESHOLD_MB} MB) → Show popup");
-                    await ShowUpdateAvailablePopupAsync(newVersion, sizeInfo);
+                    // Suppress intrusive sync popup: keep badge only, user updates manually.
+                    Console.WriteLine($"[WelcomePage] 📦 Update size large ({sizeInfo.totalMb:F1} MB >= {AUTO_SYNC_SIZE_THRESHOLD_MB} MB) → badge only");
                 }
             });
         }
@@ -606,13 +606,6 @@ public partial class WelcomePage : ContentPage
     {
         try
         {
-            // Show brief toast notification
-            await CustomAlert.ShowAsync(
-                "📦 Có dữ liệu cập nhật",
-                "Đang tải cập nhật trong nền...",
-                "OK",
-                AlertType.Info);
-
             await _dataSyncService.DownloadAllDataAsync(status =>
             {
                 System.Diagnostics.Debug.WriteLine($"[SilentUpdate] {status}");
@@ -621,12 +614,6 @@ public partial class WelcomePage : ContentPage
             // Update completed
             _hasSystemUpdate = false;
             MainThread.BeginInvokeOnMainThread(() => UpdateBadgeVisibility());
-
-            await CustomAlert.ShowAsync(
-                "✅ Cập nhật hoàn tất",
-                "Dữ liệu đã được cập nhật phiên bản mới nhất.",
-                "OK",
-                AlertType.Success);
         }
         catch (Exception ex)
         {

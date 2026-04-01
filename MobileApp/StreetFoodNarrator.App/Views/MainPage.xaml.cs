@@ -1,4 +1,4 @@
-
+﻿
 // MainPage.xaml.cs  -  Core: fields, constructor, lifecycle
 //
 // Logic is split across partial class files:
@@ -47,8 +47,10 @@ public partial class MainPage : ContentPage
     private bool _isStateTransitionPromptOpen;
     private bool _dismissNearTransitionSuggestion;
     private bool _dismissInZoneTransitionSuggestion;
+    private bool _dismissFarTransitionSuggestion;
     private bool _autoOpenInZoneDirectly;
     private IDispatcherTimer? _exploreAudioUiTimer;
+    private IDispatcherTimer? _liveSyncTimer;
 
     public MainPage()
         : this(null, null, null, null, null)
@@ -223,6 +225,10 @@ public partial class MainPage : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"[MainPage] OnLogoutButtonClicked error: {ex}");
         }
+        finally
+        {
+            RemoveDanglingAlertOverlayIfAny();
+        }
     }
 
     private static void QuitApplication()
@@ -245,8 +251,7 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone &&
-                _vm.ViewState == MainViewModel.MapViewState.InZoneMinimized)
+            if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone)
             {
                 _preserveNarrationOnNextDisappearing = true;
             }
@@ -278,8 +283,7 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone &&
-                _vm.ViewState == MainViewModel.MapViewState.InZoneMinimized)
+            if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone)
             {
                 _preserveNarrationOnNextDisappearing = true;
             }
@@ -495,7 +499,7 @@ public partial class MainPage : ContentPage
 
     private static string FormatPopupDistance(double meters)
     {
-        if (meters <= 0) return "—";
+        if (meters <= 0) return "â€”";
         if (meters < 1000) return $"{meters:F0}M";
         return $"{meters / 1000:F1}KM";
     }
@@ -686,11 +690,20 @@ public partial class MainPage : ContentPage
 
         try
         {
-            var hasSpotData = await EnsureSpotDataReadyAsync();
-            if (!hasSpotData)
+            if (!_vm.AllPOIs.Any(p => p.ZoneType == "Spot"))
             {
-                await DisplayAlertAsync("Đang tải dữ liệu", "Dữ liệu bản đồ chưa sẵn sàng. Vui lòng thử lại sau vài giây.", "OK");
-                return;
+                // Do not block navigation; warm up data in the background.
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _vm.LoadAllPoisAsync(forceSyncNow: false);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MainPage] Background LoadAllPoisAsync error: {ex}");
+                    }
+                });
             }
 
             // Keep MainPage in Explore-state mode, then open the dedicated map page.
@@ -699,28 +712,29 @@ public partial class MainPage : ContentPage
             SyncExplorePresentationState();
             ApplyMapPresentation();
 
-            var nav = Shell.Current?.Navigation ?? Navigation;
-            if (nav == null)
+            await MainThread.InvokeOnMainThreadAsync(async () =>
             {
-                // Fallback for rare navigation-context issues.
-                ShowLegacyMapMode();
-                return;
-            }
+                var nav = Shell.Current?.Navigation ?? Navigation;
+                if (nav == null)
+                {
+                    await DisplayAlertAsync("Khong the mo ban do", "Ngu canh dieu huong chua san sang. Vui long thu lai.", "OK");
+                    return;
+                }
 
-            if (nav.NavigationStack.Count > 0 &&
-                nav.NavigationStack[nav.NavigationStack.Count - 1] is ExploreMapPage topMapPage &&
-                topMapPage.IsNearFocusMode == nearFocusMode)
-            {
-                return;
-            }
+                if (nav.NavigationStack.Count > 0 &&
+                    nav.NavigationStack[nav.NavigationStack.Count - 1] is ExploreMapPage topMapPage &&
+                    topMapPage.IsNearFocusMode == nearFocusMode)
+                {
+                    return;
+                }
 
-            var exploreMapPage = new ExploreMapPage(_vm, nearFocusMode);
-            await nav.PushAsync(exploreMapPage);
+                var exploreMapPage = new ExploreMapPage(_vm, nearFocusMode);
+                await nav.PushAsync(exploreMapPage, false);
+            });
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MainPage] OpenExploreMapPageAsync error: {ex}");
-            ShowLegacyMapMode();
             await DisplayAlertAsync("Không thể mở bản đồ", "Đã có lỗi khi mở bản đồ. Vui lòng thử lại.", "OK");
         }
         finally
@@ -1377,9 +1391,9 @@ public partial class MainPage : ContentPage
     {
         if (_isNavigatingToPoiDetail) return;
 
-        // Debounce: ignore rapid taps within 400ms
+        // Debounce: keep responsive queue switching while still preventing double taps.
         var now = DateTime.UtcNow;
-        if ((now - _lastQueueTapTime).TotalMilliseconds < 400) return;
+        if ((now - _lastQueueTapTime).TotalMilliseconds < 160) return;
         _lastQueueTapTime = now;
 
         if (poi == null) return;
@@ -1500,7 +1514,8 @@ public partial class MainPage : ContentPage
         try
         {
             if (token.IsCancellationRequested) return;
-            await StopNarrationAsync(resetProgress: true, clearResumeState: true);
+            if (_tts.IsPlaying() || _vm.IsAudioPlaying)
+                await StopNarrationAsync(resetProgress: true, clearResumeState: true);
             if (token.IsCancellationRequested) return;
 
             // Programmatic queue switch should not be blocked by tap debounce.
@@ -1524,16 +1539,18 @@ public partial class MainPage : ContentPage
         try
         {
             _queueAudioSwitchCts?.Cancel();
+            _preserveNarrationOnNextDisappearing = false;
             await StopNarrationForNavigationAsync();
 
             var nav = Shell.Current?.Navigation;
             if (nav == null)
                 return;
 
-            await nav.PushModalAsync(new POIDetailPage(poi));
+            await nav.PushModalAsync(new POIDetailPage(poi), false);
         }
         catch (Exception ex)
         {
+            _preserveNarrationOnNextDisappearing = false;
             System.Diagnostics.Debug.WriteLine($"[MainPage] QueueSeeMore navigation error: {ex}");
         }
         finally
@@ -1561,7 +1578,7 @@ public partial class MainPage : ContentPage
                 return;
             }
 
-            await nav.PushModalAsync(new POIDetailPage(targetPoi, keepCurrentAudio: true));
+            await nav.PushModalAsync(new POIDetailPage(targetPoi, keepCurrentAudio: true), false);
         }
         catch (Exception ex)
         {
@@ -1684,12 +1701,13 @@ public partial class MainPage : ContentPage
 
             if (_vm.CurrentAppMode == MainViewModel.AppMode.Virtual)
             {
-                // Defer one UI tick so VirtualMode view is fully materialized
-                // before queue data updates.
                 _ = MainThread.InvokeOnMainThreadAsync(async () =>
                 {
                     await Task.Yield();
-                    _vm.RefreshJournalState();
+                    if (_vm.JournalQueueItems.Count == 0 || _vm.JournalCurrentlyPlayingPoi == null)
+                        _vm.RefreshJournalState();
+                    else
+                        _vm.RefreshJournalQueueOnly();
                 });
             }
         }
@@ -1707,6 +1725,11 @@ public partial class MainPage : ContentPage
             if (currentState == MainViewModel.ExploreState.Far)
             {
                 _dismissNearTransitionSuggestion = false;
+                _ = PromptNearOrInZoneToFarSuggestionAsync(previousState, currentState);
+            }
+            else
+            {
+                _dismissFarTransitionSuggestion = false;
             }
 
             if (currentState != MainViewModel.ExploreState.InZone)
@@ -1742,18 +1765,50 @@ public partial class MainPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        RemoveDanglingAlertOverlayIfAny();
         if (!ReferenceEquals(BindingContext, _vm))
             BindingContext = _vm;
+        _vm.RefreshOfflineBannerSession();
 
         _autoOpenInZoneDirectly = Preferences.Get(AutoOpenInZoneOnNextMainPageKey, false);
         if (_autoOpenInZoneDirectly)
             Preferences.Set(AutoOpenInZoneOnNextMainPageKey, false);
         OnTourAppearing();
         StartExploreAudioUiTimer();
+        StartLiveSyncTimer();
         EnsurePrimaryZoneFromCurrentAudioContext();
         UpdateInZoneMiniAudioUi();
         _vm.RefreshExploreState();
         _ = TryAutoOpenInZoneMapAsync();
+    }
+
+    private void RemoveDanglingAlertOverlayIfAny()
+    {
+        try
+        {
+            if (Content is not Layout rootLayout)
+                return;
+
+            RemoveViewsByClassIdRecursive(rootLayout, "__custom_alert_overlay");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] RemoveDanglingAlertOverlayIfAny error: {ex.Message}");
+        }
+    }
+
+    private static void RemoveViewsByClassIdRecursive(Layout layout, string classId)
+    {
+        var staleViews = layout.Children
+            .OfType<View>()
+            .Where(v => string.Equals(v.ClassId, classId, StringComparison.Ordinal))
+            .ToList();
+
+        foreach (var view in staleViews)
+            layout.Children.Remove(view);
+
+        foreach (var childLayout in layout.Children.OfType<Layout>().ToList())
+            RemoveViewsByClassIdRecursive(childLayout, classId);
     }
 
     private void StartExploreAudioUiTimer()
@@ -1784,6 +1839,39 @@ public partial class MainPage : ContentPage
 
         _exploreAudioUiTimer.Stop();
         _exploreAudioUiTimer = null;
+    }
+
+    private void StartLiveSyncTimer()
+    {
+        if (_liveSyncTimer != null || Dispatcher == null)
+            return;
+
+        _liveSyncTimer = Dispatcher.CreateTimer();
+        _liveSyncTimer.Interval = TimeSpan.FromSeconds(15);
+        _liveSyncTimer.Tick += async (_, _) =>
+        {
+            if (!IsVisible || _vm.CurrentAppMode == MainViewModel.AppMode.Detail)
+                return;
+
+            try
+            {
+                await _vm.LiveSyncIfDueAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainPage] LiveSync timer error: {ex.Message}");
+            }
+        };
+        _liveSyncTimer.Start();
+    }
+
+    private void StopLiveSyncTimer()
+    {
+        if (_liveSyncTimer == null)
+            return;
+
+        _liveSyncTimer.Stop();
+        _liveSyncTimer = null;
     }
 
     private void EnsurePrimaryZoneFromCurrentAudioContext()
@@ -1873,6 +1961,49 @@ public partial class MainPage : ContentPage
         }
     }
 
+    private async Task PromptNearOrInZoneToFarSuggestionAsync(
+        MainViewModel.ExploreState previousState,
+        MainViewModel.ExploreState currentState)
+    {
+        try
+        {
+            if (_dismissFarTransitionSuggestion || _isStateTransitionPromptOpen)
+                return;
+
+            if (currentState != MainViewModel.ExploreState.Far)
+                return;
+
+            if (previousState != MainViewModel.ExploreState.Near &&
+                previousState != MainViewModel.ExploreState.InZone)
+                return;
+
+            if (!IsTopNavigationPage())
+                return;
+
+            _isStateTransitionPromptOpen = true;
+            await MainThread.InvokeOnMainThreadAsync(() =>
+                CustomAlert.ShowAsync(
+                    "Bạn đã ra xa khu ẩm thực",
+                    "Ứng dụng sẽ chuyển sang chế độ xem ảo để bạn tiếp tục khám phá.",
+                    "Đã hiểu",
+                    AlertType.Info));
+
+            _dismissFarTransitionSuggestion = true;
+            _vm.CurrentAppMode = MainViewModel.AppMode.Virtual;
+            _vm.IsLegacyMapVisible = false;
+            SyncExplorePresentationState();
+            ApplyMapPresentation();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] PromptNearOrInZoneToFarSuggestionAsync error: {ex}");
+        }
+        finally
+        {
+            _isStateTransitionPromptOpen = false;
+        }
+    }
+
     private async Task TryAutoOpenInZoneMapAsync()
     {
         try
@@ -1933,6 +2064,7 @@ public partial class MainPage : ContentPage
     {
         base.OnDisappearing();
         StopExploreAudioUiTimer();
+        StopLiveSyncTimer();
 
         // Opening POIDetail from VirtualMode is a modal transition; keep current narration alive.
         if (_preserveNarrationOnNextDisappearing)
@@ -1961,6 +2093,7 @@ public partial class MainPage : ContentPage
         return IsVisible;
     }
 }
+
 
 
 

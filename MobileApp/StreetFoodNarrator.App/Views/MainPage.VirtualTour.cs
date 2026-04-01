@@ -1,13 +1,13 @@
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// MainPage.VirtualTour.cs  â€“  Virtual Tour Mode logic
+﻿// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// MainPage.VirtualTour.cs  Ã¢â‚¬â€œ  Virtual Tour Mode logic
 //
 // Responsibilities:
-//   â€¢ Check GPS distance to nearest POI on page load
-//   â€¢ Show once-per-session confirmation popup if user is > 1 km away
-//   â€¢ Enable / disable virtual tour mode (changes IsVirtualTourActive in VM)
-//   â€¢ Navigate map to a virtual POI location
-//   â€¢ Smart search: wire search events from TabMapView â†’ fuzzy suggestions
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//   Ã¢â‚¬Â¢ Check GPS distance to nearest POI on page load
+//   Ã¢â‚¬Â¢ Show once-per-session confirmation popup if user is > 1 km away
+//   Ã¢â‚¬Â¢ Enable / disable virtual tour mode (changes IsVirtualTourActive in VM)
+//   Ã¢â‚¬Â¢ Navigate map to a virtual POI location
+//   Ã¢â‚¬Â¢ Smart search: wire search events from TabMapView Ã¢â€ â€™ fuzzy suggestions
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 using Mapsui;
 using Mapsui.Projections;
@@ -29,7 +29,7 @@ namespace StreetFoodNarrator.App.Views;
 
 public partial class MainPage
 {
-    // â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ State Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     private MemoryLayer? _virtualPinLayer;
     private CancellationTokenSource? _virtualTourCts;
 
@@ -59,14 +59,14 @@ public partial class MainPage
         }
     }
 
-    // â”€â”€ Wiring (called from WireComponentEvents in MainPage.xaml.cs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Wiring (called from WireComponentEvents in MainPage.xaml.cs) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private void WireVirtualTourEvents()
     {
         TabMapComponent.DisableVirtualTourRequested += (_, _) => DisableVirtualTour();
     }
 
-    // â”€â”€ Called from OnPageLoaded after data is ready â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Called from OnPageLoaded after data is ready Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     internal async Task CheckAndShowVirtualTourPopupAsync()
     {
@@ -80,7 +80,7 @@ public partial class MainPage
             loc = await Geolocation.GetLocationAsync(
                 new GeolocationRequest(GeolocationAccuracy.Low, TimeSpan.FromSeconds(5)));
         }
-        catch { /* Permission denied or GPS unavailable â†’ skip popup */ }
+        catch { /* Permission denied or GPS unavailable Ã¢â€ â€™ skip popup */ }
 
         if (loc == null) return;
 
@@ -89,13 +89,13 @@ public partial class MainPage
         if (nearest == null) return;
 
         var distKm = HaversineKm(loc.Latitude, loc.Longitude, nearest.Latitude, nearest.Longitude);
-        if (distKm <= 1.0) return; // Close enough â€” no popup needed
+        if (distKm <= 1.0) return; // Close enough Ã¢â‚¬â€ no popup needed
 
         _vm.IsVirtualTourPopupShown = true;
         await ShowVirtualTourConfirmationAsync(nearest, distKm);
     }
 
-    // â”€â”€ Confirmation popup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Confirmation popup Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private async Task ShowVirtualTourConfirmationAsync(POI nearest, double distKm)
     {
@@ -119,7 +119,7 @@ public partial class MainPage
 
         var stack = new VerticalStackLayout { Spacing = 20 };
 
-        // â”€â”€ Map icon â”€â”€
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Map icon Ã¢â€â‚¬Ã¢â€â‚¬
         var iconBorder = new Border
         {
             BackgroundColor  = Color.FromArgb("#F9731618"),
@@ -127,46 +127,46 @@ public partial class MainPage
             WidthRequest     = 80, HeightRequest = 80,
             HorizontalOptions = LayoutOptions.Center
         };
-        iconBorder.Content = new Label { Text = "ðŸ—ºï¸", FontSize = 40, HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
+        iconBorder.Content = new Label { Text = "🗺️", FontSize = 40, HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
         stack.Add(iconBorder);
 
-        // â”€â”€ Title â”€â”€
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Title Ã¢â€â‚¬Ã¢â€â‚¬
         stack.Add(new Label
         {
-            Text = "Báº¡n Ä‘ang á»Ÿ xa khu vá»±c",
+            Text = "Bạn đang ở xa khu vực",
             FontSize = 20, FontAttributes = FontAttributes.Bold,
             TextColor = Colors.White, HorizontalOptions = LayoutOptions.Center
         });
 
-        // â”€â”€ Distance block â”€â”€
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Distance block Ã¢â€â‚¬Ã¢â€â‚¬
         int walkMin = (int)Math.Ceiling(distKm * 12);
         var distStack = new VerticalStackLayout { Spacing = 6 };
         var distNameRow = new HorizontalStackLayout { Spacing = 8, HorizontalOptions = LayoutOptions.Center };
-        distNameRow.Add(new Label { Text = "ðŸ“", FontSize = 16, VerticalOptions = LayoutOptions.Center });
-        distNameRow.Add(new Label { Text = $"Gáº§n nháº¥t: {nearest.Name_Vi}", FontSize = 14, TextColor = Color.FromArgb("#9CA3AF"), VerticalOptions = LayoutOptions.Center });
+        distNameRow.Add(new Label { Text = "📍", FontSize = 16, VerticalOptions = LayoutOptions.Center });
+        distNameRow.Add(new Label { Text = $"Gần nhất: {nearest.Name_Vi}", FontSize = 14, TextColor = Color.FromArgb("#9CA3AF"), VerticalOptions = LayoutOptions.Center });
         distStack.Add(distNameRow);
 
         var distKmLabel = new Label { HorizontalOptions = LayoutOptions.Center };
         var distFormatted = new FormattedString();
         distFormatted.Spans.Add(new Span { Text = $"{distKm:F1} km", FontSize = 28, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#F97316") });
-        distFormatted.Spans.Add(new Span { Text = $" (~{walkMin} phÃºt Ä‘i bá»™)", FontSize = 13, TextColor = Color.FromArgb("#6B7280") });
+        distFormatted.Spans.Add(new Span { Text = $" (~{walkMin} phút đi bộ)", FontSize = 13, TextColor = Color.FromArgb("#6B7280") });
         distKmLabel.FormattedText = distFormatted;
         distStack.Add(distKmLabel);
         stack.Add(distStack);
 
-        // â”€â”€ Divider â”€â”€
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Divider Ã¢â€â‚¬Ã¢â€â‚¬
         stack.Add(new BoxView { HeightRequest = 1, BackgroundColor = Color.FromArgb("#1C3024") });
 
-        // â”€â”€ Don't show again checkbox â”€â”€
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Don't show again checkbox Ã¢â€â‚¬Ã¢â€â‚¬
         bool dontShowAgain = false;
         var checkRow = new HorizontalStackLayout { Spacing = 8, HorizontalOptions = LayoutOptions.Center };
         var checkbox  = new CheckBox { Color = Color.FromArgb("#22C55E"), VerticalOptions = LayoutOptions.Center };
         checkbox.CheckedChanged += (_, e) => dontShowAgain = e.Value;
         checkRow.Add(checkbox);
-        checkRow.Add(new Label { Text = "KhÃ´ng hiá»‡n láº¡i trong phiÃªn nÃ y", FontSize = 12, TextColor = Color.FromArgb("#6B7280"), VerticalOptions = LayoutOptions.Center });
+        checkRow.Add(new Label { Text = "Không hiện lại trong phiên này", FontSize = 12, TextColor = Color.FromArgb("#6B7280"), VerticalOptions = LayoutOptions.Center });
         stack.Add(checkRow);
 
-        // â”€â”€ Buttons â”€â”€
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Buttons Ã¢â€â‚¬Ã¢â€â‚¬
         var btnVirtual = new Border
         {
             BackgroundColor = Color.FromArgb("#22C55E"),
@@ -174,8 +174,8 @@ public partial class MainPage
             Padding         = new Thickness(16, 13)
         };
         var btnVirtualRow = new HorizontalStackLayout { Spacing = 8, HorizontalOptions = LayoutOptions.Center };
-        btnVirtualRow.Add(new Label { Text = "ðŸŽ¬", FontSize = 18, VerticalOptions = LayoutOptions.Center });
-        btnVirtualRow.Add(new Label { Text = "Xem tour áº£o ngay", FontSize = 15, FontAttributes = FontAttributes.Bold, TextColor = Colors.White, VerticalOptions = LayoutOptions.Center });
+        btnVirtualRow.Add(new Label { Text = "🎬", FontSize = 18, VerticalOptions = LayoutOptions.Center });
+        btnVirtualRow.Add(new Label { Text = "Xem tour ảo ngay", FontSize = 15, FontAttributes = FontAttributes.Bold, TextColor = Colors.White, VerticalOptions = LayoutOptions.Center });
         btnVirtual.Content = btnVirtualRow;
         var tapVirtual = new TapGestureRecognizer();
         tapVirtual.Tapped += (_, _) => { if (dontShowAgain) _vm.IsVirtualTourPopupShown = true; tcs.TrySetResult("virtual"); overlay.IsVisible = false; };
@@ -193,14 +193,14 @@ public partial class MainPage
         tapLater.Tapped += (_, _) =>
         {
             tcs.TrySetResult("later");
-            // Äáº£m báº£o áº©n vÃ  xÃ³a overlay trÃªn main thread ngay láº­p tá»©c
+            // Ã„ÂÃ¡ÂºÂ£m bÃ¡ÂºÂ£o Ã¡ÂºÂ©n vÃƒÂ  xÃƒÂ³a overlay trÃƒÂªn main thread ngay lÃ¡ÂºÂ­p tÃ¡Â»Â©c
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 try { ((AbsoluteLayout)this.Content).Children.Remove(overlay); } catch { }
             });
         };
         btnLater.GestureRecognizers.Add(tapLater);
-        btnLater.Content = new Label { Text = "Äá»ƒ sau", FontSize = 14, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#9CA3AF"), HorizontalOptions = LayoutOptions.Center };
+        btnLater.Content = new Label { Text = "Để sau", FontSize = 14, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#9CA3AF"), HorizontalOptions = LayoutOptions.Center };
         stack.Add(btnLater);
 
         dialog.Content = stack;
@@ -212,7 +212,7 @@ public partial class MainPage
         mainAbs.Children.Add(overlay);
 
         var result = await tcs.Task;
-        // Remove overlay náº¿u chÆ°a bá»‹ xÃ³a (trÆ°á»ng há»£p "virtual" button)
+        // Remove overlay nÃ¡ÂºÂ¿u chÃ†Â°a bÃ¡Â»â€¹ xÃƒÂ³a (trÃ†Â°Ã¡Â»Âng hÃ¡Â»Â£p "virtual" button)
         MainThread.BeginInvokeOnMainThread(() =>
         {
             try { mainAbs.Children.Remove(overlay); } catch { }
@@ -222,22 +222,22 @@ public partial class MainPage
             await EnableVirtualTourAsync(nearest);
     }
 
-    // â”€â”€ Enable / Disable Virtual Tour â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Enable / Disable Virtual Tour Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private async Task EnableVirtualTourAsync(POI startingPOI)
     {
         _virtualTourVm.StartVirtualTourSession();
         _vm.IsVirtualTourActive = true;
         _vm.IsVirtualNavigation = true;
-        _vm.CurrentAppMode = MainViewModel.AppMode.Virtual; // ðŸ‘ˆ This makes VirtualModeView visible
+        _vm.CurrentAppMode = MainViewModel.AppMode.Virtual; // Ã°Å¸â€˜Ë† This makes VirtualModeView visible
 
         // Scroll carousel to the starting POI
         var idx = _vm.AllPOIs.IndexOf(startingPOI);
         if (idx < 0) idx = 0;
         _vm.PrimaryZone = startingPOI;
-        _vm.PrimaryZoneName = startingPOI.Name_Vi ?? startingPOI.Name_En ?? "â€”";
+        _vm.PrimaryZoneName = startingPOI.Name_Vi ?? startingPOI.Name_En ?? "—";
         _vm.PrimaryZoneDesc = startingPOI.Description_Vi ?? startingPOI.Description_En ?? "";
-        _vm.PrimaryZoneAddress = startingPOI.Address ?? "Äang cáº­p nháº­t";
+        _vm.PrimaryZoneAddress = startingPOI.Address ?? "Đang cập nhật";
         _vm.PrimaryZoneRating = (startingPOI.Rating ?? 4.5).ToString("F1");
         var spots = _vm.AllPOIs.Where(p => p.ZoneType == "Spot").OrderBy(p => p.Id).ToList();
         int spotIdx = spots.FindIndex(p => p.Id == startingPOI.Id);
@@ -287,7 +287,7 @@ public partial class MainPage
         var (px, py) = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
         var feature  = new PointFeature(new MPoint(px, py));
 
-        // Outer glow â€” purple
+        // Outer glow Ã¢â‚¬â€ purple
         feature.Styles.Add(new SymbolStyle
         {
             SymbolScale = 1.4,
@@ -295,7 +295,7 @@ public partial class MainPage
             Outline     = null,
             SymbolType  = SymbolType.Ellipse
         });
-        // Inner pin â€” distinct white/purple
+        // Inner pin Ã¢â‚¬â€ distinct white/purple
         feature.Styles.Add(new SymbolStyle
         {
             SymbolScale = 0.65,
@@ -306,7 +306,7 @@ public partial class MainPage
         // Label
         feature.Styles.Add(new LabelStyle
         {
-            Text               = "ðŸ“ Vá»‹ trÃ­ áº£o",
+            Text               = "Ã°Å¸â€œÂ VÃ¡Â»â€¹ trÃƒÂ­ Ã¡ÂºÂ£o",
             ForeColor          = MapsColor.White,
             BackColor          = new MapsBrush(new MapsColor(88, 28, 135, 200)),
             Font               = new Mapsui.Styles.Font { FontFamily = "sans-serif", Size = 9, Bold = true },
@@ -342,7 +342,7 @@ public partial class MainPage
         {
             await Task.Delay(TimeSpan.FromMinutes(2.5), ct).ContinueWith(_ => { });
             if (ct.IsCancellationRequested) break;
-            // Quiet background ping â€” we don't need to re-center map in virtual mode
+            // Quiet background ping Ã¢â‚¬â€ we don't need to re-center map in virtual mode
             try
             {
                 await Geolocation.GetLocationAsync(
@@ -352,12 +352,12 @@ public partial class MainPage
         }
     }
 
-    // â”€â”€ Smart Search handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Smart Search handlers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private void OnSearchChanged(object? sender, TextChangedEventArgs e)
     {
         // The VM's SearchQuery is bound via XAML; suggestions come from PerformFuzzySearchAsync
-        // triggered by OnSearchQueryChanged â€” we just need to sync suggestions display.
+        // triggered by OnSearchQueryChanged Ã¢â‚¬â€ we just need to sync suggestions display.
         _ = UpdateSuggestionsDropdownAsync();
     }
 
@@ -388,7 +388,7 @@ public partial class MainPage
         UpdateZonePins();
     }
 
-    // â”€â”€ Utility â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Utility Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private POI? FindNearestSpotFrom(double lat, double lon)
     {
@@ -518,3 +518,4 @@ public partial class MainPage
     }
 
 }
+

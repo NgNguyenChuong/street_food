@@ -20,11 +20,14 @@ public partial class SavedPage : ContentPage
     {
         base.OnAppearing();
         Console.WriteLine("[SavedPage] OnAppearing");
+        _vm.RefreshOfflineBannerSession();
 
         if (_vm.AllPOIs.Count == 0)
         {
             await _vm.LoadAllPoisAsync();
         }
+
+        _ = _vm.LoadToursAsync(forceSyncNow: false);
     }
 
     private void OnSegmentBrowseTapped(object sender, EventArgs e)
@@ -46,6 +49,8 @@ public partial class SavedPage : ContentPage
         savedBorder.BackgroundColor = Color.FromArgb("#1C3024");
         LabelSaved.FontAttributes = FontAttributes.None;
         LabelSaved.TextColor = Color.FromArgb("#6B7280");
+
+        _ = _vm.LoadToursAsync(forceSyncNow: false);
     }
 
     private void OnSegmentSavedTapped(object sender, EventArgs e)

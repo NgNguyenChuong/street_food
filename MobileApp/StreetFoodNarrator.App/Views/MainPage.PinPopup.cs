@@ -127,7 +127,7 @@ public partial class MainPage
 
         // Stop audio and navigate to POIDetailPage
         await StopNarrationAsync(resetProgress: true, clearResumeState: true);
-        await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi));
+        await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi, keepCurrentAudio: true));
     }
 
     private void OnMapPrevPoi(object? sender, Core.Models.POI poi)

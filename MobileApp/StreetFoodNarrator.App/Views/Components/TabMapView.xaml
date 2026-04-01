@@ -19,7 +19,7 @@
               AbsoluteLayout.LayoutFlags="WidthProportional"
               InputTransparent="False"
               Padding="16,22,16,8"
-              BackgroundColor="#0A1612">
+              BackgroundColor="Transparent">
 
             <Grid ColumnDefinitions="48,*,48" VerticalOptions="Center">
 
@@ -348,7 +348,7 @@
                 <Shadow Brush="#000000" Offset="0,-6" Radius="32" Opacity="0.40"/>
             </Border.Shadow>
 
-            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="12">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
 
                 <!-- ── Row 0: Info ── -->
                 <Grid Grid.Row="0"
@@ -381,9 +381,14 @@
                                            FallbackValue='4.8'}"
                                    FontSize="13" FontAttributes="Bold"
                                    TextColor="#F0F7F3"/>
-                            <Label Text="•" FontSize="12" TextColor="#8B9A93"/>
+                            <Label Text="•"
+                                   FontSize="12"
+                                   TextColor="#8B9A93"
+                                   IsVisible="{Binding IsNotVirtualMode}"/>
                             <Label Text="{Binding CurrentPoiDistanceText, FallbackValue='0.2 dặm'}"
-                                   FontSize="12" TextColor="#C6D2CC"/>
+                                   FontSize="12"
+                                   TextColor="#C6D2CC"
+                                   IsVisible="{Binding IsNotVirtualMode}"/>
                         </HorizontalStackLayout>
                     </VerticalStackLayout>
 
@@ -409,7 +414,8 @@
                 </Grid>
 
                 <!-- ── Row 1: Audio preview box ── -->
-                <Grid Grid.Row="1"
+                <Grid x:Name="PoiCardExpandedAudioSection"
+                      Grid.Row="1"
                       ColumnDefinitions="*">
                     <Border Grid.Column="0"
                             HeightRequest="52"
@@ -458,7 +464,8 @@
                 </Grid>
 
                 <!-- ── Row 2: Main actions ── -->
-                <Grid Grid.Row="2"
+                <Grid x:Name="PoiCardExpandedActionSection"
+                      Grid.Row="2"
                       ColumnDefinitions="*,*"
                       ColumnSpacing="10">
                     <Border Grid.Column="0"
@@ -521,6 +528,107 @@
                         </HorizontalStackLayout>
                     </Border>
                 </Grid>
+
+                <Grid x:Name="PoiCardCollapsedSection"
+                      Grid.Row="1"
+                      IsVisible="False"
+                      RowDefinitions="Auto,Auto"
+                      RowSpacing="8">
+                    <Border Grid.Row="0"
+                            HeightRequest="44"
+                            BackgroundColor="#101916"
+                            Stroke="#20312A"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="10,0,12,0">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPreviewAudioTapped"/>
+                        </Border.GestureRecognizers>
+                        <Grid ColumnDefinitions="Auto,*"
+                              VerticalOptions="Center">
+                            <Border WidthRequest="30"
+                                    HeightRequest="30"
+                                    BackgroundColor="#1A2A23"
+                                    Stroke="#284036"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 15"
+                                    VerticalOptions="Center"
+                                    HorizontalOptions="Center">
+                                <Label Text="{Binding Source={x:Reference PreviewAudioToggleIcon}, Path=Text}"
+                                       FontFamily="MDI"
+                                       FontSize="16"
+                                       TextColor="#DCE8E2"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            <Label Grid.Column="1"
+                                   Text="Nghe thử nhanh"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="#DCE8E2"
+                                   VerticalOptions="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="1"
+                          ColumnDefinitions="*,*"
+                          ColumnSpacing="10">
+                        <Border Grid.Column="0"
+                                HeightRequest="46"
+                                BackgroundColor="#1B2823"
+                                Stroke="#214534"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 22">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnViewDetailTapped"/>
+                            </Border.GestureRecognizers>
+                            <Label Text="XEM CHI TIẾT"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="#DCE8E2"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+
+                        <Border Grid.Column="1"
+                                HeightRequest="46"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 22">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#4BE277" Offset="0.0"/>
+                                    <GradientStop Color="#22C55E" Offset="1.0"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnStartFromHereTapped"/>
+                            </Border.GestureRecognizers>
+                            <Label Text="BẮT ĐẦU TỪ ĐÂY"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="#063014"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <Border Grid.Row="3"
+                        BackgroundColor="#1A3128"
+                        Stroke="#2B4B40"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="12,4"
+                        HorizontalOptions="Center">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnTogglePoiCardTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label x:Name="PoiCardToggleLabel"
+                           Text="Thu gọn"
+                           FontSize="11"
+                           FontAttributes="Bold"
+                           TextColor="#9CCCB0"/>
+                </Border>
             </Grid>
         </Border>
 

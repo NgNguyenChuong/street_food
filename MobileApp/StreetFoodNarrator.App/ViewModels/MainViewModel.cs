@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using StreetFoodNarrator.App.Converters;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using System.Collections.ObjectModel;
 using System.Net.Http;
 using System.Text.Json;
@@ -11,6 +12,17 @@ namespace StreetFoodNarrator.App.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    public sealed class TourListItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int EstimatedDurationMinutes { get; set; }
+        public int PoiCount { get; set; }
+        public string CoverImageUrl { get; set; } = "welcome_streetfood.png";
+        public bool IsActive { get; set; } = true;
+    }
+
     public enum AppMode
     {
         Explore,
@@ -76,8 +88,15 @@ public partial class MainViewModel : ObservableObject
         _simulator = location as SimulatedLocationService;
         _fallbackSimulator = new SimulatedLocationService();
         IsReviewOnline = HasInternetAccess();
+        IsNetworkOffline = !HasInternetAccess();
+        IsOfflineHintDismissed = OfflineBannerSessionState.IsDismissed;
         Connectivity.Current.ConnectivityChanged += (_, _) =>
-            MainThread.BeginInvokeOnMainThread(() => IsReviewOnline = HasInternetAccess());
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                var hasInternet = HasInternetAccess();
+                IsReviewOnline = hasInternet;
+                IsNetworkOffline = !hasInternet;
+            });
 
         // Default to AppConfig location until GPS/sim updates arrive
         if (CurrentLat == 0 && CurrentLon == 0)
@@ -398,6 +417,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsExploreMode));
         OnPropertyChanged(nameof(IsRealMode));
         OnPropertyChanged(nameof(IsVirtualMode));
+        OnPropertyChanged(nameof(IsNotVirtualMode));
         OnPropertyChanged(nameof(IsDetailMode));
         OnPropertyChanged(nameof(IsRealOrVirtualMode));
         OnPropertyChanged(nameof(IsBottomNavVisible));
@@ -444,6 +464,7 @@ public partial class MainViewModel : ObservableObject
     public bool IsExploreMode => CurrentAppMode == AppMode.Explore;
     public bool IsRealMode => CurrentAppMode == AppMode.Real;
     public bool IsVirtualMode => CurrentAppMode == AppMode.Virtual;
+    public bool IsNotVirtualMode => CurrentAppMode != AppMode.Virtual;
     public bool IsDetailMode => CurrentAppMode == AppMode.Detail;
     public bool IsRealOrVirtualMode => IsRealMode || IsVirtualMode;
     public bool IsBottomNavVisible => IsExploreMode || IsRealMode;
@@ -542,9 +563,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<POI> allPOIs = new();
     [ObservableProperty] private ObservableCollection<POI> filteredPOIs = new();
     [ObservableProperty] private ObservableCollection<POI> savedPOIs = new();
+    [ObservableProperty] private ObservableCollection<TourListItem> allTours = new();
+    [ObservableProperty] private ObservableCollection<TourListItem> filteredTours = new();
     [ObservableProperty] private string searchQuery = "";
+    [ObservableProperty] private string tourSearchQuery = "";
     [ObservableProperty] private ObservableCollection<POI> searchSuggestions = new();
     [ObservableProperty] private bool hasSearchText = false;
+    [ObservableProperty] private bool isToursLoading = false;
+    [ObservableProperty] private bool isTourDataStale = false;
     [ObservableProperty] private ObservableCollection<POI> virtualTourPOIs = new();
     [ObservableProperty] private bool isVirtualTourPopupShown = false;
     [ObservableProperty] private POI? selectedPinPOI;
@@ -588,10 +614,26 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string selectedCategory = "Tất cả";
     private readonly object _applyFilterLock = new();
     private CancellationTokenSource? _applyFilterCts;
+    private readonly object _tourSyncLock = new();
+    private bool _isTourSyncInFlight;
+    private readonly SemaphoreSlim _liveSyncGate = new(1, 1);
+    private bool _isLiveSyncInFlight;
+    private const string ToursCacheJsonKey = "tours_cache_json_v1";
+    private const string LastTourSyncTimeKey = "LastTourSyncTime";
+    private const string LastPoiSyncTimeKey = "LastSyncTime";
+    private static readonly JsonSerializerOptions TourJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     partial void OnSelectedCategoryChanged(string value)
     {
         _ = ApplyFilterAsync();
+    }
+
+    partial void OnTourSearchQueryChanged(string value)
+    {
+        ApplyTourFilterCore();
     }
 
     /// <summary>
@@ -654,6 +696,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<POI> journalQueueItems = new();
 
     private const string JournalMilestonePopupDateKey = "journal_milestone_popup_last_date";
+    private const int MaxVirtualQueueItems = 6;
     private readonly HashSet<int> _journalCompletedPoiIds = new();
     private void ReplaceJournalQueueItems(IEnumerable<POI> queueItems)
     {
@@ -711,7 +754,8 @@ public partial class MainViewModel : ObservableObject
 
         // Queue: show all remaining POIs in order (wrap-around)
         var queueItems = new List<POI>();
-        for (var i = 1; i < spots.Count; i++)
+        var queueCount = Math.Min(MaxVirtualQueueItems, Math.Max(0, spots.Count - 1));
+        for (var i = 1; i <= queueCount; i++)
         {
             var idx = (currentIdx + i) % spots.Count;
             queueItems.Add(spots[idx]);
@@ -742,7 +786,8 @@ public partial class MainViewModel : ObservableObject
             if (found >= 0) currentIdx = found;
         }
 
-        for (var i = 1; i < spots.Count; i++)
+        var queueCount = Math.Min(MaxVirtualQueueItems, Math.Max(0, spots.Count - 1));
+        for (var i = 1; i <= queueCount; i++)
         {
             var idx = (currentIdx + i) % spots.Count;
             queueItems.Add(spots[idx]);
@@ -824,6 +869,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string userComment = "";
     [ObservableProperty] private bool isSubmittingReview = false;
     [ObservableProperty] private bool isReviewOnline = true;
+    [ObservableProperty] private bool isNetworkOffline = false;
+    [ObservableProperty] private bool isOfflineHintDismissed = false;
     [ObservableProperty] private string reviewSubmitMessage = "";
     [ObservableProperty] private bool hasMoreReviews = false;
     [ObservableProperty] private string loadMoreReviewsText = "Xem thêm";
@@ -834,6 +881,30 @@ public partial class MainViewModel : ObservableObject
     {
         var access = Connectivity.Current.NetworkAccess;
         return access == NetworkAccess.Internet || access == NetworkAccess.ConstrainedInternet;
+    }
+
+    public bool ShowOfflineBanner => IsNetworkOffline && !OfflineBannerSessionState.IsDismissed;
+
+    partial void OnIsNetworkOfflineChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowOfflineBanner));
+    }
+
+    partial void OnIsOfflineHintDismissedChanged(bool value)
+        => OnPropertyChanged(nameof(ShowOfflineBanner));
+
+    [RelayCommand]
+    private void DismissOfflineBanner()
+    {
+        IsOfflineHintDismissed = true;
+        OfflineBannerSessionState.IsDismissed = true;
+        OnPropertyChanged(nameof(ShowOfflineBanner));
+    }
+
+    public void RefreshOfflineBannerSession()
+    {
+        IsOfflineHintDismissed = OfflineBannerSessionState.IsDismissed;
+        OnPropertyChanged(nameof(ShowOfflineBanner));
     }
 
     private void InitializeExploreDemoData()
@@ -1644,6 +1715,7 @@ public partial class MainViewModel : ObservableObject
         // 3. ✅ Build map filter categories from loaded POI data
         BuildMapCategories();
         _ = ApplyFilterAsync();
+        _ = LoadToursAsync(forceSyncNow);
         RefreshDataSourceState();
         await LoadSavedPOIsAsync();
         RefreshExploreExperience();
@@ -1701,9 +1773,235 @@ public partial class MainViewModel : ObservableObject
 
         if (DateTime.TryParse(lastSyncStr, out var lastSync))
         {
-            return (DateTime.Now - lastSync).TotalMinutes > 5;
+            return (DateTime.Now - lastSync).TotalSeconds > 20;
         }
         return true;
+    }
+
+    private bool ShouldSyncToursNow()
+    {
+        if (AllTours.Count == 0)
+            return true;
+
+        var lastSyncStr = Preferences.Get(LastTourSyncTimeKey, "");
+        if (string.IsNullOrWhiteSpace(lastSyncStr))
+            return true;
+
+        if (DateTime.TryParse(lastSyncStr, out var lastSync))
+            return (DateTime.Now - lastSync).TotalSeconds > 20;
+
+        return true;
+    }
+
+    public async Task LiveSyncIfDueAsync()
+    {
+        if (_isLiveSyncInFlight)
+            return;
+
+        if (!HasInternetAccess())
+            return;
+
+        if (!ShouldSyncNow() && !ShouldSyncToursNow())
+            return;
+
+        await _liveSyncGate.WaitAsync();
+        try
+        {
+            if (_isLiveSyncInFlight)
+                return;
+            _isLiveSyncInFlight = true;
+
+            await _repository.SyncFromMongoAsync();
+            await _repository.LoadLocalAsync();
+            var updatedZones = _repository.GetAllActiveZones();
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                AllPOIs = new ObservableCollection<POI>(updatedZones);
+                VirtualTourPOIs = new ObservableCollection<POI>(AllPOIs.Where(p => p.ZoneType == "Spot"));
+                BuildMapCategories();
+                _ = ApplyFilterAsync();
+                RefreshExploreExperience();
+                RefreshDataSourceState();
+            });
+
+            Preferences.Set(LastPoiSyncTimeKey, DateTime.Now.ToString("O"));
+            await LoadToursAsync(forceSyncNow: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] LiveSyncIfDueAsync error: {ex.Message}");
+        }
+        finally
+        {
+            _isLiveSyncInFlight = false;
+            _liveSyncGate.Release();
+        }
+    }
+
+    public async Task LoadToursAsync(bool forceSyncNow = false)
+    {
+        try
+        {
+            IsToursLoading = true;
+
+            // 1) cache-first for instant UI
+            var cachedTours = ReadToursFromCache();
+            if (cachedTours.Count > 0)
+            {
+                AllTours = new ObservableCollection<TourListItem>(cachedTours);
+                ApplyTourFilterCore();
+            }
+
+            if (!AppConfig.UseBackendApi || !HasInternetAccess())
+            {
+                IsTourDataStale = true;
+                return;
+            }
+
+            if (!forceSyncNow && !ShouldSyncToursNow())
+            {
+                IsTourDataStale = false;
+                return;
+            }
+
+            lock (_tourSyncLock)
+            {
+                if (_isTourSyncInFlight)
+                    return;
+                _isTourSyncInFlight = true;
+            }
+
+            try
+            {
+                var liveTours = await FetchToursFromApiAsync();
+                if (liveTours.Count > 0)
+                {
+                    AllTours = new ObservableCollection<TourListItem>(liveTours);
+                    ApplyTourFilterCore();
+                    WriteToursToCache(liveTours);
+                }
+
+                Preferences.Set(LastTourSyncTimeKey, DateTime.Now.ToString("O"));
+                IsTourDataStale = false;
+            }
+            finally
+            {
+                lock (_tourSyncLock)
+                {
+                    _isTourSyncInFlight = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] LoadToursAsync error: {ex.Message}");
+            IsTourDataStale = true;
+        }
+        finally
+        {
+            IsToursLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshToursAsync()
+    {
+        await LoadToursAsync(forceSyncNow: true);
+    }
+
+    private void ApplyTourFilterCore()
+    {
+        var q = (TourSearchQuery ?? string.Empty).Trim().ToLowerInvariant();
+
+        var results = string.IsNullOrEmpty(q)
+            ? AllTours.ToList()
+            : AllTours.Where(t =>
+                    t.Name.ToLowerInvariant().Contains(q) ||
+                    t.Description.ToLowerInvariant().Contains(q))
+                .ToList();
+
+        FilteredTours = new ObservableCollection<TourListItem>(results);
+    }
+
+    private List<TourListItem> ReadToursFromCache()
+    {
+        var json = Preferences.Get(ToursCacheJsonKey, string.Empty);
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<TourListItem>();
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<TourListItem>>(json, TourJsonOptions) ?? new List<TourListItem>();
+        }
+        catch
+        {
+            return new List<TourListItem>();
+        }
+    }
+
+    private void WriteToursToCache(List<TourListItem> tours)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(tours, TourJsonOptions);
+            Preferences.Set(ToursCacheJsonKey, json);
+        }
+        catch
+        {
+            // Ignore cache write errors to keep UI smooth.
+        }
+    }
+
+    private async Task<List<TourListItem>> FetchToursFromApiAsync()
+    {
+        var baseUrl = AppConfig.GetResolvedApiBaseUrl();
+        using var http = new HttpClient
+        {
+            BaseAddress = new Uri(baseUrl),
+            Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds)
+        };
+
+        var response = await http.GetAsync("api/Tours?page=1&pageSize=100&isActive=true");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        var payload = JsonSerializer.Deserialize<TourListResponseDto>(json, TourJsonOptions);
+        var data = payload?.Data ?? new List<TourDto>();
+
+        return data
+            .Where(t => t.IsActive)
+            .Select(t => new TourListItem
+            {
+                Id = t.Id ?? string.Empty,
+                Name = string.IsNullOrWhiteSpace(t.TourName) ? "Tour ẩm thực" : t.TourName,
+                Description = t.Description ?? string.Empty,
+                EstimatedDurationMinutes = Math.Max(1, t.EstimatedDurationMinutes),
+                PoiCount = t.Pois?.Count ?? 0,
+                CoverImageUrl = "welcome_streetfood.png",
+                IsActive = t.IsActive
+            })
+            .ToList();
+    }
+
+    private sealed class TourListResponseDto
+    {
+        public List<TourDto> Data { get; set; } = new();
+    }
+
+    private sealed class TourDto
+    {
+        public string? Id { get; set; }
+        public string TourName { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int EstimatedDurationMinutes { get; set; }
+        public bool IsActive { get; set; }
+        public List<TourPoiDto>? Pois { get; set; }
+    }
+
+    private sealed class TourPoiDto
+    {
+        public string Id { get; set; } = string.Empty;
     }
 
     /// <summary>Called automatically when SearchQuery changes.</summary>

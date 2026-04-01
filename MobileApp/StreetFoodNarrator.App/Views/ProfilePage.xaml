@@ -11,6 +11,38 @@
              BackgroundColor="#0A1612"
              Shell.NavBarIsVisible="False">
     <Grid>
+        <Border x:Name="OfflineBanner"
+                Margin="16,10,16,0"
+                Padding="10,8"
+                HorizontalOptions="Fill"
+                VerticalOptions="Start"
+                BackgroundColor="#D97706EE"
+                Stroke="#F59E0B"
+                StrokeThickness="1"
+                IsVisible="False"
+                ZIndex="2000">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="12" />
+            </Border.StrokeShape>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Label Text="Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm tốt hơn."
+                       FontSize="11"
+                       TextColor="White"
+                       VerticalTextAlignment="Center"/>
+                <Button Grid.Column="1"
+                        WidthRequest="26"
+                        HeightRequest="26"
+                        CornerRadius="13"
+                        Padding="0"
+                        FontFamily="MDI"
+                        FontSize="14"
+                        Text="&#xF0156;"
+                        TextColor="White"
+                        BackgroundColor="#00000000"
+                        Clicked="OnDismissOfflineBannerClicked" />
+            </Grid>
+        </Border>
+
         <ScrollView Padding="0,0,0,100">
             <VerticalStackLayout Padding="20" Spacing="16">
 

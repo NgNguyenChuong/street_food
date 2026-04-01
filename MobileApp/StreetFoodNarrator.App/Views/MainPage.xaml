@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
@@ -93,7 +93,7 @@
                                 TextColor="#E5EFE9" Clicked="OnSecondaryExploreActionClicked" />
                     </VerticalStackLayout>
 
-                    <VerticalStackLayout IsVisible="{Binding IsNearExploreState}" Spacing="14" Margin="0,4,0,0">
+                    <VerticalStackLayout IsVisible="{Binding IsNearExploreState}" Spacing="12" Margin="0,-4,0,0">
                         <Border BackgroundColor="#16221ECC" Padding="12,7" HorizontalOptions="Center">
                             <Border.StrokeShape><RoundRectangle CornerRadius="22" /></Border.StrokeShape>
                             <HorizontalStackLayout Spacing="9">
@@ -153,12 +153,12 @@
                             </VerticalStackLayout>
                         </Border>
 
-                        <Grid Margin="2,3,2,0" ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                        <Grid Margin="2,-4,2,0" ColumnDefinitions="*,Auto" VerticalOptions="Center">
                             <Label Text="LỰA CHỌN KHÁC" FontSize="10" FontAttributes="Bold" CharacterSpacing="2.0" TextColor="#AEBFB6" />
-                            <Label Grid.Column="1" Text="→" FontSize="18" TextColor="#AEBFB6" />
+                            <Label Grid.Column="1" Text="↑" FontSize="18" TextColor="#AEBFB6" />
                         </Grid>
 
-                        <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                        <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,-2,0,0">
                             <HorizontalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding NearbyExplorePois}" Padding="0,0,0,6">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:MainViewModel+ExplorePoiCard">
@@ -204,7 +204,7 @@
                         <Label Text="Hãy để âm thanh dẫn lối bạn qua những gian hàng ẩm thực danh tiếng của Quận 4."
                                FontSize="14" LineHeight="1.35" TextColor="#BFD0C8" />
 
-                                                <Border BackgroundColor="#111A17" Stroke="#1F2C27" StrokeThickness="1" Padding="16">
+                        <Border BackgroundColor="#111A17" Stroke="#1F2C27" StrokeThickness="1" Padding="16">
                             <Border.StrokeShape><RoundRectangle CornerRadius="24" /></Border.StrokeShape>
                             <VerticalStackLayout Spacing="12">
                                 <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12">
@@ -547,6 +547,45 @@
                                   AbsoluteLayout.LayoutFlags="All"
                                   IsVisible="{Binding IsPinPopupVisible}" />
 
+        <Border AbsoluteLayout.LayoutBounds="0.5,0,0.95,-1"
+                AbsoluteLayout.LayoutFlags="XProportional,WidthProportional"
+                Margin="0,44,0,0"
+                Padding="12,10"
+                BackgroundColor="#D97706EE"
+                Stroke="#F59E0B"
+                StrokeThickness="1"
+                IsVisible="{Binding ShowOfflineBanner}"
+                ZIndex="9800">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="14" />
+            </Border.StrokeShape>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <HorizontalStackLayout Spacing="8">
+                    <Label Text="&#xF1AF0;"
+                           FontFamily="MDI"
+                           FontSize="16"
+                           TextColor="White"
+                           VerticalOptions="Start" />
+                    <Label Text="Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm đầy đủ và cập nhật dữ liệu mới nhất."
+                           FontSize="12"
+                           LineBreakMode="WordWrap"
+                           TextColor="White"
+                           VerticalOptions="Center" />
+                </HorizontalStackLayout>
+                <Button Grid.Column="1"
+                        WidthRequest="28"
+                        HeightRequest="28"
+                        CornerRadius="14"
+                        Padding="0"
+                        FontFamily="MDI"
+                        FontSize="16"
+                        Text="&#xF0156;"
+                        TextColor="White"
+                        BackgroundColor="#00000000"
+                        Command="{Binding DismissOfflineBannerCommand}" />
+            </Grid>
+        </Border>
+
         <!-- <components:FloatingBottomNav x:Name="BottomNavComponent"
                                       ActiveTab="Explore"
                                       IsVisible="{Binding IsBottomNavVisible}"
@@ -569,4 +608,3 @@
         </Grid>
     </AbsoluteLayout>
 </ContentPage>
-

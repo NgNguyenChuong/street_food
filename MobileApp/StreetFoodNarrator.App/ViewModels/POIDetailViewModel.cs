@@ -497,10 +497,7 @@ public partial class POIDetailViewModel : ObservableObject
 
         // THEN unsubscribe events — safe now that timer is stopped
         _tts.OnPlaybackEnded -= OnTtsPlaybackEnded;
-
-        // Stop audio only when it was started from this page.
-        // If this page attached to an existing VirtualMode playback session, keep it alive.
-        if (_ownsCurrentPlayback)
-            _ = _tts.StopAsync();
+        // Keep global playback alive when leaving POIDetail so audio can continue
+        // seamlessly across pages (MainPage/ExploreMap/POIDetail).
     }
 }

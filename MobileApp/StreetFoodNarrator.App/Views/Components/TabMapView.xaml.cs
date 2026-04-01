@@ -48,6 +48,7 @@ public partial class TabMapView : ContentView
 private const string IconHeart = "\U000F02D1";
 private const string IconPlay  = "\U000F040A";
 private const string IconPause = "\U000F03E4";
+    private bool _isPoiCardCollapsed;
     private int? _previewAudioPoiId;
     private bool _isPreviewAudioPlaying;
     private bool _isPreviewAudioPaused;
@@ -56,6 +57,7 @@ private const string IconPause = "\U000F03E4";
     public TabMapView()
     {
         InitializeComponent();
+        SetPoiCardCollapsed(false);
         Loaded += (_, _) =>
         {
             RefreshLikeIcon();
@@ -83,6 +85,7 @@ private const string IconPause = "\U000F03E4";
         if (e.PropertyName == nameof(MainViewModel.CurrentPOI) ||
             e.PropertyName == nameof(MainViewModel.SelectedPinPOI))
         {
+            SetPoiCardCollapsed(false);
             RefreshLikeIcon();
             RefreshPreviewAudioUi();
         }
@@ -244,6 +247,25 @@ private const string IconPause = "\U000F03E4";
             LikeRequested?.Invoke(this, vm.SelectedPinPOI);
             Dispatcher.Dispatch(RefreshLikeIcon);
         }
+    }
+
+    private void OnTogglePoiCardTapped(object sender, EventArgs e)
+    {
+        SetPoiCardCollapsed(!_isPoiCardCollapsed);
+    }
+
+    private void SetPoiCardCollapsed(bool collapsed)
+    {
+        _isPoiCardCollapsed = collapsed;
+
+        if (PoiCardExpandedAudioSection != null)
+            PoiCardExpandedAudioSection.IsVisible = !collapsed;
+        if (PoiCardExpandedActionSection != null)
+            PoiCardExpandedActionSection.IsVisible = !collapsed;
+        if (PoiCardCollapsedSection != null)
+            PoiCardCollapsedSection.IsVisible = collapsed;
+        if (PoiCardToggleLabel != null)
+            PoiCardToggleLabel.Text = collapsed ? "Mở rộng" : "Thu gọn";
     }
 
     // ── Filter Chips ──────────────────────────────────────────────────────
