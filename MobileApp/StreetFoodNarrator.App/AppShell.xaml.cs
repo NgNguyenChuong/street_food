@@ -7,6 +7,10 @@ namespace StreetFoodNarrator.App;
 public partial class AppShell : Shell
 {
     private MainPage? _cachedMainPage;
+    private SavedPage? _cachedSavedPage;
+    private SettingsPage? _cachedSettingsTabPage;
+    public static string PreviousNonSettingsRoute { get; private set; } = string.Empty;
+    public static string LastNonSettingsRoute { get; private set; } = "//MapPage";
 
     public AppShell(bool isOnboarding = false)
     {
@@ -54,10 +58,44 @@ public partial class AppShell : Shell
             return _cachedMainPage;
         });
 
+        SavedShellContent.ContentTemplate = new DataTemplate(() =>
+        {
+            _cachedSavedPage ??= new SavedPage();
+            return _cachedSavedPage;
+        });
+
+        SettingsShellContent.ContentTemplate = new DataTemplate(() =>
+        {
+            _cachedSettingsTabPage ??= new SettingsPage();
+            return _cachedSettingsTabPage;
+        });
+
         Routing.RegisterRoute("POIDetailPage", typeof(POIDetailPage));
 
         // SettingsPage route for non-modal shell navigation paths
         Routing.RegisterRoute("SettingsPage", typeof(SettingsPage));
+
+        Navigated += OnShellNavigated;
+    }
+
+    private void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
+    {
+        try
+        {
+            var location = CurrentState?.Location?.OriginalString ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(location))
+                return;
+
+            if (!location.Contains("SettingsPage", StringComparison.OrdinalIgnoreCase))
+            {
+                PreviousNonSettingsRoute = LastNonSettingsRoute;
+                LastNonSettingsRoute = location;
+            }
+        }
+        catch
+        {
+            // Ignore route tracking errors; back logic has fallback routes.
+        }
     }
 
     /// <summary>

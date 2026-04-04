@@ -1370,6 +1370,16 @@
             return params.get('id');
         }
 
+        async function safeAutoTranslate(text, targetLangs = ['en', 'zh-CN']) {
+            if (!text) return {};
+            try {
+                return await api.autoTranslate(text, targetLangs) || {};
+            } catch (error) {
+                showToast('Khong the dich tu dong, se luu noi dung goc.', 'warning');
+                return {};
+            }
+        }
+
         function setStatus(status) {
             currentStatus = status === 'active';
             const options = document.querySelectorAll('.status-option');
@@ -1663,6 +1673,10 @@
                 return;
             }
             currentPoiId = parseInt(id, 10);
+            if (Number.isNaN(currentPoiId)) {
+                window.location.href = 'poi-list';
+                return;
+            }
 
             try {
                 const poi = await api.getPOI(currentPoiId);
@@ -1831,14 +1845,14 @@
                 const descVi = document.getElementById('poiDescription').value.trim();
 
                 if (nameVi) {
-                    const nameRes = await api.autoTranslate(nameVi, ['en', 'zh-CN']);
+                    const nameRes = await safeAutoTranslate(nameVi, ['en', 'zh-CN']);
                     if (nameRes) {
                         nameEn = nameRes.en || null;
                         nameZh = nameRes['zh-CN'] || null;
                     }
                 }
                 if (descVi) {
-                    const descRes = await api.autoTranslate(descVi, ['en', 'zh-CN']);
+                    const descRes = await safeAutoTranslate(descVi, ['en', 'zh-CN']);
                     if (descRes) {
                         descEn = descRes.en || null;
                         descZh = descRes['zh-CN'] || null;
@@ -1933,7 +1947,7 @@
                 }
 
                 await api.updatePOI(currentPoiId, data);
-                showToast('POI đã được cập nhật thành công!', 'success');
+                showToast('POI da duoc cap nhat thanh cong!', 'success');
                 window.setTimeout(() => {
                     window.location.href = 'poi-list';
                 }, 450);
@@ -2090,3 +2104,4 @@
 </body>
 
 </html>
+

@@ -50,6 +50,11 @@ public static class AppConfig
     public static bool UseBackendApi { get; set; } = true;
     public const string DataVersionKey = "pois_data_version";
     public const string LanguagePrefKey = "app_language";
+    public const string MainPagePrewarmReadyKey = "mainpage_prewarm_ready";
+    public const string MainPagePrewarmAtUtcKey = "mainpage_prewarm_at_utc";
+    public const string LocationSourceModePrefKey = "settings_location_source_mode";
+    public const string LocationSourceReal = "real";
+    public const string LocationSourceSimulated = "simulated";
     public const string OfflineRouterDbAssetName = "routing/vinhkhanh_q4.routerdb";
     public const string OfflineRouterDbFileName = "vinhkhanh_q4.routerdb";
 
@@ -66,7 +71,7 @@ public static class AppConfig
     public const double SpotZoneMaxMeters = 40.0;
     public const double SpotZoneGpsErrorBufferMeters = 8.0;
     public const double SpotZoneConfidenceThreshold = 0.7;
-    public const int SpotZoneActivationDelayMs = 4000;
+    public const int SpotZoneActivationDelayMs = 1500;
     public const int SpotZoneSwitchCooldownMs = 700;
     public const int SpotZoneApproachToastCooldownMs = 2500;
     public const double SpotZoneDeactivationBuffer = 1.3;
@@ -74,7 +79,8 @@ public static class AppConfig
     public const double SpotZoneSwitchHysteresisMeters = 3.0;
 
     // ── Feature flags ──────────────────────────────────────────────
-    public const bool UseSimulatedGPS = true;     // Máy thật: dùng GPS thật của thiết bị
+    public const bool DefaultUseSimulatedGps = false;
+    public const bool UseSimulatedGPS = DefaultUseSimulatedGps;
 
     private const string CUSTOM_API_URL_KEY = "CustomApiUrl";
 

@@ -217,7 +217,7 @@ public partial class POIDetailPage : ContentPage
     // ── Navigation ─────────────────────────────────────────────────
     private async void OnBackTapped(object? sender, EventArgs e)
     {
-        await Navigation.PopModalAsync();
+        await Navigation.PopModalAsync(false);
     }
 
     private async void OnPhoneTapped(object? sender, EventArgs e)
@@ -271,10 +271,10 @@ public partial class POIDetailPage : ContentPage
             }
 
             vm.NavigationTarget = _poi;
-            await Navigation.PopModalAsync();
+            await Navigation.PopModalAsync(false);
 
             if (Shell.Current != null)
-                await Shell.Current.GoToAsync("//MapPage");
+                await Shell.Current.GoToAsync("//MapPage", false);
         }
         catch (Exception ex)
         {
@@ -308,9 +308,9 @@ public partial class POIDetailPage : ContentPage
                 vm.NavigationTarget = _poi;
                 vm.IsVirtualNavigation = true;
             }
-            await Navigation.PopModalAsync();
+            await Navigation.PopModalAsync(false);
             if (Shell.Current != null)
-                await Shell.Current.GoToAsync("//MapPage");
+                await Shell.Current.GoToAsync("//MapPage", false);
         }
         catch (Exception ex)
         {

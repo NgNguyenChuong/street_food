@@ -279,6 +279,12 @@
             font-size: 0.85rem;
             vertical-align: middle;
             white-space: nowrap;
+        }
+
+        /* Only truncate first 3 data columns (POI, Địa chỉ, Danh mục) */
+        td:nth-child(2),
+        td:nth-child(3),
+        td:nth-child(4) {
             overflow: hidden;
             text-overflow: ellipsis;
         }

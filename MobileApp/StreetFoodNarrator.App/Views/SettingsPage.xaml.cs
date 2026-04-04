@@ -1,12 +1,11 @@
-using Microsoft.Maui.Storage;
 using Microsoft.Maui.Networking;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.Storage;
 using Plugin.Maui.Audio;
-using StreetFoodNarrator.App;
-using StreetFoodNarrator.App.Core.Services;
-using StreetFoodNarrator.App.Resources.Strings;
-using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Core.Models;
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
+using StreetFoodNarrator.App.Resources.Strings;
+using StreetFoodNarrator.App.ViewModels;
 using System.Collections.ObjectModel;
 using System.Text.Json;
 
@@ -16,237 +15,255 @@ public partial class SettingsPage : ContentPage
 {
     private readonly LanguageService _languageService;
     private readonly ITTSService _ttsService;
-    private readonly IVoicePackageService _voicePackageService;
+    private readonly MainViewModel? _mainViewModel;
 
-    private ObservableCollection<VoiceItemViewModel> _voices = new();
-    private ObservableCollection<VoiceItemViewModel> _allVoices = new();
-    private ObservableCollection<VoicePackageViewModel> _voicePackages = new();
-    private List<LanguageOption> _languages = new();
+    private readonly ObservableCollection<VoiceItemViewModel> _voices = new();
+    private readonly ObservableCollection<VoiceItemViewModel> _allVoices = new();
+
     private UserSettings? _settings;
-    private bool _isVoicePickerExpanded = false;
-    private bool _isVoicePackagesExpanded = false;
-    private System.Timers.Timer? _volumeDebounceTimer;
-    private System.Timers.Timer? _sensitivityDebounceTimer;
+    private bool _isVoicePickerExpanded;
     private bool _isLoadingPlaybackMode;
-    private readonly List<AudioPlaybackOption> _audioPlaybackOptions = new()
-    {
-        new AudioPlaybackOption(AudioPlaybackModes.Auto, "Tự động (khuyên dùng)"),
-        new AudioPlaybackOption(AudioPlaybackModes.Stream, "Nghe online khi có mạng"),
-        new AudioPlaybackOption(AudioPlaybackModes.Download, "Tải về máy trước khi phát")
-    };
+    private bool _isLoadingLanguagePicker;
+    private bool _isLoadingLocationSourcePicker;
+    private bool _isApplyingControls;
+    private bool _hasPendingChanges;
+    private string _pendingLanguageCode = "vi";
+    private string _pendingLocationSourceMode = AppConfig.LocationSourceReal;
 
-    // Language picker meta
-    private static readonly Dictionary<string, (string Flag, string DisplayName)> LangMeta = new()
-    {
-        { "vi", ("\U0001F1FB\U0001F1F3", "Tiếng Việt") },
-        { "en", ("\U0001F1EC\U0001F1E7", "English") },
-        { "zh", ("\U0001F1E8\U0001F1F3", "中文") }
-    };
-    private string _currentLangCode = "vi";
-    
-    // Demo text for testing voices
+    private const string PrefSettings = "UserSettings";
+    private const string PrefHapticFeedback = "settings_haptic_feedback";
+    private const string PrefKeepScreenOn = "settings_keep_screen_on";
+    private const string PrefLargeText = "settings_large_text";
+    private const string HasOnboardedPreferenceKey = "has_onboarded";
+    private const string AutoOpenInZoneOnNextMainPageKey = "auto_open_inzone_on_next_mainpage";
+
     private static readonly Dictionary<string, string> DemoTexts = new()
     {
-        { "vi", "Chào mừng bạn đến với ứng dụng" },
-        { "en", "Welcome to the app" },
-        { "zh", "欢迎使用应用" }
-    };
-    // Map voice name → static demo file in Resources/Raw
-    private static readonly Dictionary<string, string> VoiceDemoFiles = new()
-    {
-        { "vi-VN-HoaiMyNeural",   "vi-VN-HoaiMyNeural_welcome.mp3" },
-        { "en-US-JennyNeural",    "en-US-JennyNeural_welcome.mp3" },
-        { "zh-CN-XiaoxiaoNeural", "zh-CN-XiaoxiaoNeural_welcome.mp3" },
+        { "vi", "Chào mừng bạn đến với ứng dụng." },
+        { "en", "Welcome to the app." },
+        { "zh", "欢迎使用应用。" }
     };
 
+    private static readonly Dictionary<string, string> VoiceDemoFiles = new()
+    {
+        { "vi-VN-HoaiMyNeural", "vi-VN-HoaiMyNeural_welcome.mp3" },
+        { "en-US-JennyNeural", "en-US-JennyNeural_welcome.mp3" },
+        { "zh-CN-XiaoxiaoNeural", "zh-CN-XiaoxiaoNeural_welcome.mp3" }
+    };
+
+    private readonly List<AudioPlaybackOption> _audioPlaybackOptions = new();
+    private readonly List<LocationSourceOption> _locationSourceOptions = new();
+
     private IAudioPlayer? _demoPlayer;
+
     public SettingsPage()
     {
         InitializeComponent();
         _languageService = new LanguageService();
         _ttsService = MauiProgram.Services.GetRequiredService<ITTSService>();
-        _voicePackageService = MauiProgram.Services.GetRequiredService<IVoicePackageService>();
-        AudioPlaybackModePicker.ItemsSource = _audioPlaybackOptions.Select(o => o.Label).ToList();
-        SetupCustomLangPicker();
-        LoadSettingsAndVoices();
-        WireUpSliders();
-        _ = LoadVoicePackagesAsync();
+        _mainViewModel = MauiProgram.Services.GetService<MainViewModel>();
+
+        RefreshPlaybackModeOptions();
+        RefreshLocationSourceOptions();
+
+        LoadSettingsAndControls();
+        ReloadUIStrings();
+        _ = LoadVoicesAsync();
     }
 
-    protected override async void OnAppearing()
+    protected override void OnAppearing()
     {
         base.OnAppearing();
-        Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
-        UpdateOfflineBanner();
-        await UpdateOfflineStats();
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
+        LanguageService.LanguageChanged -= OnLanguageChanged;
     }
 
-    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
-        => MainThread.BeginInvokeOnMainThread(UpdateOfflineBanner);
-
-    private void UpdateOfflineBanner()
+    private void OnLanguageChanged(object? sender, string languageCode)
     {
-        var offline = Connectivity.Current.NetworkAccess != NetworkAccess.Internet &&
-                      Connectivity.Current.NetworkAccess != NetworkAccess.ConstrainedInternet;
-        OfflineBanner.IsVisible = offline && !OfflineBannerSessionState.IsDismissed;
-    }
-
-    private void OnDismissOfflineBannerClicked(object sender, EventArgs e)
-    {
-        OfflineBannerSessionState.IsDismissed = true;
-        UpdateOfflineBanner();
-    }
-    
-    private void SetupCustomLangPicker()
-    {
-        _currentLangCode = _languageService.CurrentLanguage;
-        UpdateLangTriggerDisplay(_currentLangCode);
-        UpdateLangCheckmarks(_currentLangCode);
-    }
-
-    private void UpdateLangTriggerDisplay(string langCode)
-    {
-        if (LangMeta.TryGetValue(langCode, out var meta))
+        MainThread.BeginInvokeOnMainThread(() =>
         {
-            LangFlagLabel.Text = meta.Flag;
-            LangNameLabel.Text = meta.DisplayName;
-        }
+            _pendingLanguageCode = languageCode;
+            SetupLanguagePicker();
+            ReloadUIStrings();
+            RefreshPlaybackModeOptions();
+            RefreshLocationSourceOptions();
+        });
     }
 
-    private void UpdateLangCheckmarks(string selectedCode)
-    {
-        LangCheckVI.IsVisible = selectedCode == "vi";
-        LangCheckEN.IsVisible = selectedCode == "en";
-        LangCheckZH.IsVisible = selectedCode == "zh";
-
-        LangOptionVI.BackgroundColor = selectedCode == "vi"
-            ? Color.FromArgb("#22C55E14") : Colors.Transparent;
-        LangOptionEN.BackgroundColor = selectedCode == "en"
-            ? Color.FromArgb("#22C55E14") : Colors.Transparent;
-        LangOptionZH.BackgroundColor = selectedCode == "zh"
-            ? Color.FromArgb("#22C55E14") : Colors.Transparent;
-    }
-
-    private async void OnOpenLanguagePicker(object sender, EventArgs e)
-    {
-        LanguagePickerModal.IsVisible = true;
-        await LangSheetCard.TranslateToAsync(0, 0, 300, Easing.CubicOut);
-    }
-
-    private async Task OnCloseLanguagePicker_Async()
-    {
-        await LangSheetCard.TranslateToAsync(0, 400, 250, Easing.CubicIn);
-        LanguagePickerModal.IsVisible = false;
-    }
-
-    private async void OnCloseLanguagePicker(object sender, EventArgs e)
-        => await OnCloseLanguagePicker_Async();
-
-    private async void OnLanguageOptionTapped(object sender, EventArgs e)
-    {
-        if (sender is not Grid grid) return;
-        var lang = grid.GestureRecognizers
-                       .OfType<TapGestureRecognizer>()
-                       .FirstOrDefault()?.CommandParameter as string;
-        if (lang == null)
+    private string Localize(string vi, string en, string zh)
+        => _pendingLanguageCode switch
         {
-            await OnCloseLanguagePicker_Async();
-            return;
-        }
+            "en" => en,
+            "zh" => zh,
+            _ => vi
+        };
 
-        _currentLangCode = lang;
-        UpdateLangCheckmarks(lang);
-        UpdateLangTriggerDisplay(lang);
+    private void RefreshPlaybackModeOptions()
+    {
+        var selectedMode = _settings?.TTS.AudioPlaybackMode?.Trim().ToLowerInvariant() ?? AudioPlaybackModes.Auto;
 
-        await Task.Delay(180);
-        await OnCloseLanguagePicker_Async();
+        _audioPlaybackOptions.Clear();
+        _audioPlaybackOptions.Add(new AudioPlaybackOption(
+            AudioPlaybackModes.Auto,
+            Localize("Tự động (khuyên dùng)", "Auto (recommended)", "自动（推荐）")));
+        _audioPlaybackOptions.Add(new AudioPlaybackOption(
+            AudioPlaybackModes.Stream,
+            Localize("Phát trực tuyến khi có mạng", "Stream when online", "联网时在线播放")));
 
-        _languageService.ApplyLanguage(lang);
-        ReloadUIStrings();
-        await SwitchVoiceForLanguage(lang);
+        _isLoadingPlaybackMode = true;
+        AudioPlaybackModePicker.ItemsSource = _audioPlaybackOptions.Select(o => o.Label).ToList();
+        var selectedIndex = _audioPlaybackOptions.FindIndex(o => o.Mode == selectedMode);
+        AudioPlaybackModePicker.SelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
+        _isLoadingPlaybackMode = false;
     }
 
-    private async void LoadSettingsAndVoices()
+    private void LoadSettingsAndControls()
     {
-        await LoadSettings();
-        await LoadVoices();
+        _isApplyingControls = true;
+        _settings = LoadSettingsFromPreferences();
+        _pendingLanguageCode = _languageService.CurrentLanguage;
+        _pendingLocationSourceMode = Preferences.Get(AppConfig.LocationSourceModePrefKey, AppConfig.LocationSourceReal);
+        if (!string.Equals(_pendingLocationSourceMode, AppConfig.LocationSourceSimulated, StringComparison.OrdinalIgnoreCase))
+            _pendingLocationSourceMode = AppConfig.LocationSourceReal;
+
+        SetupLanguagePicker();
+        SetupLocationSourcePicker();
+        ApplySettingsToControls();
+        ApplyUserPreferencesToControls();
+        _hasPendingChanges = false;
+        _isApplyingControls = false;
     }
 
-    private async Task LoadSettings()
+    private UserSettings LoadSettingsFromPreferences()
     {
-        try
+        var cachedJson = Preferences.Get(PrefSettings, string.Empty);
+        if (!string.IsNullOrWhiteSpace(cachedJson))
         {
-            // Try load cached settings first
-            var cachedJson = Preferences.Get("UserSettings", string.Empty);
-            if (!string.IsNullOrWhiteSpace(cachedJson))
+            try
             {
-                try
-                {
-                    _settings = JsonSerializer.Deserialize<UserSettings>(cachedJson);
-                }
-                catch
-                {
-                    _settings = null;
-                }
+                var cached = JsonSerializer.Deserialize<UserSettings>(cachedJson);
+                if (cached != null)
+                    return cached;
             }
-
-            // TODO: Call API to get settings
-            // Fallback to defaults
-            _settings ??= new UserSettings
+            catch
             {
-                TTS = new TTSSettings
-                {
-                    Voice = "vi-VN-HoaiMyNeural",
-                    Volume = 80,
-                    AutoPlay = true,
-                    AudioPlaybackMode = AudioPlaybackModes.Auto
-                },
-                Location = new LocationSettings
-                {
-                    SensitivityRadius = 40
-                }
-            };
-            
-            // Apply to UI
-            VolumeSlider.Value = _settings.TTS.Volume;
-            VolumeValueLabel.Text = $"{_settings.TTS.Volume}%";
-            SensitivitySlider.Value = _settings.Location.SensitivityRadius;
-            SensitivityValueLabel.Text = $"{_settings.Location.SensitivityRadius}m";
-            AutoPlaySwitch.IsToggled = _settings.TTS.AutoPlay;
-            ApplyPlaybackModeToPicker(_settings.TTS.AudioPlaybackMode);
+                // Ignore invalid cache and fall back to defaults.
+            }
         }
-        catch (Exception ex)
+
+        return new UserSettings
         {
-            await CustomAlert.ShowAsync("Lỗi", $"Không thể tải cài đặt: {ex.Message}", "OK", AlertType.Error);
-        }
+            TTS = new TTSSettings
+            {
+                Voice = "vi-VN-HoaiMyNeural",
+                Volume = 80,
+                AutoPlay = true,
+                AudioPlaybackMode = AudioPlaybackModes.Auto
+            },
+            Location = new LocationSettings
+            {
+                SensitivityRadius = 40
+            }
+        };
     }
 
-    private async Task LoadVoices()
+    private void SetupLanguagePicker()
+    {
+        _isLoadingLanguagePicker = true;
+        LanguagePicker.ItemsSource = new List<string>
+        {
+            "Tiếng Việt",
+            "English",
+            "中文"
+        };
+
+        LanguagePicker.SelectedIndex = _pendingLanguageCode switch
+        {
+            "en" => 1,
+            "zh" => 2,
+            _ => 0
+        };
+        _isLoadingLanguagePicker = false;
+    }
+
+    private void RefreshLocationSourceOptions()
+    {
+        _locationSourceOptions.Clear();
+        _locationSourceOptions.Add(new LocationSourceOption(
+            AppConfig.LocationSourceReal,
+            Localize("GPS thật (mặc định)", "Real GPS (default)", "真实 GPS（默认）")));
+        _locationSourceOptions.Add(new LocationSourceOption(
+            AppConfig.LocationSourceSimulated,
+            Localize("GPS giả lập", "Simulated GPS", "模拟 GPS")));
+    }
+
+    private void SetupLocationSourcePicker()
+    {
+        RefreshLocationSourceOptions();
+        _isLoadingLocationSourcePicker = true;
+        LocationSourcePicker.ItemsSource = _locationSourceOptions.Select(x => x.Label).ToList();
+
+        var selectedIndex = _locationSourceOptions.FindIndex(x =>
+            string.Equals(x.Mode, _pendingLocationSourceMode, StringComparison.OrdinalIgnoreCase));
+        LocationSourcePicker.SelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
+        _isLoadingLocationSourcePicker = false;
+    }
+
+    private void ApplySettingsToControls()
+    {
+        if (_settings == null)
+            return;
+
+        VolumeSlider.Value = _settings.TTS.Volume;
+        VolumeValueLabel.Text = $"{_settings.TTS.Volume}%";
+
+        SensitivitySlider.Value = _settings.Location.SensitivityRadius;
+        SensitivityValueLabel.Text = $"{_settings.Location.SensitivityRadius}m";
+
+        AutoPlaySwitch.IsToggled = _settings.TTS.AutoPlay;
+
+        var mode = string.IsNullOrWhiteSpace(_settings.TTS.AudioPlaybackMode)
+            ? AudioPlaybackModes.Auto
+            : _settings.TTS.AudioPlaybackMode.Trim().ToLowerInvariant();
+
+        var idx = _audioPlaybackOptions.FindIndex(x => x.Mode == mode);
+        if (idx < 0) idx = 0;
+
+        _isLoadingPlaybackMode = true;
+        AudioPlaybackModePicker.SelectedIndex = idx;
+        _isLoadingPlaybackMode = false;
+    }
+
+    private void ApplyUserPreferencesToControls()
+    {
+        HapticFeedbackSwitch.IsToggled = Preferences.Get(PrefHapticFeedback, true);
+        KeepScreenOnSwitch.IsToggled = Preferences.Get(PrefKeepScreenOn, false);
+        LargeTextSwitch.IsToggled = Preferences.Get(PrefLargeText, false);
+
+        DeviceDisplay.Current.KeepScreenOn = KeepScreenOnSwitch.IsToggled;
+    }
+
+    private async Task LoadVoicesAsync()
     {
         try
         {
-            // Load voices from TTS service API
-            var currentLang = _languageService.CurrentLanguage;
             var voices = await _ttsService.GetVoicesAsync();
-            
             if (voices.Count == 0)
             {
-                // Fallback to hardcoded list if API fails
-                voices = new List<VoiceInfo>
-                {
+                voices =
+                [
                     new VoiceInfo { Language = "vi-VN", Voice = "vi-VN-HoaiMyNeural", Name = "Hoài My (Nữ)", Gender = "Female" },
                     new VoiceInfo { Language = "en-US", Voice = "en-US-JennyNeural", Name = "Jenny (Female)", Gender = "Female" },
-                    new VoiceInfo { Language = "zh-CN", Voice = "zh-CN-XiaoxiaoNeural", Name = "Xiaoxiao (女)", Gender = "Female" },
-                };
+                    new VoiceInfo { Language = "zh-CN", Voice = "zh-CN-XiaoxiaoNeural", Name = "Xiaoxiao (女)", Gender = "Female" }
+                ];
             }
-            
-            // Store all voices
+
             _allVoices.Clear();
             foreach (var voice in voices)
             {
@@ -259,254 +276,250 @@ public partial class SettingsPage : ContentPage
                     IsSelected = voice.Voice == _settings?.TTS.Voice
                 });
             }
-            
-            // If no voice is selected, select the first one
+
             if (_settings != null && !_allVoices.Any(v => v.IsSelected) && _allVoices.Count > 0)
             {
                 _allVoices[0].IsSelected = true;
                 _settings.TTS.Voice = _allVoices[0].Voice;
+                _hasPendingChanges = true;
             }
-            
-            // Filter voices based on current language
-            FilterVoicesByLanguage(currentLang);
-            
+
+            FilterVoicesByLanguage(_languageService.CurrentLanguage);
             VoiceListView.ItemsSource = _voices;
             UpdateSelectedVoiceDisplay();
         }
         catch (Exception ex)
         {
-            await CustomAlert.ShowAsync("Lỗi", $"Không thể tải danh sách giọng nói: {ex.Message}", "OK", AlertType.Error);
-        }
-    }
-
-    private async Task LoadVoicePackagesAsync()
-    {
-        try
-        {
-            var packages = await _voicePackageService.GetAvailablePackagesAsync();
-            var selectedVoice = _settings?.TTS.Voice;
-
-            _voicePackages.Clear();
-            foreach (var pkg in packages)
-            {
-                pkg.IsSelected = pkg.VoiceName == selectedVoice;
-                _voicePackages.Add(new VoicePackageViewModel(pkg));
-            }
-
-            VoicePackageListView.ItemsSource = _voicePackages;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[Settings] LoadVoicePackages failed: {ex.Message}");
-        }
-    }
-
-    private async Task DownloadVoicePackageAsync(VoicePackageViewModel packageVm)
-    {
-        if (packageVm.IsDownloading || packageVm.IsDownloaded)
-            return;
-
-        packageVm.IsDownloading = true;
-
-        try
-        {
-            var progress = new Progress<double>(p =>
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                    packageVm.DownloadProgress = p);
-            });
-
-            var success = await _voicePackageService.DownloadPackageAsync(
-                packageVm.Id, progress);
-
-            if (success)
-            {
-                packageVm.IsDownloaded = true;
-                packageVm.IsDownloading = false;
-                packageVm.DownloadProgress = 1.0;
-            }
-            else
-            {
-                packageVm.IsDownloading = false;
-                packageVm.DownloadProgress = 0;
-            }
-        }
-        catch (Exception ex)
-        {
-            packageVm.IsDownloading = false;
-            System.Diagnostics.Debug.WriteLine($"[Settings] DownloadVoicePackage failed: {ex.Message}");
-        }
-    }
-
-    private async Task SelectVoicePackageAsync(VoicePackageViewModel packageVm)
-    {
-        // Deselect all
-        foreach (var pkg in _voicePackages)
-            pkg.IsSelected = false;
-
-        // Select this one
-        packageVm.IsSelected = true;
-
-        // Update settings
-        if (_settings != null)
-        {
-            _settings.TTS.Voice = packageVm.VoiceName;
-            await SaveSettings();
-
-            // Update voice list too
-            foreach (var v in _allVoices)
-                v.IsSelected = v.Voice == packageVm.VoiceName;
-
-            UpdateSelectedVoiceDisplay();
+            await CustomAlert.ShowAsync(
+                Localize("Lỗi", "Error", "错误"),
+                Localize("Không thể tải danh sách giọng nói", "Unable to load voice list", "无法加载语音列表") + $": {ex.Message}",
+                "OK",
+                AlertType.Error);
         }
     }
 
     private void FilterVoicesByLanguage(string langCode)
     {
-        // Chỉ 3 ngôn ngữ
-        var voiceLangPrefix = langCode switch
+        var prefix = langCode switch
         {
-            "vi" => "vi-VN",
             "en" => "en-US",
             "zh" => "zh-CN",
             _ => "vi-VN"
         };
-        
-        // Filter voices by language
+
         _voices.Clear();
-        foreach (var voice in _allVoices.Where(v => v.Language.StartsWith(voiceLangPrefix, StringComparison.OrdinalIgnoreCase)))
-        {
+        foreach (var voice in _allVoices.Where(v => v.Language.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
             _voices.Add(voice);
-        }
     }
 
-    private void WireUpSliders()
+    private async Task SaveSettingsAsync()
     {
-        VolumeSlider.ValueChanged += OnVolumeChanged;
-        SensitivitySlider.ValueChanged += OnSensitivityChanged;
-        AutoPlaySwitch.Toggled += OnAutoPlayToggled;
-    }
+        if (_settings == null)
+            return;
 
-    private void OnVolumeChanged(object? sender, ValueChangedEventArgs e)
-    {
-        var value = (int)e.NewValue;
-        VolumeValueLabel.Text = $"{value}%";
-        
-        // Debounce save
-        _volumeDebounceTimer?.Stop();
-        _volumeDebounceTimer = new System.Timers.Timer(500);
-        _volumeDebounceTimer.Elapsed += async (s, ev) =>
-        {
-            _volumeDebounceTimer.Stop();
-            if (_settings != null)
-            {
-                _settings.TTS.Volume = value;
-                await SaveSettings();
-            }
-        };
-        _volumeDebounceTimer.Start();
-    }
-
-    private void OnSensitivityChanged(object? sender, ValueChangedEventArgs e)
-    {
-        var value = (int)e.NewValue;
-        SensitivityValueLabel.Text = $"{value}m";
-        
-        // Debounce save
-        _sensitivityDebounceTimer?.Stop();
-        _sensitivityDebounceTimer = new System.Timers.Timer(500);
-        _sensitivityDebounceTimer.Elapsed += async (s, ev) =>
-        {
-            _sensitivityDebounceTimer.Stop();
-            if (_settings != null)
-            {
-                _settings.Location.SensitivityRadius = value;
-                await SaveSettings();
-            }
-        };
-        _sensitivityDebounceTimer.Start();
-    }
-
-    private async void OnAutoPlayToggled(object? sender, ToggledEventArgs e)
-    {
-        if (_settings != null)
-        {
-            _settings.TTS.AutoPlay = e.Value;
-            await SaveSettings();
-        }
-    }
-
-    private async void OnAudioPlaybackModeChanged(object? sender, EventArgs e)
-    {
-        if (_isLoadingPlaybackMode || _settings == null) return;
-
-        var idx = AudioPlaybackModePicker.SelectedIndex;
-        if (idx < 0 || idx >= _audioPlaybackOptions.Count) return;
-
-        _settings.TTS.AudioPlaybackMode = _audioPlaybackOptions[idx].Mode;
-        await SaveSettings();
-    }
-
-    private void ApplyPlaybackModeToPicker(string? mode)
-    {
-        var normalized = string.IsNullOrWhiteSpace(mode)
-            ? AudioPlaybackModes.Auto
-            : mode.Trim().ToLowerInvariant();
-
-        var index = _audioPlaybackOptions.FindIndex(x => x.Mode == normalized);
-        if (index < 0) index = 0;
-
-        _isLoadingPlaybackMode = true;
-        AudioPlaybackModePicker.SelectedIndex = index;
-        _isLoadingPlaybackMode = false;
-    }
-
-    private async Task SaveSettings()
-    {
         try
         {
-            // TODO: Call API to save settings
-            // For now, just save to preferences
             var json = JsonSerializer.Serialize(_settings);
-            Preferences.Set("UserSettings", json);
+            Preferences.Set(PrefSettings, json);
         }
         catch (Exception ex)
         {
-            MainThread.BeginInvokeOnMainThread(async () =>
-            {
-                await CustomAlert.ShowAsync("Lỗi", $"Không thể lưu cài đặt: {ex.Message}", "OK", AlertType.Error);
-            });
+            await CustomAlert.ShowAsync(
+                Localize("Lỗi", "Error", "错误"),
+                Localize("Không thể lưu cài đặt", "Unable to save settings", "无法保存设置") + $": {ex.Message}",
+                "OK",
+                AlertType.Error);
         }
+    }
+
+    private async Task SaveAllPreferencesFromControlsAsync()
+    {
+        if (_settings == null)
+            return;
+
+        _settings.TTS.AutoPlay = AutoPlaySwitch.IsToggled;
+        _settings.TTS.Volume = (int)Math.Round(VolumeSlider.Value);
+        _settings.Location.SensitivityRadius = (int)Math.Round(SensitivitySlider.Value);
+
+        var modeIndex = AudioPlaybackModePicker.SelectedIndex;
+        if (modeIndex >= 0 && modeIndex < _audioPlaybackOptions.Count)
+            _settings.TTS.AudioPlaybackMode = _audioPlaybackOptions[modeIndex].Mode;
+
+        if (LanguagePicker.SelectedIndex >= 0)
+        {
+            _pendingLanguageCode = LanguagePicker.SelectedIndex switch
+            {
+                1 => "en",
+                2 => "zh",
+                _ => "vi"
+            };
+        }
+
+        _languageService.ApplyLanguage(_pendingLanguageCode);
+        var sourceIndex = LocationSourcePicker.SelectedIndex;
+        if (sourceIndex >= 0 && sourceIndex < _locationSourceOptions.Count)
+            _pendingLocationSourceMode = _locationSourceOptions[sourceIndex].Mode;
+
+        Preferences.Set(AppConfig.LocationSourceModePrefKey, _pendingLocationSourceMode);
+        Preferences.Set(PrefHapticFeedback, HapticFeedbackSwitch.IsToggled);
+        Preferences.Set(PrefKeepScreenOn, KeepScreenOnSwitch.IsToggled);
+        Preferences.Set(PrefLargeText, LargeTextSwitch.IsToggled);
+        DeviceDisplay.Current.KeepScreenOn = KeepScreenOnSwitch.IsToggled;
+
+        if (_mainViewModel != null)
+        {
+            await _mainViewModel.ApplyLocationSourceModeAsync(
+                string.Equals(_pendingLocationSourceMode, AppConfig.LocationSourceSimulated, StringComparison.OrdinalIgnoreCase));
+        }
+
+        await SaveSettingsAsync();
+        _hasPendingChanges = false;
+    }
+
+    private void OnLanguagePickerChanged(object sender, EventArgs e)
+    {
+        if (_isApplyingControls || _isLoadingLanguagePicker || LanguagePicker.SelectedIndex < 0)
+            return;
+
+        _pendingLanguageCode = LanguagePicker.SelectedIndex switch
+        {
+            1 => "en",
+            2 => "zh",
+            _ => "vi"
+        };
+
+        SwitchVoiceForLanguage(_pendingLanguageCode);
+        _hasPendingChanges = true;
+        ReloadUIStrings();
+        RefreshPlaybackModeOptions();
+        RefreshLocationSourceOptions();
+        SetupLocationSourcePicker();
+    }
+
+    private void OnLocationSourceChanged(object sender, EventArgs e)
+    {
+        if (_isApplyingControls || _isLoadingLocationSourcePicker || LocationSourcePicker.SelectedIndex < 0)
+            return;
+
+        var idx = LocationSourcePicker.SelectedIndex;
+        if (idx >= 0 && idx < _locationSourceOptions.Count)
+        {
+            _pendingLocationSourceMode = _locationSourceOptions[idx].Mode;
+            _hasPendingChanges = true;
+        }
+    }
+
+    private void SwitchVoiceForLanguage(string lang)
+    {
+        if (_settings == null || _allVoices.Count == 0)
+            return;
+
+        FilterVoicesByLanguage(lang);
+
+        var prefix = lang switch
+        {
+            "en" => "en-US",
+            "zh" => "zh-CN",
+            _ => "vi-VN"
+        };
+
+        var matchingVoice = _allVoices.FirstOrDefault(v => v.Language.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        if (matchingVoice == null)
+            return;
+
+        foreach (var voice in _allVoices)
+            voice.IsSelected = voice.Voice == matchingVoice.Voice;
+        foreach (var voice in _voices)
+            voice.IsSelected = voice.Voice == matchingVoice.Voice;
+
+        _settings.TTS.Voice = matchingVoice.Voice;
+
+        VoiceListView.ItemsSource = _voices;
+        UpdateSelectedVoiceDisplay();
+        _hasPendingChanges = true;
     }
 
     private async void OnBackClicked(object sender, EventArgs e)
     {
         try
         {
+            if (Navigation?.ModalStack?.Count > 0)
+            {
+                await Navigation.PopModalAsync(false);
+                return;
+            }
+
             var shellNav = Shell.Current?.Navigation;
             if (shellNav != null)
             {
-                // Always return to the immediate previous page if Settings was opened modally.
                 var modalStack = shellNav.ModalStack;
-                if (modalStack.Count > 0 && ReferenceEquals(modalStack[^1], this))
+                if (modalStack.Count > 0)
                 {
-                    await shellNav.PopModalAsync();
+                    await shellNav.PopModalAsync(false);
                     return;
                 }
             }
 
-            // Non-modal fallback: return to previous page in current navigation stack.
             if (Navigation?.NavigationStack?.Count > 1)
             {
-                await Navigation.PopAsync();
+                await Navigation.PopAsync(false);
                 return;
             }
 
-            // Last resort only when no previous page is available.
+            // Try parent route first; this works for common Shell navigation paths.
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync("//MapPage");
+                var shell = Shell.Current;
+                var routeBeforeBack = shell.CurrentState?.Location?.OriginalString ?? string.Empty;
+                var isOnSettingsRoute = routeBeforeBack.Contains("SettingsPage", StringComparison.OrdinalIgnoreCase);
+
+                try
+                {
+                    await shell.GoToAsync("..");
+
+                    // Shell root/tab routes can treat ".." as a no-op (no exception thrown).
+                    // If still on SettingsPage, continue to explicit fallback route handling.
+                    var routeAfterBack = shell.CurrentState?.Location?.OriginalString ?? string.Empty;
+                    var stillOnSettingsRoute = routeAfterBack.Contains("SettingsPage", StringComparison.OrdinalIgnoreCase);
+                    if (!stillOnSettingsRoute || !isOnSettingsRoute)
+                        return;
+                }
+                catch
+                {
+                    // Continue to route fallback below.
+                }
+
+                var previousRoute = AppShell.LastNonSettingsRoute;
+                if (!string.IsNullOrWhiteSpace(previousRoute) &&
+                    !previousRoute.Contains("SettingsPage", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        await shell.GoToAsync(previousRoute, animate: false);
+                        return;
+                    }
+                    catch
+                    {
+                        // Continue to direct map fallback below.
+                    }
+                }
+
+                // Root/tab-hosted settings page fallback.
+                try
+                {
+                    await shell.GoToAsync("//MapPage", animate: false);
+                    return;
+                }
+                catch
+                {
+                    if (TrySelectShellContent(shell, "MapPage"))
+                        return;
+                }
             }
+
+            var nav = Navigation;
+            if (nav?.NavigationStack.Count > 0)
+                await nav.PopToRootAsync(false);
         }
         catch (Exception ex)
         {
@@ -514,67 +527,133 @@ public partial class SettingsPage : ContentPage
         }
     }
 
-    //  (OnLanguagePickerSelectionChanged removed – replaced by OnLanguageOptionTapped)
+    private static bool TrySelectShellContent(Shell shell, string targetRoute)
+    {
+        foreach (var shellItem in shell.Items)
+        {
+            foreach (var section in shellItem.Items)
+            {
+                foreach (var content in section.Items)
+                {
+                    if (!string.Equals(content.Route, targetRoute, StringComparison.OrdinalIgnoreCase))
+                        continue;
 
-    private void ReloadUIStrings()
-    {        
-        TitleLabel.Text = AppStrings.Settings_Title;
-        GeneralSectionLabel.Text = AppStrings.Settings_General;
-        TourSectionLabel.Text = AppStrings.Settings_TourExperience;
-        TtsTitleLabel.Text = AppStrings.Settings_Tts;
-        TtsSubtitleLabel.Text = AppStrings.Settings_TtsSubtitle;
-        AutoPlayTitleLabel.Text = AppStrings.Settings_AutoPlay;
-        AutoPlaySubtitleLabel.Text = AppStrings.Settings_AutoPlayDesc;
-        VolumeTitleLabel.Text = AppStrings.Settings_Volume;
-        VolumeValueLabel.Text = AppStrings.Settings_VolumeShort;
-        SensitivityTitleLabel.Text = AppStrings.Settings_Sensitivity;
-        SensitivityValueLabel.Text = AppStrings.Settings_SensitivityShort;
-        SensitivityLeftLabel.Text = AppStrings.Settings_SensitivityNear;
-        SensitivityRightLabel.Text = AppStrings.Settings_SensitivityFar;
-        DataSectionLabel.Text = AppStrings.Settings_Data;
-        CheckOfflineButton.Text = AppStrings.Settings_CheckOffline;
-        LastUpdatedLabel.Text = AppStrings.Settings_LastUpdated;
+                    shell.CurrentItem = shellItem;
+                    shellItem.CurrentItem = section;
+                    section.CurrentItem = content;
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
-    private async Task SwitchVoiceForLanguage(string lang)
+    private async void OnLogoutClicked(object sender, EventArgs e)
     {
-        if (_settings == null || _allVoices.Count == 0) return;
-        
-        // Map language code to voice language prefix - CHỈ 3 NGÔN NGỮ
-        var voiceLangPrefix = lang switch
+        try
         {
-            "vi" => "vi-VN",
-            "en" => "en-US",
-            "zh" => "zh-CN",
-            _ => "vi-VN"
-        };
-        
-        // Filter voice list by selected language
-        FilterVoicesByLanguage(lang);
-        
-        // Find first voice matching the language from all voices
-        var matchingVoice = _allVoices.FirstOrDefault(v => v.Language.StartsWith(voiceLangPrefix));
-        if (matchingVoice != null)
+            var confirmed = await CustomAlert.ShowConfirmAsync(
+                Localize("Đăng xuất", "Log out", "退出登录"),
+                Localize("Bạn có muốn đăng xuất và thoát ứng dụng không?", "Do you want to log out and quit the app?", "你要退出登录并关闭应用吗？"),
+                Localize("Có", "Yes", "是"),
+                Localize("Không", "No", "否"),
+                AlertType.Warning);
+
+            if (!confirmed)
+                return;
+
+            Preferences.Remove(HasOnboardedPreferenceKey);
+            Preferences.Remove("hasSeenOnboarding"); // legacy key
+            Preferences.Remove(AutoOpenInZoneOnNextMainPageKey);
+            QuitApplication();
+        }
+        catch (Exception ex)
         {
-            // Update selection in both collections
-            foreach (var v in _allVoices)
-            {
-                v.IsSelected = v.Voice == matchingVoice.Voice;
-            }
-            foreach (var v in _voices)
-            {
-                v.IsSelected = v.Voice == matchingVoice.Voice;
-            }
-            
-            // Update settings
-            _settings.TTS.Voice = matchingVoice.Voice;
-            await SaveSettings();
-            
-            UpdateSelectedVoiceDisplay();
+            System.Diagnostics.Debug.WriteLine($"[Settings] OnLogoutClicked: {ex}");
         }
     }
 
+    private static void QuitApplication()
+    {
+        try
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                Application.Current?.Quit();
+            });
+        }
+        catch
+        {
+            Environment.Exit(0);
+        }
+    }
 
+    private void ReloadUIStrings()
+    {
+        TitleLabel.Text = AppStrings.Settings_Title;
+        GeneralSectionLabel.Text = AppStrings.Settings_General;
+        TourSectionLabel.Text = AppStrings.Settings_TourExperience;
+        LanguageTitleLabel.Text = Localize("Ngôn ngữ", "Language", "语言");
+        TtsTitleLabel.Text = AppStrings.Settings_Tts;
+        AutoPlayTitleLabel.Text = AppStrings.Settings_AutoPlay;
+        AutoPlaySubtitleLabel.Text = AppStrings.Settings_AutoPlayDesc;
+        VolumeTitleLabel.Text = AppStrings.Settings_VolumeShort;
+        SensitivityTitleLabel.Text = AppStrings.Settings_SensitivityShort;
+        HapticTitleLabel.Text = Localize("Rung phản hồi", "Haptic feedback", "触觉反馈");
+        HapticSubtitleLabel.Text = Localize("Rung nhẹ khi thao tác chính", "Light vibration for key actions", "关键操作时轻微振动");
+        KeepScreenOnTitleLabel.Text = Localize("Giữ màn hình sáng", "Keep screen on", "保持屏幕常亮");
+        KeepScreenOnSubtitleLabel.Text = Localize("Không tắt màn hình khi đang dùng app", "Prevent screen sleep while using app", "使用应用时不自动熄屏");
+        LargeTextTitleLabel.Text = Localize("Văn bản lớn", "Large text", "大号文字");
+        LargeTextSubtitleLabel.Text = Localize("Ưu tiên cỡ chữ lớn hơn cho dễ đọc", "Prefer larger text for readability", "优先使用更大字号便于阅读");
+        AudioPlaybackTitleLabel.Text = Localize("Chế độ phát audio", "Audio playback mode", "音频播放模式");
+        AudioPlaybackSubtitleLabel.Text = Localize("Tự động hoặc phát trực tuyến", "Automatic or streaming playback", "自动或流式播放");
+        LogoutTitleLabel.Text = Localize("Đăng xuất", "Log out", "退出登录");
+        LogoutSubtitleLabel.Text = Localize("Thoát khỏi phiên hiện tại và đóng ứng dụng", "Exit current session and close app", "退出当前会话并关闭应用");
+        LogoutButton.Text = Localize("Đăng xuất", "Log out", "退出登录");
+        FooterPolicyLabel.Text = AppStrings.Settings_PrivacyTerms;
+        LocationSourceTitleLabel.Text = Localize("Nguồn vị trí", "Location source", "位置来源");
+        LocationSourceSubtitleLabel.Text = Localize(
+            "Chọn GPS thật hoặc GPS giả lập khi test",
+            "Choose real GPS or simulated GPS for testing",
+            "测试时可选择真实 GPS 或模拟 GPS");
+        LanguagePicker.Title = Localize("Chọn ngôn ngữ", "Choose language", "选择语言");
+        LocationSourcePicker.Title = Localize("Chọn nguồn vị trí", "Choose location source", "选择定位来源");
+        AudioPlaybackModePicker.Title = Localize("Chọn chế độ", "Choose mode", "选择模式");
+        DefaultBackButton.Text = Localize("Quay lại", "Back", "返回");
+        SaveSettingsButton.Text = Localize("Lưu thay đổi", "Save changes", "保存更改");
+    }
+
+    private async void OnSaveChangesClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            if (!_hasPendingChanges)
+            {
+                await CustomAlert.ShowAsync(
+                    Localize("Không có thay đổi", "No changes", "没有变更"),
+                    Localize("Bạn chưa thay đổi cài đặt nào.", "You haven't changed any settings yet.", "你还没有更改任何设置。"),
+                    "OK",
+                    AlertType.Info);
+                return;
+            }
+
+            await SaveAllPreferencesFromControlsAsync();
+            await CustomAlert.ShowAsync(
+                Localize("Đã lưu", "Saved", "已保存"),
+                Localize("Cài đặt đã được lưu thành công.", "Your settings were saved successfully.", "设置已成功保存。"),
+                "OK",
+                AlertType.Success);
+        }
+        catch (Exception ex)
+        {
+            await CustomAlert.ShowAsync(
+                Localize("Lỗi", "Error", "错误"),
+                $"{Localize("Không thể lưu cài đặt", "Unable to save settings", "无法保存设置")}: {ex.Message}",
+                "OK",
+                AlertType.Error);
+        }
+    }
 
     private void OnTtsClicked(object sender, EventArgs e)
     {
@@ -583,103 +662,152 @@ public partial class SettingsPage : ContentPage
         TtsExpandIcon.Text = _isVoicePickerExpanded ? "▲" : "▼";
     }
 
-    private void OnVoicePackagesClicked(object sender, EventArgs e)
+    private void OnVoiceSelected(object sender, EventArgs e)
     {
-        _isVoicePackagesExpanded = !_isVoicePackagesExpanded;
-        VoicePackagesContainer.IsVisible = _isVoicePackagesExpanded;
-        VoicePackagesExpandIcon.Text = _isVoicePackagesExpanded ? "▲" : "▼";
-    }
+        if (sender is not Grid grid || grid.BindingContext is not VoiceItemViewModel voice || _settings == null)
+            return;
 
-    private async void OnVoicePackageDownloadTapped(object sender, EventArgs e)
-    {
-        if (sender is Grid grid && grid.BindingContext is VoicePackageViewModel pkgVm)
-        {
-            if (pkgVm.IsDownloaded)
-            {
-                // Already downloaded - show info or delete option
-                return;
-            }
-            await DownloadVoicePackageAsync(pkgVm);
-        }
-    }
-
-    private async void OnVoicePackageSelected(object sender, EventArgs e)
-    {
-        if (sender is Grid grid && grid.BindingContext is VoicePackageViewModel pkgVm)
-        {
-            await SelectVoicePackageAsync(pkgVm);
-        }
-    }
-
-    private async void OnVoiceSelected(object sender, EventArgs e)
-    {
-        if (sender is not Grid grid) return;
-        if (grid.BindingContext is not VoiceItemViewModel voice) return;
-        
-        // Update selection in both collections
         foreach (var v in _allVoices)
-        {
             v.IsSelected = v.Voice == voice.Voice;
-        }
         foreach (var v in _voices)
-        {
             v.IsSelected = v.Voice == voice.Voice;
-        }
-        
-        // Update settings
-        if (_settings != null)
-        {
-            _settings.TTS.Voice = voice.Voice;
-            await SaveSettings();
-        }
-        
+
+        _settings.TTS.Voice = voice.Voice;
+        _hasPendingChanges = true;
+
         UpdateSelectedVoiceDisplay();
     }
 
     private void UpdateSelectedVoiceDisplay()
     {
-        var selected = _voices.FirstOrDefault(v => v.IsSelected);
-        if (selected != null)
+        var selected = _allVoices.FirstOrDefault(v => v.IsSelected);
+        if (selected == null)
+            return;
+
+        SelectedVoiceName.Text = selected.Name;
+        SelectedVoiceLanguage.Text = selected.Language;
+        TtsSubtitleLabel.Text = selected.Name;
+    }
+
+    private void OnAutoPlayToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isApplyingControls || _settings == null)
+            return;
+
+        _settings.TTS.AutoPlay = e.Value;
+        _hasPendingChanges = true;
+    }
+
+    private void OnAudioPlaybackModeChanged(object sender, EventArgs e)
+    {
+        if (_isApplyingControls || _isLoadingPlaybackMode || _settings == null)
+            return;
+
+        var idx = AudioPlaybackModePicker.SelectedIndex;
+        if (idx < 0 || idx >= _audioPlaybackOptions.Count)
+            return;
+
+        _settings.TTS.AudioPlaybackMode = _audioPlaybackOptions[idx].Mode;
+        _hasPendingChanges = true;
+    }
+
+    private void OnVolumeChanged(object sender, ValueChangedEventArgs e)
+    {
+        if (_isApplyingControls || _settings == null)
+            return;
+
+        var value = (int)e.NewValue;
+        VolumeValueLabel.Text = $"{value}%";
+        _settings.TTS.Volume = value;
+        _hasPendingChanges = true;
+    }
+
+    private void OnSensitivityChanged(object sender, ValueChangedEventArgs e)
+    {
+        if (_isApplyingControls || _settings == null)
+            return;
+
+        var value = (int)e.NewValue;
+        SensitivityValueLabel.Text = $"{value}m";
+        _settings.Location.SensitivityRadius = value;
+        _hasPendingChanges = true;
+    }
+
+    private void OnHapticFeedbackToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isApplyingControls)
+            return;
+
+        _hasPendingChanges = true;
+        if (e.Value)
         {
-            SelectedVoiceName.Text = selected.Name;
-            SelectedVoiceLanguage.Text = selected.Language;
-            TtsSubtitleLabel.Text = selected.Name;
+            try { HapticFeedback.Default.Perform(HapticFeedbackType.Click); } catch { }
         }
+    }
+
+    private void OnKeepScreenOnToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isApplyingControls)
+            return;
+
+        _hasPendingChanges = true;
+        DeviceDisplay.Current.KeepScreenOn = e.Value;
+    }
+
+    private void OnLargeTextToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isApplyingControls)
+            return;
+
+        _hasPendingChanges = true;
+        var msg = e.Value
+            ? Localize(
+                "Đã bật văn bản lớn. Một số màn hình sẽ áp dụng sau khi mở lại.",
+                "Large text is enabled. Some screens will update after reopening.",
+                "已启用大号文字。部分页面需重新打开后生效。")
+            : Localize(
+                "Đã tắt văn bản lớn.",
+                "Large text is disabled.",
+                "已关闭大号文字。");
+        _ = MainThread.InvokeOnMainThreadAsync(() =>
+            CustomAlert.ShowAsync(Localize("Hiển thị", "Display", "显示"), msg, "OK", AlertType.Info));
     }
 
     private async void OnTestVoiceClicked(object sender, EventArgs e)
     {
-        if (_settings == null) return;
+        if (_settings == null)
+            return;
 
         TestVoiceButton.IsEnabled = false;
-        TestVoiceButton.Text = "⏳";
+        TestVoiceButton.Text = "...";
 
         try
         {
             var voiceName = _settings.TTS.Voice;
-            System.Diagnostics.Debug.WriteLine($"[TTS] Demo voice: {voiceName}");
-
-            if (!VoiceDemoFiles.TryGetValue(voiceName, out var demoFile))
+            if (string.IsNullOrWhiteSpace(voiceName))
             {
-                // Fallback: pick by language
-                var lang = _languageService.CurrentLanguage;
-                demoFile = lang switch
+                voiceName = _languageService.CurrentLanguage switch
                 {
-                    "en" => "en-US-JennyNeural_welcome.mp3",
-                    "zh" => "zh-CN-XiaoxiaoNeural_welcome.mp3",
-                    _    => "vi-VN-HoaiMyNeural_welcome.mp3"
+                    "en" => "en-US-JennyNeural",
+                    "zh" => "zh-CN-XiaoxiaoNeural",
+                    _ => "vi-VN-HoaiMyNeural"
                 };
             }
 
-            // Stop previous demo playback
-            if (_demoPlayer != null)
+            if (!VoiceDemoFiles.TryGetValue(voiceName, out var demoFile))
             {
-                _demoPlayer.Stop();
-                _demoPlayer.Dispose();
-                _demoPlayer = null;
+                demoFile = _languageService.CurrentLanguage switch
+                {
+                    "en" => "en-US-JennyNeural_welcome.mp3",
+                    "zh" => "zh-CN-XiaoxiaoNeural_welcome.mp3",
+                    _ => "vi-VN-HoaiMyNeural_welcome.mp3"
+                };
             }
 
-            // Open bundled asset and play
+            _demoPlayer?.Stop();
+            _demoPlayer?.Dispose();
+            _demoPlayer = null;
+
             var stream = await FileSystem.Current.OpenAppPackageFileAsync(demoFile);
             _demoPlayer = AudioManager.Current.CreatePlayer(stream);
             _demoPlayer.Play();
@@ -687,8 +815,8 @@ public partial class SettingsPage : ContentPage
         catch (Exception ex)
         {
             await CustomAlert.ShowAsync(
-                "Lỗi",
-                $"Không thể phát thử giọng đọc: {ex.Message}",
+                Localize("Lỗi", "Error", "错误"),
+                Localize("Không thể phát thử giọng đọc", "Unable to play voice preview", "无法播放语音试听") + $": {ex.Message}",
                 "OK",
                 AlertType.Error);
         }
@@ -721,8 +849,8 @@ public partial class SettingsPage : ContentPage
             if (!ok)
             {
                 await CustomAlert.ShowAsync(
-                    "Lỗi",
-                    "Native fallback TTS không phát được trên thiết bị này.",
+                    Localize("Lỗi", "Error", "错误"),
+                    Localize("Native fallback TTS không phát được trên thiết bị này.", "Native fallback TTS is unavailable on this device.", "此设备无法使用原生回退 TTS。"),
                     "OK",
                     AlertType.Error);
             }
@@ -730,8 +858,8 @@ public partial class SettingsPage : ContentPage
         catch (Exception ex)
         {
             await CustomAlert.ShowAsync(
-                "Lỗi",
-                $"Test fallback TTS thất bại: {ex.Message}",
+                Localize("Lỗi", "Error", "错误"),
+                Localize("Test fallback TTS thất bại", "Fallback TTS test failed", "回退 TTS 测试失败") + $": {ex.Message}",
                 "OK",
                 AlertType.Error);
         }
@@ -741,176 +869,6 @@ public partial class SettingsPage : ContentPage
             TestFallbackButton.Text = "N";
         }
     }
-
-    private async void OnCheckOfflineClicked(object sender, EventArgs e)
-    {
-        if (sender is not Button button) return;
-        
-        var isWifi = Connectivity.Current.ConnectionProfiles.Contains(ConnectionProfile.WiFi);
-        if (!isWifi)
-        {
-            var confirm = await DisplayAlert(
-                AppStrings.Alert_UsingCellular_Title,
-                AppStrings.Alert_UsingCellular_Message,
-                AppStrings.Common_Continue, AppStrings.Common_Cancel);
-            if (!confirm) return;
-        }
-
-        // Show loading state
-        button.IsEnabled = false;
-        var originalText = button.Text;
-        button.Text = "⏳ Đang kiểm tra...";
-        
-        try
-        {
-            var repo = MauiProgram.Services.GetRequiredService<IZoneRepository>();
-            var db = MauiProgram.Services.GetRequiredService<ILocalDatabaseService>();
-            var audioCache = MauiProgram.Services.GetRequiredService<IAudioCacheService>();
-
-            button.Text = "⏳ Đang tải POI...";
-            await repo.SyncFromMongoAsync();
-            await repo.LoadLocalAsync();
-            var poiIds = repo.GetAllActiveZones().Select(p => p.Id).ToList();
-            
-            button.Text = "⏳ Đang tải Menu...";
-            using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            foreach (var id in poiIds)
-            {
-                try {
-                    var menuUrl = $"{AppConfig.GetResolvedApiBaseUrl()}api/MenuItems?poiId={id}&page=1&pageSize=50";
-                    var response = await client.GetAsync(menuUrl);
-                    if (response.IsSuccessStatusCode) {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var result = JsonSerializer.Deserialize<MenuItemResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        if (result?.Data != null && result.Data.Any()) {
-                            await db.SaveMenuItemsAsync(result.Data);
-                        }
-                    }
-                } catch { /* ignore individual failures */ }
-            }
-
-            var progress = new Progress<(int done, int total)>(p =>
-                MainThread.BeginInvokeOnMainThread(() =>
-                    button.Text = $"⏳ Đang tải audio {p.done}/{p.total}..."));
-
-            await audioCache.PreloadAllAsync(poiIds, progress);
-            
-            // Reset button
-            button.IsEnabled = true;
-            button.Text = originalText;
-            
-            Preferences.Set("LastSyncTime", DateTime.Now.ToString("dd/MM HH:mm"));
-            await UpdateOfflineStats();
-            
-            // Show success result
-            await CustomAlert.ShowAsync(
-                "Đã cập nhật",
-                "Dữ liệu offline đã được cập nhật phiên bản mới nhất.",
-                "OK",
-                AlertType.Success);
-        }
-        catch (Exception ex)
-        {
-            button.IsEnabled = true;
-            button.Text = originalText;
-            
-            await CustomAlert.ShowAsync(
-                "Lỗi cập nhật",
-                $"Không thể tải dữ liệu offline.\nChi tiết: {ex.Message}",
-                "OK",
-                AlertType.Error);
-        }
-    }
-
-    private async void OnDeleteDataClicked(object sender, EventArgs e)
-    {
-        var confirm = await CustomAlert.ShowConfirmAsync(
-            "Xóa Audio Offline?",
-            "Việc xóa này sẽ chỉ xóa tập tin âm thanh tải về, giải phóng bộ nhớ. " +
-            "Bạn có chắc chắn muốn xóa không?",
-            "Xóa",
-            "Hủy",
-            AlertType.Warning);
-        
-        if (confirm)
-        {
-            try
-            {
-                var audioCache = MauiProgram.Services.GetRequiredService<IAudioCacheService>();
-                await audioCache.ClearAsync();
-                
-                await UpdateOfflineStats();
-
-                await CustomAlert.ShowAsync(
-                    "Đã xóa",
-                    "Dữ liệu audio offline đã được xóa.\n\n" +
-                    "Vào Cài đặt > Tải dữ liệu offline để tải lại.",
-                    "OK",
-                    AlertType.Success);
-            }
-            catch (Exception ex)
-            {
-                await CustomAlert.ShowAsync(
-                    "Lỗi",
-                    $"Lỗi khi xóa: {ex.Message}",
-                    "OK",
-                    AlertType.Error);
-            }
-        }
-    }
-
-    private async void OnClearMapCacheClicked(object sender, EventArgs e)
-    {
-        var confirm = await DisplayAlert(
-            "Xóa bộ nhớ cache bản đồ?",
-            "Bản đồ sẽ cần tải lại khi có internet.",
-            "Xóa",
-            "Hủy"
-        );
-
-        if (confirm)
-        {
-            try
-            {
-                var cacheDir = Path.Combine(
-                    FileSystem.AppDataDirectory,
-                    "map_cache"
-                );
-
-                if (Directory.Exists(cacheDir))
-                {
-                    Directory.Delete(cacheDir, true);
-                    await DisplayAlert("Thành công", "Đã xóa cache bản đồ", "OK");
-                }
-            }
-            catch (Exception ex)
-            {
-                await DisplayAlert("Lỗi", $"Không thể xóa cache: {ex.Message}", "OK");
-            }
-        }
-    }
-
-    private async Task UpdateOfflineStats()
-    {
-        try
-        {
-            var repo = MauiProgram.Services.GetRequiredService<IZoneRepository>();
-            var audioCache = MauiProgram.Services.GetRequiredService<IAudioCacheService>();
-            
-            var poiCount = repo.GetAllActiveZones().Count();
-            var cacheSizeBytes = audioCache.GetCacheSizeBytes();
-            var cacheSizeMb = cacheSizeBytes / (1024 * 1024.0);
-            
-            // Lấy thời gian cập nhật cuối từ Preferences (giả sử repo lưu lại)
-            var lastSyncStr = Preferences.Get("LastSyncTime", "Chưa rõ");
-
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                OfflineDataInfoLabel.Text = $"{poiCount} quán • {cacheSizeMb:F1} MB • Cập nhật: {lastSyncStr}";
-            });
-        }
-        catch { /* Silent fail */ }
-    }
 }
 
 public class VoiceItemViewModel : System.ComponentModel.INotifyPropertyChanged
@@ -919,28 +877,20 @@ public class VoiceItemViewModel : System.ComponentModel.INotifyPropertyChanged
     public string Name { get; set; } = string.Empty;
     public string Language { get; set; } = string.Empty;
     public string Gender { get; set; } = string.Empty;
-    
+
     private bool _isSelected;
     public bool IsSelected
     {
         get => _isSelected;
         set
         {
-            if (_isSelected != value)
-            {
-                _isSelected = value;
-                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsSelected)));
-            }
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsSelected)));
         }
     }
-    
-    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
-}
 
-public class LanguageOption
-{
-    public string Code { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 }
 
 public class AudioPlaybackOption
@@ -949,6 +899,18 @@ public class AudioPlaybackOption
     public string Label { get; }
 
     public AudioPlaybackOption(string mode, string label)
+    {
+        Mode = mode;
+        Label = label;
+    }
+}
+
+public class LocationSourceOption
+{
+    public string Mode { get; }
+    public string Label { get; }
+
+    public LocationSourceOption(string mode, string label)
     {
         Mode = mode;
         Label = label;

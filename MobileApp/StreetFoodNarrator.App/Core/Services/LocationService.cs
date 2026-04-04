@@ -17,7 +17,7 @@ public class LocationService : ILocationService
     private TrackingProximityState _trackingState = TrackingProximityState.Near;
     private Microsoft.Maui.Devices.Sensors.Location? _lastLocation;
     private const double SignificantMovementMeters = 5.0;
-    private const int StationaryDelayMs = 30_000;
+    private const int StationaryDelayMs = 5_000;
 
     public bool IsRunning => _isRunning;
     public event Action<Microsoft.Maui.Devices.Sensors.Location>? OnLocationUpdated;
@@ -26,7 +26,13 @@ public class LocationService : ILocationService
     {
         if (_isRunning) return;
 
-        var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+        var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+        if (status != PermissionStatus.Granted)
+        {
+            status = await MainThread.InvokeOnMainThreadAsync(
+                () => Permissions.RequestAsync<Permissions.LocationWhenInUse>());
+        }
+
         if (status != PermissionStatus.Granted)
         {
             System.Diagnostics.Debug.WriteLine("[GPS] Permission denied.");
@@ -141,9 +147,9 @@ public class LocationService : ILocationService
 
     private static int GetDelayMs(TrackingProximityState state) => state switch
     {
-        TrackingProximityState.Far => 180_000,
-        TrackingProximityState.Inside => 12_000,
-        _ => 45_000
+        TrackingProximityState.Far => 60_000,
+        TrackingProximityState.Inside => 2_000,
+        _ => 12_000
     };
 
     private static GeolocationAccuracy GetAccuracy(TrackingProximityState state) => state switch

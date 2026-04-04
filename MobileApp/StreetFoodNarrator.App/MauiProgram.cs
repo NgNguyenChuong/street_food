@@ -20,8 +20,6 @@ public static class MauiProgram
             .UseSkiaSharp()          // registers SKGLView handler required by Mapsui
             .ConfigureFonts(fonts =>
             {
-                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 fonts.AddFont("MaterialDesignIcons.ttf", "MDI");
             });
 
@@ -43,6 +41,9 @@ public static class MauiProgram
         // Offline data sync: size calculation, download, update check
         builder.Services.AddSingleton<DataSyncService>();
 
+        // Runtime UI localization sync from backend translation dictionary
+        builder.Services.AddSingleton<IRemoteLocalizationService, RemoteLocalizationService>();
+
         // Text-to-Speech with Edge-TTS API (+ offline cache fallback)
         builder.Services.AddSingleton<ITTSService, TextToSpeechService>();
 
@@ -55,17 +56,9 @@ public static class MauiProgram
         builder.Services.AddSingleton<IVirtualTourViewModel, VirtualTourViewModel>();
         builder.Services.AddSingleton<IOfflineRoutingService, OfflineRoutingService>();
 
-        // Location: use Simulated GPS by default (great for emulator)
-        if (AppConfig.UseSimulatedGPS)
-        {
-            var simService = new SimulatedLocationService();
-            builder.Services.AddSingleton<ILocationService>(simService);
-            builder.Services.AddSingleton(simService);
-        }
-        else
-        {
-            builder.Services.AddSingleton<ILocationService, LocationService>();
-        }
+        // Location default: real GPS service.
+        // Simulated GPS is still available via runtime switch in SettingsPage.
+        builder.Services.AddSingleton<ILocationService, LocationService>();
 
         // ── Register Pages & ViewModels ────────────────────────────
         builder.Services.AddSingleton<MainViewModel>();

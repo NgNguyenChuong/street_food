@@ -33,7 +33,7 @@
                 </VerticalStackLayout>
             </VerticalStackLayout>
 
-            <!-- Tab 2: Đã lưu -->
+            <!-- Tab 2: Thư viện -->
             <VerticalStackLayout Grid.Column="1" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
                 <VerticalStackLayout.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnSavedTapped" />
@@ -45,25 +45,25 @@
                 </Grid>
                 <!-- Text & Indicator -->
                 <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
-                    <Label x:Name="SavedLabel" Text="Đã lưu" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                    <Label x:Name="SavedLabel" Text="Thư viện" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
                     <BoxView x:Name="SavedIndicator" WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
                 </VerticalStackLayout>
             </VerticalStackLayout>
 
-            <!-- Tab 3: Cá nhân -->
+            <!-- Tab 3: Cài đặt -->
             <VerticalStackLayout Grid.Column="2" Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
                 <VerticalStackLayout.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnProfileTapped" />
+                    <TapGestureRecognizer Tapped="OnSettingsTapped" />
                 </VerticalStackLayout.GestureRecognizers>
                 <!-- Icon container -->
                 <Grid WidthRequest="40" HeightRequest="40" HorizontalOptions="Center">
-                    <Label x:Name="ProfileIcon" Text="&#xF0004;" FontFamily="MDI" FontSize="26" 
+                    <Label x:Name="SettingsIcon" Text="&#xF0493;" FontFamily="MDI" FontSize="26" 
                            TextColor="#92A89D" HorizontalOptions="Center" VerticalOptions="Center"/>
                 </Grid>
                 <!-- Text & Indicator -->
                 <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
-                    <Label x:Name="ProfileLabel" Text="Cá nhân" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
-                    <BoxView x:Name="ProfileIndicator" WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
+                    <Label x:Name="SettingsLabel" Text="Cài đặt" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                    <BoxView x:Name="SettingsIndicator" WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
                 </VerticalStackLayout>
             </VerticalStackLayout>
 

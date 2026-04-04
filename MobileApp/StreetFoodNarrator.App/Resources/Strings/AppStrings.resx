@@ -106,7 +106,7 @@
     <value>📥 Tải offline ngay</value>
   </data>
   <data name="Button_ContinueOnline" xml:space="preserve">
-    <value>🌐 Tiếp tục Online</value>
+    <value>🚀 Dùng ngay</value>
   </data>
   <data name="Button_TryAgain" xml:space="preserve">
     <value>🔄  Thử lại</value>
@@ -251,7 +251,13 @@ Bạn có thể dùng app offline hoàn toàn.</value>
     <value>Đã cập nhật: Hôm nay, 18:30</value>
   </data>
  
-  <data name="Nav_Map" xml:space="preserve">
+    <data name="Settings_PrivacyTerms" xml:space="preserve">
+    <value>Quyền riêng tư • Điều khoản</value>
+  </data>
+  <data name="Settings_Version" xml:space="preserve">
+    <value>Phiên bản 1.0.0</value>
+  </data>
+<data name="Nav_Map" xml:space="preserve">
     <value>Bản đồ</value>
   </data>
   <data name="Nav_Tour" xml:space="preserve">
@@ -264,3 +270,4 @@ Bạn có thể dùng app offline hoàn toàn.</value>
     <value>Cài đặt</value>
   </data>
 </root>
+

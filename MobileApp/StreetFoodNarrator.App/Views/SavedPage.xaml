@@ -67,7 +67,7 @@
         </Grid>
 
         <Grid Grid.Row="1">
-            <components:TabMenuView x:Name="BrowseContent" IsVisible="False"/>
+            <ContentView x:Name="BrowseHost" IsVisible="False"/>
             <components:TabSavedView x:Name="SavedContent" IsVisible="True"/>
         </Grid>
 

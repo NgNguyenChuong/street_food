@@ -56,10 +56,7 @@
                        VerticalTextAlignment="Center"
                        TextColor="#4BE277" FontSize="15" FontAttributes="Bold"
                        CharacterSpacing="1.8" LineBreakMode="TailTruncation" />
-                <Button Grid.Column="2" WidthRequest="50" HeightRequest="50" CornerRadius="25"
-                        BackgroundColor="#15231D" BorderColor="#2C4736" BorderWidth="1"
-                        FontFamily="MDI" Text="&#xF0493;" FontSize="22" TextColor="#F4E4C1"
-                        Clicked="OnMenuButtonClicked" />
+                <BoxView Grid.Column="2" WidthRequest="50" HeightRequest="50" Opacity="0" InputTransparent="True" />
             </Grid>
 
             <Grid Grid.Row="1">
@@ -113,7 +110,7 @@
                             <VerticalStackLayout Spacing="0">
                                 <Grid Padding="16,14,16,10" ColumnDefinitions="*,Auto">
                                     <VerticalStackLayout Spacing="4">
-                                        <Label Text="MÓN NGON GẦN NHẤT" FontSize="10" FontAttributes="Bold" CharacterSpacing="2.1" TextColor="#FFB690" />
+                                        <Label Text="{Binding NearMainIntroText}" FontSize="10" FontAttributes="Bold" CharacterSpacing="2.1" TextColor="#FFB690" />
                                         <Label Text="{Binding FeaturedExplorePoi.Name}" FontSize="25" FontAttributes="Bold" TextColor="#E7EFE9" LineBreakMode="TailTruncation" />
                                     </VerticalStackLayout>
                                     <Border Grid.Column="1" BackgroundColor="#20312A" Padding="10,6" VerticalOptions="Start">
@@ -149,13 +146,13 @@
 
                                 <Button Text="Xem bản đồ" Margin="16,0,16,14" HeightRequest="50" CornerRadius="25" FontSize="15"
                                         FontAttributes="Bold" BackgroundColor="#102019CC" BorderColor="#23352E" BorderWidth="1"
-                                        TextColor="#E5EFE9" Clicked="OnNearMapOnlyClicked" />
+                                    TextColor="#E5EFE9" Clicked="OnNearMapOnlyClicked" IsVisible="False" />
                             </VerticalStackLayout>
                         </Border>
 
                         <Grid Margin="2,-4,2,0" ColumnDefinitions="*,Auto" VerticalOptions="Center">
-                            <Label Text="LỰA CHỌN KHÁC" FontSize="10" FontAttributes="Bold" CharacterSpacing="2.0" TextColor="#AEBFB6" />
-                            <Label Grid.Column="1" Text="↑" FontSize="18" TextColor="#AEBFB6" />
+                            <Label Text="{Binding NearSecondaryIntroText}" FontSize="10" FontAttributes="Bold" CharacterSpacing="2.0" TextColor="#AEBFB6" />
+                            <Label Grid.Column="1" Text="" FontSize="18" TextColor="#AEBFB6" />
                         </Grid>
 
                         <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,-2,0,0">
@@ -169,7 +166,7 @@
                                             </Border.GestureRecognizers>
                                             <VerticalStackLayout Spacing="8">
                                                 <Grid HeightRequest="78">
-                                                    <Image Source="{Binding ImageUrl, TargetNullValue='welcome_streetfood.png', FallbackValue='welcome_streetfood.png'}" Aspect="AspectFill" />
+                                                    <Image Source="{Binding ImageUrl, TargetNullValue='welcome_streetfood.jpg', FallbackValue='welcome_streetfood.jpg'}" Aspect="AspectFill" />
                                                     <BoxView Color="#08110D" Opacity="0.08" />
                                                 </Grid>
                                                 <Label Text="{Binding Name, TargetNullValue='Địa điểm gợi ý', FallbackValue='Địa điểm gợi ý'}"
@@ -211,7 +208,7 @@
                                     <Border WidthRequest="64" HeightRequest="64" StrokeThickness="0">
                                         <Border.StrokeShape><RoundRectangle CornerRadius="14" /></Border.StrokeShape>
                                         <Image x:Name="InZoneMiniNowPlayingImage"
-                                               Source="{Binding PrimaryZone.DisplayImageUrl, TargetNullValue=welcome_streetfood.png, FallbackValue=welcome_streetfood.png}"
+                                               Source="{Binding PrimaryZone.DisplayImageUrl, TargetNullValue=welcome_streetfood.jpg, FallbackValue=welcome_streetfood.jpg}"
                                                Aspect="AspectFill" />
                                     </Border>
                                     <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
@@ -387,7 +384,7 @@
                     </Border.StrokeShape>
                     <VerticalStackLayout Spacing="0">
                         <Grid HeightRequest="250">
-                            <Image x:Name="NearPopupImage" Source="welcome_streetfood.png" Aspect="AspectFill" />
+                            <Image x:Name="NearPopupImage" Source="welcome_streetfood.jpg" Aspect="AspectFill" />
                             <BoxView Color="#07110D" Opacity="0.22" />
                             <Border HorizontalOptions="End" VerticalOptions="Start" Margin="14" BackgroundColor="#F57C00" Padding="14,7">
                                 <Border.StrokeShape>
@@ -608,3 +605,4 @@
         </Grid>
     </AbsoluteLayout>
 </ContentPage>
+

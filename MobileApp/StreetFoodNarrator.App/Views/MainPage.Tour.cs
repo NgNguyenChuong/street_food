@@ -48,13 +48,14 @@ public partial class MainPage
         TabTourComponent.StopVirtualTourRequested     += OnVTStop;
         TabTourComponent.ContinueVirtualTourRequested += OnVTContinue;
         TabTourComponent.RestartVirtualTourRequested  += OnVTRestart;
+        TabTourComponent.ClearTourRequested           += OnClearTourRequested;
 
         _tts.OnPlaybackEnded += OnTtsPlaybackEnded;
     }
 
     private void OnTourPageLoaded()
     {
-        if (_vm.AutoStartRequestedTour)
+        if (_vm.AutoStartRequestedTour && _vm.CurrentAppMode == MainViewModel.AppMode.Virtual)
         {
             _vm.AutoStartRequestedTour = false;
             _pendingAutoStart = true;
@@ -71,7 +72,7 @@ public partial class MainPage
     {
         Console.WriteLine("[Tour] OnAppearing");
 
-        if (_vm.AutoStartRequestedTour)
+        if (_vm.AutoStartRequestedTour && _vm.CurrentAppMode == MainViewModel.AppMode.Virtual)
         {
             _vm.AutoStartRequestedTour = false;
             OnVTStart(this, EventArgs.Empty);
@@ -357,6 +358,14 @@ public partial class MainPage
         _ = StartVirtualTourAsync(0);
     }
 
+    private void OnClearTourRequested(object? sender, EventArgs e)
+    {
+        _vm.RequestedTourStops = null;
+        _vm.ClearTourOverride();
+        _vm.AutoStartRequestedTour = false;
+        DisableVirtualTour();
+    }
+
     private void StopVirtualTour(bool showChoice = false)
     {
         _virtualTourCts?.Cancel();
@@ -379,18 +388,20 @@ public partial class MainPage
         }
         else
         {
-            double startLat = AppConfig.DefaultLatitude;
-            double startLon = AppConfig.DefaultLongitude;
-
-            spots = _vm.AllPOIs
-                .Where(p => p.ZoneType == "Spot")
-                .OrderBy(p =>
-                {
-                    double dLat = p.Latitude  - startLat;
-                    double dLon = p.Longitude - startLon;
-                    return Math.Sqrt(dLat * dLat + dLon * dLon);
-                })
-                .ToList();
+            spots = _vm.GetRuntimeSpotPool().ToList();
+            if (!_vm.HasActiveTourOverride)
+            {
+                double startLat = AppConfig.DefaultLatitude;
+                double startLon = AppConfig.DefaultLongitude;
+                spots = spots
+                    .OrderBy(p =>
+                    {
+                        double dLat = p.Latitude - startLat;
+                        double dLon = p.Longitude - startLon;
+                        return Math.Sqrt(dLat * dLat + dLon * dLon);
+                    })
+                    .ToList();
+            }
         }
 
         if (spots.Count == 0)

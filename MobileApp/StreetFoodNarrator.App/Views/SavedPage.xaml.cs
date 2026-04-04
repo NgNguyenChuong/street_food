@@ -6,6 +6,7 @@ public partial class SavedPage : ContentPage
 {
     private readonly MainViewModel _vm;
     private bool _isBrowseSegment = false;
+    private StreetFoodNarrator.App.Views.Components.TabMenuView? _browseContent;
 
     public SavedPage()
     {
@@ -16,7 +17,7 @@ public partial class SavedPage : ContentPage
         Console.WriteLine("[SavedPage] Initialized");
     }
 
-    protected override async void OnAppearing()
+    protected override void OnAppearing()
     {
         base.OnAppearing();
         Console.WriteLine("[SavedPage] OnAppearing");
@@ -24,18 +25,22 @@ public partial class SavedPage : ContentPage
 
         if (_vm.AllPOIs.Count == 0)
         {
-            await _vm.LoadAllPoisAsync();
+            _ = _vm.LoadAllPoisAsync(forceSyncNow: false);
         }
 
-        _ = _vm.LoadToursAsync(forceSyncNow: false);
+        if ((_vm.AllTours?.Count ?? 0) == 0 || _vm.IsTourDataStale)
+        {
+            _ = _vm.LoadToursAsync(forceSyncNow: false);
+        }
     }
 
     private void OnSegmentBrowseTapped(object sender, EventArgs e)
     {
         if (_isBrowseSegment) return;
+        EnsureBrowseContentCreated();
         
         _isBrowseSegment = true;
-        BrowseContent.IsVisible = true;
+        BrowseHost.IsVisible = true;
         SavedContent.IsVisible = false;
         
         // Update UI
@@ -50,7 +55,10 @@ public partial class SavedPage : ContentPage
         LabelSaved.FontAttributes = FontAttributes.None;
         LabelSaved.TextColor = Color.FromArgb("#6B7280");
 
-        _ = _vm.LoadToursAsync(forceSyncNow: false);
+        if ((_vm.AllTours?.Count ?? 0) == 0 || _vm.IsTourDataStale)
+        {
+            _ = _vm.LoadToursAsync(forceSyncNow: false);
+        }
     }
 
     private void OnSegmentSavedTapped(object sender, EventArgs e)
@@ -58,7 +66,7 @@ public partial class SavedPage : ContentPage
         if (!_isBrowseSegment) return;
         
         _isBrowseSegment = false;
-        BrowseContent.IsVisible = false;
+        BrowseHost.IsVisible = false;
         SavedContent.IsVisible = true;
         
         // Update UI
@@ -72,5 +80,18 @@ public partial class SavedPage : ContentPage
         savedBorder.BackgroundColor = Color.FromArgb("#F5A623");
         LabelSaved.FontAttributes = FontAttributes.Bold;
         LabelSaved.TextColor = Colors.White;
+    }
+
+    private void EnsureBrowseContentCreated()
+    {
+        if (_browseContent != null)
+            return;
+
+        _browseContent = new StreetFoodNarrator.App.Views.Components.TabMenuView
+        {
+            BindingContext = _vm
+        };
+
+        BrowseHost.Content = _browseContent;
     }
 }

@@ -53,7 +53,10 @@ public class GeofenceService : IGeofenceService
 
         if (!_localLoaded)
         {
-            await _repository.LoadLocalAsync();
+            // Repository is usually loaded by MainViewModel during startup.
+            // Avoid duplicate SQLite load on first GPS callback.
+            if (!_repository.IsSeeded)
+                await _repository.LoadLocalAsync();
             _localLoaded = true;
         }
 

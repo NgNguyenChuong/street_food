@@ -25,7 +25,6 @@ public partial class WelcomePage : ContentPage
 
     private readonly IZoneRepository _repository;
     private readonly IAudioCacheService? _audioCache;
-    private readonly IVoicePackageService? _voicePackageService;
     private readonly DataSyncService _dataSyncService;
     private bool _flowStarted = false;
     private bool _canStartTour = false;
@@ -35,6 +34,7 @@ public partial class WelcomePage : ContentPage
     private int _newAudioCount = 0;
     private bool _hasSystemUpdate = false;
     private bool _isNavigatingToMap = false;
+    private bool _hasShownOfflineFirstLaunchNotice;
     private const string StartCtaText = "Bắt đầu khám phá Vĩnh Khánh";
 
     private enum StatusKind
@@ -52,7 +52,6 @@ public partial class WelcomePage : ContentPage
         InitializeComponent();
         _repository      = MauiProgram.Services.GetRequiredService<IZoneRepository>();
         _audioCache      = MauiProgram.Services.GetService<IAudioCacheService>();
-        _voicePackageService = MauiProgram.Services.GetService<IVoicePackageService>();
         _dataSyncService = MauiProgram.Services.GetRequiredService<DataSyncService>();
         var lang = Preferences.Get(AppConfig.LanguagePrefKey, LangVi);
         ApplyLanguage(lang);
@@ -96,6 +95,8 @@ public partial class WelcomePage : ContentPage
    
     private async Task RunSimpleFlowAsync()
     {
+        var didInitialSync = false;
+
         // Step 1: load from SQLite cache
         await _repository.LoadLocalAsync();
 
@@ -110,10 +111,17 @@ public partial class WelcomePage : ContentPage
             }
 
             await _repository.SyncFromMongoAsync();
+            didInitialSync = true;
 
             // Always reload from SQLite after sync — ensures _zones matches persisted data
             // regardless of which path SyncFromMongoAsync took (API success / null response / offline)
             await _repository.LoadLocalAsync();
+
+            if (_repository.CurrentDataSource == DataSourceKind.LiveApi)
+            {
+                // Avoid immediate duplicate sync when MainPage boots right after Welcome.
+                Preferences.Set("LastSyncTime", DateTime.UtcNow.ToString("o"));
+            }
         }
 
         if (_repository.IsSeeded)
@@ -127,11 +135,10 @@ public partial class WelcomePage : ContentPage
             // First-time user might need offline data, but we only ask them when they click Start.
             MainThread.BeginInvokeOnMainThread(() => EnableStartButton());
 
-            _ = RunBackgroundSyncAsync();
+            if (!didInitialSync)
+                _ = RunBackgroundSyncAsync();
             // Kiểm tra audio mới ngay sau khi UI sẵn sàng
             CheckAudioUpdatesInBackground();
-            // ✅ Auto-download voice packages in background (tự động, không cần user thao tác)
-            _ = AutoDownloadVoicePackagesAsync();
             return;
         }
 
@@ -181,31 +188,6 @@ public partial class WelcomePage : ContentPage
                 System.Diagnostics.Debug.WriteLine($"[WelcomePage] CheckAudioUpdates lỗi: {ex.Message}");
             }
         });
-    }
-
-    // ✅ Auto-download voice packages in background (tự động, không cần user thao tác)
-    private async Task AutoDownloadVoicePackagesAsync()
-    {
-        if (_voicePackageService == null) return;
-        if (!IsOnline()) return;
-
-        try
-        {
-            var packages = await _voicePackageService.GetAvailablePackagesAsync();
-            foreach (var pkg in packages)
-            {
-                if (await _voicePackageService.IsPackageDownloadedAsync(pkg.Id))
-                    continue; // Đã tải rồi
-
-                System.Diagnostics.Debug.WriteLine($"[WelcomePage] 📥 Auto-downloading voice: {pkg.Name}");
-                await _voicePackageService.DownloadPackageAsync(pkg.Id);
-            }
-            System.Diagnostics.Debug.WriteLine("[WelcomePage] ✅ Voice packages auto-download complete");
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[WelcomePage] Voice auto-download error: {ex.Message}");
-        }
     }
 
     private void OnBellClicked(object sender, EventArgs e)
@@ -484,13 +466,21 @@ public partial class WelcomePage : ContentPage
                     StartButton.IsEnabled = true;
                     return;
                 }
-                
-                if (result == "download")
-                {
-                    await DownloadOfflineFromSettings();
-                    _isNavigatingToMap = false;
+
+                // Popup handlers already execute "download" and "skip" actions directly.
+                // Return here to avoid double download / double navigation races.
+                if (result == "download" || result == "skip")
                     return;
-                }
+            }
+
+            if (!alreadyHasOffline && !IsOnline() && !_hasShownOfflineFirstLaunchNotice)
+            {
+                _hasShownOfflineFirstLaunchNotice = true;
+                await CustomAlert.ShowAsync(
+                    "Bạn đang không có mạng",
+                    "Ứng dụng sẽ dùng dữ liệu hệ thống đã đóng gói sẵn trên máy để bạn vẫn vào được bản đồ và điểm quán cơ bản. Khi có mạng, vào Cài đặt > Tải dữ liệu offline để tải đầy đủ audio, ảnh và dữ liệu mới nhất.",
+                    "Đã hiểu",
+                    AlertType.Info);
             }
 
             // Normal path - no popup needed
@@ -499,6 +489,8 @@ public partial class WelcomePage : ContentPage
 
             // Request permissions FIRST on the UI thread before navigating to avoid ANR deadlocks
             var hasPermission = await EnsureLocationPermissionFlowAsync();
+            if (!hasPermission)
+                return;
 
             // Then navigate
             await NavigateToMapAsync();
@@ -573,7 +565,7 @@ public partial class WelcomePage : ContentPage
                 sizeInfo = (9.8, 13, 39, 52, "• Dữ liệu quán: 0.1 MB\n• Audio 3 ngôn ngữ: 6.5 MB\n• Hình ảnh: 2.7 MB\n• Bản đồ: 0.5 MB");
             }
 
-            MainThread.BeginInvokeOnMainThread(async () =>
+            MainThread.BeginInvokeOnMainThread(() =>
             {
                 _hasSystemUpdate = true;
                 UpdateBadgeVisibility();
@@ -582,7 +574,7 @@ public partial class WelcomePage : ContentPage
                 if (sizeInfo.totalMb < AUTO_SYNC_SIZE_THRESHOLD_MB)
                 {
                     Console.WriteLine($"[WelcomePage] 📦 Update size small ({sizeInfo.totalMb:F1} MB < {AUTO_SYNC_SIZE_THRESHOLD_MB} MB) → Auto sync in background");
-                    await RunSilentBackgroundUpdateAsync();
+                    _ = Task.Run(RunSilentBackgroundUpdateAsync);
                 }
                 // ✅ Size >= 5MB: Show popup asking user
                 else
@@ -599,7 +591,7 @@ public partial class WelcomePage : ContentPage
     }
 
     /// <summary>
-    /// ✅ Auto sync in background when update size is small (< 5MB)
+    /// ✅ Auto sync in background when update size is small (&lt; 5MB)
     /// Shows badge + optional toast, no popup blocking UI
     /// </summary>
     private async Task RunSilentBackgroundUpdateAsync()
@@ -824,7 +816,7 @@ public partial class WelcomePage : ContentPage
 
         var btnSkip = new Button
         {
-            Text = "⏭️  Bỏ qua – dùng online",
+            Text = "⏭️  Dùng ngay",
             BackgroundColor = Colors.Transparent,
             TextColor = Color.FromArgb("#64748B"),
             BorderColor = Color.FromArgb("#1E3D2A"), BorderWidth = 1,
@@ -850,6 +842,9 @@ public partial class WelcomePage : ContentPage
     /// <summary>Runs full download with a spinner overlay and success popup.</summary>
     private async Task RunDownloadWithOverlayAsync(bool isUpdate)
     {
+        if (!isUpdate && !await EnsureOnlineBeforeOfflineDownloadAsync())
+            return;
+
         // Show spinner overlay
         var spinnerOverlay = new Grid
         {
@@ -1179,15 +1174,8 @@ public partial class WelcomePage : ContentPage
     private async Task DownloadOfflineFromSettings()
     {
         // Check network
-        if (!IsOnline())
-        {
-            await CustomAlert.ShowAsync(
-                AppStrings.Alert_NoNetwork_Title,
-                AppStrings.Alert_NoNetwork_Message,
-                AppStrings.Common_OK,
-                AlertType.Warning);
+        if (!await EnsureOnlineBeforeOfflineDownloadAsync())
             return;
-        }
 
         // Check WiFi vs 4G
         var isWifi = Connectivity.Current.ConnectionProfiles
@@ -1241,6 +1229,19 @@ public partial class WelcomePage : ContentPage
             ShowErrorState(ex.Message);
             EnableStartButton();
         }
+    }
+
+    private async Task<bool> EnsureOnlineBeforeOfflineDownloadAsync()
+    {
+        if (IsOnline())
+            return true;
+
+        await CustomAlert.ShowAsync(
+            "Không có mạng để tải gói offline",
+            "Hiện tại thiết bị đang offline, nên chưa thể tải thêm dữ liệu. Ứng dụng sẽ tiếp tục dùng dữ liệu hệ thống có sẵn trên máy. Khi có mạng, hãy vào lại Cài đặt và bấm Tải dữ liệu offline.",
+            AppStrings.Common_OK,
+            AlertType.Warning);
+        return false;
     }
 
     private Label FindDetailLabel()
@@ -1633,23 +1634,41 @@ public partial class WelcomePage : ContentPage
     
     private async Task NavigateToMapAsync()
     {
-        // Hint for MainPage: if user is already in-zone after loading, open InZone map directly.
-        Preferences.Set(AutoOpenInZoneOnNextMainPageKey, true);
+        await PrewarmMainPageDataAsync();
+
+        // Avoid forcing an immediate in-zone map auto-open on first launch.
+        // This was causing heavy startup contention and first-run ANR/crash loops.
+        Preferences.Set(AutoOpenInZoneOnNextMainPageKey, false);
         
         App.CompleteOnboarding(); // Sets has_onboarded = true
-        
-        // Hide welcome tab and navigate cleanly to Map
-        if (Shell.Current is AppShell shell)
+
+        // Do not mutate Shell item visibility at runtime here.
+        // Toggling tab visibility during first navigation can race Shell fragment lifecycle.
+        await Shell.Current.GoToAsync("//MapPage", false);
+    }
+
+    private async Task PrewarmMainPageDataAsync()
+    {
+        try
         {
-            var welcomeTab = shell.Items.FirstOrDefault()?.Items.FirstOrDefault(
-                t => t.Route == "WelcomePage");
-            if (welcomeTab != null)
-            {
-                welcomeTab.IsVisible = false;
-            }
+            var vm = MauiProgram.Services.GetRequiredService<MainViewModel>();
+
+            await vm.LoadAllPoisAsync(forceSyncNow: false);
+            vm.RefreshExploreState();
+
+            var hasData = vm.AllPOIs.Count > 0;
+            Preferences.Set(AppConfig.MainPagePrewarmReadyKey, hasData);
+            if (hasData)
+                Preferences.Set(AppConfig.MainPagePrewarmAtUtcKey, DateTime.UtcNow.ToString("O"));
+            else
+                Preferences.Remove(AppConfig.MainPagePrewarmAtUtcKey);
         }
-        
-        await Shell.Current.GoToAsync("//MapPage");
+        catch (Exception ex)
+        {
+            Preferences.Set(AppConfig.MainPagePrewarmReadyKey, false);
+            Preferences.Remove(AppConfig.MainPagePrewarmAtUtcKey);
+            System.Diagnostics.Debug.WriteLine($"[WelcomePage] PrewarmMainPageDataAsync error: {ex.Message}");
+        }
     }
 
     private async void OnSettingsClicked(object sender, EventArgs e)
@@ -1657,11 +1676,11 @@ public partial class WelcomePage : ContentPage
         // Use cached SettingsPage + Shell navigation for instant response
         if (Shell.Current is AppShell shell)
         {
-            await Shell.Current.Navigation.PushModalAsync(shell.GetCachedSettingsPage());
+            await Shell.Current.Navigation.PushModalAsync(shell.GetCachedSettingsPage(), false);
         }
         else
         {
-            await Navigation.PushModalAsync(new SettingsPage());
+            await Navigation.PushModalAsync(new SettingsPage(), false);
         }
     }
 

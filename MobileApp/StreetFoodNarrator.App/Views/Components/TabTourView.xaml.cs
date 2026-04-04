@@ -35,6 +35,7 @@ public partial class TabTourView : ContentView
     public event EventHandler? StopVirtualTourRequested;
     public event EventHandler? ContinueVirtualTourRequested;
     public event EventHandler? RestartVirtualTourRequested;
+    public event EventHandler? ClearTourRequested;
 
     // ── Audio state ───────────────────────────────────────────────────────────
     private int    _speedIndex      = 0;
@@ -269,6 +270,9 @@ public partial class TabTourView : ContentView
 
     private void OnShareTapped(object sender, EventArgs e)
         => ShareRequested?.Invoke(this, e);
+
+    private void OnClearTourTapped(object sender, TappedEventArgs e)
+        => ClearTourRequested?.Invoke(this, EventArgs.Empty);
 
     // ─── Description expand/collapse ─────────────────────────────────────────
 

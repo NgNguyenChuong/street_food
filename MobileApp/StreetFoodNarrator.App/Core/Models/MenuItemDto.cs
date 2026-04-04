@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using SQLite;
 
 namespace StreetFoodNarrator.App.Core.Models;
@@ -46,7 +46,7 @@ public class MenuItemDto
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(ImageUrl)) return "welcome_streetfood.png";
+            if (string.IsNullOrWhiteSpace(ImageUrl)) return "welcome_streetfood.jpg";
             if (ImageUrl.StartsWith("http://") || ImageUrl.StartsWith("https://"))
                 return ImageUrl;
             var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
@@ -60,3 +60,4 @@ public class MenuItemResponse
     [JsonPropertyName("data")]
     public List<MenuItemDto> Data { get; set; } = new();
 }
+

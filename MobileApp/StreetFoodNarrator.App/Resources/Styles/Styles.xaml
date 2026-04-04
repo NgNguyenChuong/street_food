@@ -15,7 +15,7 @@
     <Style x:Key="BaseButtonStyle" TargetType="Button">
         <Setter Property="TextColor" Value="{StaticResource White}" />
         <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
-        <Setter Property="FontFamily" Value="OpenSansRegular"/>
+        <Setter Property="FontFamily" Value="sans-serif"/>
         <Setter Property="FontSize" Value="15"/>
         <Setter Property="CornerRadius" Value="12"/>
         <Setter Property="Padding" Value="16,12"/>
@@ -40,13 +40,13 @@
 
     <Style TargetType="Label">
         <Setter Property="TextColor" Value="{StaticResource Gray900}" />
-        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="FontFamily" Value="sans-serif" />
         <Setter Property="FontSize" Value="14" />
     </Style>
 
     <Style TargetType="Entry">
         <Setter Property="TextColor" Value="{StaticResource Gray900}" />
-        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="FontFamily" Value="sans-serif" />
         <Setter Property="FontSize" Value="14" />
     </Style>
 

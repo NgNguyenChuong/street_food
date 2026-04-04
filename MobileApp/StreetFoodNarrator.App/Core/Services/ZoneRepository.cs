@@ -132,9 +132,9 @@ public class ZoneRepository : IZoneRepository
                 if (!_isLoaded)
                     await LoadLocalAsync();
 
-                // Guard: if stored version is stale/corrupted and local DB is empty,
-                // force a full sync once (sinceVersion=0) before falling back.
-                if (_zones.Count == 0 && currentVersion > 0)
+                // Recovery guard: if local cache is empty or suspiciously tiny,
+                // force one full sync even when version appears unchanged.
+                if (_zones.Count <= 1 && currentVersion > 0)
                 {
                     var fullResponse = await http.GetAsync("api/POIs/sync?sinceVersion=0");
                     fullResponse.EnsureSuccessStatusCode();
@@ -172,12 +172,11 @@ public class ZoneRepository : IZoneRepository
 
             Console.WriteLine($"[ZoneRepository] API returned {mapped.Count} POIs, upserting into SQLite...");
 
-            // ── SAFE UPSERT: never delete existing data before new data is confirmed saved ──
-            // Step 1: Upsert all received POIs (insert or replace)
+            // Upsert all approved+active POIs from server.
             await _localDb.SavePOIsAsync(mapped);
 
-            // Step 2: Soft-delete POIs that were removed from the server
-            //         (set IsActive=false rather than physically deleting them)
+            // Reconcile removals: if a POI is no longer in approved+active sync payload,
+            // mark it inactive locally so app hides it.
             var existingPois = await _localDb.GetAllActivePOIsAsync();
             var toDeactivate = existingPois
                 .Where(p => !incomingIds.Contains(p.Id))
@@ -189,10 +188,10 @@ public class ZoneRepository : IZoneRepository
                     poi.IsActive = false;
                     await _localDb.SavePOIAsync(poi);
                 }
-                Console.WriteLine($"[ZoneRepository] Soft-deleted {toDeactivate.Count} POIs no longer on server");
+                Console.WriteLine($"[ZoneRepository] Deactivated {toDeactivate.Count} POIs removed from approved sync set");
             }
 
-            // Step 3: Commit the new data version only AFTER everything is persisted
+            // Commit the new data version only AFTER new payload is persisted.
             Preferences.Set(AppConfig.DataVersionKey, data.DataVersion);
 
             _zones = mapped.Where(z => z.IsActive).ToList();
