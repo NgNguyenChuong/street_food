@@ -74,11 +74,12 @@
         .badge.ios { background: rgba(0,78,137,0.1); color: var(--secondary); border: 1px solid rgba(0,78,137,0.2); }
         .badge.android { background: rgba(6,214,160,0.1); color: var(--success); border: 1px solid rgba(6,214,160,0.2); }
         .time-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #666; background: rgba(0,0,0,0.03); padding: 0.25rem 0.5rem; border-radius: 4px; }
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 1.25rem; flex-wrap: wrap; }
-        .pagination-btn { padding: 0.45rem 0.8rem; border: 1px solid var(--border); background: white; border-radius: 10px; cursor: pointer; font-weight: 600; color: #666; transition: all 0.2s; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem; }
+        .pagination-btn { width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--border); background: white; color: var(--dark); font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
         .pagination-btn:hover { border-color: var(--primary); color: var(--primary); }
-        .pagination-btn.active { background: var(--gradient); color: white; border-color: transparent; }
+        .pagination-btn.active { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border-color: transparent; }
         .pagination-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+        .pagination-info { color: #666; margin: 0 1rem; }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -271,17 +272,33 @@
         if (!wrap) return;
         if (totalPages <= 1) { wrap.innerHTML = ''; return; }
         var html = '';
-        html += '<button class="pagination-btn" ' + (devPage === 1 ? 'disabled' : '') + ' onclick="setDevPage(' + (devPage - 1) + ')"><i class="fas fa-chevron-left"></i></button>';
-        for (var i = 1; i <= totalPages; i++) {
-            html += '<button class="pagination-btn ' + (i === devPage ? 'active' : '') + '" onclick="setDevPage(' + i + ')">' + i + '</button>';
+        html += '<button class="pagination-btn" ' + (devPage === 1 ? 'disabled' : '') + ' onclick="changeDevPage(\'prev\')"><i class="fas fa-chevron-left"></i></button>';
+        for (var i = 1; i <= Math.min(totalPages, 5); i++) {
+            html += '<button class="pagination-btn ' + (i === devPage ? 'active' : '') + '" onclick="goToDevPage(' + i + ')">' + i + '</button>';
         }
-        html += '<button class="pagination-btn" ' + (devPage === totalPages ? 'disabled' : '') + ' onclick="setDevPage(' + (devPage + 1) + ')"><i class="fas fa-chevron-right"></i></button>';
+        if (totalPages > 5) {
+            html += '<span class="pagination-info">... ' + totalPages + '</span>';
+        }
+        html += '<button class="pagination-btn" ' + (devPage === totalPages ? 'disabled' : '') + ' onclick="changeDevPage(\'next\')"><i class="fas fa-chevron-right"></i></button>';
         wrap.innerHTML = html;
     }
 
-    function setDevPage(page) {
+    function changeDevPage(direction) {
+        if (direction === 'prev' && devPage > 1) {
+            devPage--;
+        } else if (direction === 'next') {
+            devPage++;
+        }
+        renderDevTable(filteredDevices);
+    }
+
+    function goToDevPage(page) {
         devPage = page;
         renderDevTable(filteredDevices);
+    }
+
+    function setDevPage(page) {
+        goToDevPage(page);
     }
 
     function filterDevices() {
