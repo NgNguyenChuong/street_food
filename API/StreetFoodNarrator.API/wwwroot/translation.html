@@ -68,8 +68,12 @@
         .btn-icon { width: 36px; height: 36px; border-radius: 10px; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; background: white; border: 1px solid var(--border); color: #666; }
         .btn-icon:hover { border-color: var(--primary); color: var(--primary); background: rgba(255,107,53,0.05); }
 
-        .table-pagination { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-top: 1px solid var(--border); gap: 0.75rem; flex-wrap: wrap; }
-        .pagination-info { color: #666; font-size: 0.9rem; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem; }
+        .pagination-btn { width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--border); background: white; color: var(--dark); font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .pagination-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .pagination-btn.active { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border-color: transparent; }
+        .pagination-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+        .pagination-info { color: #666; margin: 0 1rem; }
 
         /* Modal styling */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(26,26,46,0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 2000; animation: fadeIn 0.3s; }
@@ -143,13 +147,7 @@
                 <tr><td colspan="5" style="text-align:center;padding:3rem;color:#999"><i class="fas fa-spinner fa-spin fa-2x"></i></td></tr>
             </tbody>
         </table>
-        <div class="table-pagination" id="transPaginationWrap">
-            <div class="pagination-info" id="transPagingInfo">Trang 1/1</div>
-            <div class="actions">
-                <button class="btn btn-outline" onclick="changeTransPage(-1)"><i class="fas fa-chevron-left"></i> Trước</button>
-                <button class="btn btn-outline" onclick="changeTransPage(1)">Sau <i class="fas fa-chevron-right"></i></button>
-            </div>
-        </div>
+        <div class="pagination" id="transPagination"></div>
     </div>
 </main>
 
@@ -269,19 +267,58 @@
         const items = filteredPOIs.slice(start, start + transPageSize);
         renderTable(items);
 
-        const pagingInfo = document.getElementById('transPagingInfo');
-        const wrap = document.getElementById('transPaginationWrap');
+        const wrap = document.getElementById('transPagination');
         if (!total) {
-            if (wrap) wrap.style.display = 'none';
+            if (wrap) {
+                wrap.style.display = 'none';
+                wrap.innerHTML = '';
+            }
             return;
         }
 
         if (wrap) wrap.style.display = 'flex';
-        if (pagingInfo) pagingInfo.textContent = `Trang ${transPage}/${totalPages} - ${total} POI`;
+        renderTransPagination(totalPages, transPage, total);
     }
 
-    function changeTransPage(delta) {
-        transPage += delta;
+    function renderTransPagination(totalPages, currentPageNum, totalItems) {
+        const pagination = document.getElementById('transPagination');
+        if (!pagination) return;
+
+        let html = `
+            <button class="pagination-btn" onclick="changeTransPage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+
+        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToTransPage(${i})">${i}</button>`;
+        }
+
+        if (totalPages > 5) {
+            html += `<span class="pagination-info">... ${totalPages}</span>`;
+        }
+
+        html += `
+            <button class="pagination-btn" onclick="changeTransPage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <span class="pagination-info">${totalItems} POI</span>
+        `;
+
+        pagination.innerHTML = html;
+    }
+
+    function changeTransPage(direction) {
+        if (direction === 'prev' && transPage > 1) {
+            transPage--;
+        } else if (direction === 'next') {
+            transPage++;
+        }
+        renderCurrentTransPage();
+    }
+
+    function goToTransPage(page) {
+        transPage = page;
         renderCurrentTransPage();
     }
 
@@ -357,3 +394,4 @@
 </script>
 </body>
 </html>
+
