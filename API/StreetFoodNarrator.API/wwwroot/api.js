@@ -715,6 +715,44 @@ class API {
 
     }
 
+    async uploadTourImage(formData) {
+
+        const token = TokenManager.getToken();
+
+        const response = await fetch(`${this.baseURL}/Tours/upload-image`, {
+
+            method: 'POST',
+
+            headers: {
+
+                'Authorization': `Bearer ${token}`
+
+            },
+
+            body: formData
+
+        });
+
+        if (response.status === 401) {
+
+            TokenManager.logout();
+
+            throw new Error('Unauthorized');
+
+        }
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+
+            throw new Error(data?.message || 'Upload failed');
+
+        }
+
+        return data;
+
+    }
+
     
 
     async getPOIsWithoutAudio(language = 'vi') {
@@ -892,7 +930,12 @@ const ToursApi = {
     create: (data) => api.request('/Tours', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => api.request(`/Tours/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id) => api.request(`/Tours/${id}`, { method: 'DELETE' }),
-    stats: () => api.request('/Tours/stats')
+    stats: () => api.request('/Tours/stats'),
+    uploadImage: (file) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        return api.uploadTourImage(fd);
+    }
 };
 
 const UsersApi = {
