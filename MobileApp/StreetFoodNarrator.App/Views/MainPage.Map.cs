@@ -548,11 +548,11 @@ public partial class MainPage
         {
             if (Shell.Current is AppShell shell)
             {
-                await Shell.Current.Navigation.PushModalAsync(shell.GetCachedSettingsPage());
+                await Shell.Current.Navigation.PushModalAsync(shell.GetCachedSettingsPage(), false);
                 return;
             }
 
-            await Navigation.PushModalAsync(new SettingsPage());
+            await Navigation.PushModalAsync(new SettingsPage(), false);
         }
         catch (Exception ex)
         {

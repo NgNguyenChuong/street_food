@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
     AppShell.xaml – Bottom Navigation thống nhất cho toàn app
-    4 tab cố định: Bản đồ | Tour | Đã lưu | Cá nhân
+    3 tab cố định: Bản đồ | Đã lưu | Cài đặt
     Màu sắc: #1A0D05 nền, #F5A623 active, #5D3A1A inactive
 -->
 <Shell
@@ -45,9 +45,10 @@
             </ShellContent.Icon>
         </ShellContent>
 
-        <!-- Tab 1: Đã lưu -->
+        <!-- Tab 1: Thư viện -->
         <ShellContent
-            Title="Đã lưu"
+            x:Name="SavedShellContent"
+            Title="Thư viện"
             ContentTemplate="{DataTemplate pages:SavedPage}"
             Route="SavedPage"
             Shell.PresentationMode="NotAnimated">
@@ -60,16 +61,17 @@
             </ShellContent.Icon>
         </ShellContent>
 
-        <!-- Tab 2: Cá nhân -->
+        <!-- Tab 2: Cài đặt -->
         <ShellContent
-            Title="Cá nhân"
-            ContentTemplate="{DataTemplate pages:ProfilePage}"
-            Route="ProfilePage"
+            x:Name="SettingsShellContent"
+            Title="Cài đặt"
+            ContentTemplate="{DataTemplate pages:SettingsPage}"
+            Route="SettingsPage"
             Shell.PresentationMode="NotAnimated">
             <ShellContent.Icon>
                 <FontImageSource
                     FontFamily="MDI"
-                    Glyph="&#xF0004;"
+                    Glyph="&#xF0493;"
                     Size="20"
                     Color="#F5A623"/>
             </ShellContent.Icon>

@@ -1,6 +1,5 @@
 using Microsoft.Maui.Storage;
 using StreetFoodNarrator.App.Core.Services;
-using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.Views;
 
 namespace StreetFoodNarrator.App;
@@ -11,13 +10,21 @@ public partial class App : Application
     private const string PREF_LEGACY_ONBOARDED = "hasSeenOnboarding";
     private const string PREF_LAST_SYNC_TIME = "LastSyncTime";
 
-    public App()
+    public App(LanguageService languageService, IRemoteLocalizationService remoteLocalizationService)
     {
         InitializeComponent();
 
-        // Khôi phục ngôn ngữ đã lưu
-        var languageService = new LanguageService();
+        // Restore saved language first so AppStrings culture is correct.
         languageService.RestoreSavedLanguage();
+
+        // Pull latest translation dictionary from backend (with offline cache fallback).
+        _ = remoteLocalizationService.RefreshAsync(languageService.CurrentLanguage);
+
+        // Keep translation dictionary synced when user changes language at runtime.
+        LanguageService.LanguageChanged += (_, languageCode) =>
+        {
+            _ = remoteLocalizationService.RefreshAsync(languageCode);
+        };
     }
 
     protected override Window CreateWindow(IActivationState? activationState)

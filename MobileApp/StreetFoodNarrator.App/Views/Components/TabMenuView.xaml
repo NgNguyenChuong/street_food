@@ -23,18 +23,21 @@
         <Border Grid.Row="1"
                 Margin="0,0,0,8"
                 IsVisible="{Binding IsTourDataStale}"
-                BackgroundColor="#D97706" Padding="12,8" StrokeThickness="0">
+                BackgroundColor="#1A2D22" Padding="10,7" Stroke="#2F4A3D" StrokeThickness="1">
             <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
-                <Label Text="&#xF1AF0;" FontFamily="MDI" TextColor="White" FontSize="18" VerticalOptions="Center"/>
-                <Label Text="Đang dùng dữ liệu tour đã lưu. Kéo xuống để thử cập nhật."
-                       TextColor="White" FontSize="13" FontAttributes="Bold" VerticalOptions="Center"/>
+                <Label Text="&#xF05A9;" FontFamily="MDI" TextColor="#FBBF24" FontSize="16" VerticalOptions="Center"/>
+                <Label Text="Đang xem tour ngoại tuyến (dữ liệu đã lưu)."
+                       TextColor="#D1D5DB" FontSize="12" FontAttributes="Bold" VerticalOptions="Center"/>
             </HorizontalStackLayout>
         </Border>
 
         <RefreshView Grid.Row="2"
                      IsRefreshing="{Binding IsToursLoading}"
                      Command="{Binding RefreshToursCommand}">
-            <CollectionView ItemsSource="{Binding FilteredTours}" Margin="0,0,0,72">
+            <CollectionView ItemsSource="{Binding FilteredTours}"
+                            Margin="0,0,0,72"
+                            SelectionMode="None"
+                            ItemSizingStrategy="MeasureFirstItem">
                 <CollectionView.EmptyView>
                     <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
                         <Label Text="&#xF0349;" FontFamily="MDI" FontSize="42"
@@ -44,31 +47,83 @@
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate x:DataType="vm:MainViewModel+TourListItem">
                         <Border Margin="14,0,14,10" StrokeShape="RoundRectangle 16"
                                 BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12">
-                            <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12">
-                                <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
-                                        BackgroundColor="#1A3426" WidthRequest="64" HeightRequest="64">
-                                    <Image Source="{Binding CoverImageUrl}" Aspect="AspectFill"
-                                           WidthRequest="64" HeightRequest="64" />
-                                </Border>
-                                <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="{Binding Name}" FontSize="14"
-                                           FontAttributes="Bold" TextColor="White"/>
-                                    <Label Text="{Binding Description}" FontSize="12"
-                                           TextColor="#9CA3AF" LineBreakMode="TailTruncation" MaxLines="2"/>
-                                    <Label Text="{Binding PoiCount, StringFormat='🧭 {0} điểm dừng'}"
-                                           FontSize="11" TextColor="#22C55E"/>
-                                </VerticalStackLayout>
-                                <Border Grid.Column="2" StrokeShape="RoundRectangle 10"
-                                        BackgroundColor="#22C55E18"
-                                        Stroke="#22C55E30" WidthRequest="72" HeightRequest="36">
-                                    <Label Text="{Binding EstimatedDurationMinutes, StringFormat='~{0}p'}"
-                                           FontSize="12" FontAttributes="Bold"
-                                           TextColor="#22C55E" HorizontalOptions="Center" VerticalOptions="Center"/>
-                                </Border>
-                            </Grid>
+                            <VerticalStackLayout Spacing="10">
+                                <Grid ColumnDefinitions="64,*,Auto,Auto" ColumnSpacing="10">
+                                    <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                                            BackgroundColor="#1A3426" WidthRequest="64" HeightRequest="64">
+                                        <Image Source="{Binding CoverImageUrl}" Aspect="AspectFill"
+                                               WidthRequest="64" HeightRequest="64" />
+                                    </Border>
+
+                                    <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="{Binding Name}" FontSize="14"
+                                               FontAttributes="Bold" TextColor="White"/>
+                                        <Label Text="{Binding Description}" FontSize="12"
+                                             TextColor="#9CA3AF" LineBreakMode="TailTruncation" MaxLines="2"
+                                             HeightRequest="34" VerticalTextAlignment="Start"/>
+                                        <Label Text="{Binding PoiCount, StringFormat='🧭 {0} điểm dừng'}"
+                                               FontSize="11" TextColor="#22C55E"/>
+                                    </VerticalStackLayout>
+
+                                    <Border Grid.Column="2" StrokeShape="RoundRectangle 10"
+                                            BackgroundColor="#22C55E18"
+                                            Stroke="#22C55E30" WidthRequest="72" HeightRequest="36"
+                                            VerticalOptions="Start">
+                                        <Label Text="{Binding EstimatedDurationMinutes, StringFormat='~{0}p'}"
+                                               FontSize="12" FontAttributes="Bold"
+                                               TextColor="#22C55E" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                    </Border>
+
+                                    <Border Grid.Column="3" StrokeShape="RoundRectangle 10"
+                                            BackgroundColor="#1A2A22"
+                                            Stroke="#2F4A3D" WidthRequest="36" HeightRequest="36"
+                                            VerticalOptions="Start">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={x:Reference Root}, Path=BindingContext.ToggleSaveTourCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                        </Border.GestureRecognizers>
+                                        <Label FontFamily="MDI" FontSize="18"
+                                               HorizontalOptions="Center" VerticalOptions="Center">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsFavorite}" Value="True">
+                                                    <Setter Property="Text" Value="&#xF02D1;"/>
+                                                    <Setter Property="TextColor" Value="#EF4444"/>
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsFavorite}" Value="False">
+                                                    <Setter Property="Text" Value="&#xF02D2;"/>
+                                                    <Setter Property="TextColor" Value="#9CA3AF"/>
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                    </Border>
+                                </Grid>
+
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                    <Button Grid.Column="0"
+                                            Text="Xem chi tiết"
+                                            FontSize="12"
+                                            HeightRequest="38"
+                                            CornerRadius="10"
+                                            BackgroundColor="#1A2E40"
+                                            TextColor="#CDE4FF"
+                                            Clicked="OnTourDetailClicked"/>
+
+                                    <Button Grid.Column="1"
+                                            Text="Bắt đầu ngay"
+                                            FontSize="12"
+                                            FontAttributes="Bold"
+                                            HeightRequest="38"
+                                            CornerRadius="10"
+                                            BackgroundColor="#22C55E"
+                                            TextColor="White"
+                                            Command="{Binding Source={x:Reference Root}, Path=BindingContext.StartTourNowCommand}"
+                                            CommandParameter="{Binding .}"/>
+                                </Grid>
+                            </VerticalStackLayout>
                         </Border>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>

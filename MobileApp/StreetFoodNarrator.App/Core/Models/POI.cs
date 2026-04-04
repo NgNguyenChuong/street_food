@@ -1,5 +1,6 @@
 using SQLite;
 using System.Text.RegularExpressions;
+using Microsoft.Maui.Networking;
 
 namespace StreetFoodNarrator.App.Core.Models;
 
@@ -90,18 +91,54 @@ public class POI
     
     public string? ImageUrl { get; set; }
 
+    private static readonly string[] BundledFallbackImages =
+    {
+        "poi_mock_1.jpg",
+        "poi_mock_2.jpg",
+        "poi_mock_3.jpg",
+        "welcome_streetfood.jpg"
+    };
+
     [Ignore]
     public string DisplayImageUrl
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(ImageUrl)) return "welcome_streetfood.png";
-            if (ImageUrl.StartsWith("http://") || ImageUrl.StartsWith("https://"))
-                return ImageUrl;
-            // Relative path from API → prefix with API base URL
+            if (string.IsNullOrWhiteSpace(ImageUrl))
+                return ResolveBundledFallbackImage();
+
+            var value = ImageUrl.Trim().Replace('\\', '/');
+            var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
+                           Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
+
+            if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                return isOnline ? value : ResolveBundledFallbackImage();
+            }
+
+            if (value.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                value.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                value.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                value.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+            {
+                var hasPathSeparator = value.Contains('/') || value.Contains("uploads", StringComparison.OrdinalIgnoreCase);
+                if (!hasPathSeparator)
+                    return value;
+            }
+
+            if (!isOnline)
+                return ResolveBundledFallbackImage();
+
             var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
-            return $"{baseUrl}/{ImageUrl.TrimStart('/')}";
+            return $"{baseUrl}/{value.TrimStart('/')}";
         }
+    }
+
+    private string ResolveBundledFallbackImage()
+    {
+        var index = Math.Abs(Id) % BundledFallbackImages.Length;
+        return BundledFallbackImages[index];
     }
     
     /// <summary>
@@ -350,3 +387,4 @@ public class POI
         };
     }
 }
+

@@ -3,7 +3,7 @@
     POIDetailPage.xaml – "Midnight Alchemist" dark editorial design.
     Palette: surface #0a1612, primary #4be277, secondary #ffb690, tertiary #afc7ff.
     No 1px borders — tonal background shifts define sections.
-    FontFamily chỉ dùng: MDI (Material Design Icons), OpenSansRegular, OpenSansSemibold
+    FontFamily chỉ dùng: MDI (Material Design Icons) và font hệ thống sans-serif
     (Plus Jakarta Sans / Manrope chưa đăng ký trong app — KHÔNG dùng).
 -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"

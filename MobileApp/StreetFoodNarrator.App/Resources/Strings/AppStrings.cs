@@ -7,6 +7,8 @@ public static class AppStrings
 {
     private static readonly ResourceManager ResourceManager =
         new("StreetFoodNarrator.App.Resources.Strings.AppStrings", typeof(AppStrings).Assembly);
+    private static readonly object OverrideLock = new();
+    private static Dictionary<string, string> _runtimeOverrides = new(StringComparer.Ordinal);
 
     public static CultureInfo Culture { get; private set; } = CultureInfo.CurrentUICulture;
 
@@ -25,8 +27,40 @@ public static class AppStrings
         CultureInfo.DefaultThreadCurrentUICulture = Culture;
     }
 
-    private static string GetString(string name) =>
-        ResourceManager.GetString(name, Culture) ?? name;
+    public static void SetRuntimeOverrides(IDictionary<string, string>? overrides)
+    {
+        lock (OverrideLock)
+        {
+            if (overrides == null)
+            {
+                _runtimeOverrides = new Dictionary<string, string>(StringComparer.Ordinal);
+                return;
+            }
+
+            _runtimeOverrides = overrides
+                .Where(kvp => !string.IsNullOrWhiteSpace(kvp.Key) && !string.IsNullOrWhiteSpace(kvp.Value))
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+        }
+    }
+
+    public static void ClearRuntimeOverrides()
+    {
+        lock (OverrideLock)
+        {
+            _runtimeOverrides = new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+    }
+
+    private static string GetString(string name)
+    {
+        lock (OverrideLock)
+        {
+            if (_runtimeOverrides.TryGetValue(name, out var runtimeValue) && !string.IsNullOrWhiteSpace(runtimeValue))
+                return runtimeValue;
+        }
+
+        return ResourceManager.GetString(name, Culture) ?? name;
+    }
 
     public static string Common_OK => GetString("Common_OK");
     public static string Common_Cancel => GetString("Common_Cancel");

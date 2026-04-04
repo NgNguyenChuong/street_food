@@ -327,18 +327,45 @@
             font-size: 0.9rem;
         }
 
-        .table-pagination {
+        .pagination {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            margin-top: 1rem;
-            gap: 0.75rem;
-            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .pagination-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            background: white;
+            color: var(--dark);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .pagination-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .pagination-btn[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .pagination-info {
             color: #666;
-            font-size: 0.9rem;
+            margin: 0 1rem;
         }
 
         table {
@@ -709,17 +736,7 @@
             <tbody id="vendorBody"></tbody>
         </table>
 
-        <div class="table-pagination" id="vendorPagination" style="display:none;">
-            <div class="pagination-info" id="vendorPagingInfo">Trang 1/1</div>
-            <div class="action-buttons">
-                <button class="btn btn-outline btn-sm" id="vendorPrevBtn" onclick="changeVendorPage(-1)">
-                    <i class="fas fa-chevron-left"></i> Trước
-                </button>
-                <button class="btn btn-outline btn-sm" id="vendorNextBtn" onclick="changeVendorPage(1)">
-                    Sau <i class="fas fa-chevron-right"></i>
-                </button>
-            </div>
-        </div>
+        <div class="pagination" id="vendorPagination" style="display:none;"></div>
 
         <div class="empty-state" id="emptyState" style="display:none;">
             <i class="fas fa-store-slash"></i>
@@ -1059,23 +1076,56 @@
         document.getElementById('tableCount').textContent = `${total} vendor`;
 
         const pagination = document.getElementById('vendorPagination');
-        const info = document.getElementById('vendorPagingInfo');
-        const prevBtn = document.getElementById('vendorPrevBtn');
-        const nextBtn = document.getElementById('vendorNextBtn');
 
         if (!total) {
             pagination.style.display = 'none';
+            pagination.innerHTML = '';
             return;
         }
 
         pagination.style.display = 'flex';
-        info.textContent = `Trang ${vendorPage}/${totalPages} - ${total} vendor`;
-        prevBtn.disabled = vendorPage <= 1;
-        nextBtn.disabled = vendorPage >= totalPages;
+        renderVendorPagination(totalPages, vendorPage, total);
     }
 
-    function changeVendorPage(delta) {
-        vendorPage += delta;
+    function renderVendorPagination(totalPages, currentPageNum, totalItems) {
+        const pagination = document.getElementById('vendorPagination');
+        if (!pagination) return;
+
+        let html = `
+            <button class="pagination-btn" onclick="changeVendorPage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+
+        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToVendorPage(${i})">${i}</button>`;
+        }
+
+        if (totalPages > 5) {
+            html += `<span class="pagination-info">... ${totalPages}</span>`;
+        }
+
+        html += `
+            <button class="pagination-btn" onclick="changeVendorPage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <span class="pagination-info">${totalItems} vendor</span>
+        `;
+
+        pagination.innerHTML = html;
+    }
+
+    function changeVendorPage(direction) {
+        if (direction === 'prev' && vendorPage > 1) {
+            vendorPage--;
+        } else if (direction === 'next') {
+            vendorPage++;
+        }
+        renderVendorPage();
+    }
+
+    function goToVendorPage(page) {
+        vendorPage = page;
         renderVendorPage();
     }
 
@@ -1309,3 +1359,4 @@
 </script>
 </body>
 </html>
+

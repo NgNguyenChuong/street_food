@@ -1,7 +1,6 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:resx="clr-namespace:StreetFoodNarrator.App.Resources.Strings"
              xmlns:converters="clr-namespace:StreetFoodNarrator.App.Converters"
              x:Class="StreetFoodNarrator.App.Views.SettingsPage"
              BackgroundColor="#0A1612"
@@ -10,47 +9,10 @@
     <ContentPage.Resources>
         <ResourceDictionary>
             <converters:GenderToEmojiConverter x:Key="GenderToEmojiConverter" />
-            <converters:InvertedBoolConverter x:Key="InverseBoolConverter" />
-            <converters:DownloadedToColorConverter x:Key="DownloadedToColorConverter" />
         </ResourceDictionary>
     </ContentPage.Resources>
 
-        <Grid RowDefinitions="Auto,*">
-        <Border x:Name="OfflineBanner"
-                Grid.RowSpan="2"
-                Margin="16,10,16,0"
-                Padding="10,8"
-                HorizontalOptions="Fill"
-                VerticalOptions="Start"
-                BackgroundColor="#D97706EE"
-                Stroke="#F59E0B"
-                StrokeThickness="1"
-                IsVisible="False"
-                ZIndex="2000">
-            <Border.StrokeShape>
-                <RoundRectangle CornerRadius="12" />
-            </Border.StrokeShape>
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <Label Text="Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm tốt hơn."
-                       FontSize="11"
-                       TextColor="White"
-                       VerticalTextAlignment="Center"/>
-                <Button Grid.Column="1"
-                        WidthRequest="26"
-                        HeightRequest="26"
-                        CornerRadius="13"
-                        Padding="0"
-                        FontFamily="MDI"
-                        FontSize="14"
-                        Text="&#xF0156;"
-                        TextColor="White"
-                        BackgroundColor="#00000000"
-                        Clicked="OnDismissOfflineBannerClicked" />
-            </Grid>
-        </Border>
-        <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-             TOP: Header with back button
-             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+    <Grid RowDefinitions="Auto,*">
         <Border Grid.Row="0"
                 BackgroundColor="#0F1F17"
                 Padding="20,16">
@@ -69,7 +31,7 @@
 
                 <Label Grid.Column="1"
                        x:Name="TitleLabel"
-                       Text="{x:Static resx:AppStrings.Settings_Title}"
+                       Text="Cài đặt"
                        FontSize="20"
                        FontAttributes="Bold"
                        TextColor="White"
@@ -78,107 +40,151 @@
             </Grid>
         </Border>
 
-        <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-             CONTENT: Card-based layout
-             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
         <ScrollView Grid.Row="1">
-            <VerticalStackLayout Spacing="16"
-                                 Padding="20,20,20,100">
+            <VerticalStackLayout Spacing="16" Padding="20,20,20,100">
 
-                <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                     CARD 1: Language & Account
-                     â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-                <Border BackgroundColor="#0F1F17"
-                        Stroke="#1E3D2A"
-                        StrokeThickness="1"
-                        Padding="20,16">
+                <Border BackgroundColor="#0F1F17" Stroke="#1E3D2A" StrokeThickness="1" Padding="20,16">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="18" />
                     </Border.StrokeShape>
-                    <VerticalStackLayout Spacing="16">
-                        <!-- Section title -->
+                    <VerticalStackLayout Spacing="14">
                         <Label x:Name="GeneralSectionLabel"
-                               Text="{x:Static resx:AppStrings.Settings_General}"
+                               Text="Tổng quan"
                                FontSize="16"
                                FontAttributes="Bold"
                                TextColor="#22C55E" />
 
-                        <!-- Language selector (custom modal) -->
                         <VerticalStackLayout Spacing="8">
-                            <Label Text="NgÃ´n ngá»¯ / Language"
+                            <Label x:Name="LanguageTitleLabel"
+                                Text="Ngôn ngữ"
                                    FontSize="12"
                                    TextColor="#64748B"
                                    CharacterSpacing="1" />
-
-                            <!-- Trigger button â€“ tap Ä‘á»ƒ má»Ÿ modal -->
-                            <Border x:Name="LangPickerTrigger"
-                                    BackgroundColor="#1A2925"
-                                    Stroke="#22C55E"
-                                    StrokeThickness="1"
-                                    Padding="14,0"
-                                    HeightRequest="52">
+                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,2">
                                 <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="14" />
+                                    <RoundRectangle CornerRadius="10" />
                                 </Border.StrokeShape>
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnOpenLanguagePicker" />
-                                </Border.GestureRecognizers>
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <Label Grid.Column="0"
-                                           x:Name="LangFlagLabel"
-                                           Text="ðŸ‡»ðŸ‡³"
-                                           FontSize="22"
-                                           VerticalTextAlignment="Center"
-                                           Margin="0,0,10,0" />
-                                    <Label Grid.Column="1"
-                                           x:Name="LangNameLabel"
-                                           Text="Tiáº¿ng Viá»‡t"
-                                           FontSize="14"
-                                           FontAttributes="Bold"
-                                           TextColor="White"
-                                           VerticalTextAlignment="Center" />
-                                    <Label Grid.Column="2"
-                                           x:Name="LangChevron"
-                                           Text="&#xF0140;"
-                                           FontFamily="MDI"
-                                           FontSize="18"
-                                           TextColor="#22C55E"
-                                           VerticalTextAlignment="Center" />
-                                </Grid>
+                                <Picker x:Name="LanguagePicker"
+                                        Title="Chọn ngôn ngữ"
+                                        TextColor="White"
+                                        TitleColor="#64748B"
+                                        SelectedIndexChanged="OnLanguagePickerChanged" />
                             </Border>
                         </VerticalStackLayout>
+
+                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
+
+                        <VerticalStackLayout Spacing="8">
+                            <Label x:Name="LocationSourceTitleLabel"
+                                   Text="Nguồn vị trí"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+                            <Label x:Name="LocationSourceSubtitleLabel"
+                                   Text="Chọn GPS thật hoặc GPS giả lập khi test"
+                                   FontSize="12"
+                                   TextColor="#64748B" />
+                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,2">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="10" />
+                                </Border.StrokeShape>
+                                <Picker x:Name="LocationSourcePicker"
+                                        Title="Chọn nguồn vị trí"
+                                        TextColor="White"
+                                        TitleColor="#64748B"
+                                        SelectedIndexChanged="OnLocationSourceChanged" />
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Spacing="4">
+                                <Label x:Name="HapticTitleLabel"
+                                    Text="Rung phản hồi"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       TextColor="White" />
+                                <Label x:Name="HapticSubtitleLabel"
+                                    Text="Rung nhẹ khi thao tác chính"
+                                       FontSize="12"
+                                       TextColor="#64748B" />
+                            </VerticalStackLayout>
+                            <Switch x:Name="HapticFeedbackSwitch"
+                                    Grid.Column="1"
+                                    OnColor="#22C55E"
+                                    ThumbColor="White"
+                                    Toggled="OnHapticFeedbackToggled"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Spacing="4">
+                                <Label x:Name="KeepScreenOnTitleLabel"
+                                    Text="Giữ màn hình sáng"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       TextColor="White" />
+                                <Label x:Name="KeepScreenOnSubtitleLabel"
+                                    Text="Không tắt màn hình khi đang dùng app"
+                                       FontSize="12"
+                                       TextColor="#64748B" />
+                            </VerticalStackLayout>
+                            <Switch x:Name="KeepScreenOnSwitch"
+                                    Grid.Column="1"
+                                    OnColor="#22C55E"
+                                    ThumbColor="White"
+                                    Toggled="OnKeepScreenOnToggled"
+                                    VerticalOptions="Center" />
+                        </Grid>
+
+                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Spacing="4">
+                                <Label x:Name="LargeTextTitleLabel"
+                                    Text="Văn bản lớn"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       TextColor="White" />
+                                <Label x:Name="LargeTextSubtitleLabel"
+                                    Text="Ưu tiên cỡ chữ lớn hơn cho dễ đọc"
+                                       FontSize="12"
+                                       TextColor="#64748B" />
+                            </VerticalStackLayout>
+                            <Switch x:Name="LargeTextSwitch"
+                                    Grid.Column="1"
+                                    OnColor="#22C55E"
+                                    ThumbColor="White"
+                                    Toggled="OnLargeTextToggled"
+                                    VerticalOptions="Center" />
+                        </Grid>
                     </VerticalStackLayout>
                 </Border>
 
-                <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                     CARD 2: Tour Experience
-                     â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-                <Border BackgroundColor="#0F1F17"
-                        Stroke="#1E3D2A"
-                        StrokeThickness="1"
-                        Padding="20,16">
+                <Border BackgroundColor="#0F1F17" Stroke="#1E3D2A" StrokeThickness="1" Padding="20,16">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="18" />
                     </Border.StrokeShape>
                     <VerticalStackLayout Spacing="16">
-                        <!-- Section title -->
                         <Label x:Name="TourSectionLabel"
-                               Text="{x:Static resx:AppStrings.Settings_TourExperience}"
+                               Text="Trải nghiệm tour"
                                FontSize="16"
                                FontAttributes="Bold"
                                TextColor="#22C55E" />
 
-                        <!-- TTS Voice -->
                         <VerticalStackLayout Spacing="8">
                             <Grid ColumnDefinitions="*,Auto">
                                 <VerticalStackLayout Spacing="4">
                                     <Label x:Name="TtsTitleLabel"
-                                           Text="{x:Static resx:AppStrings.Settings_Tts}"
+                                           Text="Giọng đọc"
                                            FontSize="14"
                                            FontAttributes="Bold"
                                            TextColor="White" />
                                     <Label x:Name="TtsSubtitleLabel"
-                                           Text="{x:Static resx:AppStrings.Settings_TtsSubtitle}"
+                                           Text="Chọn giọng đọc cho thuyết minh"
                                            FontSize="12"
                                            TextColor="#64748B" />
                                 </VerticalStackLayout>
@@ -193,73 +199,59 @@
                                     <TapGestureRecognizer Tapped="OnTtsClicked" />
                                 </Grid.GestureRecognizers>
                             </Grid>
-                            
-                            <!-- Voice Picker (Expandable) -->
-                            <VerticalStackLayout x:Name="VoicePickerContainer"
-                                                 IsVisible="False"
-                                                 Spacing="8">
-                                <BoxView HeightRequest="1"
-                                         BackgroundColor="#1E3D2A"
-                                         Opacity="0.5" />
-                                
-                                <!-- Selected Voice Display -->
-                                <Border Stroke="#1E3D2A"
-                                        StrokeThickness="1"
-                                        BackgroundColor="#1E3D2A">
+
+                            <VerticalStackLayout x:Name="VoicePickerContainer" IsVisible="False" Spacing="8">
+                                <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1E3D2A">
                                     <Border.StrokeShape>
                                         <RoundRectangle CornerRadius="8" />
                                     </Border.StrokeShape>
-                                    <Grid ColumnDefinitions="Auto,*,Auto"
-                                          Padding="12,8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Padding="12,8">
                                         <Label Grid.Column="0"
-                                               Text="&#xF036C;" FontFamily="MDI"
+                                               Text="&#xF036C;"
+                                               FontFamily="MDI"
                                                FontSize="20"
                                                TextColor="#F59E0B"
                                                VerticalTextAlignment="Center"
                                                Margin="0,0,8,0" />
-                                        <VerticalStackLayout Grid.Column="1"
-                                                             Spacing="2">
+                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
                                             <Label x:Name="SelectedVoiceName"
-                                                   Text="HoÃ i My (Ná»¯)"
+                                                   Text="Hoài My (Nữ)"
                                                    FontSize="13"
                                                    FontAttributes="Bold"
                                                    TextColor="White" />
                                             <Label x:Name="SelectedVoiceLanguage"
-                                                   Text="Tiáº¿ng Viá»‡t"
+                                                   Text="Tiếng Việt"
                                                    FontSize="11"
                                                    TextColor="#64748B" />
                                         </VerticalStackLayout>
                                         <HorizontalStackLayout Grid.Column="2" Spacing="6" VerticalOptions="Center">
                                             <Button x:Name="TestVoiceButton"
-                                                Text="&#xF040A;"
-                                                FontFamily="MDI"
-                                                FontSize="12"
-                                                BackgroundColor="#22C55E"
-                                                TextColor="White"
-                                                WidthRequest="36"
-                                                HeightRequest="36"
-                                                CornerRadius="18"
-                                                Padding="0"
-                                                Clicked="OnTestVoiceClicked" />
-
+                                                    Text="&#xF040A;"
+                                                    FontFamily="MDI"
+                                                    FontSize="12"
+                                                    BackgroundColor="#22C55E"
+                                                    TextColor="White"
+                                                    WidthRequest="36"
+                                                    HeightRequest="36"
+                                                    CornerRadius="18"
+                                                    Padding="0"
+                                                    Clicked="OnTestVoiceClicked" />
                                             <Button x:Name="TestFallbackButton"
-                                                Text="N"
-                                                FontSize="12"
-                                                FontAttributes="Bold"
-                                                BackgroundColor="#F97316"
-                                                TextColor="White"
-                                                WidthRequest="36"
-                                                HeightRequest="36"
-                                                CornerRadius="18"
-                                                Padding="0"
-                                                Clicked="OnTestFallbackTtsClicked" />
+                                                    Text="N"
+                                                    FontSize="12"
+                                                    FontAttributes="Bold"
+                                                    BackgroundColor="#F97316"
+                                                    TextColor="White"
+                                                    WidthRequest="36"
+                                                    HeightRequest="36"
+                                                    CornerRadius="18"
+                                                    Padding="0"
+                                                    Clicked="OnTestFallbackTtsClicked" />
                                         </HorizontalStackLayout>
                                     </Grid>
                                 </Border>
-                                
-                                <!-- Voice List -->
-                                <CollectionView x:Name="VoiceListView"
-                                                MaximumHeightRequest="200">
+
+                                <CollectionView x:Name="VoiceListView" MaximumHeightRequest="220">
                                     <CollectionView.ItemTemplate>
                                         <DataTemplate>
                                             <Grid ColumnDefinitions="Auto,*,Auto"
@@ -268,15 +260,14 @@
                                                 <Grid.GestureRecognizers>
                                                     <TapGestureRecognizer Tapped="OnVoiceSelected" />
                                                 </Grid.GestureRecognizers>
-                                                
+
                                                 <Label Grid.Column="0"
                                                        Text="{Binding Gender, Converter={StaticResource GenderToEmojiConverter}}"
                                                        FontSize="18"
                                                        VerticalTextAlignment="Center"
                                                        Margin="0,0,10,0" />
-                                                       
-                                                <VerticalStackLayout Grid.Column="1"
-                                                                     Spacing="2">
+
+                                                <VerticalStackLayout Grid.Column="1" Spacing="2">
                                                     <Label Text="{Binding Name}"
                                                            FontSize="13"
                                                            TextColor="White" />
@@ -284,7 +275,7 @@
                                                            FontSize="11"
                                                            TextColor="#64748B" />
                                                 </VerticalStackLayout>
-                                                
+
                                                 <Label Grid.Column="2"
                                                        Text="&#xF012C;"
                                                        FontFamily="MDI"
@@ -299,20 +290,17 @@
                             </VerticalStackLayout>
                         </VerticalStackLayout>
 
-                        <BoxView HeightRequest="1"
-                                 BackgroundColor="#1E3D2A"
-                                 Opacity="0.5" />
+                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
 
-                        <!-- Auto play -->
                         <Grid ColumnDefinitions="*,Auto">
                             <VerticalStackLayout Spacing="4">
                                 <Label x:Name="AutoPlayTitleLabel"
-                                       Text="{x:Static resx:AppStrings.Settings_AutoPlay}"
+                                       Text="Tự phát"
                                        FontSize="14"
                                        FontAttributes="Bold"
                                        TextColor="White" />
                                 <Label x:Name="AutoPlaySubtitleLabel"
-                                       Text="{x:Static resx:AppStrings.Settings_AutoPlayDesc}"
+                                       Text="Tự phát thuyết minh khi vào vùng"
                                        FontSize="12"
                                        TextColor="#64748B" />
                             </VerticalStackLayout>
@@ -321,172 +309,45 @@
                                     IsToggled="True"
                                     OnColor="#22C55E"
                                     ThumbColor="White"
+                                    Toggled="OnAutoPlayToggled"
                                     VerticalOptions="Center" />
                         </Grid>
 
-                        <BoxView HeightRequest="1"
-                                 BackgroundColor="#1E3D2A"
-                                 Opacity="0.5" />
+                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
 
-                        <!-- Audio playback mode -->
                         <VerticalStackLayout Spacing="8">
-                            <Label Text="Cháº¿ Ä‘á»™ phÃ¡t audio"
+                            <Label x:Name="AudioPlaybackTitleLabel"
+                                Text="Chế độ phát audio"
                                    FontSize="14"
                                    FontAttributes="Bold"
                                    TextColor="White" />
-                            <Label Text="Online: nghe ngay khi cÃ³ máº¡ng â€¢ Download: táº£i vá» mÃ¡y trÆ°á»›c khi phÃ¡t"
+                            <Label x:Name="AudioPlaybackSubtitleLabel"
+                                Text="Tự động hoặc phát trực tuyến"
                                    FontSize="12"
                                    TextColor="#64748B" />
-                            <Border Stroke="#1E3D2A"
-                                    StrokeThickness="1"
-                                    BackgroundColor="#1A2925"
-                                    Padding="12,2">
+                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,2">
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="10" />
                                 </Border.StrokeShape>
                                 <Picker x:Name="AudioPlaybackModePicker"
-                                        Title="Chá»n cháº¿ Ä‘á»™"
+                                        Title="Chọn chế độ"
                                         TextColor="White"
                                         TitleColor="#64748B"
                                         SelectedIndexChanged="OnAudioPlaybackModeChanged" />
                             </Border>
                         </VerticalStackLayout>
 
-                        <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                             Voice Packages Section (Downloadable)
-                             â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-                        <BoxView HeightRequest="1"
-                                 BackgroundColor="#1E3D2A"
-                                 Opacity="0.5" />
+                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
 
-                        <!-- Voice Packages Header -->
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                            <Grid.GestureRecognizers>
-                                <TapGestureRecognizer Tapped="OnVoicePackagesClicked" />
-                            </Grid.GestureRecognizers>
-                            <VerticalStackLayout Grid.Column="0" Spacing="4">
-                                <Label Text="GÃ³i giá»ng nÃ³i offline"
-                                       FontSize="14"
-                                       FontAttributes="Bold"
-                                       TextColor="White" />
-                                <Label Text="Táº£i vá» Ä‘á»ƒ dÃ¹ng khi khÃ´ng cÃ³ máº¡ng"
-                                       FontSize="12"
-                                       TextColor="#64748B" />
-                            </VerticalStackLayout>
-                            <Label x:Name="VoicePackagesExpandIcon"
-                                    Grid.Column="1"
-                                    Text="â–¼"
-                                    FontSize="16"
-                                    TextColor="#64748B"
-                                    VerticalOptions="Center" />
-                        </Grid>
-
-                        <!-- Voice Packages Container -->
-                        <VerticalStackLayout x:Name="VoicePackagesContainer"
-                                            IsVisible="False"
-                                            Spacing="8">
-                            <!-- Vietnamese voices -->
-                            <Label Text="Tiáº¿ng Viá»‡t"
-                                   FontSize="11"
-                                   FontAttributes="Bold"
-                                   TextColor="#22C55E"
-                                   CharacterSpacing="1"
-                                   Margin="0,8,0,0"/>
-
-                            <CollectionView x:Name="VoicePackageListView"
-                                            MaximumHeightRequest="300">
-                                <CollectionView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid ColumnDefinitions="Auto,*,Auto"
-                                              Padding="12,10"
-                                              BackgroundColor="#1A2925"
-                                              Margin="0,0,0,4">
-                                            <Grid.GestureRecognizers>
-                                                <TapGestureRecognizer Tapped="OnVoicePackageSelected" />
-                                            </Grid.GestureRecognizers>
-
-                                            <!-- Selected checkmark -->
-                                            <Label Grid.Column="0"
-                                                   Text="{Binding SelectedIcon}"
-                                                   FontFamily="MDI"
-                                                   FontSize="18"
-                                                   TextColor="#22C55E"
-                                                   VerticalOptions="Center"
-                                                   Margin="0,0,10,0"/>
-
-                                            <!-- Voice info -->
-                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                                <HorizontalStackLayout Spacing="6">
-                                                    <Label Text="{Binding Name}"
-                                                           FontSize="13"
-                                                           FontAttributes="Bold"
-                                                           TextColor="White"/>
-                                                    <Label Text="{Binding GenderIcon}"
-                                                           FontFamily="MDI"
-                                                           FontSize="12"
-                                                           TextColor="#64748B"
-                                                           VerticalOptions="Center"/>
-                                                </HorizontalStackLayout>
-                                                <Label FontSize="11" TextColor="#64748B">
-                                                    <Label.FormattedText>
-                                                        <FormattedString>
-                                                            <Span Text="{Binding Language}" TextColor="#64748B"/>
-                                                            <Span Text=" â€¢ " TextColor="#64748B"/>
-                                                            <Span Text="{Binding SizeDisplay}" TextColor="#64748B"/>
-                                                        </FormattedString>
-                                                    </Label.FormattedText>
-                                                </Label>
-                                            </VerticalStackLayout>
-
-                                            <!-- Download button -->
-                                            <Grid Grid.Column="2" WidthRequest="80" VerticalOptions="Center">
-                                                <!-- Progress ring when downloading -->
-                                                <ActivityIndicator IsVisible="{Binding IsDownloading}"
-                                                                  IsRunning="{Binding IsDownloading}"
-                                                                  Color="#22C55E"
-                                                                  WidthRequest="24"
-                                                                  HeightRequest="24"/>
-                                                <!-- Download button when not downloaded -->
-                                                <Button Text="{Binding DownloadIcon}"
-                                                        FontFamily="MDI"
-                                                        FontSize="20"
-                                                        BackgroundColor="{Binding IsDownloaded, Converter={StaticResource DownloadedToColorConverter}}"
-                                                        TextColor="White"
-                                                        WidthRequest="40"
-                                                        HeightRequest="40"
-                                                        CornerRadius="20"
-                                                        Padding="0"
-                                                        IsVisible="{Binding IsDownloading, Converter={StaticResource InverseBoolConverter}}"
-                                                        Clicked="OnVoicePackageDownloadTapped"/>
-                                                <!-- Checkmark when downloaded -->
-                                                <Label Text="&#xF073E;"
-                                                       FontFamily="MDI"
-                                                       FontSize="24"
-                                                       TextColor="#22C55E"
-                                                       IsVisible="{Binding IsDownloaded}"
-                                                       HorizontalOptions="Center"
-                                                       VerticalOptions="Center"/>
-                                            </Grid>
-                                        </Grid>
-                                    </DataTemplate>
-                                </CollectionView.ItemTemplate>
-                            </CollectionView>
-                        </VerticalStackLayout>
-
-                        <BoxView HeightRequest="1"
-                                 BackgroundColor="#1E3D2A"
-                                 Opacity="0.5" />
-
-                        <!-- Volume -->
-                        <VerticalStackLayout Spacing="10">
+                        <VerticalStackLayout Spacing="8">
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="VolumeTitleLabel"
-                                       Text="{x:Static resx:AppStrings.Settings_Volume}"
+                                       Text="Âm lượng"
                                        FontSize="14"
                                        FontAttributes="Bold"
                                        TextColor="White" />
-                                <Label Grid.Column="1"
-                                       x:Name="VolumeValueLabel"
+                                <Label x:Name="VolumeValueLabel"
+                                       Grid.Column="1"
                                        Text="80%"
                                        FontSize="13"
                                        FontAttributes="Bold"
@@ -499,23 +360,21 @@
                                     Value="80"
                                     MinimumTrackColor="#22C55E"
                                     MaximumTrackColor="#1E3D2A"
-                                    ThumbColor="#22C55E" />
+                                    ThumbColor="#22C55E"
+                                    ValueChanged="OnVolumeChanged" />
                         </VerticalStackLayout>
 
-                        <BoxView HeightRequest="1"
-                                 BackgroundColor="#1E3D2A"
-                                 Opacity="0.5" />
+                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
 
-                        <!-- Sensitivity -->
-                        <VerticalStackLayout Spacing="10">
+                        <VerticalStackLayout Spacing="8">
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="SensitivityTitleLabel"
-                                       Text="{x:Static resx:AppStrings.Settings_Sensitivity}"
+                                       Text="Độ nhạy vị trí"
                                        FontSize="14"
                                        FontAttributes="Bold"
                                        TextColor="White" />
-                                <Label Grid.Column="1"
-                                       x:Name="SensitivityValueLabel"
+                                <Label x:Name="SensitivityValueLabel"
+                                       Grid.Column="1"
                                        Text="40m"
                                        FontSize="13"
                                        FontAttributes="Bold"
@@ -528,15 +387,16 @@
                                     Value="40"
                                     MinimumTrackColor="#22C55E"
                                     MaximumTrackColor="#1E3D2A"
-                                    ThumbColor="#22C55E" />
+                                    ThumbColor="#22C55E"
+                                    ValueChanged="OnSensitivityChanged" />
                             <Grid ColumnDefinitions="*,*">
                                 <Label x:Name="SensitivityLeftLabel"
-                                       Text="{x:Static resx:AppStrings.Settings_SensitivityNear}"
+                                       Text="Mượt hơn"
                                        FontSize="11"
                                        TextColor="#64748B" />
                                 <Label Grid.Column="1"
                                        x:Name="SensitivityRightLabel"
-                                       Text="{x:Static resx:AppStrings.Settings_SensitivityFar}"
+                                       Text="Chính xác hơn"
                                        FontSize="11"
                                        TextColor="#64748B"
                                        HorizontalTextAlignment="End" />
@@ -545,365 +405,77 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                     CARD 3: Data Management
-                     â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-                <Border BackgroundColor="#0F1F17"
-                        Stroke="#1E3D2A"
-                        StrokeThickness="1"
-                        Padding="20,16">
+                <Border BackgroundColor="#2A1212" Stroke="#7F1D1D" StrokeThickness="1" Padding="20,16">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="18" />
                     </Border.StrokeShape>
-                    <VerticalStackLayout Spacing="16">
-                        <!-- Section title -->
-                        <Label x:Name="DataSectionLabel"
-                               Text="{x:Static resx:AppStrings.Settings_Data}"
-                               FontSize="16"
-                               FontAttributes="Bold"
-                               TextColor="#22C55E" />
-
-                        <!-- Offline status -->
-                        <Grid ColumnDefinitions="Auto,*"
-                              ColumnSpacing="12">
-                            <Border Grid.Column="0"
-                                    BackgroundColor="#22C55E20"
-                                    WidthRequest="44"
-                                    HeightRequest="44">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="12" />
-                                </Border.StrokeShape>
-                                <Label Text="&#xF012C;"
-                                       FontFamily="MDI"
-                                       FontSize="24"
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <Label Text="&#xF034A;"
+                                   FontFamily="MDI"
+                                   FontSize="20"
+                                   TextColor="#FCA5A5"
+                                   VerticalTextAlignment="Center" />
+                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                <Label x:Name="LogoutTitleLabel"
+                                    Text="Đăng xuất"
+                                       FontSize="15"
                                        FontAttributes="Bold"
-                                       TextColor="#22C55E"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center" />
-                            </Border>
-                            <VerticalStackLayout Grid.Column="1"
-                                                 Spacing="4"
-                                                 VerticalOptions="Center">
-                                <Label Text="Dá»¯ liá»‡u offline"
-                                       FontSize="14"
-                                       FontAttributes="Bold"
-                                       TextColor="White" />
-                                <Label x:Name="OfflineDataInfoLabel"
-                                       Text="Äang táº£i..."
+                                       TextColor="#FCA5A5" />
+                                <Label x:Name="LogoutSubtitleLabel"
+                                    Text="Thoát khỏi phiên hiện tại và đóng ứng dụng"
                                        FontSize="12"
-                                       TextColor="#64748B" />
+                                       TextColor="#FECACA" />
                             </VerticalStackLayout>
                         </Grid>
 
-                        <!-- Action buttons -->
-                        <Grid ColumnDefinitions="*,*"
-                              ColumnSpacing="10">
-                            <Button Grid.Column="0"
-                                    x:Name="CheckOfflineButton"
-                                    Text="Cáº­p nháº­t"
-                                    BackgroundColor="#1A2925"
-                                    TextColor="#94A3B8"
-                                    BorderColor="#2A3F37"
-                                    BorderWidth="1"
-                                    CornerRadius="12"
-                                    HeightRequest="44"
-                                    FontSize="13"
-                                    Clicked="OnCheckOfflineClicked" />
-                            <Button Grid.Column="1"
-                                    Text="XÃ³a"
-                                    BackgroundColor="#EF444420"
-                                    TextColor="#EF4444"
-                                    BorderColor="#EF4444"
-                                    BorderWidth="1"
-                                    CornerRadius="12"
-                                    HeightRequest="44"
-                                    FontSize="13"
-                                    Clicked="OnDeleteDataClicked" />
-                        </Grid>
-
-                        <Button Text="ðŸ—‘ï¸ XÃ³a bá»™ nhá»› cache báº£n Ä‘á»“"
-                                Clicked="OnClearMapCacheClicked"
-                                BackgroundColor="Transparent"
-                                TextColor="#EF4444" />
-
-                        <Label x:Name="LastUpdatedLabel"
-                               Text="{x:Static resx:AppStrings.Settings_LastUpdated}"
-                               FontSize="11"
-                               TextColor="#64748B"
-                               HorizontalTextAlignment="Center" />
+                           <Button x:Name="LogoutButton"
+                                Text="Đăng xuất"
+                                BackgroundColor="#DC2626"
+                                TextColor="White"
+                                FontAttributes="Bold"
+                                CornerRadius="12"
+                                HeightRequest="44"
+                                Clicked="OnLogoutClicked" />
                     </VerticalStackLayout>
                 </Border>
 
-                <!--   Footer -->
-                <VerticalStackLayout Spacing="8"
-                                     Margin="0,16,0,0"
-                                     HorizontalOptions="Center">
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="12">
+                    <Button x:Name="DefaultBackButton"
+                            Text="Quay về mặc định"
+                            BackgroundColor="#1A2925"
+                            BorderColor="#2B4B40"
+                            BorderWidth="1"
+                            TextColor="#D8E6DF"
+                            FontAttributes="Bold"
+                            CornerRadius="12"
+                            HeightRequest="46"
+                            Clicked="OnBackClicked" />
+                    <Button x:Name="SaveSettingsButton"
+                            Grid.Column="1"
+                            Text="Lưu thay đổi"
+                            BackgroundColor="#22C55E"
+                            TextColor="#052e16"
+                            FontAttributes="Bold"
+                            CornerRadius="12"
+                            HeightRequest="46"
+                            Clicked="OnSaveChangesClicked" />
+                </Grid>
+
+                <VerticalStackLayout Spacing="8" Margin="0,16,0,0" HorizontalOptions="Center">
                     <Label x:Name="FooterPolicyLabel"
-                           Text="{x:Static resx:AppStrings.Settings_PrivacyTerms}"
+                           Text="Quyền riêng tư • Điều khoản"
                            FontSize="12"
                            TextColor="#64748B"
                            HorizontalTextAlignment="Center" />
                     <Label x:Name="FooterVersionLabel"
-                           Text="{x:Static resx:AppStrings.Settings_Version}"
+                           Text="Phiên bản 1.0.0"
                            FontSize="11"
                            TextColor="#475569"
-                           HorizontalTextAlignment="Center" />
-                    <Label Text="Made by Mixicon"
-                           FontSize="10"
-                           TextColor="#22C55E40"
                            HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </VerticalStackLayout>
         </ScrollView>
-
-        <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-             LANGUAGE PICKER MODAL (bottom sheet)
-             â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
-        <Grid x:Name="LanguagePickerModal"
-              Grid.RowSpan="2"
-              IsVisible="False"
-              ZIndex="99">
-
-            <!-- Dimmed backdrop -->
-            <BoxView BackgroundColor="#000000"
-                     Opacity="0.65">
-                <BoxView.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnCloseLanguagePicker" />
-                </BoxView.GestureRecognizers>
-            </BoxView>
-
-            <!-- Bottom sheet card -->
-            <Border x:Name="LangSheetCard"
-                    BackgroundColor="#0F1F17"
-                    Stroke="#22C55E"
-                    StrokeThickness="1"
-                    Padding="0,0,0,32"
-                    VerticalOptions="End"
-                    TranslationY="400">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="28,28,0,0" />
-                </Border.StrokeShape>
-
-                <VerticalStackLayout Spacing="0">
-
-                    <!-- Handle bar -->
-                    <BoxView WidthRequest="40"
-                             HeightRequest="4"
-                             BackgroundColor="#22C55E"
-                             Opacity="0.4"
-                             CornerRadius="2"
-                             HorizontalOptions="Center"
-                             Margin="0,14,0,0" />
-
-                    <!-- Header -->
-                    <Grid ColumnDefinitions="*,Auto"
-                          Padding="24,20,20,4">
-                        <VerticalStackLayout Spacing="2">
-                            <Label Text="NGÃ”N NGá»®"
-                                   FontSize="11"
-                                   TextColor="#22C55E"
-                                   CharacterSpacing="2"
-                                   FontAttributes="Bold" />
-                            <Label Text="Chá»n ngÃ´n ngá»¯ hiá»ƒn thá»‹"
-                                   FontSize="15"
-                                   TextColor="White"
-                                   FontAttributes="Bold" />
-                        </VerticalStackLayout>
-                        <Border Grid.Column="1"
-                                BackgroundColor="#1A2925"
-                                WidthRequest="36"
-                                HeightRequest="36"
-                                VerticalOptions="Center">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="18" />
-                            </Border.StrokeShape>
-                            <Border.GestureRecognizers>
-                                <TapGestureRecognizer Tapped="OnCloseLanguagePicker" />
-                            </Border.GestureRecognizers>
-                            <Label Text="&#xF0156;"
-                                   FontFamily="MDI"
-                                   FontSize="14"
-                                   TextColor="#64748B"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </Border>
-                    </Grid>
-
-                    <!-- Divider -->
-                    <BoxView HeightRequest="1"
-                             BackgroundColor="#1E3D2A"
-                             Margin="24,12,24,4" />
-
-                    <!-- Vietnamese -->
-                    <Grid x:Name="LangOptionVI"
-                          ColumnDefinitions="Auto,*,Auto"
-                          Padding="20,14,20,14"
-                          Margin="8,4,8,0"
-                          BackgroundColor="#22C55E14">
-                        <Grid.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnLanguageOptionTapped" CommandParameter="vi" />
-                        </Grid.GestureRecognizers>
-                        <Border Grid.Column="0"
-                                WidthRequest="48"
-                                HeightRequest="48"
-                                BackgroundColor="#22C55E20"
-                                Margin="0,0,14,0">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="14" />
-                            </Border.StrokeShape>
-                            <Label Text="ðŸ‡»ðŸ‡³"
-                                   FontSize="24"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </Border>
-                        <VerticalStackLayout Grid.Column="1"
-                                             Spacing="3"
-                                             VerticalOptions="Center">
-                            <Label Text="Tiáº¿ng Viá»‡t"
-                                   FontSize="15"
-                                   FontAttributes="Bold"
-                                   TextColor="White" />
-                            <Label Text="Vietnamese"
-                                   FontSize="12"
-                                   TextColor="#64748B" />
-                        </VerticalStackLayout>
-                        <Border Grid.Column="2"
-                                x:Name="LangCheckVI"
-                                BackgroundColor="#22C55E"
-                                WidthRequest="26"
-                                HeightRequest="26"
-                                VerticalOptions="Center"
-                                IsVisible="True">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="13" />
-                            </Border.StrokeShape>
-                            <Label Text="&#xF012C;"
-                                   FontFamily="MDI"
-                                   FontSize="13"
-                                   FontAttributes="Bold"
-                                   TextColor="White"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </Border>
-                    </Grid>
-
-                    <!-- English -->
-                    <Grid x:Name="LangOptionEN"
-                          ColumnDefinitions="Auto,*,Auto"
-                          Padding="20,14,20,14"
-                          Margin="8,2,8,0"
-                          BackgroundColor="Transparent">
-                        <Grid.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnLanguageOptionTapped" CommandParameter="en" />
-                        </Grid.GestureRecognizers>
-                        <Border Grid.Column="0"
-                                WidthRequest="48"
-                                HeightRequest="48"
-                                BackgroundColor="#1A2925"
-                                Margin="0,0,14,0">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="14" />
-                            </Border.StrokeShape>
-                            <Label Text="ðŸ‡¬ðŸ‡§"
-                                   FontSize="24"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </Border>
-                        <VerticalStackLayout Grid.Column="1"
-                                             Spacing="3"
-                                             VerticalOptions="Center">
-                            <Label Text="English"
-                                   FontSize="15"
-                                   FontAttributes="Bold"
-                                   TextColor="White" />
-                            <Label Text="Tiáº¿ng Anh"
-                                   FontSize="12"
-                                   TextColor="#64748B" />
-                        </VerticalStackLayout>
-                        <Border Grid.Column="2"
-                                x:Name="LangCheckEN"
-                                BackgroundColor="#22C55E"
-                                WidthRequest="26"
-                                HeightRequest="26"
-                                VerticalOptions="Center"
-                                IsVisible="False">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="13" />
-                            </Border.StrokeShape>
-                            <Label Text="&#xF012C;"
-                                   FontFamily="MDI"
-                                   FontSize="13"
-                                   FontAttributes="Bold"
-                                   TextColor="White"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </Border>
-                    </Grid>
-
-                    <!-- Chinese -->
-                    <Grid x:Name="LangOptionZH"
-                          ColumnDefinitions="Auto,*,Auto"
-                          Padding="20,14,20,14"
-                          Margin="8,2,8,0"
-                          BackgroundColor="Transparent">
-                        <Grid.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnLanguageOptionTapped" CommandParameter="zh" />
-                        </Grid.GestureRecognizers>
-                        <Border Grid.Column="0"
-                                WidthRequest="48"
-                                HeightRequest="48"
-                                BackgroundColor="#1A2925"
-                                Margin="0,0,14,0">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="14" />
-                            </Border.StrokeShape>
-                            <Label Text="ðŸ‡¨ðŸ‡³"
-                                   FontSize="24"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </Border>
-                        <VerticalStackLayout Grid.Column="1"
-                                             Spacing="3"
-                                             VerticalOptions="Center">
-                            <Label Text="ä¸­æ–‡"
-                                   FontSize="15"
-                                   FontAttributes="Bold"
-                                   TextColor="White" />
-                            <Label Text="Tiáº¿ng Trung"
-                                   FontSize="12"
-                                   TextColor="#64748B" />
-                        </VerticalStackLayout>
-                        <Border Grid.Column="2"
-                                x:Name="LangCheckZH"
-                                BackgroundColor="#22C55E"
-                                WidthRequest="26"
-                                HeightRequest="26"
-                                VerticalOptions="Center"
-                                IsVisible="False">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="13" />
-                            </Border.StrokeShape>
-                            <Label Text="&#xF012C;"
-                                   FontFamily="MDI"
-                                   FontSize="13"
-                                   FontAttributes="Bold"
-                                   TextColor="White"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </Border>
-                    </Grid>
-
-                    <!-- Bottom accent line -->
-                    <BoxView HeightRequest="2"
-                             BackgroundColor="#22C55E"
-                             Opacity="0.2"
-                             Margin="24,20,24,0"
-                             CornerRadius="1" />
-
-                </VerticalStackLayout>
-            </Border>
-        </Grid>
-
     </Grid>
 </ContentPage>
-

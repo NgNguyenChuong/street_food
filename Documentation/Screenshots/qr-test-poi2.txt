@@ -1,0 +1,1 @@
+streetfood://qr?poiId=2

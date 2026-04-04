@@ -10,6 +10,7 @@
     <style>
         :root {
             --primary: #FF6B35;
+            --primary-dark: #E85A2A;
             --dark: #1A1A2E;
             --border: #E8ECF1;
             --muted: #6B7280;
@@ -45,7 +46,12 @@
         .b-active { background: #e0f2fe; color: #0369a1; }
         .actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
         .btn-xs { border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 0.35rem 0.55rem; cursor: pointer; font-size: 0.75rem; }
-        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 0.9rem; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem; }
+        .pagination-btn { width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--border); background: white; color: var(--dark); font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .pagination-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .pagination-btn.active { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border-color: transparent; }
+        .pagination-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+        .pagination-info { color: #666; margin: 0 1rem; }
         .muted { color: var(--muted); font-size: 0.82rem; }
     </style>
 </head>
@@ -81,13 +87,7 @@
                     <tr><td colspan="6" class="muted">Đang tải...</td></tr>
                 </tbody>
             </table>
-            <div class="pagination">
-                <div class="muted" id="pagingText">-</div>
-                <div class="actions">
-                    <button class="btn-xs" onclick="changePage(-1)">Trước</button>
-                    <button class="btn-xs" onclick="changePage(1)">Sau</button>
-                </div>
-            </div>
+            <div class="pagination" id="usersPagination"></div>
         </div>
     </main>
 
@@ -146,16 +146,47 @@
                 }).join('');
 
                 tbody.innerHTML = rows || '<tr><td colspan="6" class="muted">Không có dữ liệu</td></tr>';
-                document.getElementById('pagingText').textContent = `Trang ${res.page || page}/${totalPages} - ${res.total || 0} user`;
+                renderPagination(totalPages, res.page || page, res.total || 0);
             } catch (err) {
                 tbody.innerHTML = `<tr><td colspan="6" class="muted">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
+                renderPagination(1, 1, 0, true);
             }
         }
 
-        function changePage(delta) {
-            const next = page + delta;
-            if (next < 1 || next > totalPages) return;
-            page = next;
+        function renderPagination(tp, cp, total, hide = false) {
+            const wrap = document.getElementById('usersPagination');
+            if (!wrap) return;
+            if (hide || tp <= 1) {
+                wrap.innerHTML = `<span class="pagination-info">Trang ${cp}/${tp} - ${total} user</span>`;
+                return;
+            }
+
+            let html = `
+                <button class="pagination-btn" onclick="changePage('prev')" ${cp === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            `;
+            for (let i = 1; i <= Math.min(tp, 5); i++) {
+                html += `<button class="pagination-btn ${i === cp ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            if (tp > 5) html += `<span class="pagination-info">... ${tp}</span>`;
+            html += `<span class="pagination-info">${total} user</span>`;
+            html += `
+                <button class="pagination-btn" onclick="changePage('next')" ${cp === tp ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+            wrap.innerHTML = html;
+        }
+
+        function changePage(direction) {
+            if (direction === 'prev' && page > 1) page--;
+            else if (direction === 'next' && page < totalPages) page++;
+            reloadUsers();
+        }
+
+        function goToPage(p) {
+            page = p;
             reloadUsers();
         }
 

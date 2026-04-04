@@ -327,6 +327,26 @@
                         <!-- BƯNG AREA NÀY RA NGOÀI SCROLLVIEW ĐỂ KHÔNG BỊ SCROLL CUT OFF -->
                         <VerticalStackLayout x:Name="CollapsedSummarySection" Spacing="0" Padding="14,12,14,0">
 
+                            <Border IsVisible="{Binding IsVirtualTourActive}"
+                                    StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="#2B120F"
+                                    Stroke="#EF4444"
+                                    StrokeThickness="1"
+                                    Padding="10,8"
+                                    Margin="0,0,0,10">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnClearTourTapped"/>
+                                </Border.GestureRecognizers>
+                                <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                                    <Label Text="&#xF0156;" FontFamily="MDI" FontSize="14" TextColor="#F87171" VerticalOptions="Center"/>
+                                    <Label Text="Xóa tour và quay về chế độ thường"
+                                           FontSize="12"
+                                           FontAttributes="Bold"
+                                           TextColor="#FCA5A5"
+                                           VerticalOptions="Center"/>
+                                </HorizontalStackLayout>
+                            </Border>
+
                             <!-- POI Header — top row với badge + tên bên trái, counter + rating bên phải -->
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,0,0,12">
                                 <!-- Left: Badge + Name -->

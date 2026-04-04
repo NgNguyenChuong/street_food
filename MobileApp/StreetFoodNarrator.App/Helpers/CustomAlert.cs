@@ -285,7 +285,7 @@ public static class CustomAlert
             if (contentPage.Content is Layout rootLayout)
             {
                 RemoveStaleOverlays(rootLayout);
-                rootLayout.Children.Add(overlay);
+                AttachOverlay(rootLayout, overlay);
             }
             else
             {
@@ -293,7 +293,7 @@ public static class CustomAlert
                 var wrapper = new Grid { ClassId = WrapperClassId };
                 contentPage.Content = null;
                 wrapper.Children.Add(originalContent);
-                wrapper.Children.Add(overlay);
+                AttachOverlay(wrapper, overlay);
                 contentPage.Content = wrapper;
             }
         }
@@ -367,6 +367,29 @@ public static class CustomAlert
 
         foreach (var childLayout in layout.Children.OfType<Layout>().ToList())
             RemoveStaleOverlays(childLayout);
+    }
+
+    private static void AttachOverlay(Layout layout, Grid overlay)
+    {
+        overlay.ZIndex = int.MaxValue;
+
+        if (layout is Grid hostGrid)
+        {
+            var rowCount = hostGrid.RowDefinitions?.Count ?? 0;
+            var colCount = hostGrid.ColumnDefinitions?.Count ?? 0;
+
+            Grid.SetRow(overlay, 0);
+            Grid.SetColumn(overlay, 0);
+            Grid.SetRowSpan(overlay, Math.Max(1, rowCount));
+            Grid.SetColumnSpan(overlay, Math.Max(1, colCount));
+        }
+        else if (layout is AbsoluteLayout)
+        {
+            AbsoluteLayout.SetLayoutFlags(overlay, Microsoft.Maui.Layouts.AbsoluteLayoutFlags.All);
+            AbsoluteLayout.SetLayoutBounds(overlay, new Rect(0, 0, 1, 1));
+        }
+
+        layout.Children.Add(overlay);
     }
 
     // ══════════════════════════════════════════════════════════════

@@ -198,15 +198,44 @@
 
         .pagination {
             display: flex;
-            align-items: center;
             justify-content: center;
-            gap: 1rem;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
             margin-bottom: 2rem;
         }
 
-        .pagination .page-info {
+        .pagination-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            background: white;
+            color: var(--dark);
+            cursor: pointer;
             font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .pagination-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .pagination-btn[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
             color: #666;
+            margin: 0 1rem;
         }
 
         /* Audio Grid */
@@ -707,10 +736,6 @@
                 grid-template-columns: 1fr;
             }
 
-            .pagination {
-                flex-direction: column;
-            }
-
             .stats-bar {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -834,11 +859,7 @@
         <!-- Audio Grid -->
         <div class="audio-grid" id="audioGrid"></div>
 
-        <div class="pagination" id="pagination">
-            <button class="btn btn-outline" id="prevPage" onclick="changePage(-1)">Trước</button>
-            <span class="page-info" id="pageInfo">Trang 1/1</span>
-            <button class="btn btn-outline" id="nextPage" onclick="changePage(1)">Sau</button>
-        </div>
+        <div class="pagination" id="pagination"></div>
     </div>
 
 <div class="modal-backdrop" id="uploadModal" aria-hidden="true">
@@ -999,7 +1020,7 @@
             initAudioBars();
         }
 
-        updatePagination(currentPage, totalPages);
+        renderPagination(totalPages, currentPage, totalGroups);
     }
 
     async function updateStats(audios, total) {
@@ -1035,23 +1056,51 @@
         loadAudios();
     }
 
-    function changePage(delta) {
-        currentPage = Math.max(1, currentPage + delta);
+    function renderPagination(totalPages, currentPageNum, totalItems) {
+        const pagination = document.getElementById('pagination');
+        if (!pagination) return;
+
+        if (totalItems <= 0) {
+            pagination.innerHTML = '';
+            return;
+        }
+
+        let html = `
+            <button class="pagination-btn" onclick="changePage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+
+        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+
+        if (totalPages > 5) {
+            html += `<span class="pagination-info">... ${totalPages}</span>`;
+        }
+
+        html += `
+            <button class="pagination-btn" onclick="changePage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <span class="pagination-info">${totalItems} POI</span>
+        `;
+
+        pagination.innerHTML = html;
+    }
+
+    function changePage(direction) {
+        if (direction === 'prev' && currentPage > 1) {
+            currentPage--;
+        } else if (direction === 'next') {
+            currentPage++;
+        }
         renderPage();
     }
 
-    function updatePagination(page, totalPages) {
-        const info = document.getElementById('pageInfo');
-        const prevBtn = document.getElementById('prevPage');
-        const nextBtn = document.getElementById('nextPage');
-
-        const safeTotal = Math.max(1, totalPages || 1);
-        const safePage = Math.min(Math.max(1, page || 1), safeTotal);
-        currentPage = safePage;
-
-        info.textContent = `Trang ${safePage}/${safeTotal}`;
-        prevBtn.disabled = safePage <= 1;
-        nextBtn.disabled = safePage >= safeTotal;
+    function goToPage(page) {
+        currentPage = page;
+        renderPage();
     }
 
     function openBulkGenerate() {

@@ -74,7 +74,8 @@
         .tour-card{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;overflow:hidden;transition:all .3s;animation:fadeInUp .5s backwards}
         .tour-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg);border-color:rgba(255,107,53,.22)}
 
-        .card-map{height:158px;background:#e4eaf0;position:relative;overflow:hidden;cursor:pointer}
+        .card-map{height:260px;background:#e4eaf0;position:relative;overflow:hidden;cursor:pointer}
+        .card-map img{width:100%;height:100%;object-fit:cover;display:block}
         .card-map-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:.4rem;background:rgba(26,26,46,.32);color:white;font-size:.8rem;font-weight:700;opacity:0;transition:.22s;z-index:10;letter-spacing:.04em}
         .tour-card:hover .card-map-overlay{opacity:1}
         .route-badge{position:absolute;top:8px;right:8px;z-index:11;padding:.22rem .6rem;border-radius:7px;font-size:.68rem;font-weight:700;display:flex;align-items:center;gap:.3rem;backdrop-filter:blur(4px)}
@@ -128,6 +129,9 @@
         .form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
         textarea.form-control{resize:vertical;min-height:74px}
         .sec-title{font-size:.7rem;font-weight:700;color:#ccc;text-transform:uppercase;letter-spacing:.08em;padding-bottom:.45rem;border-bottom:1px solid var(--border)}
+        .tour-image-preview{margin-top:.55rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:#f7fafc;height:160px;display:flex;align-items:center;justify-content:center}
+        .tour-image-preview img{width:100%;height:100%;object-fit:cover;display:block}
+        .tour-image-note{margin-top:.32rem;font-size:.74rem;color:#98a1ab}
 
         /* chips */
         .chip-group{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.55rem}
@@ -188,6 +192,12 @@
         .toast{background:#1A1A2E;color:white;padding:.7rem 1.1rem;border-radius:var(--radius-sm);font-size:.83rem;font-weight:500;display:flex;align-items:center;gap:.45rem;box-shadow:var(--shadow-lg);animation:slideR .3s}
         .toast.ok{background:#04332b;border-left:3px solid var(--success)}
         .toast.err{background:#3f0b1e;border-left:3px solid var(--danger)}
+        .pagination{display:flex;justify-content:center;align-items:center;gap:.5rem;margin-top:2rem}
+        .pagination-btn{width:40px;height:40px;border-radius:8px;border:2px solid var(--border);background:white;color:var(--dark);font-weight:600;cursor:pointer;transition:all .3s ease}
+        .pagination-btn:hover{border-color:var(--primary);color:var(--primary)}
+        .pagination-btn.active{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:white;border-color:transparent}
+        .pagination-btn[disabled]{opacity:.5;cursor:not-allowed}
+        .pagination-info{color:#666;margin:0 1rem}
 
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
@@ -238,6 +248,7 @@
             <i class="fas fa-spinner fa-spin fa-2x"></i>
         </div>
     </div>
+    <div class="pagination" id="tourPagination"></div>
 </main>
 
 <!-- ══ MODAL ══ -->
@@ -258,6 +269,15 @@
             <div class="form-group full">
                 <label class="form-label">Mô tả</label>
                 <textarea id="tourDesc" class="form-control" placeholder="Khám phá các quán nổi tiếng nhất..."></textarea>
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Ảnh Tour</label>
+                <input type="file" id="tourImageFile" class="form-control" accept="image/jpeg, image/png, image/webp">
+                <input type="hidden" id="tourImageUrl">
+                <div class="tour-image-preview">
+                    <img id="tourImagePreview" alt="Ảnh tour xem trước">
+                </div>
+                <div class="tour-image-note">Nếu không upload ảnh, hệ thống sẽ dùng ảnh mặc định.</div>
             </div>
             <div class="form-group">
                 <label class="form-label">Thời lượng (phút)</label>
@@ -345,6 +365,7 @@ const TIME_MAP = {
     sang:'🌅 Sáng sớm', trua:'☀️ Trưa', chieu:'🌆 Chiều', khuya:'🌙 Khuya'
 };
 const HCM_LL = [10.762, 106.682];
+const DEFAULT_TOUR_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 600'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23ff6b35'/%3E%3Cstop offset='100%25' stop-color='%23004e89'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='600' fill='url(%23g)'/%3E%3Ccircle cx='1040' cy='130' r='150' fill='rgba(255,255,255,0.16)'/%3E%3Ccircle cx='230' cy='460' r='210' fill='rgba(255,255,255,0.10)'/%3E%3Cpath d='M120 430 L350 265 L570 375 L760 225 L1030 355' stroke='rgba(255,255,255,0.88)' stroke-width='15' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='350' cy='265' r='21' fill='white'/%3E%3Ccircle cx='570' cy='375' r='21' fill='white'/%3E%3Ccircle cx='760' cy='225' r='21' fill='white'/%3E%3Ctext x='78' y='112' font-family='DM Sans,Arial,sans-serif' font-size='64' fill='white' font-weight='700'%3EStreet Food Tour%3C/text%3E%3Ctext x='78' y='176' font-family='DM Sans,Arial,sans-serif' font-size='34' fill='rgba(255,255,255,0.92)'%3EKh%C3%A1m ph%C3%A1 h%C3%A0nh tr%C3%ACnh %E1%BA%A9m th%E1%BB%B1c%3C/text%3E%3C/svg%3E";
 
 /* ─── STATE ─── */
 let allTours = [], allPOIs = [];
@@ -352,7 +373,8 @@ let selPOIs  = [];   // ordered array of id strings
 let activeFilter = 'all';
 let pMap = null, pRoute = null, pMarkers = [];
 let savedRouteGeom = null;   // stored routeGeometry from DB
-const cardMapRefs = {};
+let currentPage = 1;
+const pageSize = 6;
 
 /* ─── INIT ─── */
 document.addEventListener('DOMContentLoaded', async () => {
@@ -360,6 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const role = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
     if (role && role !== 'admin') { window.location.href = 'dashboard'; return; }
     document.querySelectorAll('.chip-opt').forEach(c => c.addEventListener('click', function(){ this.classList.toggle('active'); }));
+    bindTourImageUpload();
     await Promise.all([loadTours(), loadPOIs()]);
 });
 
@@ -374,9 +397,10 @@ async function loadTours() {
         set('stat-active', sr.active  || allTours.filter(t=>t.isActive).length);
         set('stat-draft',  sr.draft   || allTours.filter(t=>!t.isActive).length);
         set('stat-routed', sr.routed  != null ? sr.routed : routed);
-        renderTours(filtered());
+        renderPagedTours();
     } catch(e) {
         grid('<div class="empty"><i class="fas fa-exclamation-triangle fa-2x" style="color:var(--danger)"></i><h3>Lỗi tải dữ liệu</h3><p>Vui lòng thử lại.</p></div>');
+        renderPagination(1, 1, true);
     }
 }
 
@@ -399,6 +423,7 @@ function renderTours(data) {
     grid(data.map((t,i) => {
         const pois = t.pois || t.poiList || [];
         const hasRoute = !!t.routeGeometry;
+        const hasStops = pois.length >= 2;
         const themes = (t.themes||[]).map(v=>`<span class="badge b-theme">${THEME_MAP[v]||v}</span>`).join('');
         const times  = (t.timeSlots||[]).map(v=>`<span class="badge b-time">${TIME_MAP[v]||v}</span>`).join('');
         const status = t.isActive
@@ -406,7 +431,9 @@ function renderTours(data) {
             : `<span class="badge b-off"><i class="fas fa-circle" style="font-size:.42rem"></i> Nháp</span>`;
         const rb = hasRoute
             ? `<span class="route-badge rb-ok"><i class="fas fa-route"></i> Đường đi OK</span>`
-            : `<span class="route-badge rb-no"><i class="fas fa-clock"></i> Chưa có đường</span>`;
+            : (hasStops
+                ? `<span class="route-badge rb-ok"><i class="fas fa-list-check"></i> Đã có lộ trình</span>`
+                : `<span class="route-badge rb-no"><i class="fas fa-clock"></i> Chưa có đường</span>`);
         const poisHtml = pois.length
             ? pois.slice(0,4).map(p=>`<span class="poi-chip">${esc(p.name||p)}</span>`).join('')
               + (pois.length>4?`<span class="poi-chip-more">+${pois.length-4} nữa</span>`:'')
@@ -414,6 +441,7 @@ function renderTours(data) {
         return `
         <div class="tour-card" style="animation-delay:${i*.05}s">
             <div class="card-map" id="cm-${t.id}" onclick="editTour('${t.id}')">
+                <img src="${esc(resolveTourImage(getTourImageUrl(t)))}" alt="Ảnh Tour ${esc(t.tourName)}" onerror="handleTourImageError(this)">
                 ${rb}
                 <div class="card-map-overlay"><i class="fas fa-edit"></i> Chỉnh sửa Tour</div>
             </div>
@@ -437,33 +465,6 @@ function renderTours(data) {
             </div>
         </div>`;
     }).join(''));
-    requestAnimationFrame(() => data.forEach(t => buildCardMap(t)));
-}
-
-/* ─── MINI MAP ─── */
-function buildCardMap(t) {
-    const el = document.getElementById(`cm-${t.id}`);
-    if (!el) return;
-    const div = document.createElement('div');
-    div.style.cssText = 'width:100%;height:100%';
-    el.insertBefore(div, el.querySelector('.card-map-overlay'));
-    const m = L.map(div, {zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,keyboard:false,boxZoom:false});
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(m);
-    m.setView(HCM_LL, 15);
-    cardMapRefs[t.id] = m;
-    const pois = (t.pois||t.poiList||[]).filter(p=>p.latitude&&p.longitude);
-    if (!pois.length) return;
-    const bounds = pois.map(p=>[p.latitude,p.longitude]);
-    pois.forEach((p) => {
-        L.circleMarker([p.latitude,p.longitude],{radius:6,color:'#FF6B35',fillColor:'#FF6B35',fillOpacity:.85,weight:2}).addTo(m);
-    });
-    if (t.routeGeometry?.coordinates) {
-        const coords = t.routeGeometry.coordinates.map(([lng,lat])=>[lat,lng]);
-        L.polyline(coords,{color:'#FF6B35',weight:3,opacity:.8}).addTo(m);
-    } else if (bounds.length>1) {
-        L.polyline(bounds,{color:'#FF6B35',weight:2,opacity:.45,dashArray:'5 5'}).addTo(m);
-    }
-    try { m.fitBounds(bounds,{padding:[14,14]}); } catch(e){}
 }
 
 /* ─── FILTER ─── */
@@ -477,12 +478,60 @@ function filtered() {
         return mQ && mF;
     });
 }
-function filterTours() { renderTours(filtered()); }
+function renderPagedTours() {
+    const data = filtered();
+    const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const start = (currentPage - 1) * pageSize;
+    const paged = data.slice(start, start + pageSize);
+    renderTours(paged);
+    renderPagination(totalPages, currentPage, data.length === 0);
+}
+function filterTours() {
+    currentPage = 1;
+    renderPagedTours();
+}
 function setFilter(btn) {
     document.querySelectorAll('.chip-filter').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     activeFilter = btn.dataset.filter;
-    filterTours();
+    currentPage = 1;
+    renderPagedTours();
+}
+
+function renderPagination(totalPages, currentPageNum, hide = false) {
+    const pagination = document.getElementById('tourPagination');
+    if (!pagination) return;
+    if (hide || totalPages <= 1) { pagination.innerHTML = ''; return; }
+
+    let html = `
+        <button class="pagination-btn" onclick="changePage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    `;
+    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+        html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+    }
+    if (totalPages > 5) {
+        html += `<span class="pagination-info">... ${totalPages}</span>`;
+    }
+    html += `
+        <button class="pagination-btn" onclick="changePage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    `;
+    pagination.innerHTML = html;
+}
+
+function changePage(direction) {
+    if (direction === 'prev' && currentPage > 1) currentPage--;
+    else if (direction === 'next') currentPage++;
+    renderPagedTours();
+}
+
+function goToPage(page) {
+    currentPage = page;
+    renderPagedTours();
 }
 
 /* ─── MODAL ─── */
@@ -492,6 +541,10 @@ function openModal(t) {
     val('tourId',        isEdit ? t.id : '');
     val('tourName',      isEdit ? (t.tourName||'') : '');
     val('tourDesc',      isEdit ? (t.description||'') : '');
+    val('tourImageUrl',  isEdit ? getTourImageUrl(t) : '');
+    const imageInput = document.getElementById('tourImageFile');
+    if (imageInput) imageInput.value = '';
+    syncTourImagePreview();
     val('tourDuration',  isEdit ? (t.estimatedDurationMinutes||90) : 90);
     val('tourRouteType', isEdit ? (t.routeType||'ordered') : 'ordered');
     document.getElementById('tourActive').checked = isEdit ? !!t.isActive : false;
@@ -594,14 +647,125 @@ function resetChips(cid, vals) {
 }
 function getChips(cid) { return [...document.querySelectorAll(`#${cid} .chip-opt.active`)].map(c=>c.dataset.val); }
 
+function resolveTourImage(url) {
+    return (url && String(url).trim()) ? String(url).trim() : DEFAULT_TOUR_IMAGE;
+}
+
+function getTourImageUrl(t) {
+    if (!t) return '';
+    return (t.imageUrl || t.ImageUrl || '').trim();
+}
+
+function handleTourImageError(imgEl) {
+    if (!imgEl) return;
+    imgEl.onerror = null;
+    imgEl.src = DEFAULT_TOUR_IMAGE;
+}
+
+function syncTourImagePreview() {
+    const imageUrl = (document.getElementById('tourImageUrl')?.value || '').trim();
+    const preview = document.getElementById('tourImagePreview');
+    if (!preview) return;
+    preview.src = resolveTourImage(imageUrl);
+}
+
+function bindTourImageUpload() {
+    const input = document.getElementById('tourImageFile');
+    if (!input) return;
+    const preview = document.getElementById('tourImagePreview');
+    if (preview) {
+        preview.onerror = () => {
+            preview.onerror = null;
+            preview.src = DEFAULT_TOUR_IMAGE;
+        };
+    }
+    syncTourImagePreview();
+    input.addEventListener('change', async (e) => {
+        const file = e.target?.files?.[0];
+        if (!file) return;
+
+        const token = TokenManager.getToken();
+        if (!token) {
+            toast('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.','err');
+            input.value = '';
+            return;
+        }
+
+        try {
+            toast('Đang upload ảnh tour...','info');
+            let result = null;
+            let usedPoiFallback = false;
+            try {
+                // Preferred path: dedicated Tours endpoint.
+                if (typeof ToursApi?.uploadImage === 'function') {
+                    result = await ToursApi.uploadImage(file);
+                } else {
+                    result = await uploadTourImageDirect(file, token);
+                }
+            } catch (primaryErr) {
+                // Fallback for environments still running old backend.
+                const msg = String(primaryErr?.message || '');
+                const canFallback = msg.includes('404') || msg.includes('405') || msg.toLowerCase().includes('not allowed');
+                if (!canFallback) throw primaryErr;
+                result = await uploadPoiImageDirect(file, token);
+                usedPoiFallback = true;
+            }
+
+            val('tourImageUrl', result?.imageUrl || '');
+            syncTourImagePreview();
+            if (usedPoiFallback) {
+                toast('Ảnh đã upload file thành công. API Tours đang bản cũ, cần restart backend để lưu ảnh vào Tour.','err');
+            } else {
+                toast('Upload ảnh tour thành công!','ok');
+            }
+        } catch (err) {
+            input.value = '';
+            val('tourImageUrl', '');
+            syncTourImagePreview();
+            toast('Lỗi upload ảnh: ' + (err?.message || 'Vui lòng thử lại.'), 'err');
+        }
+    });
+}
+
+async function uploadTourImageDirect(file, token) {
+    const fd = new FormData();
+    fd.append('file', file);
+    const uploadUrl = `${API_BASE_URL}/Tours/upload-image`;
+    const resp = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd
+    });
+    const result = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error(result?.message || `HTTP error! status: ${resp.status}`);
+    return result;
+}
+
+async function uploadPoiImageDirect(file, token) {
+    const fd = new FormData();
+    fd.append('file', file);
+    const uploadUrl = `${API_BASE_URL}/POIs/upload-image`;
+    const resp = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd
+    });
+    const result = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error(result?.message || `HTTP error! status: ${resp.status}`);
+    return result;
+}
+
 /* ─── SAVE ─── */
 async function saveTour() {
     const id=document.getElementById('tourId').value;
     const name=document.getElementById('tourName').value.trim();
     if (!name) { toast('Tên Tour không được để trống!','err'); return; }
+    const selectedImageUrl = document.getElementById('tourImageUrl').value.trim();
     const data = {
         tourName: name,
         description: document.getElementById('tourDesc').value.trim(),
+        imageUrl: selectedImageUrl || null,
+        ImageUrl: selectedImageUrl || null,
         estimatedDurationMinutes: parseInt(document.getElementById('tourDuration').value)||90,
         routeType: document.getElementById('tourRouteType').value,
         themes: getChips('themeChips'),
@@ -611,9 +775,26 @@ async function saveTour() {
         routeGeometry: savedRouteGeom
     };
     try {
-        if (id) await ToursApi.update(id,data); else await ToursApi.create(data);
+        let savedId = id;
+        if (id) {
+            await ToursApi.update(id,data);
+        } else {
+            const created = await ToursApi.create(data);
+            savedId = created?.id || created?.Id || '';
+        }
+
+        await loadTours();
+        if (selectedImageUrl && savedId) {
+            const savedTour = allTours.find(x => (x.id || x.Id) === savedId);
+            const persistedImageUrl = getTourImageUrl(savedTour);
+            if (!persistedImageUrl) {
+                toast('API chưa lưu được ảnh vào Tour (backend đang chạy bản cũ). Hãy restart API backend rồi lưu lại tour.','err');
+                return;
+            }
+        }
+
         toast(id ? 'Tour đã được cập nhật!' : 'Tour mới đã được tạo!','ok');
-        closeModal(); loadTours();
+        closeModal();
     } catch(e) { toast('Lỗi lưu: '+e.message,'err'); }
 }
 

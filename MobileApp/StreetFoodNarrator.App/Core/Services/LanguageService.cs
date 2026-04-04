@@ -11,6 +11,8 @@ public class LanguageService
 {
     private const string LanguagePreferenceKey = "app_language";
 
+    public static event EventHandler<string>? LanguageChanged;
+
     /// <summary>
     /// Danh sách ngôn ngữ được hỗ trợ
     /// </summary>
@@ -54,6 +56,8 @@ public class LanguageService
 
         // Update AppStrings
         AppStrings.SetCulture(languageCode);
+
+        LanguageChanged?.Invoke(this, languageCode);
     }
 
     /// <summary>

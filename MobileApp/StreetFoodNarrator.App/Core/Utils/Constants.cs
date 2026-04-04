@@ -36,6 +36,6 @@ public static class Constants
     public const string PERMISSION_CAMERA = "Camera";
     
     // QR Code
-    public const int QR_CODE_EXPIRY_DAYS = 5;
+    public const int QR_CODE_EXPIRY_DAYS = 7;
     public const string QR_CODE_PREFIX = "SFOOD_";
 }

@@ -4,6 +4,9 @@ namespace StreetFoodNarrator.App.Views.Components;
 
 public partial class FloatingBottomNav : ContentView
 {
+    private bool _isNavigating;
+    private DateTime _lastNavigateAtUtc = DateTime.MinValue;
+
     public static readonly BindableProperty ActiveTabProperty = BindableProperty.Create(
         nameof(ActiveTab), typeof(string), typeof(FloatingBottomNav), "Explore",
         propertyChanged: OnActiveTabChanged);
@@ -42,28 +45,46 @@ public partial class FloatingBottomNav : ContentView
         SavedLabel.TextColor = isSaved ? Color.FromArgb("#4BE277") : Color.FromArgb("#92A89D");
         SavedIndicator.IsVisible = isSaved;
 
-        // Profile settings
-        bool isProfile = ActiveTab == "Profile" || ActiveTab == "ProfilePage";
-        ProfileIcon.TextColor = isProfile ? Color.FromArgb("#4BE277") : Color.FromArgb("#92A89D");
-        ProfileLabel.TextColor = isProfile ? Color.FromArgb("#4BE277") : Color.FromArgb("#92A89D");
-        ProfileIndicator.IsVisible = isProfile;
+        // Settings tab
+        bool isSettings = ActiveTab == "Settings" || ActiveTab == "SettingsPage";
+        SettingsIcon.TextColor = isSettings ? Color.FromArgb("#4BE277") : Color.FromArgb("#92A89D");
+        SettingsLabel.TextColor = isSettings ? Color.FromArgb("#4BE277") : Color.FromArgb("#92A89D");
+        SettingsIndicator.IsVisible = isSettings;
     }
 
     private async void OnExploreTapped(object sender, EventArgs e)
     {
-        if (ActiveTab != "Explore" && ActiveTab != "MainPage")
-            await Shell.Current.GoToAsync("//MapPage");
+        await NavigateToAsync("//MapPage", ActiveTab == "Explore" || ActiveTab == "MainPage");
     }
 
     private async void OnSavedTapped(object sender, EventArgs e)
     {
-        if (ActiveTab != "Saved" && ActiveTab != "SavedPage")
-            await Shell.Current.GoToAsync("//SavedPage");
+        await NavigateToAsync("//SavedPage", ActiveTab == "Saved" || ActiveTab == "SavedPage");
     }
 
-    private async void OnProfileTapped(object sender, EventArgs e)
+    private async void OnSettingsTapped(object sender, EventArgs e)
     {
-        if (ActiveTab != "Profile" && ActiveTab != "ProfilePage")
-            await Shell.Current.GoToAsync("//ProfilePage");
+        await NavigateToAsync("//SettingsPage", ActiveTab == "Settings" || ActiveTab == "SettingsPage");
+    }
+
+    private async Task NavigateToAsync(string route, bool alreadyActive)
+    {
+        if (alreadyActive || _isNavigating || Shell.Current == null)
+            return;
+
+        if ((DateTime.UtcNow - _lastNavigateAtUtc).TotalMilliseconds < 250)
+            return;
+
+        _isNavigating = true;
+        _lastNavigateAtUtc = DateTime.UtcNow;
+
+        try
+        {
+            await Shell.Current.GoToAsync(route, false);
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
     }
 }

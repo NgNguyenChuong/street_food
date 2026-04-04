@@ -47,7 +47,7 @@
     <MauiImage Include="Resources\Images\*" />
 
     <!-- Custom Fonts -->
-    <MauiFont Include="Resources\Fonts\*" />
+    <MauiFont Include="Resources\Fonts\MaterialDesignIcons.ttf" Alias="MDI" />
 
     <!-- Raw Assets  -->
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
