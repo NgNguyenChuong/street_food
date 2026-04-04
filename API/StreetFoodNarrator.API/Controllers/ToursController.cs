@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
+using System.Text.RegularExpressions;
 
 namespace StreetFoodNarrator.API.Controllers;
 
@@ -12,11 +13,13 @@ public class ToursController : ControllerBase
 {
     private readonly MongoDbContext _db;
     private readonly MongoSequenceService _sequence;
+    private readonly IWebHostEnvironment _env;
 
-    public ToursController(MongoDbContext db, MongoSequenceService sequence)
+    public ToursController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env)
     {
         _db = db;
         _sequence = sequence;
+        _env = env;
     }
 
     /// <summary>
@@ -90,6 +93,7 @@ public class ToursController : ControllerBase
                 Tour_ID = t.Tour_ID,
                 TourName = t.TourName,
                 Description = t.Description,
+                ImageUrl = NormalizeImageUrlForResponse(t.ImageUrl),
                 EstimatedDurationMinutes = t.EstimatedDurationMinutes,
                 IsActive = t.IsActive,
                 CreatedAt = t.CreatedAt,
@@ -140,6 +144,7 @@ public class ToursController : ControllerBase
             Tour_ID = tourId,
             TourName = request.TourName,
             Description = request.Description,
+            ImageUrl = NormalizeImageUrlForStorage(request.ImageUrl),
             EstimatedDurationMinutes = request.EstimatedDurationMinutes,
             IsActive = request.IsActive ?? true,
             Themes = request.Themes ?? new(),
@@ -167,6 +172,7 @@ public class ToursController : ControllerBase
         var update = Builders<Tour>.Update
             .Set(t => t.TourName, request.TourName)
             .Set(t => t.Description, request.Description)
+            .Set(t => t.ImageUrl, NormalizeImageUrlForStorage(request.ImageUrl))
             .Set(t => t.EstimatedDurationMinutes, request.EstimatedDurationMinutes)
             .Set(t => t.IsActive, request.IsActive)
             .Set(t => t.Themes, request.Themes ?? new())
@@ -180,6 +186,90 @@ public class ToursController : ControllerBase
         if (result.MatchedCount == 0) return NotFound();
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Upload image for a Tour
+    /// </summary>
+    [HttpPost("upload-image")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> UploadImage(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { message = "No file uploaded" });
+        }
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+        if (!allowedExtensions.Contains(extension))
+        {
+            return BadRequest(new { message = "Only JPG, PNG and WEBP images are allowed" });
+        }
+
+        if (file.Length > 5 * 1024 * 1024)
+        {
+            return BadRequest(new { message = "File size exceeds 5MB limit" });
+        }
+
+        var uploadsPath = Path.Combine(_env.ContentRootPath, "Uploads", "tour-images");
+        Directory.CreateDirectory(uploadsPath);
+
+        var fileName = $"{Guid.NewGuid()}{extension}";
+        var filePath = Path.Combine(uploadsPath, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var imageUrl = $"/uploads/tour-images/{fileName}";
+        var absoluteImageUrl = $"{Request.Scheme}://{Request.Host}{imageUrl}";
+        return Ok(new { imageUrl, absoluteImageUrl });
+    }
+
+    private static string? NormalizeImageUrlForStorage(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+            return null;
+
+        var value = rawUrl.Trim();
+
+        if (Uri.TryCreate(value, UriKind.Absolute, out _))
+            return value;
+
+        value = value.Replace('\\', '/');
+
+        var uploadsMatch = Regex.Match(value, @"(?:^|/)(?:wwwroot/)?uploads/(.+)$", RegexOptions.IgnoreCase);
+        if (uploadsMatch.Success)
+            return "/uploads/" + uploadsMatch.Groups[1].Value.TrimStart('/');
+
+        if (!value.StartsWith('/'))
+            value = "/" + value;
+
+        return value;
+    }
+
+    private static string? NormalizeImageUrlForResponse(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+            return null;
+
+        var value = rawUrl.Trim();
+        if (Uri.TryCreate(value, UriKind.Absolute, out _))
+            return value;
+
+        value = value.Replace('\\', '/');
+
+        var uploadsMatch = Regex.Match(value, @"(?:^|/)(?:wwwroot/)?uploads/(.+)$", RegexOptions.IgnoreCase);
+        if (uploadsMatch.Success)
+            return "/uploads/" + uploadsMatch.Groups[1].Value.TrimStart('/');
+
+        if (!value.StartsWith('/'))
+            value = "/" + value;
+
+        return value;
     }
 
     /// <summary>
@@ -231,6 +321,7 @@ public class TourDto
     public int Tour_ID { get; set; }
     public string TourName { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -265,6 +356,7 @@ public class CreateTourRequest
 {
     public string TourName { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool? IsActive { get; set; }
     // v2 fields
@@ -279,6 +371,7 @@ public class UpdateTourRequest
 {
     public string TourName { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; }
     // v2 fields

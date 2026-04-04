@@ -18,6 +18,9 @@ public class Tour
     
     [MaxLength(1000)]
     public string? Description { get; set; }
+
+    [MaxLength(1000)]
+    public string? ImageUrl { get; set; }
     
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; } = true;

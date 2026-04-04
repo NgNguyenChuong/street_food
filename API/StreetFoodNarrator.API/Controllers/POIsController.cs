@@ -127,18 +127,22 @@ public class POIsController : ControllerBase
     [HttpGet("sync")]
     public async Task<ActionResult<POISyncResponse>> SyncPOIs([FromQuery] long sinceVersion = 0)
     {
-        var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
-                     Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
-                     Builders<POI>.Filter.Eq(p => p.IsActive, true);
+        // App clients only receive approved+active POIs.
+        var visibleFilter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
+                            Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
+                            Builders<POI>.Filter.Eq(p => p.IsActive, true);
 
-        var pois = await _db.POIs
-            .Find(filter)
-            .ToListAsync();
+        // Version must consider all POI moderation/update changes (not only currently visible rows),
+        // otherwise approved/rejected transitions may not trigger sync on clients.
+        var versionProjection = Builders<POI>.Projection.Expression(p => new { p.CreatedAt, p.UpdatedAt, p.DeletedAt });
+        var versionRows = await _db.POIs.Find(Builders<POI>.Filter.Empty).Project(versionProjection).ToListAsync();
 
         long serverVersion = 0;
-        foreach (var p in pois)
+        foreach (var p in versionRows)
         {
-            long ticks = Math.Max(p.UpdatedAt?.Ticks ?? 0, p.CreatedAt.Ticks);
+            long ticks = Math.Max(
+                Math.Max(p.UpdatedAt?.Ticks ?? 0, p.CreatedAt.Ticks),
+                p.DeletedAt?.Ticks ?? 0);
             if (ticks > serverVersion)
             {
                 serverVersion = ticks;
@@ -153,6 +157,10 @@ public class POIsController : ControllerBase
                 Data = new List<POIDto>()
             });
         }
+
+        var pois = await _db.POIs
+            .Find(visibleFilter)
+            .ToListAsync();
 
         var poiDtos = await BuildPoiDtosAsync(pois);
 
@@ -169,17 +177,15 @@ public class POIsController : ControllerBase
     [HttpGet("/api/data/version")]
     public async Task<IActionResult> GetDataVersion()
     {
-        var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
-                     Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
-                     Builders<POI>.Filter.Eq(p => p.IsActive, true);
-
-        var projection = Builders<POI>.Projection.Expression(p => new { p.CreatedAt, p.UpdatedAt });
-        var pois = await _db.POIs.Find(filter).Project(projection).ToListAsync();
+        var projection = Builders<POI>.Projection.Expression(p => new { p.CreatedAt, p.UpdatedAt, p.DeletedAt });
+        var pois = await _db.POIs.Find(Builders<POI>.Filter.Empty).Project(projection).ToListAsync();
 
         long serverVersion = 0;
         foreach (var p in pois)
         {
-            long ticks = Math.Max(p.UpdatedAt?.Ticks ?? 0, p.CreatedAt.Ticks);
+            long ticks = Math.Max(
+                Math.Max(p.UpdatedAt?.Ticks ?? 0, p.CreatedAt.Ticks),
+                p.DeletedAt?.Ticks ?? 0);
             if (ticks > serverVersion) serverVersion = ticks;
         }
 
@@ -579,12 +585,31 @@ public class POIsController : ControllerBase
             update = update.Set(p => p.VendorId, effectiveVendorId.Value);
         }
 
-        update = update
-            .Set(p => p.ReviewStatus, "pending")
-            .Set(p => p.ReviewNote, null)
-            .Set(p => p.ReviewedAt, null)
-            .Set(p => p.ReviewedBy, null)
-            .Set(p => p.IsActive, false);
+        if (isAdmin)
+        {
+            var targetIsActive = model.IsActive ?? poi.IsActive;
+            update = update.Set(p => p.IsActive, targetIsActive);
+
+            // Admin keeps moderation control; turning on implies approved state.
+            if (targetIsActive)
+            {
+                update = update
+                    .Set(p => p.ReviewStatus, "approved")
+                    .Set(p => p.ReviewNote, null)
+                    .Set(p => p.ReviewedAt, DateTime.UtcNow)
+                    .Set(p => p.ReviewedBy, User.Identity?.Name ?? "admin");
+            }
+        }
+        else
+        {
+            // Vendor edits must be reviewed again before being active.
+            update = update
+                .Set(p => p.ReviewStatus, "pending")
+                .Set(p => p.ReviewNote, null)
+                .Set(p => p.ReviewedAt, null)
+                .Set(p => p.ReviewedBy, null)
+                .Set(p => p.IsActive, false);
+        }
 
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id, update);
 
@@ -630,7 +655,8 @@ public class POIsController : ControllerBase
             .Set(p => p.ReviewNote, request.Note)
             .Set(p => p.ReviewedAt, DateTime.UtcNow)
             .Set(p => p.ReviewedBy, User.Identity?.Name ?? "admin")
-            .Set(p => p.IsActive, status == "approved");
+            .Set(p => p.IsActive, status == "approved")
+            .Set(p => p.UpdatedAt, DateTime.UtcNow);
 
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
 
@@ -1167,4 +1193,5 @@ public class UpdatePOIModel
     public int? CooldownMinutes { get; set; }
     public int? ParentZoneId { get; set; }
     public int? MaxPlaysPerSession { get; set; }
+    public bool? IsActive { get; set; }
 }
