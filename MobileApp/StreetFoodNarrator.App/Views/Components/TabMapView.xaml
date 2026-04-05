@@ -303,7 +303,7 @@
                             <VerticalStackLayout Grid.Column="1"
                                                  Spacing="3"
                                                  VerticalOptions="Center">
-                                <Label Text="{Binding Name_Vi}"
+                                    <Label Text="{Binding DisplayName}"
                                        FontSize="15" FontAttributes="Bold"
                                        TextColor="#E8F3EE"
                                        LineBreakMode="TailTruncation"/>
@@ -370,7 +370,7 @@
                     <VerticalStackLayout Grid.Column="1"
                                          Spacing="4"
                                          VerticalOptions="Center">
-                        <Label Text="{Binding SelectedPinPOI.Name_Vi, FallbackValue='Phở Hà Nội'}"
+                           <Label Text="{Binding SelectedPinPOI.DisplayName, FallbackValue='Phở Hà Nội'}"
                                FontSize="18" FontAttributes="Bold"
                                TextColor="#F0F7F3"
                                LineBreakMode="TailTruncation"/>

@@ -555,7 +555,7 @@ public partial class ExploreMapPage : ContentPage
                     SymbolType = SymbolType.Ellipse
                 });
 
-                var labelText = poi.Name_Vi ?? poi.Name_En ?? string.Empty;
+                var labelText = poi.GetDisplayName(_lang.CurrentLanguage);
                 if (labelText.Length > 15)
                     labelText = labelText[..15];
 
@@ -1258,9 +1258,9 @@ public partial class ExploreMapPage : ContentPage
         _vm.NavigationTarget = poi;
         _vm.SelectedPinPOI = poi;
         _vm.PrimaryZone = poi;
-        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
+        _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);
         _vm.PrimaryZoneType = poi.ZoneType ?? poi.Category ?? string.Empty;
-        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? string.Empty;
+        _vm.PrimaryZoneDesc = poi.GetDisplayDescription(_lang.CurrentLanguage);
         _vm.PrimaryZoneAddress = poi.Address ?? Ui("Đang cập nhật", "Updating", "更新中");
         _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
         _vm.VisitedPOIIds.Add(poi.Id);
@@ -1473,7 +1473,9 @@ public partial class ExploreMapPage : ContentPage
         _lastApproachingToastPoiId = poi.Id;
         _lastApproachingToastUtc = DateTime.UtcNow;
 
-        var poiName = poi.Name_Vi ?? poi.Name_En ?? Ui("điểm tiếp theo", "next stop", "下一站");
+        var poiName = poi.GetDisplayName(_lang.CurrentLanguage);
+        if (string.IsNullOrWhiteSpace(poiName))
+            poiName = Ui("điểm tiếp theo", "next stop", "下一站");
         var distText = distanceMeters < 1000 ? $"{distanceMeters:F0}m" : $"{distanceMeters / 1000:F1}km";
         _ = ShowApproachingToastCompactAsync(poi.Id, $"→ {poiName} {distText}");
     }
@@ -1943,7 +1945,9 @@ public partial class ExploreMapPage : ContentPage
             foreach (var spot in spots)
             {
                 token.ThrowIfCancellationRequested();
-                var spotName = spot.Name_Vi ?? spot.Name_En ?? Ui("quán tiếp theo", "next venue", "下一家");
+                var spotName = spot.GetDisplayName(_lang.CurrentLanguage);
+                if (string.IsNullOrWhiteSpace(spotName))
+                    spotName = Ui("quán tiếp theo", "next venue", "下一家");
                 await ShowApproachingToastCompactAsync(
                     spot.Id,
                     Ui($"→ Tiến tới {spotName}", $"→ Moving to {spotName}", $"→ 前往 {spotName}"));
@@ -2080,9 +2084,9 @@ public partial class ExploreMapPage : ContentPage
             await ShowApproachingToastCompactAsync(
                 targetSpot.Id,
                 Ui(
-                    $"→ Test zone quán: {targetSpot.Name_Vi ?? targetSpot.Name_En ?? "khu ẩm thực"}",
-                    $"→ Zone test venue: {targetSpot.Name_En ?? targetSpot.Name_Vi ?? "food area"}",
-                    $"→ 测试店铺范围：{targetSpot.Name_Zh ?? targetSpot.Name_En ?? targetSpot.Name_Vi ?? "美食区"}"));
+                    $"→ Test zone quán: {Fallback(targetSpot.GetDisplayName("vi"), "khu ẩm thực")}",
+                    $"→ Zone test venue: {Fallback(targetSpot.GetDisplayName("en"), "food area")}",
+                    $"→ 测试店铺范围：{Fallback(targetSpot.GetDisplayName("zh"), "美食区")}"));
 
             var inZonePath = await BuildSimulationWalkingPathAsync(
                 startLat,
@@ -2115,9 +2119,9 @@ public partial class ExploreMapPage : ContentPage
             UpdateNearFocusOverlayState();
             await ShowInZoneToastAsync(
                 Ui(
-                    $"Bạn đã vào vùng {targetSpot.Name_Vi ?? targetSpot.Name_En ?? "khu ẩm thực"}",
-                    $"You entered {targetSpot.Name_En ?? targetSpot.Name_Vi ?? "food area"} zone",
-                    $"你已进入 {targetSpot.Name_Zh ?? targetSpot.Name_En ?? targetSpot.Name_Vi ?? "美食区"} 区域"));
+                    $"Bạn đã vào vùng {Fallback(targetSpot.GetDisplayName("vi"), "khu ẩm thực")}",
+                    $"You entered {Fallback(targetSpot.GetDisplayName("en"), "food area")} zone",
+                    $"你已进入 {Fallback(targetSpot.GetDisplayName("zh"), "美食区")} 区域"));
         }
         catch (TaskCanceledException)
         {
@@ -2174,9 +2178,9 @@ public partial class ExploreMapPage : ContentPage
             await ShowApproachingToastCompactAsync(
                 targetSpot.Id,
                 Ui(
-                    $"→ Giả lập di chuyển gần {targetSpot.Name_Vi ?? targetSpot.Name_En ?? "khu ẩm thực"}",
-                    $"→ Simulate moving near {targetSpot.Name_En ?? targetSpot.Name_Vi ?? "food area"}",
-                    $"→ 模拟移动到 {targetSpot.Name_Zh ?? targetSpot.Name_En ?? targetSpot.Name_Vi ?? "美食区"} 附近"));
+                    $"→ Giả lập di chuyển gần {Fallback(targetSpot.GetDisplayName("vi"), "khu ẩm thực")}",
+                    $"→ Simulate moving near {Fallback(targetSpot.GetDisplayName("en"), "food area")}",
+                    $"→ 模拟移动到 {Fallback(targetSpot.GetDisplayName("zh"), "美食区")} 附近"));
 
             var nearPoint = GetPointTowardsTargetByDistance(
                 startLat,
@@ -2468,8 +2472,8 @@ public partial class ExploreMapPage : ContentPage
 
         _vm.SelectedPinPOI = poi;
         _vm.PrimaryZone = poi;
-        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
-        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? "";
+        _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);
+        _vm.PrimaryZoneDesc = poi.GetDisplayDescription(_lang.CurrentLanguage);
         _vm.PrimaryZoneAddress = poi.Address ?? Ui("Đang cập nhật", "Updating", "更新中");
         _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
 
@@ -2526,7 +2530,9 @@ public partial class ExploreMapPage : ContentPage
         try
         {
             var currentState = _vm.CurrentExploreState;
-            var poiName = poi.Name_Vi ?? poi.Name_En ?? Ui("địa điểm này", "this place", "这个地点");
+            var poiName = poi.GetDisplayName(_lang.CurrentLanguage);
+            if (string.IsNullOrWhiteSpace(poiName))
+                poiName = Ui("địa điểm này", "this place", "这个地点");
 
             if (currentState == MainViewModel.ExploreState.Far)
             {
@@ -2559,9 +2565,9 @@ public partial class ExploreMapPage : ContentPage
             _vm.VisitedPOIIds.Add(poi.Id);
             _vm.SelectedPinPOI = poi;
             _vm.PrimaryZone = poi;
-            _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
+            _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);
             _vm.PrimaryZoneType = poi.ZoneType ?? poi.Category ?? string.Empty;
-            _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? string.Empty;
+            _vm.PrimaryZoneDesc = poi.GetDisplayDescription(_lang.CurrentLanguage);
             _vm.PrimaryZoneAddress = poi.Address ?? "Đang cập nhật";
             _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
             _vm.CurrentAppMode = MainViewModel.AppMode.Explore;
@@ -2702,7 +2708,7 @@ public partial class ExploreMapPage : ContentPage
 
     private void OnSuggestionSelected(object? sender, POI poi)
     {
-        _vm.SearchQuery = poi.Name_Vi ?? poi.Name_En ?? string.Empty;
+        _vm.SearchQuery = poi.GetDisplayName(_lang.CurrentLanguage);
         TabMapComponent.HideSuggestions();
         CenterMapOnPoi(poi);
         _vm.VisitedPOIIds.Add(poi.Id);
@@ -2841,7 +2847,9 @@ public partial class ExploreMapPage : ContentPage
 
         var routeMetaText = FormatDistance(currentDistance).ToUpperInvariant();
 
-        var collapsedName = poi.Name_Vi ?? poi.Name_En ?? Ui("Địa điểm", "Place", "地点");
+        var collapsedName = poi.GetDisplayName(_lang.CurrentLanguage);
+        if (string.IsNullOrWhiteSpace(collapsedName))
+            collapsedName = Ui("Địa điểm", "Place", "地点");
         if (!string.Equals(NearFocusCollapsedNameLabel.Text, collapsedName, StringComparison.Ordinal))
             NearFocusCollapsedNameLabel.Text = collapsedName;
 
@@ -3072,7 +3080,9 @@ public partial class ExploreMapPage : ContentPage
 
         card.IsVisible = true;
         image.Source = poi.DisplayImageUrl;
-        nameLabel.Text = poi.Name_Vi ?? poi.Name_En ?? "Địa điểm gần";
+        nameLabel.Text = string.IsNullOrWhiteSpace(poi.DisplayName)
+            ? "Địa điểm gần"
+            : poi.DisplayName;
 
         var distanceMeters = HaversineDistance(currentPoi.Latitude, currentPoi.Longitude, poi.Latitude, poi.Longitude);
         var distanceText = distanceMeters < 1000 ? $"{distanceMeters:F0}m" : $"{distanceMeters / 1000:F1}km";
@@ -3571,12 +3581,14 @@ public partial class ExploreMapPage : ContentPage
         };
 
     private string ResolvePreviewNarrationText(POI poi)
-        => _lang.CurrentLanguage switch
-        {
-            "en" => poi.Description_En ?? poi.Name_En ?? poi.Name_Vi,
-            "zh" => poi.Description_Zh ?? poi.Name_Zh ?? poi.Name_En ?? poi.Name_Vi,
-            _ => poi.Description_Vi ?? poi.Name_Vi ?? poi.Name_En
-        } ?? Ui("Chào mừng đến với điểm tham quan.", "Welcome to this point of interest.", "欢迎来到该景点。");
+    {
+        var text = poi.GetDisplayDescription(_lang.CurrentLanguage);
+        if (string.IsNullOrWhiteSpace(text))
+            text = poi.GetDisplayName(_lang.CurrentLanguage);
+        if (string.IsNullOrWhiteSpace(text))
+            text = Ui("Chào mừng đến với điểm tham quan.", "Welcome to this point of interest.", "欢迎来到该景点。");
+        return text;
+    }
 
     private void OnNearRouteContinueClicked(object? sender, EventArgs e)
     {
@@ -3617,9 +3629,9 @@ public partial class ExploreMapPage : ContentPage
         _ = ShowApproachingToastCompactAsync(
             nextPoi.Id,
             Ui(
-                $"→ Đã bỏ qua, chuyển sang {nextPoi.Name_Vi ?? nextPoi.Name_En ?? "quán kế tiếp"}",
-                $"→ Skipped. Heading to {nextPoi.Name_En ?? nextPoi.Name_Vi ?? "next stop"}",
-                $"→ 已跳过，前往 {nextPoi.Name_Zh ?? nextPoi.Name_En ?? nextPoi.Name_Vi ?? "下一站"}"));
+                $"→ Đã bỏ qua, chuyển sang {Fallback(nextPoi.GetDisplayName("vi"), "quán kế tiếp")}",
+                $"→ Skipped. Heading to {Fallback(nextPoi.GetDisplayName("en"), "next stop")}",
+                $"→ 已跳过，前往 {Fallback(nextPoi.GetDisplayName("zh"), "下一站")}"));
     }
 
     private void StartNearRouteToPoi(POI poi)
@@ -3753,10 +3765,13 @@ public partial class ExploreMapPage : ContentPage
         UpdateNearFocusOverlayState();
         _ = ShowInZoneToastAsync(
             Ui(
-                $"Bạn đã đến {routePoi.Name_Vi ?? routePoi.Name_En ?? "điểm đến"}",
-                $"You have arrived at {routePoi.Name_En ?? routePoi.Name_Vi ?? "destination"}",
-                $"你已到达 {routePoi.Name_Zh ?? routePoi.Name_En ?? routePoi.Name_Vi ?? "目的地"}"));
+                $"Bạn đã đến {Fallback(routePoi.GetDisplayName("vi"), "điểm đến")}",
+                $"You have arrived at {Fallback(routePoi.GetDisplayName("en"), "destination")}",
+                $"你已到达 {Fallback(routePoi.GetDisplayName("zh"), "目的地")}"));
     }
+
+    private static string Fallback(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value;
 
     private static T ResolveRequiredService<T>() where T : notnull
     {

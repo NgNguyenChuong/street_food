@@ -73,6 +73,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IZoneRepository _repository;
     private readonly ILocalDatabaseService _db;
     private readonly IReviewService _reviewService;
+    private readonly HttpClient _httpClient;
     private readonly SimulatedLocationService? _simulator;
     private readonly SimulatedLocationService _fallbackSimulator;
     private readonly List<ExplorePoiCard> _exploreDemoCards = new();
@@ -85,13 +86,15 @@ public partial class MainViewModel : ObservableObject
         ILocationService location,
         IZoneRepository repository,
         ILocalDatabaseService db,
-        IReviewService reviewService)
+        IReviewService reviewService,
+        HttpClient httpClient)
     {
         _geofence = geofence;
         _repository = repository;
         _location = location;
         _db = db;
         _reviewService = reviewService;
+        _httpClient = httpClient;
         _simulator = location as SimulatedLocationService;
         _fallbackSimulator = new SimulatedLocationService();
         InitializeLocationSourceMode();
@@ -685,13 +688,16 @@ public partial class MainViewModel : ObservableObject
     private bool _isTourSyncInFlight;
     private readonly SemaphoreSlim _liveSyncGate = new(1, 1);
     private readonly SemaphoreSlim _loadPoisGate = new(1, 1);
+    private readonly SemaphoreSlim _loadSavedPoisGate = new(1, 1);
     private bool _isLiveSyncInFlight;
+    private DateTime _lastSavedPoisLoadedUtc = DateTime.MinValue;
     private const string ToursCacheJsonKey = "tours_cache_json_v1";
     private const string SavedTourIdsKey = "saved_tour_ids_v1";
     private const string LastTourSyncTimeKey = "LastTourSyncTime";
     private const string LastPoiSyncTimeKey = "LastSyncTime";
     private const int PoiSyncIntervalSeconds = 300;
     private const int TourSyncIntervalSeconds = 300;
+    private static readonly TimeSpan SavedPoisReloadInterval = TimeSpan.FromSeconds(8);
     private static readonly JsonSerializerOptions TourJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -1789,8 +1795,7 @@ public partial class MainViewModel : ObservableObject
             if (isOnline)
             {
                 var url = $"{AppConfig.GetResolvedApiBaseUrl()}api/MenuItems?poiId={poi.Id}&page=1&pageSize=50";
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
-                var response = await client.GetAsync(url);
+                var response = await _httpClient.GetAsync(url);
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
@@ -2263,7 +2268,7 @@ public partial class MainViewModel : ObservableObject
         _ = ApplyFilterAsync();
         _ = LoadToursAsync(forceSyncNow);
         RefreshDataSourceState();
-        await LoadSavedPOIsAsync();
+        _ = LoadSavedPOIsAsync();
         RefreshExploreExperience();
 
         Console.WriteLine($"[MainViewModel] ✅ Cache-first load done! AllPOIs={AllPOIs.Count}, VirtualTourPOIs={VirtualTourPOIs.Count}");
@@ -2393,6 +2398,9 @@ public partial class MainViewModel : ObservableObject
 
     public async Task LoadToursAsync(bool forceSyncNow = false)
     {
+        if (IsToursLoading)
+            return;
+
         try
         {
             IsToursLoading = true;
@@ -2524,14 +2532,9 @@ public partial class MainViewModel : ObservableObject
 
     private async Task<List<TourListItem>> FetchToursFromApiAsync()
     {
-        var baseUrl = AppConfig.GetResolvedApiBaseUrl();
-        using var http = new HttpClient
-        {
-            BaseAddress = new Uri(baseUrl),
-            Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds)
-        };
-
-        var response = await http.GetAsync("api/Tours?page=1&pageSize=100");
+        var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+        var url = $"{baseUrl}/api/Tours?page=1&pageSize=100";
+        var response = await _httpClient.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
@@ -2811,14 +2814,38 @@ public partial class MainViewModel : ObservableObject
         }, token);
     }
 
-    public async Task LoadSavedPOIsAsync()
+    public async Task LoadSavedPOIsAsync(bool forceReload = false)
     {
-        var liked = await _db.GetLikedPOIsAsync();
-        SavedPOIIds.Clear();
-        SavedPOIs = new ObservableCollection<POI>(liked);
-        foreach (var poi in liked)
+        if (!forceReload &&
+            (DateTime.UtcNow - _lastSavedPoisLoadedUtc) < SavedPoisReloadInterval)
         {
-            SavedPOIIds.Add(poi.Id);
+            return;
+        }
+
+        await _loadSavedPoisGate.WaitAsync();
+        try
+        {
+            if (!forceReload &&
+                (DateTime.UtcNow - _lastSavedPoisLoadedUtc) < SavedPoisReloadInterval)
+            {
+                return;
+            }
+
+            var liked = await _db.GetLikedPOIsAsync();
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                SavedPOIIds.Clear();
+                SavedPOIs = new ObservableCollection<POI>(liked);
+                foreach (var poi in liked)
+                    SavedPOIIds.Add(poi.Id);
+            });
+
+            _lastSavedPoisLoadedUtc = DateTime.UtcNow;
+        }
+        finally
+        {
+            _loadSavedPoisGate.Release();
         }
     }
 

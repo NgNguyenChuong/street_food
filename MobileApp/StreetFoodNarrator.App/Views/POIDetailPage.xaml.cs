@@ -13,6 +13,7 @@ using MapsBrush = Mapsui.Styles.Brush;
 using MPoint = Mapsui.MPoint;
 using MauiColor = Microsoft.Maui.Graphics.Color;
 using StreetFoodNarrator.App.Helpers;
+using StreetFoodNarrator.App.Resources.Strings;
 
 namespace StreetFoodNarrator.App.Views;
 
@@ -20,6 +21,7 @@ public partial class POIDetailPage : ContentPage
 {
     private readonly POI _poi;
     private readonly POIDetailViewModel _vm;
+    private readonly LanguageService _langService;
     private bool _mapInitialized = false;
 
     // Cache track width ONCE when layout is ready — avoid repeated Width reads
@@ -31,6 +33,7 @@ public partial class POIDetailPage : ContentPage
         InitializeComponent();
 
         _poi = poi;
+        _langService = MauiProgram.Services.GetRequiredService<LanguageService>();
 
         // ViewModel handles: audio state, menu items, tab index
         _vm = new POIDetailViewModel(poi, OnAudioSeek, keepCurrentAudio);
@@ -85,6 +88,8 @@ public partial class POIDetailPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
         // Refresh like icon and localized content when page re-appears
         UpdateLikeIcon();
         _vm.RefreshLocalizedContent();
@@ -94,8 +99,35 @@ public partial class POIDetailPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+        LanguageService.LanguageChanged -= OnLanguageChanged;
         _vm.PropertyChanged -= Vm_PropertyChanged;
         _vm.Cleanup();
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _vm.RefreshLocalizedContent();
+            RefreshMenuBindings();
+
+            if (_mapInitialized)
+            {
+                _mapInitialized = false;
+                MiniMapView?.Map?.Layers?.Clear();
+                InitializeMap();
+            }
+        });
+    }
+
+    private void RefreshMenuBindings()
+    {
+        if (MenuCollectionView == null)
+            return;
+
+        var source = MenuCollectionView.ItemsSource;
+        MenuCollectionView.ItemsSource = null;
+        MenuCollectionView.ItemsSource = source;
     }
 
     // ── ViewModel property changed ────────────────────────────────
@@ -188,7 +220,7 @@ public partial class POIDetailPage : ContentPage
 
             var mainVm = MauiProgram.Services.GetService<ViewModels.MainViewModel>();
             if (mainVm != null)
-                await mainVm.LoadSavedPOIsAsync();
+                await mainVm.LoadSavedPOIsAsync(forceReload: true);
         }
         catch (Exception ex)
         {
@@ -230,7 +262,7 @@ public partial class POIDetailPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[POIDetail] Phone error: {ex}");
-            await CustomAlert.ShowAsync("Lỗi", "Không thể gọi điện.", "OK", AlertType.Error);
+            await CustomAlert.ShowAsync(AppStrings.Get("Common_Error"), AppStrings.Get("PoiDetail_Call_Error"), AppStrings.Get("Common_OK"), AlertType.Error);
         }
     }
 
@@ -248,9 +280,9 @@ public partial class POIDetailPage : ContentPage
             if (vm.CurrentExploreState == MainViewModel.ExploreState.Far)
             {
                 await CustomAlert.ShowAsync(
-                    "Bạn đang ở xa",
-                    "Khu ẩm thực nên chỉ có thể thực hiện chức năng xem ảo.",
-                    "Đã hiểu", AlertType.Warning);
+                    AppStrings.Get("PoiDetail_Far_Title"),
+                    AppStrings.Get("PoiDetail_Far_Message"),
+                    AppStrings.Get("Main_OfflineBasic_Ack"), AlertType.Warning);
                 return;
             }
 
@@ -262,7 +294,7 @@ public partial class POIDetailPage : ContentPage
             if (distKm > 1.0)
             {
                 await CustomAlert.ShowAsync("Chế độ Xem Ảo",
-                    "Bạn đang ở cách quán hơn 1km. Bản đồ sẽ chuyển sang tương tác Xem Ảo.", "Đã Hiểu", AlertType.Info);
+                    AppStrings.Get("PoiDetail_Virtual_Message"), AppStrings.Get("Main_OfflineBasic_Ack"), AlertType.Info);
                 vm.IsVirtualNavigation = true;
             }
             else
@@ -279,7 +311,7 @@ public partial class POIDetailPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[POIDetail] Navigate error: {ex}");
-            await CustomAlert.ShowAsync("Lỗi", "Không thể chỉ đường lúc này.", "OK", AlertType.Error);
+            await CustomAlert.ShowAsync(AppStrings.Get("Common_Error"), AppStrings.Get("PoiDetail_Navigate_Error"), AppStrings.Get("Common_OK"), AlertType.Error);
         }
     }
 
@@ -355,7 +387,7 @@ public partial class POIDetailPage : ContentPage
                 },
                 new LabelStyle
                 {
-                    Text = _poi.Name_Vi,
+                    Text = _poi.GetName(_langService.CurrentLanguage),
                     BackColor = new MapsBrush(new MapsColor(0, 0, 0, 180)),
                     ForeColor = new MapsColor(255, 255, 255),
                     Halo = new Pen(new MapsColor(5, 16, 13), 2),

@@ -360,7 +360,7 @@
 
                         <VerticalStackLayout Grid.Column="1"
                                              Spacing="4">
-                            <Label Text="{Binding SelectedPinPOI.Name_Vi, FallbackValue='Địa điểm ẩm thực'}"
+                            <Label Text="{Binding SelectedPinPOI.DisplayName, FallbackValue='Địa điểm ẩm thực'}"
                                 FontSize="24"
                                    FontAttributes="Bold"
                                    TextColor="#E8F0EA"
@@ -371,7 +371,7 @@
                                 FontAttributes="Bold"
                                 TextColor="#4BE277"/>
                             <Label x:Name="NearFocusDescriptionLabel"
-                                   Text="{Binding SelectedPinPOI.Description_Vi, FallbackValue='Đang cập nhật mô tả địa điểm...'}"
+                                Text="{Binding SelectedPinPOI.DisplayDescription, FallbackValue='Đang cập nhật mô tả địa điểm...'}"
                                    FontSize="13"
                                    TextColor="#BFD0C8"
                                    MaxLines="2"

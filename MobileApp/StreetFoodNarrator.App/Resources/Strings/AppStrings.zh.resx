@@ -268,4 +268,166 @@
   <data name="Nav_Settings" xml:space="preserve">
     <value>设置</value>
   </data>
+  <data name="Nav_Library" xml:space="preserve">
+    <value>资料库</value>
+  </data>
+  <data name="Nav_Explore" xml:space="preserve">
+    <value>探索</value>
+  </data>
+  <data name="Saved_Tab_Tours" xml:space="preserve">
+    <value>行程列表</value>
+  </data>
+  <data name="Saved_Tab_Saved" xml:space="preserve">
+    <value>已保存</value>
+  </data>
+  <data name="Offline_Banner_Short" xml:space="preserve">
+    <value>你当前离线。建议开启网络以获得更好体验。</value>
+  </data>
+  <data name="Offline_Banner_Full" xml:space="preserve">
+    <value>你当前离线。建议开启网络以获得完整体验并更新最新数据。</value>
+  </data>
+  <data name="Main_Far_Headline1" xml:space="preserve">
+    <value>你离这里较远</value>
+  </data>
+  <data name="Main_Far_Headline2" xml:space="preserve">
+    <value>美食街</value>
+  </data>
+  <data name="Main_Far_Description" xml:space="preserve">
+    <value>周边还比较安静。现在开始探索，为接下来的美食之旅做好准备。</value>
+  </data>
+  <data name="Main_Action_ViewMap" xml:space="preserve">
+    <value>查看地图</value>
+  </data>
+  <data name="Main_InZone_Title" xml:space="preserve">
+    <value>你已进入美食区</value>
+  </data>
+  <data name="Main_InZone_Area" xml:space="preserve">
+    <value>永庆</value>
+  </data>
+  <data name="Main_InZone_Description" xml:space="preserve">
+    <value>让语音带你走过第四郡最具代表性的街头美食摊位。</value>
+  </data>
+  <data name="Main_NowPlaying_Tag" xml:space="preserve">
+    <value>正在播放</value>
+  </data>
+  <data name="Main_Action_ContinueExplore" xml:space="preserve">
+    <value>继续探索</value>
+  </data>
+  <data name="Main_Action_ViewYourLocation" xml:space="preserve">
+    <value>查看你的位置</value>
+  </data>
+  <data name="Main_Narrating_Tag" xml:space="preserve">
+    <value>正在讲解</value>
+  </data>
+  <data name="Main_Action_Directions" xml:space="preserve">
+    <value>➡
+导航</value>
+  </data>
+  <data name="Main_Action_SwitchSpot" xml:space="preserve">
+    <value>🔀
+换店</value>
+  </data>
+  <data name="Main_Action_ViewMap_Multiline" xml:space="preserve">
+    <value>🗺️
+查看地图</value>
+  </data>
+  <data name="Main_NearYou_Title" xml:space="preserve">
+    <value>你附近还有：</value>
+  </data>
+  <data name="Main_NearYou_SeeAll" xml:space="preserve">
+    <value>查看全部</value>
+  </data>
+  <data name="Main_Action_ExploreNow" xml:space="preserve">
+    <value>立即探索  -&gt;</value>
+  </data>
+  <data name="Main_MapTool_Title" xml:space="preserve">
+    <value>美食区地图</value>
+  </data>
+  <data name="Main_MapTool_Subtitle" xml:space="preserve">
+    <value>地图用于快速定位，不是主界面。</value>
+  </data>
+  <data name="Main_MapTool_Description" xml:space="preserve">
+    <value>你可以用地图查看重点店铺位置并调整前进方向。</value>
+  </data>
+  <data name="Main_Action_CenterMap" xml:space="preserve">
+    <value>居中</value>
+  </data>
+  <data name="Main_Action_CloseMap" xml:space="preserve">
+    <value>关闭地图</value>
+  </data>
+  <data name="Main_Status_LoadingData" xml:space="preserve">
+    <value>正在加载数据...</value>
+  </data>
+  <data name="Main_Status_OpeningMap" xml:space="preserve">
+    <value>正在打开地图...</value>
+  </data>
+  <data name="Main_Status_Finishing" xml:space="preserve">
+    <value>正在完成...</value>
+  </data>
+  <data name="Main_Status_GettingLocation" xml:space="preserve">
+    <value>正在定位...</value>
+  </data>
+  <data name="Main_Logout_Title" xml:space="preserve">
+    <value>退出登录</value>
+  </data>
+  <data name="Main_Logout_Confirm" xml:space="preserve">
+    <value>你确定要退出登录并关闭应用吗？</value>
+  </data>
+  <data name="Main_OfflineBasic_Title" xml:space="preserve">
+    <value>当前为基础离线模式</value>
+  </data>
+  <data name="Main_OfflineBasic_Message" xml:space="preserve">
+    <value>你尚未下载完整离线包。应用仍可用内置数据与模拟运行，但部分高级功能可能受限。联网后请到 设置 &gt; 下载离线数据 以便后续更稳定使用。</value>
+  </data>
+  <data name="Main_OfflineBasic_Ack" xml:space="preserve">
+    <value>明白了</value>
+  </data>
+  <data name="Common_Error" xml:space="preserve">
+    <value>错误</value>
+  </data>
+  <data name="PoiDetail_Call_Error" xml:space="preserve">
+    <value>无法拨打电话。</value>
+  </data>
+  <data name="PoiDetail_Far_Title" xml:space="preserve">
+    <value>你离这里较远</value>
+  </data>
+  <data name="PoiDetail_Far_Message" xml:space="preserve">
+    <value>当前距离下仅支持虚拟浏览模式。</value>
+  </data>
+  <data name="PoiDetail_Virtual_Message" xml:space="preserve">
+    <value>你距离该店超过 1 公里。地图将切换到虚拟交互模式。</value>
+  </data>
+  <data name="PoiDetail_Navigate_Error" xml:space="preserve">
+    <value>暂时无法开始导航。</value>
+  </data>
+  <data name="TabSaved_Subtitle" xml:space="preserve">
+    <value>你收藏的行程和地点</value>
+  </data>
+  <data name="TabSaved_Segment_Tours" xml:space="preserve">
+    <value>已保存行程</value>
+  </data>
+  <data name="TabSaved_Segment_Pois" xml:space="preserve">
+    <value>已保存地点</value>
+  </data>
+  <data name="TabSaved_EmptyTour_Title" xml:space="preserve">
+    <value>还没有已保存行程</value>
+  </data>
+  <data name="TabSaved_EmptyTour_Subtitle" xml:space="preserve">
+    <value>在行程列表中点击心形即可收藏</value>
+  </data>
+  <data name="TabSaved_EmptyPoi_Title" xml:space="preserve">
+    <value>还没有已保存地点</value>
+  </data>
+  <data name="TabSaved_EmptyPoi_Subtitle" xml:space="preserve">
+    <value>在地图/探索页点击心形即可保存地点</value>
+  </data>
+  <data name="TabMenu_SearchPlaceholder" xml:space="preserve">
+    <value>搜索行程...</value>
+  </data>
+  <data name="TabMenu_OfflineNotice" xml:space="preserve">
+    <value>当前显示离线行程（缓存数据）。</value>
+  </data>
+  <data name="TabMenu_EmptyTour" xml:space="preserve">
+    <value>没有匹配的行程</value>
+  </data>
 </root>

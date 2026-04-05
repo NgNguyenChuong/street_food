@@ -268,4 +268,166 @@ You can use the app fully offline.</value>
   <data name="Nav_Settings" xml:space="preserve">
     <value>Settings</value>
   </data>
+  <data name="Nav_Library" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="Nav_Explore" xml:space="preserve">
+    <value>Explore</value>
+  </data>
+  <data name="Saved_Tab_Tours" xml:space="preserve">
+    <value>Tours</value>
+  </data>
+  <data name="Saved_Tab_Saved" xml:space="preserve">
+    <value>Saved</value>
+  </data>
+  <data name="Offline_Banner_Short" xml:space="preserve">
+    <value>You are offline. Turn on network for a better experience.</value>
+  </data>
+  <data name="Offline_Banner_Full" xml:space="preserve">
+    <value>You are offline. Turn on network for full experience and latest updates.</value>
+  </data>
+  <data name="Main_Far_Headline1" xml:space="preserve">
+    <value>You are far from</value>
+  </data>
+  <data name="Main_Far_Headline2" xml:space="preserve">
+    <value>Food Street</value>
+  </data>
+  <data name="Main_Far_Description" xml:space="preserve">
+    <value>The area around you is still quiet. Start exploring now to get ready for your upcoming food journey.</value>
+  </data>
+  <data name="Main_Action_ViewMap" xml:space="preserve">
+    <value>View map</value>
+  </data>
+  <data name="Main_InZone_Title" xml:space="preserve">
+    <value>You are inside the food zone</value>
+  </data>
+  <data name="Main_InZone_Area" xml:space="preserve">
+    <value>Vinh Khanh</value>
+  </data>
+  <data name="Main_InZone_Description" xml:space="preserve">
+    <value>Let the audio guide you through District 4's iconic street food spots.</value>
+  </data>
+  <data name="Main_NowPlaying_Tag" xml:space="preserve">
+    <value>NOW PLAYING</value>
+  </data>
+  <data name="Main_Action_ContinueExplore" xml:space="preserve">
+    <value>Continue exploring</value>
+  </data>
+  <data name="Main_Action_ViewYourLocation" xml:space="preserve">
+    <value>View your location</value>
+  </data>
+  <data name="Main_Narrating_Tag" xml:space="preserve">
+    <value>NARRATION LIVE</value>
+  </data>
+  <data name="Main_Action_Directions" xml:space="preserve">
+    <value>➡
+DIRECTIONS</value>
+  </data>
+  <data name="Main_Action_SwitchSpot" xml:space="preserve">
+    <value>🔀
+SWITCH SPOT</value>
+  </data>
+  <data name="Main_Action_ViewMap_Multiline" xml:space="preserve">
+    <value>🗺️
+VIEW MAP</value>
+  </data>
+  <data name="Main_NearYou_Title" xml:space="preserve">
+    <value>More near you:</value>
+  </data>
+  <data name="Main_NearYou_SeeAll" xml:space="preserve">
+    <value>SEE ALL</value>
+  </data>
+  <data name="Main_Action_ExploreNow" xml:space="preserve">
+    <value>Explore now  -&gt;</value>
+  </data>
+  <data name="Main_MapTool_Title" xml:space="preserve">
+    <value>Food zone map</value>
+  </data>
+  <data name="Main_MapTool_Subtitle" xml:space="preserve">
+    <value>The map is a quick orientation tool, not the primary screen.</value>
+  </data>
+  <data name="Main_MapTool_Description" xml:space="preserve">
+    <value>Use the map to check highlighted spots and adjust your direction.</value>
+  </data>
+  <data name="Main_Action_CenterMap" xml:space="preserve">
+    <value>Center</value>
+  </data>
+  <data name="Main_Action_CloseMap" xml:space="preserve">
+    <value>Close map</value>
+  </data>
+  <data name="Main_Status_LoadingData" xml:space="preserve">
+    <value>Loading data...</value>
+  </data>
+  <data name="Main_Status_OpeningMap" xml:space="preserve">
+    <value>Opening map...</value>
+  </data>
+  <data name="Main_Status_Finishing" xml:space="preserve">
+    <value>Finishing...</value>
+  </data>
+  <data name="Main_Status_GettingLocation" xml:space="preserve">
+    <value>Getting location...</value>
+  </data>
+  <data name="Main_Logout_Title" xml:space="preserve">
+    <value>Log out</value>
+  </data>
+  <data name="Main_Logout_Confirm" xml:space="preserve">
+    <value>Are you sure you want to log out and quit the app?</value>
+  </data>
+  <data name="Main_OfflineBasic_Title" xml:space="preserve">
+    <value>Running in basic offline mode</value>
+  </data>
+  <data name="Main_OfflineBasic_Message" xml:space="preserve">
+    <value>You don't have the full offline package yet. The app still runs with bundled data and simulation, but some advanced features may be limited. When online, go to Settings &gt; Download offline data for better stability next time.</value>
+  </data>
+  <data name="Main_OfflineBasic_Ack" xml:space="preserve">
+    <value>Understood</value>
+  </data>
+  <data name="Common_Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="PoiDetail_Call_Error" xml:space="preserve">
+    <value>Unable to place a call.</value>
+  </data>
+  <data name="PoiDetail_Far_Title" xml:space="preserve">
+    <value>You are far away</value>
+  </data>
+  <data name="PoiDetail_Far_Message" xml:space="preserve">
+    <value>Only virtual view is available at this distance.</value>
+  </data>
+  <data name="PoiDetail_Virtual_Message" xml:space="preserve">
+    <value>You are more than 1 km away. The map will switch to virtual interaction mode.</value>
+  </data>
+  <data name="PoiDetail_Navigate_Error" xml:space="preserve">
+    <value>Cannot start navigation right now.</value>
+  </data>
+  <data name="TabSaved_Subtitle" xml:space="preserve">
+    <value>Your favorite tours and POIs</value>
+  </data>
+  <data name="TabSaved_Segment_Tours" xml:space="preserve">
+    <value>Saved tours</value>
+  </data>
+  <data name="TabSaved_Segment_Pois" xml:space="preserve">
+    <value>Saved POIs</value>
+  </data>
+  <data name="TabSaved_EmptyTour_Title" xml:space="preserve">
+    <value>No saved tours yet</value>
+  </data>
+  <data name="TabSaved_EmptyTour_Subtitle" xml:space="preserve">
+    <value>Tap the heart in Tours list to save your favorites</value>
+  </data>
+  <data name="TabSaved_EmptyPoi_Title" xml:space="preserve">
+    <value>No saved places yet</value>
+  </data>
+  <data name="TabSaved_EmptyPoi_Subtitle" xml:space="preserve">
+    <value>Tap the heart in Map/Explore tab to save POIs</value>
+  </data>
+  <data name="TabMenu_SearchPlaceholder" xml:space="preserve">
+    <value>Search tours...</value>
+  </data>
+  <data name="TabMenu_OfflineNotice" xml:space="preserve">
+    <value>Viewing offline tours (cached data).</value>
+  </data>
+  <data name="TabMenu_EmptyTour" xml:space="preserve">
+    <value>No matching tours</value>
+  </data>
 </root>

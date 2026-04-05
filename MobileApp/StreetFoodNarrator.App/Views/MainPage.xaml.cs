@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Utils;
 using StreetFoodNarrator.App.Helpers;
+using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 using System.IO;
 
@@ -25,7 +26,7 @@ public partial class MainPage : ContentPage
     private const string AutoOpenInZoneOnNextMainPageKey = "auto_open_inzone_on_next_mainpage";
     private const string HasOnboardedPreferenceKey = "has_onboarded";
     private const int MainPagePrewarmMaxAgeSeconds = 180;
-    private const int MapOpenMinimumLoadingMs = 200;
+    private const int MapOpenMinimumLoadingMs = 0;
     private readonly MainViewModel _vm;
     private readonly ITTSService _tts;
     private readonly LanguageService _lang;
@@ -169,6 +170,7 @@ public partial class MainPage : ContentPage
             QrDeepLinkManager.PendingDeepLinkChanged += OnQrDeepLinkPendingChanged;
             Loaded += OnPageLoaded;
             Unloaded += OnPageUnloaded;
+            ApplyStaticLocalizedTexts();
         }
         catch (Exception ex)
         {
@@ -203,9 +205,45 @@ public partial class MainPage : ContentPage
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
+            ApplyStaticLocalizedTexts();
             _vm.RefreshLanguageDependentUi();
             SyncExplorePresentationState();
         });
+    }
+
+    private void ApplyStaticLocalizedTexts()
+    {
+        FarHeadlineLine1Label.Text = AppStrings.Get("Main_Far_Headline1");
+        FarHeadlineLine2Label.Text = AppStrings.Get("Main_Far_Headline2");
+        FarDescriptionLabel.Text = AppStrings.Get("Main_Far_Description");
+        NearMapOnlyButton.Text = AppStrings.Get("Main_Action_ViewMap");
+
+        InZoneTitleLabel.Text = AppStrings.Get("Main_InZone_Title");
+        InZoneAreaLabel.Text = AppStrings.Get("Main_InZone_Area");
+        InZoneDescriptionLabel.Text = AppStrings.Get("Main_InZone_Description");
+        InZoneNowPlayingTagLabel.Text = AppStrings.Get("Main_NowPlaying_Tag");
+        InZoneContinueButton.Text = AppStrings.Get("Main_Action_ContinueExplore");
+        InZoneSeeLocationButton.Text = AppStrings.Get("Main_Action_ViewYourLocation");
+
+        InZoneDashboardTitleLabel.Text = AppStrings.Get("Main_InZone_Title");
+        InZoneDashboardNarratingTagLabel.Text = AppStrings.Get("Main_Narrating_Tag");
+        DirectionActionButton.Text = AppStrings.Get("Main_Action_Directions");
+        ShuffleActionButton.Text = AppStrings.Get("Main_Action_SwitchSpot");
+        MapActionButton.Text = AppStrings.Get("Main_Action_ViewMap_Multiline");
+        NearYouTitleLabel.Text = AppStrings.Get("Main_NearYou_Title");
+        NearYouSeeAllLabel.Text = AppStrings.Get("Main_NearYou_SeeAll");
+
+        NearPopupExploreNowButton.Text = AppStrings.Get("Main_Action_ExploreNow");
+        NearPopupCancelButton.Text = AppStrings.Get("Common_Cancel");
+
+        MapToolTitleLabel.Text = AppStrings.Get("Main_MapTool_Title");
+        MapToolSubtitleLabel.Text = AppStrings.Get("Main_MapTool_Subtitle");
+        MapToolDescriptionLabel.Text = AppStrings.Get("Main_MapTool_Description");
+        MapToolCenterButton.Text = AppStrings.Get("Main_Action_CenterMap");
+        MapToolCloseButton.Text = AppStrings.Get("Main_Action_CloseMap");
+        OfflineBannerTextLabel.Text = AppStrings.Get("Offline_Banner_Full");
+        if (LoadingStatusLabel != null && string.IsNullOrWhiteSpace(LoadingStatusLabel.Text))
+            LoadingStatusLabel.Text = AppStrings.Get("Main_Status_LoadingData");
     }
 
     private void OnQrDeepLinkPendingChanged(object? sender, EventArgs e)
@@ -245,10 +283,10 @@ public partial class MainPage : ContentPage
         try
         {
             bool confirmed = await CustomAlert.ShowConfirmAsync(
-                "Đăng xuất",
-                "Bạn có chắc chắn muốn đăng xuất và thoát ứng dụng không?",
-                "Đăng xuất",
-                "Hủy",
+                AppStrings.Get("Main_Logout_Title"),
+                AppStrings.Get("Main_Logout_Confirm"),
+                AppStrings.Get("Main_Logout_Title"),
+                AppStrings.Get("Common_Cancel"),
                 AlertType.Warning);
 
             if (!confirmed)
@@ -646,7 +684,7 @@ public partial class MainPage : ContentPage
         StreetFoodNarrator.App.Core.Models.POI? poi,
         MainViewModel.ExplorePoiCard card)
     {
-        var raw = poi?.Description_Vi ?? card.ShortDescription ?? card.QuoteText;
+        var raw = poi?.DisplayDescription ?? card.ShortDescription ?? card.QuoteText;
         if (string.IsNullOrWhiteSpace(raw))
             return "Khám phá hương vị địa phương đặc sắc ngay gần bạn.";
 
@@ -1105,9 +1143,9 @@ public partial class MainPage : ContentPage
 
         _hasShownOfflineCapabilityNoticeThisSession = true;
         await CustomAlert.ShowAsync(
-            "Đang ở chế độ offline cơ bản",
-            "Hiện bạn chưa có gói offline đầy đủ. Ứng dụng vẫn chạy với dữ liệu và mô phỏng sẵn có, nhưng một số tính năng nâng cao có thể giới hạn. Khi có mạng, vào Cài đặt > Tải dữ liệu offline để dùng ổn định cho các lần sau.",
-            "Đã hiểu",
+            AppStrings.Get("Main_OfflineBasic_Title"),
+            AppStrings.Get("Main_OfflineBasic_Message"),
+            AppStrings.Get("Main_OfflineBasic_Ack"),
             AlertType.Info);
     }
 
@@ -1118,7 +1156,7 @@ public partial class MainPage : ContentPage
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            SetLoadingStatus("Đang mở bản đồ...");
+            SetLoadingStatus(AppStrings.Get("Main_Status_OpeningMap"));
             LoadingOverlay.IsVisible = true;
             LoadingOverlay.Opacity = 1;
         });
@@ -1428,7 +1466,7 @@ public partial class MainPage : ContentPage
         if (!usePrewarmedData)
         {
             // Load POI data from cache immediately - no network needed if cached
-            SetLoadingStatus("Đang tải dữ liệu...");
+            SetLoadingStatus(AppStrings.Get("Main_Status_LoadingData"));
             try
             {
                 await _vm.LoadAllPoisAsync(forceSyncNow: false);
@@ -1440,12 +1478,17 @@ public partial class MainPage : ContentPage
         }
         else
         {
-            SetLoadingStatus("Đang hoàn tất...");
+            SetLoadingStatus(AppStrings.Get("Main_Status_Finishing"));
         }
 
         // Prime initial Explore state BEFORE hiding overlay to avoid Far->Near flicker.
-        SetLoadingStatus("Đang xác định vị trí...");
+        SetLoadingStatus(AppStrings.Get("Main_Status_GettingLocation"));
         await PrimeInitialExploreStateAsync();
+
+        // Prewarm ExploreMap pages while the loading overlay is still visible
+        // so "Start/View map" navigation is instant after MainPage appears.
+        SetLoadingStatus(AppStrings.Get("Main_Status_OpeningMap"));
+        await PrewarmExploreMapsAsync();
 
         // Hide loading only after initial state is decided.
         try { HideLoadingOverlay(); } catch { /* safe */ }
@@ -1454,7 +1497,6 @@ public partial class MainPage : ContentPage
 
         // Continue location bootstrap asynchronously without blocking initial render.
         _ = BootstrapLocationAndTrackingAsync();
-        ScheduleExploreMapPrewarm();
 
         // Preload audio in background
         if (_audioCache != null && _vm.AllPOIs.Count > 0)
@@ -1484,34 +1526,25 @@ public partial class MainPage : ContentPage
             });
         }
 
-        // Map prewarm is deferred and runs shortly after first render.
     }
 
-    private void ScheduleExploreMapPrewarm()
+    private async Task PrewarmExploreMapsAsync()
     {
-        if (!_isInitialLoadCompleted)
-            return;
-
-        _ = Task.Run(async () =>
+        try
         {
-            try
+            await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                // Defer prewarm so first render remains responsive.
-                await Task.Delay(900);
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    var standardMapPage = GetOrCreateExploreMapPage(false);
-                    standardMapPage.Prewarm();
+                var standardMapPage = GetOrCreateExploreMapPage(false);
+                standardMapPage.Prewarm();
 
-                    var nearFocusMapPage = GetOrCreateExploreMapPage(true);
-                    nearFocusMapPage.Prewarm();
-                });
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[MainPage] ScheduleExploreMapPrewarm error: {ex}");
-            }
-        });
+                var nearFocusMapPage = GetOrCreateExploreMapPage(true);
+                nearFocusMapPage.Prewarm();
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] PrewarmExploreMapsAsync error: {ex}");
+        }
     }
 
     private bool TryConsumeMainPagePrewarmFlag()
@@ -1885,8 +1918,8 @@ public partial class MainPage : ContentPage
 
         // Update PrimaryZone immediately so audio player shows correct POI info
         _vm.PrimaryZone = poi;
-        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "-";
-        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? "";
+        _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);
+        _vm.PrimaryZoneDesc = poi.GetDisplayDescription(_lang.CurrentLanguage);
         _vm.PrimaryZoneAddress = poi.Address ?? "Đang cập nhật địa chỉ...";
 
         // Only refresh the queue list - do NOT update Currently Playing card YET
@@ -2158,8 +2191,8 @@ public partial class MainPage : ContentPage
         if (poi == null) return;
         _ = Share.Default.RequestAsync(new ShareTextRequest
         {
-            Title = poi.Name_Vi ?? poi.Name_En ?? "Street Food Narrator",
-            Text  = $"{poi.Name_Vi ?? poi.Name_En}\n{poi.Address ?? ""}\n{poi.Description_Vi ?? poi.Description_En ?? ""}"
+            Title = string.IsNullOrWhiteSpace(poi.DisplayName) ? "Street Food Narrator" : poi.DisplayName,
+            Text  = $"{poi.DisplayName}\n{poi.Address ?? ""}\n{poi.DisplayDescription}"
         });
     }
 
@@ -2473,7 +2506,7 @@ public partial class MainPage : ContentPage
             if (playingPoi != null)
             {
                 _vm.PrimaryZone = playingPoi;
-                _vm.PrimaryZoneName = playingPoi.Name_Vi ?? playingPoi.Name_En ?? "-";
+                _vm.PrimaryZoneName = playingPoi.GetDisplayName(_lang.CurrentLanguage);
                 return;
             }
         }
@@ -2485,7 +2518,7 @@ public partial class MainPage : ContentPage
             if (featuredPoi != null)
             {
                 _vm.PrimaryZone = featuredPoi;
-                _vm.PrimaryZoneName = featuredPoi.Name_Vi ?? featuredPoi.Name_En ?? "-";
+                _vm.PrimaryZoneName = featuredPoi.GetDisplayName(_lang.CurrentLanguage);
             }
         }
     }

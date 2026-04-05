@@ -71,10 +71,10 @@
                             </HorizontalStackLayout>
                         </Border>
                         <VerticalStackLayout>
-                            <Label Text="Bạn đang ở xa " FontSize="40" FontAttributes="Bold" LineHeight="0.95" TextColor="#E5EFE9" />
-                            <Label Text="Khu ẩm thực" FontSize="43" FontAttributes="Bold" TextColor="#4BE277" />
+                            <Label x:Name="FarHeadlineLine1Label" Text="Bạn đang ở xa " FontSize="40" FontAttributes="Bold" LineHeight="0.95" TextColor="#E5EFE9" />
+                            <Label x:Name="FarHeadlineLine2Label" Text="Khu ẩm thực" FontSize="43" FontAttributes="Bold" TextColor="#4BE277" />
                         </VerticalStackLayout>
-                        <Label Text="Không gian xung quanh thực yên tĩnh. Hãy bắt đầu chuyến thám hiểm ngay bây giờ để chuẩn bị cho hành trình sắp tới của bạn."
+                        <Label x:Name="FarDescriptionLabel" Text="Không gian xung quanh thực yên tĩnh. Hãy bắt đầu chuyến thám hiểm ngay bây giờ để chuẩn bị cho hành trình sắp tới của bạn."
                                FontSize="16" LineHeight="1.4" TextColor="#D7E1DBCC" MaxLines="4" />
                         <Button Text="{Binding ExplorePrimaryActionText}" HeightRequest="64" CornerRadius="32" FontSize="18"
                                 FontAttributes="Bold" TextColor="#082111" Clicked="OnPrimaryExploreActionClicked">
@@ -144,7 +144,7 @@
                                     </Button.Background>
                                 </Button>
 
-                                <Button Text="Xem bản đồ" Margin="16,0,16,14" HeightRequest="50" CornerRadius="25" FontSize="15"
+                                <Button x:Name="NearMapOnlyButton" Text="Xem bản đồ" Margin="16,0,16,14" HeightRequest="50" CornerRadius="25" FontSize="15"
                                         FontAttributes="Bold" BackgroundColor="#102019CC" BorderColor="#23352E" BorderWidth="1"
                                     TextColor="#E5EFE9" Clicked="OnNearMapOnlyClicked" IsVisible="False" />
                             </VerticalStackLayout>
@@ -196,9 +196,9 @@
                             </HorizontalStackLayout>
                         </Border>
 
-                        <Label Text="Bạn đang trong khu ẩm thực" FontSize="30" FontAttributes="Bold" TextColor="#E7EFE9" LineHeight="1.05" />
-                        <Label Text="Vĩnh Khánh" FontSize="52" FontAttributes="Bold" TextColor="#4BE277" LineHeight="0.95" />
-                        <Label Text="Hãy để âm thanh dẫn lối bạn qua những gian hàng ẩm thực danh tiếng của Quận 4."
+                           <Label x:Name="InZoneTitleLabel" Text="Bạn đang trong khu ẩm thực" FontSize="30" FontAttributes="Bold" TextColor="#E7EFE9" LineHeight="1.05" />
+                           <Label x:Name="InZoneAreaLabel" Text="Vĩnh Khánh" FontSize="52" FontAttributes="Bold" TextColor="#4BE277" LineHeight="0.95" />
+                           <Label x:Name="InZoneDescriptionLabel" Text="Hãy để âm thanh dẫn lối bạn qua những gian hàng ẩm thực danh tiếng của Quận 4."
                                FontSize="14" LineHeight="1.35" TextColor="#BFD0C8" />
 
                         <Border BackgroundColor="#111A17" Stroke="#1F2C27" StrokeThickness="1" Padding="16">
@@ -212,7 +212,7 @@
                                                Aspect="AspectFill" />
                                     </Border>
                                     <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
-                                        <Label Text="ĐANG NGHE" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.8" TextColor="#8FBDA4" />
+                                        <Label x:Name="InZoneNowPlayingTagLabel" Text="ĐANG NGHE" FontSize="11" FontAttributes="Bold" CharacterSpacing="1.8" TextColor="#8FBDA4" />
                                         <Label x:Name="InZoneMiniNowPlayingName"
                                                Text="{Binding PrimaryZoneName}"
                                                FontSize="24"
@@ -252,7 +252,7 @@
                             </VerticalStackLayout>
                         </Border>
 
-                        <Button Text="Tiếp tục khám phá"
+                        <Button x:Name="InZoneContinueButton" Text="Tiếp tục khám phá"
                                 HeightRequest="64"
                                 CornerRadius="32"
                                 FontSize="18"
@@ -267,7 +267,7 @@
                             </Button.Background>
                         </Button>
 
-                        <Button Text="Xem vị trí của bạn"
+                        <Button x:Name="InZoneSeeLocationButton" Text="Xem vị trí của bạn"
                                 HeightRequest="64"
                                 CornerRadius="32"
                                 FontSize="18"
@@ -287,7 +287,7 @@
                                 <Label Text="{Binding ExploreStateBadge}" FontSize="12" FontAttributes="Bold" CharacterSpacing="1.8" TextColor="#4BE277" />
                             </HorizontalStackLayout>
                         </Border>
-                        <Label Text="Bạn đang trong khu ẩm thực"
+                           <Label x:Name="InZoneDashboardTitleLabel" Text="Bạn đang trong khu ẩm thực"
                                FontSize="30"
                                FontAttributes="Bold"
                                TextColor="#E7EFE9"
@@ -320,7 +320,7 @@
                                             <Button WidthRequest="58" HeightRequest="58" CornerRadius="29" BackgroundColor="#22C55E"
                                                     Text="▶" FontSize="22" TextColor="#082111" Clicked="OnPlayPauseTapped" />
                                             <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
-                                                <Label Text="ĐANG THUYẾT MINH" FontSize="11" FontAttributes="Bold" CharacterSpacing="2" TextColor="#4BE277" />
+                                                <Label x:Name="InZoneDashboardNarratingTagLabel" Text="ĐANG THUYẾT MINH" FontSize="11" FontAttributes="Bold" CharacterSpacing="2" TextColor="#4BE277" />
                                                 <ProgressBar Progress="{Binding ExploreAudioProgressValue}" ProgressColor="#4BE277" BackgroundColor="#24342E" HeightRequest="6" />
                                             </VerticalStackLayout>
                                             <Label Grid.Column="2" Text="{Binding ExploreAudioProgressText}" VerticalTextAlignment="Center" FontSize="18" TextColor="#D8E6DF99" />
@@ -330,13 +330,13 @@
                                 </Border>
 
                                 <Grid Padding="24,20,24,28" ColumnDefinitions="*,*,*" ColumnSpacing="14">
-                                    <Button Grid.Column="0" HeightRequest="96" CornerRadius="26" BackgroundColor="#22312C"
+                                        <Button x:Name="DirectionActionButton" Grid.Column="0" HeightRequest="96" CornerRadius="26" BackgroundColor="#22312C"
                                             Text="➡&#10;CHỈ ĐƯỜNG" FontSize="18" FontAttributes="Bold" TextColor="#E7EFE9"
                                             Clicked="OnDirectionClicked" />
-                                    <Button Grid.Column="1" HeightRequest="96" CornerRadius="26" BackgroundColor="#22312C"
+                                        <Button x:Name="ShuffleActionButton" Grid.Column="1" HeightRequest="96" CornerRadius="26" BackgroundColor="#22312C"
                                             Text="🔀&#10;ĐỔI QUÁN" FontSize="18" FontAttributes="Bold" TextColor="#E7EFE9"
                                             Clicked="OnShuffleClicked" />
-                                    <Button Grid.Column="2" HeightRequest="96" CornerRadius="26" BackgroundColor="#22312C"
+                                        <Button x:Name="MapActionButton" Grid.Column="2" HeightRequest="96" CornerRadius="26" BackgroundColor="#22312C"
                                             Text="🗺️&#10;XEM BẢN ĐỒ" FontSize="17" FontAttributes="Bold" TextColor="#E7EFE9"
                                             Clicked="OnSecondaryExploreActionClicked" />
                                 </Grid>
@@ -344,8 +344,8 @@
                         </Border>
 
                         <Grid ColumnDefinitions="*,Auto">
-                            <Label Text="Gần bạn còn:" FontSize="24" FontAttributes="Bold" TextColor="#E7EFE9" />
-                            <Label Grid.Column="1" Text="XEM TẤT CẢ" FontSize="13" FontAttributes="Bold" CharacterSpacing="1.4" TextColor="#4BE277" VerticalTextAlignment="Center" />
+                            <Label x:Name="NearYouTitleLabel" Text="Gần bạn còn:" FontSize="24" FontAttributes="Bold" TextColor="#E7EFE9" />
+                            <Label x:Name="NearYouSeeAllLabel" Grid.Column="1" Text="XEM TẤT CẢ" FontSize="13" FontAttributes="Bold" CharacterSpacing="1.4" TextColor="#4BE277" VerticalTextAlignment="Center" />
                         </Grid>
                         <VerticalStackLayout BindableLayout.ItemsSource="{Binding NearbyExplorePois}" Spacing="14">
                             <BindableLayout.ItemTemplate>
@@ -450,8 +450,8 @@
                                         </LinearGradientBrush>
                                     </Button.Background>
                                 </Button>
-                                <Button Grid.Column="1"
-                                        Text="HỦY"
+                                <Button x:Name="NearPopupCancelButton" Grid.Column="1"
+                                    Text="HỦY"
                                         HeightRequest="48"
                                         CornerRadius="24"
                                         FontSize="15"
@@ -479,8 +479,8 @@
                     <Border.StrokeShape><RoundRectangle CornerRadius="24" /></Border.StrokeShape>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <VerticalStackLayout Spacing="4">
-                            <Label Text="Bản đồ khu ẩm thực" FontSize="22" FontAttributes="Bold" TextColor="#E7EFE9" />
-                            <Label Text="Bản đồ là công cụ phụ để định hướng nhanh, không phải màn hình chính."
+                            <Label x:Name="MapToolTitleLabel" Text="Bản đồ khu ẩm thực" FontSize="22" FontAttributes="Bold" TextColor="#E7EFE9" />
+                            <Label x:Name="MapToolSubtitleLabel" Text="Bản đồ là công cụ phụ để định hướng nhanh, không phải màn hình chính."
                                    FontSize="14" LineHeight="1.3" TextColor="#C8D6CFCC" />
                         </VerticalStackLayout>
                         <Button Grid.Column="1" WidthRequest="42" HeightRequest="42" CornerRadius="21"
@@ -491,13 +491,13 @@
                 <Border Grid.Row="2" BackgroundColor="#0E1915EE" Stroke="#23352E" StrokeThickness="1" Padding="18">
                     <Border.StrokeShape><RoundRectangle CornerRadius="26" /></Border.StrokeShape>
                     <VerticalStackLayout Spacing="14">
-                        <Label Text="Bạn có thể dùng bản đồ để xem vị trí quán nổi bật và căn lại hướng di chuyển."
+                           <Label x:Name="MapToolDescriptionLabel" Text="Bạn có thể dùng bản đồ để xem vị trí quán nổi bật và căn lại hướng di chuyển."
                                FontSize="15" LineHeight="1.35" TextColor="#D9E5DECC" />
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                            <Button Grid.Column="0" HeightRequest="54" CornerRadius="27" BackgroundColor="#22312C"
+                                <Button x:Name="MapToolCenterButton" Grid.Column="0" HeightRequest="54" CornerRadius="27" BackgroundColor="#22312C"
                                     Text="Căn giữa" FontSize="16" FontAttributes="Bold" TextColor="#E7EFE9"
                                     Clicked="OnCenterMapClicked" />
-                            <Button Grid.Column="1" HeightRequest="54" CornerRadius="27" Text="Đóng bản đồ"
+                                <Button x:Name="MapToolCloseButton" Grid.Column="1" HeightRequest="54" CornerRadius="27" Text="Đóng bản đồ"
                                     FontSize="16" FontAttributes="Bold" TextColor="#082111"
                                     Clicked="OnMapToolCloseClicked">
                                 <Button.Background>
@@ -563,7 +563,7 @@
                            FontSize="16"
                            TextColor="White"
                            VerticalOptions="Start" />
-                    <Label Text="Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm đầy đủ và cập nhật dữ liệu mới nhất."
+                          <Label x:Name="OfflineBannerTextLabel" Text="Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm đầy đủ và cập nhật dữ liệu mới nhất."
                            FontSize="12"
                            LineBreakMode="WordWrap"
                            TextColor="White"

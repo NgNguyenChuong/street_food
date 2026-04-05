@@ -1,6 +1,7 @@
 using SQLite;
 using System.Text.RegularExpressions;
 using Microsoft.Maui.Networking;
+using Microsoft.Maui.Storage;
 
 namespace StreetFoodNarrator.App.Core.Models;
 
@@ -358,6 +359,19 @@ public class POI
             _ => Name_Vi
         };
     }
+
+    /// <summary>
+    /// Lấy tên hiển thị theo ngôn ngữ hiện tại, không trộn ngôn ngữ chéo.
+    /// </summary>
+    public string GetDisplayName(string language = "vi")
+    {
+        return language.ToLowerInvariant() switch
+        {
+            "en" => string.IsNullOrWhiteSpace(Name_En) ? string.Empty : Name_En,
+            "zh" => string.IsNullOrWhiteSpace(Name_Zh) ? string.Empty : Name_Zh,
+            _ => string.IsNullOrWhiteSpace(Name_Vi) ? string.Empty : Name_Vi
+        };
+    }
     
     /// <summary>
     /// Lấy mô tả theo ngôn ngữ - CHỈ 3 NGÔN NGỮ
@@ -370,6 +384,19 @@ public class POI
             "en" => Description_En,
             "zh" => Description_Zh ?? Description_En ?? Description_Vi,
             _ => Description_Vi
+        };
+    }
+
+    /// <summary>
+    /// Lấy mô tả hiển thị theo ngôn ngữ hiện tại, không trộn ngôn ngữ chéo.
+    /// </summary>
+    public string GetDisplayDescription(string language = "vi")
+    {
+        return language.ToLowerInvariant() switch
+        {
+            "en" => Description_En?.Trim() ?? string.Empty,
+            "zh" => Description_Zh?.Trim() ?? string.Empty,
+            _ => Description_Vi?.Trim() ?? string.Empty
         };
     }
     
@@ -386,5 +413,11 @@ public class POI
             _ => AudioUrl_Vi
         };
     }
+
+    [Ignore]
+    public string DisplayName => GetDisplayName(Preferences.Get("app_language", "vi"));
+
+    [Ignore]
+    public string DisplayDescription => GetDisplayDescription(Preferences.Get("app_language", "vi"));
 }
 

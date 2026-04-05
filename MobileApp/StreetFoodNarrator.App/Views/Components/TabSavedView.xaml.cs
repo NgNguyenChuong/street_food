@@ -5,6 +5,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using StreetFoodNarrator.App.Core.Models;
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 using StreetFoodNarrator.App.Views;
 
@@ -20,7 +22,42 @@ public partial class TabSavedView : ContentView
         if (BindingContext == null)
             BindingContext = MauiProgram.Services.GetRequiredService<MainViewModel>();
 
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+        ApplyLocalizedTexts();
         ApplySavedSegmentVisualState();
+    }
+
+    private void OnLoaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ApplyLocalizedTexts();
+            ApplySavedSegmentVisualState();
+        });
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        SavedHeaderTitleLabel.Text = AppStrings.Get("Saved_Tab_Saved");
+        SavedHeaderSubtitleLabel.Text = AppStrings.Get("TabSaved_Subtitle");
+        SavedTourLabel.Text = AppStrings.Get("TabSaved_Segment_Tours");
+        SavedPoiLabel.Text = AppStrings.Get("TabSaved_Segment_Pois");
+        EmptySavedTourTitleLabel.Text = AppStrings.Get("TabSaved_EmptyTour_Title");
+        EmptySavedTourSubtitleLabel.Text = AppStrings.Get("TabSaved_EmptyTour_Subtitle");
+        EmptySavedPoiTitleLabel.Text = AppStrings.Get("TabSaved_EmptyPoi_Title");
+        EmptySavedPoiSubtitleLabel.Text = AppStrings.Get("TabSaved_EmptyPoi_Subtitle");
     }
 
     private async void OnCardSelectionChanged(object sender, SelectionChangedEventArgs e)

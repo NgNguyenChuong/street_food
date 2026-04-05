@@ -14,7 +14,7 @@
     <Grid RowDefinitions="Auto,Auto,*">
 
         <Border Grid.Row="0" BackgroundColor="#0A1612" Padding="14,52,14,8">
-            <SearchBar Placeholder="Tìm kiếm tour..."
+            <SearchBar x:Name="TourSearchBar" Placeholder="Tìm kiếm tour..."
                        Text="{Binding TourSearchQuery}"
                        BackgroundColor="#0E1E17" TextColor="White"
                        PlaceholderColor="#6B7280"/>
@@ -26,7 +26,7 @@
                 BackgroundColor="#1A2D22" Padding="10,7" Stroke="#2F4A3D" StrokeThickness="1">
             <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
                 <Label Text="&#xF05A9;" FontFamily="MDI" TextColor="#FBBF24" FontSize="16" VerticalOptions="Center"/>
-                <Label Text="Đang xem tour ngoại tuyến (dữ liệu đã lưu)."
+                <Label x:Name="OfflineTourNoticeLabel" Text="Đang xem tour ngoại tuyến (dữ liệu đã lưu)."
                        TextColor="#D1D5DB" FontSize="12" FontAttributes="Bold" VerticalOptions="Center"/>
             </HorizontalStackLayout>
         </Border>
@@ -42,14 +42,15 @@
                     <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
                         <Label Text="&#xF0349;" FontFamily="MDI" FontSize="42"
                                TextColor="#4B5563" HorizontalOptions="Center"/>
-                        <Label Text="Chưa có tour phù hợp" FontSize="15"
+                           <Label x:Name="EmptyTourLabel" Text="Chưa có tour phù hợp" FontSize="15"
                                TextColor="#6B7280" HorizontalOptions="Center"/>
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="vm:MainViewModel+TourListItem">
                         <Border Margin="14,0,14,10" StrokeShape="RoundRectangle 16"
-                                BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12">
+                                BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12"
+                                MinimumHeightRequest="164">
                             <VerticalStackLayout Spacing="10">
                                 <Grid ColumnDefinitions="64,*,Auto,Auto" ColumnSpacing="10">
                                     <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
@@ -58,9 +59,11 @@
                                                WidthRequest="64" HeightRequest="64" />
                                     </Border>
 
-                                    <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                    <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center" MinimumHeightRequest="82">
                                         <Label Text="{Binding Name}" FontSize="14"
-                                               FontAttributes="Bold" TextColor="White"/>
+                                               FontAttributes="Bold" TextColor="White"
+                                               LineBreakMode="TailTruncation" MaxLines="2"
+                                               HeightRequest="34" VerticalTextAlignment="Start"/>
                                         <Label Text="{Binding Description}" FontSize="12"
                                              TextColor="#9CA3AF" LineBreakMode="TailTruncation" MaxLines="2"
                                              HeightRequest="34" VerticalTextAlignment="Start"/>
@@ -108,6 +111,7 @@
                                             FontSize="12"
                                             HeightRequest="38"
                                             CornerRadius="10"
+                                            Padding="0"
                                             BackgroundColor="#1A2E40"
                                             TextColor="#CDE4FF"
                                             Clicked="OnTourDetailClicked"/>
@@ -118,6 +122,7 @@
                                             FontAttributes="Bold"
                                             HeightRequest="38"
                                             CornerRadius="10"
+                                            Padding="0"
                                             BackgroundColor="#22C55E"
                                             TextColor="White"
                                             Command="{Binding Source={x:Reference Root}, Path=BindingContext.StartTourNowCommand}"

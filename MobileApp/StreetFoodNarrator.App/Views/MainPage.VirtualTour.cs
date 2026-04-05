@@ -143,7 +143,7 @@ public partial class MainPage
         var distStack = new VerticalStackLayout { Spacing = 6 };
         var distNameRow = new HorizontalStackLayout { Spacing = 8, HorizontalOptions = LayoutOptions.Center };
         distNameRow.Add(new Label { Text = "📍", FontSize = 16, VerticalOptions = LayoutOptions.Center });
-        distNameRow.Add(new Label { Text = $"Gần nhất: {nearest.Name_Vi}", FontSize = 14, TextColor = Color.FromArgb("#9CA3AF"), VerticalOptions = LayoutOptions.Center });
+        distNameRow.Add(new Label { Text = $"Gần nhất: {nearest.GetDisplayName(_lang.CurrentLanguage)}", FontSize = 14, TextColor = Color.FromArgb("#9CA3AF"), VerticalOptions = LayoutOptions.Center });
         distStack.Add(distNameRow);
 
         var distKmLabel = new Label { HorizontalOptions = LayoutOptions.Center };
@@ -235,8 +235,8 @@ public partial class MainPage
         var idx = _vm.AllPOIs.IndexOf(startingPOI);
         if (idx < 0) idx = 0;
         _vm.PrimaryZone = startingPOI;
-        _vm.PrimaryZoneName = startingPOI.Name_Vi ?? startingPOI.Name_En ?? "—";
-        _vm.PrimaryZoneDesc = startingPOI.Description_Vi ?? startingPOI.Description_En ?? "";
+        _vm.PrimaryZoneName = startingPOI.GetDisplayName(_lang.CurrentLanguage);
+        _vm.PrimaryZoneDesc = startingPOI.GetDisplayDescription(_lang.CurrentLanguage);
         _vm.PrimaryZoneAddress = startingPOI.Address ?? "Đang cập nhật";
         _vm.PrimaryZoneRating = (startingPOI.Rating ?? 4.5).ToString("F1");
         var spots = _vm.AllPOIs.Where(p => p.ZoneType == "Spot").OrderBy(p => p.Id).ToList();
@@ -382,7 +382,7 @@ public partial class MainPage
 
     private void OnSuggestionSelected(object? sender, POI poi)
     {
-        _vm.SearchQuery = poi.Name_Vi ?? poi.Name_En ?? "";
+        _vm.SearchQuery = poi.GetDisplayName(_lang.CurrentLanguage);
         TabMapComponent.HideSuggestions();
         CenterMapOnPOI(poi);
         _vm.SelectedPinPOI = poi;

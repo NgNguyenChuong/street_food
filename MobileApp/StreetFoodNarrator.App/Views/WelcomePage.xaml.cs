@@ -485,7 +485,6 @@ public partial class WelcomePage : ContentPage
 
             // Normal path - no popup needed
             StartLoadingOverlay.IsVisible = true;
-            await Task.Delay(150);
 
             // Request permissions FIRST on the UI thread before navigating to avoid ANR deadlocks
             var hasPermission = await EnsureLocationPermissionFlowAsync();
@@ -1634,7 +1633,8 @@ public partial class WelcomePage : ContentPage
     
     private async Task NavigateToMapAsync()
     {
-        await PrewarmMainPageDataAsync();
+        // Do not block navigation on prewarm. Let MainPage loading handle data prep.
+        StartMainPagePrewarmInBackground();
 
         // Avoid forcing an immediate in-zone map auto-open on first launch.
         // This was causing heavy startup contention and first-run ANR/crash loops.
@@ -1645,6 +1645,14 @@ public partial class WelcomePage : ContentPage
         // Do not mutate Shell item visibility at runtime here.
         // Toggling tab visibility during first navigation can race Shell fragment lifecycle.
         await Shell.Current.GoToAsync("//MapPage", false);
+    }
+
+    private void StartMainPagePrewarmInBackground()
+    {
+        _ = MainThread.InvokeOnMainThreadAsync(async () =>
+        {
+            await PrewarmMainPageDataAsync();
+        });
     }
 
     private async Task PrewarmMainPageDataAsync()

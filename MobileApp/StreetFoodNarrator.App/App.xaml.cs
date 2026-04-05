@@ -44,8 +44,8 @@ public partial class App : Application
 
         if (hasOnboarded)
         {
-            // Returning user: skip WelcomePage, go directly to MainPage
-            return new Window(new AppShell(isOnboarding: false));
+            // Returning user: show lightweight startup loading immediately, then hand off to AppShell.
+            return new Window(new StartupLoadingPage());
         }
 
         // First time user: show WelcomePage via AppShell

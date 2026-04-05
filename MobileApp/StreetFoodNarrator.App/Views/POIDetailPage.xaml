@@ -91,7 +91,7 @@
                         <!-- Title in header -->
                         <StackLayout Grid.Column="1" HorizontalOptions="Center"
                                      VerticalOptions="Center" Spacing="2">
-                            <Label Text="{Binding Poi.Name_Vi}"
+                            <Label Text="{Binding LocalizedPoiName}"
                                    FontSize="18" FontAttributes="Bold"
                                    TextColor="White"
                                    HorizontalTextAlignment="Center"
@@ -134,7 +134,7 @@
                             </Border>
                         </HorizontalStackLayout>
                         <!-- Hero headline — dùng Bold thay vì font chưa đăng ký -->
-                        <Label Text="{Binding Poi.Name_Vi}"
+                           <Label Text="{Binding LocalizedPoiName}"
                                FontSize="38" FontAttributes="Bold"
                                TextColor="{StaticResource OnSurface}"
                                LineHeight="1.05"/>
@@ -250,7 +250,7 @@
                                 <Label Text="Câu chuyện"
                                        FontSize="18" FontAttributes="Bold"
                                        TextColor="{StaticResource OnSurface}"/>
-                                <Label Text="{Binding Poi.Description_Vi, TargetNullValue='Quán ẩm thực đường phố nổi tiếng tại khu Vĩnh Khánh, Quận 4. Hương vị đậm đà, phục vụ tận tình.'}"
+                                    <Label Text="{Binding LocalizedPoiDescription, TargetNullValue='Quán ẩm thực đường phố nổi tiếng tại khu Vĩnh Khánh, Quận 4. Hương vị đậm đà, phục vụ tận tình.'}"
                                        FontSize="15"
                                        TextColor="{StaticResource OnSurfaceVariant}"
                                        LineHeight="1.6"/>
@@ -412,11 +412,11 @@
                                                 <VerticalStackLayout Grid.Column="1"
                                                                      Spacing="4"
                                                                      VerticalOptions="Center">
-                                                    <Label Text="{Binding Name_Vi}"
+                                                       <Label Text="{Binding DisplayName}"
                                                            FontSize="15" FontAttributes="Bold"
                                                            TextColor="{StaticResource OnSurface}"
                                                            LineBreakMode="TailTruncation"/>
-                                                    <Label Text="{Binding Description_Vi}"
+                                                       <Label Text="{Binding DisplayDescription}"
                                                            FontSize="12"
                                                            TextColor="{StaticResource OnSurfaceVariant}"
                                                            MaxLines="2" LineBreakMode="TailTruncation"/>

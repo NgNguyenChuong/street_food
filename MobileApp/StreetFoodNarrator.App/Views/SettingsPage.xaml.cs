@@ -390,6 +390,7 @@ public partial class SettingsPage : ContentPage
 
         SwitchVoiceForLanguage(_pendingLanguageCode);
         _hasPendingChanges = true;
+        _languageService.ApplyLanguage(_pendingLanguageCode);
         ReloadUIStrings();
         RefreshPlaybackModeOptions();
         RefreshLocationSourceOptions();

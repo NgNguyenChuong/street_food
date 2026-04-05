@@ -24,7 +24,7 @@ public partial class TourDetailPopupPage : ContentPage
         var stops = tourPois
             .Select((poi, index) => new TourStopItem
             {
-                Title = $"{index + 1}. {poi.Name_Vi ?? poi.Name_En ?? $"Điểm dừng {index + 1}"}",
+                Title = $"{index + 1}. {(string.IsNullOrWhiteSpace(poi.DisplayName) ? $"Điểm dừng {index + 1}" : poi.DisplayName)}",
                 Subtitle = ResolvePoiSubtitle(poi)
             })
             .ToList();
@@ -71,11 +71,8 @@ public partial class TourDetailPopupPage : ContentPage
         if (!string.IsNullOrWhiteSpace(poi.FunFact))
             return poi.FunFact.Trim();
 
-        if (!string.IsNullOrWhiteSpace(poi.Description_Vi))
-            return Shorten(poi.Description_Vi, 95);
-
-        if (!string.IsNullOrWhiteSpace(poi.Description_En))
-            return Shorten(poi.Description_En, 95);
+        if (!string.IsNullOrWhiteSpace(poi.DisplayDescription))
+            return Shorten(poi.DisplayDescription, 95);
 
         if (!string.IsNullOrWhiteSpace(poi.SignatureDish))
             return $"Món nổi bật: {poi.SignatureDish.Trim()}";

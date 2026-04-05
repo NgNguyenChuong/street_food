@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.Views;
 using System.Collections.Generic;
 
@@ -15,6 +17,7 @@ public partial class AppShell : Shell
     public AppShell(bool isOnboarding = false)
     {
         InitializeComponent();
+        LanguageService.LanguageChanged += OnLanguageChanged;
 
         if (isOnboarding)
         {
@@ -76,6 +79,19 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("SettingsPage", typeof(SettingsPage));
 
         Navigated += OnShellNavigated;
+        ApplyLocalizedTabTitles();
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(ApplyLocalizedTabTitles);
+    }
+
+    private void ApplyLocalizedTabTitles()
+    {
+        MapShellContent.Title = AppStrings.Get("Nav_Map");
+        SavedShellContent.Title = AppStrings.Get("Nav_Library");
+        SettingsShellContent.Title = AppStrings.Get("Nav_Settings");
     }
 
     private void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)

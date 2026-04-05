@@ -219,7 +219,7 @@ public partial class MainPage
                         SymbolType = SymbolType.Ellipse
                     });
 
-                    var labelText = poi.Name_Vi ?? poi.Name_En ?? string.Empty;
+                    var labelText = poi.DisplayName;
                     if (labelText.Length > 15) labelText = labelText[..15];
                     poiFeature.Styles.Add(new LabelStyle
                     {

@@ -29,7 +29,7 @@
                 <RoundRectangle CornerRadius="12" />
             </Border.StrokeShape>
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <Label Text="Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm tốt hơn."
+                <Label x:Name="OfflineBannerLabel" Text="Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm tốt hơn."
                        FontSize="11"
                        TextColor="White"
                        VerticalTextAlignment="Center"/>

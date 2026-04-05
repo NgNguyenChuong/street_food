@@ -62,6 +62,19 @@ public static class AppStrings
         return ResourceManager.GetString(name, Culture) ?? name;
     }
 
+    public static string Get(string key)
+    {
+        return GetString(key);
+    }
+
+    public static string Format(string key, params object[] args)
+    {
+        var template = GetString(key);
+        return args == null || args.Length == 0
+            ? template
+            : string.Format(Culture, template, args);
+    }
+
     public static string Common_OK => GetString("Common_OK");
     public static string Common_Cancel => GetString("Common_Cancel");
     public static string Common_Continue => GetString("Common_Continue");

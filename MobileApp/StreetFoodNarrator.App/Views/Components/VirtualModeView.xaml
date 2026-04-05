@@ -329,7 +329,7 @@
                                                    TextColor="#FFB690"
                                                    CharacterSpacing="1.5"/>
                                             <!-- Name -->
-                                            <Label Text="{Binding Name_Vi}"
+                                              <Label Text="{Binding DisplayName}"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
                                                    TextColor="#D8E6DF"/>
