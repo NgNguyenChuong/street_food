@@ -1,6 +1,7 @@
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls.Shapes;
+using Microsoft.Maui.Devices;
 
 namespace StreetFoodNarrator.App.Helpers;
 
@@ -12,6 +13,11 @@ public static class CustomAlert
     private static readonly SemaphoreSlim AlertGate = new(1, 1);
     private const string OverlayClassId = "__custom_alert_overlay";
     private const string WrapperClassId = "__custom_alert_wrapper";
+    private const uint EnterAnimationMs = 90;
+    private const uint ExitAnimationMs = 80;
+
+    // Android renders multiple shadows/scale effects less smoothly on mid/low-end devices.
+    private static bool UseLightweightEffects => DeviceInfo.Platform == DevicePlatform.Android;
 
     /// <summary>
     /// Hiện alert đơn giản với 1 nút OK
@@ -108,15 +114,18 @@ public static class CustomAlert
             HorizontalOptions = LayoutOptions.Center,
             VerticalOptions = LayoutOptions.Center,
             MaximumWidthRequest = 340,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(20) },
-            Shadow = new Shadow
+            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(20) }
+        };
+        if (!UseLightweightEffects)
+        {
+            dialog.Shadow = new Shadow
             {
                 Brush = Colors.Black,
                 Opacity = 0.3f,
                 Radius = 20,
                 Offset = new Point(0, 10)
-            }
-        };
+            };
+        }
 
         var content = new VerticalStackLayout { Spacing = 16 };
 
@@ -210,15 +219,18 @@ public static class CustomAlert
                 FontSize = 15,
                 FontAttributes = FontAttributes.Bold,
                 HeightRequest = 48,
-                CornerRadius = 12,
-                Shadow = new Shadow
+                CornerRadius = 12
+            };
+            if (!UseLightweightEffects)
+            {
+                okButton.Shadow = new Shadow
                 {
                     Brush = GetButtonColor(type),
                     Opacity = 0.3f,
                     Radius = 12,
                     Offset = new Point(0, 4)
-                }
-            };
+                };
+            }
             okButton.Clicked += async (s, e) => await ResolveAndCloseAsync(true);
             content.Add(okButton);
         }
@@ -304,11 +316,19 @@ public static class CustomAlert
 
         // Animate in
         dialog.Opacity = 0;
-        dialog.Scale = 0.8;
-        await Task.WhenAll(
-            dialog.FadeToAsync(1, 140, Easing.CubicOut),
-            dialog.ScaleToAsync(1, 140, Easing.CubicOut)
-        );
+        if (UseLightweightEffects)
+        {
+            dialog.Scale = 1;
+            await dialog.FadeToAsync(1, EnterAnimationMs, Easing.CubicOut);
+        }
+        else
+        {
+            dialog.Scale = 0.9;
+            await Task.WhenAll(
+                dialog.FadeToAsync(1, EnterAnimationMs, Easing.CubicOut),
+                dialog.ScaleToAsync(1, EnterAnimationMs, Easing.CubicOut)
+            );
+        }
 
         return await tcs.Task;
         }
@@ -324,10 +344,17 @@ public static class CustomAlert
         {
             if (overlay.Children.FirstOrDefault() is Border dialog)
             {
-                await Task.WhenAll(
-                    dialog.FadeToAsync(0, 120, Easing.CubicIn),
-                    dialog.ScaleToAsync(0.8, 120, Easing.CubicIn)
-                );
+                if (UseLightweightEffects)
+                {
+                    await dialog.FadeToAsync(0, ExitAnimationMs, Easing.CubicIn);
+                }
+                else
+                {
+                    await Task.WhenAll(
+                        dialog.FadeToAsync(0, ExitAnimationMs, Easing.CubicIn),
+                        dialog.ScaleToAsync(0.9, ExitAnimationMs, Easing.CubicIn)
+                    );
+                }
             }
         }
         catch

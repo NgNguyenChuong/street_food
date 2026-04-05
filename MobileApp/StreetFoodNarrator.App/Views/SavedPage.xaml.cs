@@ -6,6 +6,8 @@ namespace StreetFoodNarrator.App.Views;
 
 public partial class SavedPage : ContentPage
 {
+    public const string OpenBrowseSegmentOnNextAppearKey = "saved_open_browse_segment_once";
+
     private readonly MainViewModel _vm;
     private bool _isBrowseSegment = false;
     private StreetFoodNarrator.App.Views.Components.TabMenuView? _browseContent;
@@ -32,6 +34,12 @@ public partial class SavedPage : ContentPage
         _vm.RefreshOfflineBannerSession();
         _ = EnsureSavedDataWarmupAsync();
 
+        if (Preferences.Get(OpenBrowseSegmentOnNextAppearKey, false))
+        {
+            Preferences.Set(OpenBrowseSegmentOnNextAppearKey, false);
+            SwitchToBrowseSegment();
+        }
+
         ApplyLocalizedTexts();
     }
 
@@ -55,45 +63,57 @@ public partial class SavedPage : ContentPage
 
     private void OnSegmentBrowseTapped(object sender, EventArgs e)
     {
-        if (_isBrowseSegment) return;
-        EnsureBrowseContentCreated();
-        
-        _isBrowseSegment = true;
-        BrowseHost.IsVisible = true;
-        SavedContent.IsVisible = false;
-        
-        // Update UI
-        var browseBorder = (Border)sender;
-        var savedBorder = (Border)LabelSaved.Parent;
-        
-        browseBorder.BackgroundColor = Color.FromArgb("#F5A623");
-        LabelBrowse.FontAttributes = FontAttributes.Bold;
-        LabelBrowse.TextColor = Colors.White;
-        
-        savedBorder.BackgroundColor = Color.FromArgb("#1C3024");
-        LabelSaved.FontAttributes = FontAttributes.None;
-        LabelSaved.TextColor = Color.FromArgb("#6B7280");
-
+        SwitchToBrowseSegment();
         _ = EnsureSavedDataWarmupAsync();
     }
 
     private void OnSegmentSavedTapped(object sender, EventArgs e)
     {
-        if (!_isBrowseSegment) return;
-        
+        SwitchToSavedSegment();
+    }
+
+    private void SwitchToBrowseSegment()
+    {
+        if (_isBrowseSegment)
+            return;
+
+        EnsureBrowseContentCreated();
+
+        _isBrowseSegment = true;
+        BrowseHost.IsVisible = true;
+        SavedContent.IsVisible = false;
+
+        var browseBorder = LabelBrowse.Parent as Border;
+        var savedBorder = LabelSaved.Parent as Border;
+        if (browseBorder != null)
+            browseBorder.BackgroundColor = Color.FromArgb("#F5A623");
+        LabelBrowse.FontAttributes = FontAttributes.Bold;
+        LabelBrowse.TextColor = Colors.White;
+
+        if (savedBorder != null)
+            savedBorder.BackgroundColor = Color.FromArgb("#1C3024");
+        LabelSaved.FontAttributes = FontAttributes.None;
+        LabelSaved.TextColor = Color.FromArgb("#6B7280");
+    }
+
+    private void SwitchToSavedSegment()
+    {
+        if (!_isBrowseSegment)
+            return;
+
         _isBrowseSegment = false;
         BrowseHost.IsVisible = false;
         SavedContent.IsVisible = true;
-        
-        // Update UI
-        var browseBorder = (Border)LabelBrowse.Parent;
-        var savedBorder = (Border)sender;
-        
-        browseBorder.BackgroundColor = Color.FromArgb("#1C3024");
+
+        var browseBorder = LabelBrowse.Parent as Border;
+        var savedBorder = LabelSaved.Parent as Border;
+        if (browseBorder != null)
+            browseBorder.BackgroundColor = Color.FromArgb("#1C3024");
         LabelBrowse.FontAttributes = FontAttributes.None;
         LabelBrowse.TextColor = Color.FromArgb("#6B7280");
-        
-        savedBorder.BackgroundColor = Color.FromArgb("#F5A623");
+
+        if (savedBorder != null)
+            savedBorder.BackgroundColor = Color.FromArgb("#F5A623");
         LabelSaved.FontAttributes = FontAttributes.Bold;
         LabelSaved.TextColor = Colors.White;
     }

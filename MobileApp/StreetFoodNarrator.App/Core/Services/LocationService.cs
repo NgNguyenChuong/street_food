@@ -40,6 +40,19 @@ public class LocationService : ILocationService
         }
 
 #if ANDROID
+        // Request background location permission to keep geofence tracking active while app is backgrounded.
+        var alwaysStatus = await Permissions.CheckStatusAsync<Permissions.LocationAlways>();
+        if (alwaysStatus != PermissionStatus.Granted)
+        {
+            alwaysStatus = await MainThread.InvokeOnMainThreadAsync(
+                () => Permissions.RequestAsync<Permissions.LocationAlways>());
+        }
+
+        if (alwaysStatus != PermissionStatus.Granted)
+        {
+            System.Diagnostics.Debug.WriteLine("[GPS] Background location permission not granted; tracking will run in foreground-only mode.");
+        }
+
         // Start Foreground Service so Android does not kill GPS in background
         StartAndroidForegroundService();
 #endif

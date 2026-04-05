@@ -60,6 +60,8 @@ public partial class POIDetailPage : ContentPage
 
     private void OnPageLoaded(object? sender, EventArgs e)
     {
+        ApplyLocalizedStaticTexts();
+
         // Cache track width once layout is ready — delay 50ms so frame has settled
         _ = Task.Run(async () =>
         {
@@ -93,6 +95,7 @@ public partial class POIDetailPage : ContentPage
         // Refresh like icon and localized content when page re-appears
         UpdateLikeIcon();
         _vm.RefreshLocalizedContent();
+        ApplyLocalizedStaticTexts();
         UpdateNavigateCtaVisibility();
     }
 
@@ -109,6 +112,7 @@ public partial class POIDetailPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             _vm.RefreshLocalizedContent();
+            ApplyLocalizedStaticTexts();
             RefreshMenuBindings();
 
             if (_mapInitialized)
@@ -118,6 +122,55 @@ public partial class POIDetailPage : ContentPage
                 InitializeMap();
             }
         });
+    }
+
+    private string Ui(string vi, string en, string zh)
+        => _langService.CurrentLanguage switch
+        {
+            "en" => en,
+            "zh" => zh,
+            _ => vi
+        };
+
+    private void ApplyLocalizedStaticTexts()
+    {
+        CategoryBadgeLabel.Text = string.IsNullOrWhiteSpace(_poi.Category)
+            ? Ui("ẨM THỰC ĐƯỜNG PHỐ", "STREET FOOD", "街头美食")
+            : _poi.Category;
+
+        RatingTitleLabel.Text = Ui("Đánh giá", "Rating", "评分");
+
+        SignatureValueLabel.Text = string.IsNullOrWhiteSpace(_poi.SignatureDish)
+            ? Ui("Đặc sản", "Signature", "招牌")
+            : _poi.SignatureDish;
+        SignatureTitleLabel.Text = Ui("Top món", "Top dish", "招牌菜");
+
+        OpeningHoursValueLabel.Text = string.IsNullOrWhiteSpace(_poi.DisplayOpeningHoursText)
+            ? Ui("Đang cập nhật", "Updating", "更新中")
+            : _poi.DisplayOpeningHoursText;
+        OpeningHoursTitleLabel.Text = Ui("Giờ mở cửa", "Opening hours", "营业时间");
+
+        TabInfoBtn.Text = Ui("Thông tin", "Info", "信息");
+        TabMenuBtn.Text = Ui("Menu", "Menu", "菜单");
+        TabMapBtn.Text = Ui("Bản đồ", "Map", "地图");
+
+        StoryTitleLabel.Text = Ui("Câu chuyện", "Story", "故事");
+        AudioGuideTitleLabel.Text = Ui("Hướng dẫn âm thanh", "Audio guide", "语音导览");
+
+        CardTopDishTitleLabel.Text = Ui("Top món", "Top dish", "招牌菜");
+        CardTopDishValueLabel.Text = string.IsNullOrWhiteSpace(_poi.SignatureDish)
+            ? Ui("Menu đặc trưng", "Signature menu", "特色菜单")
+            : _poi.SignatureDish;
+        CardSpaceTitleLabel.Text = Ui("Không gian", "Ambience", "环境");
+        CardSpaceValueLabel.Text = string.IsNullOrWhiteSpace(_poi.Category)
+            ? Ui("Ẩm thực đường phố", "Street food", "街头美食")
+            : _poi.Category;
+
+        MenuSectionTitleLabel.Text = Ui("Danh sách món", "Menu list", "菜单列表");
+        MenuEmptyTitleLabel.Text = Ui("Menu đang cập nhật", "Menu is being updated", "菜单更新中");
+
+        MapSectionTitleLabel.Text = Ui("Vị trí trên bản đồ", "Location on map", "地图位置");
+        NavigateCtaLabel.Text = Ui("Chỉ đường ngay", "Navigate now", "立即导航");
     }
 
     private void RefreshMenuBindings()
@@ -293,7 +346,7 @@ public partial class POIDetailPage : ContentPage
 
             if (distKm > 1.0)
             {
-                await CustomAlert.ShowAsync("Chế độ Xem Ảo",
+                await CustomAlert.ShowAsync(Ui("Chế độ Xem Ảo", "Virtual mode", "虚拟模式"),
                     AppStrings.Get("PoiDetail_Virtual_Message"), AppStrings.Get("Main_OfflineBasic_Ack"), AlertType.Info);
                 vm.IsVirtualNavigation = true;
             }

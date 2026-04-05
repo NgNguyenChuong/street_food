@@ -42,14 +42,14 @@ public partial class App : Application
             }
         }
 
-        if (hasOnboarded)
-        {
+        var rootPage = hasOnboarded
             // Returning user: show lightweight startup loading immediately, then hand off to AppShell.
-            return new Window(new StartupLoadingPage());
-        }
+            ? (Page)new StartupLoadingPage()
+            // First time user: show WelcomePage via AppShell.
+            : new AppShell(isOnboarding: true);
 
-        // First time user: show WelcomePage via AppShell
-        return new Window(new AppShell(isOnboarding: true));
+        rootPage.BackgroundColor = Color.FromArgb("#0A1612");
+        return new Window(rootPage);
     }
 
     /// <summary>Called by WelcomePage after user completes onboarding.</summary>

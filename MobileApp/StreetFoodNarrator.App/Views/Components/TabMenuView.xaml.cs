@@ -31,7 +31,11 @@ public partial class TabMenuView : ContentView
 
     private void OnLanguageChanged(object? sender, string languageCode)
     {
-        MainThread.BeginInvokeOnMainThread(ApplyLocalizedTexts);
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ApplyLocalizedTexts();
+            RefreshTourCardBindings();
+        });
     }
 
     private void ApplyLocalizedTexts()
@@ -39,6 +43,16 @@ public partial class TabMenuView : ContentView
         TourSearchBar.Placeholder = AppStrings.Get("TabMenu_SearchPlaceholder");
         OfflineTourNoticeLabel.Text = AppStrings.Get("TabMenu_OfflineNotice");
         EmptyTourLabel.Text = AppStrings.Get("TabMenu_EmptyTour");
+    }
+
+    private void RefreshTourCardBindings()
+    {
+        if (TourListView == null)
+            return;
+
+        var source = TourListView.ItemsSource;
+        TourListView.ItemsSource = null;
+        TourListView.ItemsSource = source;
     }
 
     private async void OnTourDetailClicked(object sender, EventArgs e)

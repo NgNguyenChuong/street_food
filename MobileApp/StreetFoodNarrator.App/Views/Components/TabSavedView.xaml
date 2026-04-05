@@ -80,7 +80,7 @@
                                         <Label Text="{Binding Description}" FontSize="12"
                                              TextColor="#9CA3AF" LineBreakMode="TailTruncation" MaxLines="2"
                                              HeightRequest="34" VerticalTextAlignment="Start"/>
-                                        <Label Text="{Binding PoiCount, StringFormat='🧭 {0} điểm dừng'}"
+                                             <Label Text="{Binding DisplayPoiStopsText}"
                                                FontSize="11" TextColor="#22C55E"/>
                                     </VerticalStackLayout>
 
@@ -97,7 +97,7 @@
 
                                 <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                                     <Button Grid.Column="0"
-                                            Text="Xem chi tiết"
+                                            Text="{Binding DetailButtonText}"
                                             FontSize="12"
                                             HeightRequest="38"
                                             CornerRadius="10"
@@ -107,7 +107,7 @@
                                             Clicked="OnSavedTourDetailClicked"/>
 
                                     <Button Grid.Column="1"
-                                            Text="Bắt đầu ngay"
+                                            Text="{Binding StartNowButtonText}"
                                             FontSize="12"
                                             FontAttributes="Bold"
                                             HeightRequest="38"

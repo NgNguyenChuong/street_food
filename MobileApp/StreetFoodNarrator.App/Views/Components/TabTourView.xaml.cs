@@ -11,6 +11,9 @@
 
 namespace StreetFoodNarrator.App.Views.Components;
 
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
+
 public enum VirtualTourState { Idle, Running, Choice }
 
 public partial class TabTourView : ContentView
@@ -64,18 +67,65 @@ public partial class TabTourView : ContentView
         SetPlayState(false);
         SizeChanged += OnSizeChanged;
         Loaded      += OnLoaded;
+        Unloaded    += OnUnloaded;
+        ApplyLocalizedTexts();
     }
 
     // ─── Init ────────────────────────────────────────────────────────────────
 
     private void OnLoaded(object? sender, EventArgs e)
     {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
         Loaded -= OnLoaded;
         _miniWaves = [MiniWave1, MiniWave2, MiniWave3, MiniWave4, MiniWave5,
                       MiniWave6, MiniWave7, MiniWave8, MiniWave9, MiniWave10];
 
         if (PlayerPanel.HeightRequest <= 0)
             InitializeBottomSheet();
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(ApplyLocalizedTexts);
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        StatusOnlineLabel.Text = AppStrings.Get("Tour_Status_Online");
+        StatusOfflineLabel.Text = AppStrings.Get("Tour_Status_Offline");
+        ApproachingTagLabel.Text = AppStrings.Get("Tour_Approaching_Tag");
+        ApproachingMeterLabel.Text = AppStrings.Get("Tour_Distance_Meter");
+        LegendTitleLabel.Text = AppStrings.Get("Tour_Legend_Title");
+        LegendCurrentLabel.Text = AppStrings.Get("Tour_Legend_Current");
+        LegendVisitedLabel.Text = AppStrings.Get("Tour_Legend_Visited");
+        LegendUnvisitedLabel.Text = AppStrings.Get("Tour_Legend_Unvisited");
+        VirtualStartLabel.Text = AppStrings.Get("Tour_Virtual_Start");
+        VirtualStopLabel.Text = AppStrings.Get("Tour_Virtual_Stop");
+        VirtualContinueLabel.Text = AppStrings.Get("Tour_Virtual_Continue");
+        ClearTourLabel.Text = AppStrings.Get("Tour_ClearTour_ReturnNormal");
+        BadgeNarratingLabel.Text = AppStrings.Get("Tour_Badge_Narrating");
+        BadgeApproachingLabel.Text = AppStrings.Get("Tour_Badge_Approaching");
+        DistanceCardLabel.Text = AppStrings.Get("Tour_Info_Distance");
+        WalkCardLabel.Text = AppStrings.Get("Tour_Info_Walk");
+        CategoryCardLabel.Text = AppStrings.Get("Tour_Info_Category");
+        ExpandedApproachingTagLabel.Text = AppStrings.Get("Tour_Approaching_Tag");
+        ExpandedApproachingMeterLabel.Text = AppStrings.Get("Tour_Distance_Meter");
+        HighlightChipLabel.Text = AppStrings.Get("Tour_Highlight_Tag");
+        AudioHeaderLabel.Text = AppStrings.Get("Tour_Audio_Header");
+        AudioLanguageLabel.Text = AppStrings.Get("Tour_Audio_Language_Vi");
+        CurrentNarratingLabel.Text = AppStrings.Get("Tour_CurrentStop_Narrating");
+
+        DestinationDescriptionTitleLabel.Text = AppStrings.Get("Tour_Destination_Description_Title");
+        NextStopTitleLabel.Text = AppStrings.Get("Tour_NextStop_Title");
+        ExpandDescLabel.Text = _isDescExpanded
+            ? AppStrings.Get("Tour_Desc_Collapse")
+            : AppStrings.Get("Tour_Desc_Expand");
     }
 
     private void OnSizeChanged(object? sender, EventArgs e)
@@ -115,8 +165,12 @@ public partial class TabTourView : ContentView
     public void SetPlayState(bool isPlaying)
     {
         var pathData = isPlaying ? PausePathData : PlayPathData;
-        PlayPausePath.Data = (Microsoft.Maui.Controls.Shapes.Geometry)new Microsoft.Maui.Controls.Shapes.PathGeometryConverter().ConvertFromInvariantString(pathData);
-        MiniPlayPausePath.Data = (Microsoft.Maui.Controls.Shapes.Geometry)new Microsoft.Maui.Controls.Shapes.PathGeometryConverter().ConvertFromInvariantString(pathData);
+        PlayPausePath.Data = (Microsoft.Maui.Controls.Shapes.Geometry)
+            (new Microsoft.Maui.Controls.Shapes.PathGeometryConverter().ConvertFromInvariantString(pathData) ?? 
+             new Microsoft.Maui.Controls.Shapes.RectangleGeometry());
+        MiniPlayPausePath.Data = (Microsoft.Maui.Controls.Shapes.Geometry)
+            (new Microsoft.Maui.Controls.Shapes.PathGeometryConverter().ConvertFromInvariantString(pathData) ?? 
+             new Microsoft.Maui.Controls.Shapes.RectangleGeometry());
     }
 
     /// <summary>Gọi khi bắt đầu phát audio (IsNarrating → true)</summary>
@@ -283,7 +337,9 @@ public partial class TabTourView : ContentView
         DescriptionLabel.LineBreakMode = _isDescExpanded
             ? LineBreakMode.WordWrap
             : LineBreakMode.TailTruncation;
-        ExpandDescLabel.Text = _isDescExpanded ? "Thu gọn ›" : "Xem thêm ›";
+        ExpandDescLabel.Text = _isDescExpanded
+            ? AppStrings.Get("Tour_Desc_Collapse")
+            : AppStrings.Get("Tour_Desc_Expand");
     }
 
     // ─── Bottom sheet pan gesture ─────────────────────────────────────────────
@@ -309,11 +365,11 @@ public partial class TabTourView : ContentView
             case GestureStatus.Completed:
                 var current = PlayerPanel.TranslationY;
                 if (!_isExpanded && e.TotalY < -40)
-                    ExpandPanel();
+                    _ = ExpandPanel();
                 else if (_isExpanded && e.TotalY > 40)
-                    CollapsePanel();
+                    _ = CollapsePanel();
                 else
-                    _ = current < _sheetMaxTranslation / 2 ? ExpandPanel() : CollapsePanel();
+                    _ = (current < _sheetMaxTranslation / 2 ? ExpandPanel() : CollapsePanel());
                 break;
         }
     }
@@ -326,8 +382,8 @@ public partial class TabTourView : ContentView
 
         ExpandedContent.Opacity = 0;
         await Task.WhenAll(
-            PlayerPanel.TranslateTo(0, 0, 260, Easing.CubicOut),
-            ExpandedContent.FadeTo(1, 220, Easing.CubicOut)
+            PlayerPanel.TranslateToAsync(0, 0, 260, Easing.CubicOut),
+            ExpandedContent.FadeToAsync(1, 220, Easing.CubicOut)
         );
         UpdateExpandedStateVisuals();
         SyncApproachingBannerToSheet();
@@ -338,8 +394,8 @@ public partial class TabTourView : ContentView
         _isExpanded = false;
 
         await Task.WhenAll(
-            PlayerPanel.TranslateTo(0, _sheetMaxTranslation, 260, Easing.CubicOut),
-            ExpandedContent.FadeTo(0, 180, Easing.CubicIn)
+            PlayerPanel.TranslateToAsync(0, _sheetMaxTranslation, 260, Easing.CubicOut),
+            ExpandedContent.FadeToAsync(0, 180, Easing.CubicIn)
         );
         UpdateExpandedStateVisuals();
         SyncApproachingBannerToSheet();

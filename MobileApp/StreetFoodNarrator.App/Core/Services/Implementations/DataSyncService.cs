@@ -4,6 +4,7 @@ using Microsoft.Maui.Storage;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
 using System.Text.Json;
+using System.Globalization;
 
 namespace StreetFoodNarrator.App.Core.Services.Implementations;
 
@@ -21,7 +22,7 @@ public class DataSyncService
     private const int OfflineMapMaxZoom = 20;
     private const double OfflineMapPaddingDegrees = 0.0004;
     private const double AverageTileSizeKb = 18.0;
-    private static readonly Uri WikimediaMapTileBaseUri = new("https://maps.wikimedia.org/osm-intl/");
+    private static readonly Uri CartoMapTileBaseUri = new("https://a.basemaps.cartocdn.com/rastertiles/voyager/");
 
     // ─── Preference Keys ──────────────────────────────────────────────────────
     public const string PrefHasFullOffline = "has_full_offline";
@@ -236,6 +237,12 @@ public class DataSyncService
         statusCallback?.Invoke("Đang tải audio ưu tiên...");
         await PreloadPriorityAudioAsync(priorityPoiIds, preferredLanguage, statusCallback);
 
+        statusCallback?.Invoke("Đang tải ảnh ưu tiên...");
+        await PreloadPoiImagesAsync(
+            pois,
+            priorityPoiIds,
+            progress => statusCallback?.Invoke($"Đang tải ảnh {progress.done}/{progress.total}..."));
+
         statusCallback?.Invoke("Đang tải bản đồ khu vực chính...");
         await PreloadOfflineMapTilesAsync(
             pois,
@@ -243,6 +250,12 @@ public class DataSyncService
             EssentialMapMaxZoom,
             EssentialMapMaxTiles,
             progress => statusCallback?.Invoke($"Đang tải bản đồ offline {progress.done}/{progress.total}..."));
+
+        statusCallback?.Invoke("Đang chuẩn bị chỉ đường ưu tiên...");
+        await PreloadOfflineRouteSnapshotsAsync(
+            pois,
+            priorityPoiIds,
+            progress => statusCallback?.Invoke($"Đang chuẩn bị chỉ đường {progress.done}/{progress.total}..."));
     }
 
     public Task EnsureDeferredOfflineCompletionAsync()
@@ -290,6 +303,12 @@ public class DataSyncService
             statusCallback?.Invoke($"Đang tải audio {p.done}/{p.total}..."));
         await _audioCache.PreloadAllAsync(poiIds, audioProgress);
 
+        statusCallback?.Invoke("Đang tải hình ảnh địa điểm...");
+        await PreloadPoiImagesAsync(
+            pois,
+            null,
+            progress => statusCallback?.Invoke($"Đang tải ảnh {progress.done}/{progress.total}..."));
+
         statusCallback?.Invoke("Đang tải bản đồ offline khu ẩm thực...");
         var mapTileCount = await PreloadOfflineMapTilesAsync(
             pois,
@@ -298,8 +317,14 @@ public class DataSyncService
             maxTiles: null,
             progress => statusCallback?.Invoke($"Đang tải bản đồ offline {progress.done}/{progress.total}..."));
 
+        statusCallback?.Invoke("Đang chuẩn bị chỉ đường offline...");
+        var routeCount = await PreloadOfflineRouteSnapshotsAsync(
+            pois,
+            null,
+            progress => statusCallback?.Invoke($"Đang chuẩn bị chỉ đường {progress.done}/{progress.total}..."));
+
         var now = DateTime.Now.ToString("dd/MM HH:mm");
-        var sizeMb = (_audioCache.GetCacheSizeBytes() + GetOfflineMapCacheSizeBytes()) / 1024.0 / 1024.0;
+        var sizeMb = (_audioCache.GetCacheSizeBytes() + GetOfflineMapCacheSizeBytes() + PoiImageCacheService.GetCacheSizeBytes()) / 1024.0 / 1024.0;
         var serverVer = await GetServerVersionAsync();
 
         Preferences.Set(PrefHasFullOffline, true);
@@ -310,6 +335,7 @@ public class DataSyncService
         Preferences.Set("LastSyncTime", now);
         Preferences.Remove(PrefSkippedVersion);
         System.Diagnostics.Debug.WriteLine($"[OfflineMap] Cached {mapTileCount} tiles for offline map use.");
+        System.Diagnostics.Debug.WriteLine($"[OfflineRoute] Cached {routeCount} route snapshots for offline reuse.");
     }
 
     // ─── Clear Offline Data ───────────────────────────────────────────────────
@@ -536,7 +562,134 @@ public class DataSyncService
     }
 
     private static Uri BuildTileUri(TileIndex tile)
-        => new(WikimediaMapTileBaseUri, $"{tile.Level}/{tile.Col}/{tile.Row}.png");
+        => new(CartoMapTileBaseUri, $"{tile.Level}/{tile.Col}/{tile.Row}.png");
+
+    private async Task PreloadPoiImagesAsync(
+        IReadOnlyCollection<POI> pois,
+        IReadOnlyCollection<int>? onlyPoiIds,
+        Action<(int done, int total)>? progressCallback = null)
+    {
+        var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+        var selected = pois
+            .Where(p => p.IsActive)
+            .Where(p => onlyPoiIds == null || onlyPoiIds.Contains(p.Id))
+            .Where(p => !string.IsNullOrWhiteSpace(p.ImageUrl))
+            .ToList();
+
+        if (selected.Count == 0)
+            return;
+
+        var done = 0;
+        foreach (var poi in selected)
+        {
+            try
+            {
+                await PoiImageCacheService.EnsureCachedAsync(_http, baseUrl, poi.ImageUrl);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataSync] Image preload failed for POI {poi.Id}: {ex.Message}");
+            }
+
+            done++;
+            progressCallback?.Invoke((done, selected.Count));
+        }
+    }
+
+    private async Task<int> PreloadOfflineRouteSnapshotsAsync(
+        IReadOnlyCollection<POI> pois,
+        IReadOnlyCollection<int>? onlyPoiIds,
+        Action<(int done, int total)>? progressCallback = null)
+    {
+        var hasInternet = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
+                          Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
+        if (!hasInternet)
+            return 0;
+
+        var candidates = pois
+            .Where(p => p.IsActive && p.ZoneType != "Area" && p.ZoneType != "District")
+            .Where(p => onlyPoiIds == null || onlyPoiIds.Contains(p.Id))
+            .OrderBy(DistanceToDefaultLocationSquared)
+            .Take(18)
+            .ToList();
+
+        if (candidates.Count == 0)
+            return 0;
+
+        var done = 0;
+        var cachedCount = 0;
+        foreach (var poi in candidates)
+        {
+            try
+            {
+                var path = await FetchOsrmRouteGeoAsync(
+                    AppConfig.DefaultLatitude,
+                    AppConfig.DefaultLongitude,
+                    poi.Latitude,
+                    poi.Longitude);
+
+                if (path is { Count: >= 4 })
+                {
+                    await OfflineRouteCacheService.SaveRouteAsync(
+                        poi.Id,
+                        AppConfig.DefaultLatitude,
+                        AppConfig.DefaultLongitude,
+                        path);
+                    cachedCount++;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataSync] Route preload failed for POI {poi.Id}: {ex.Message}");
+            }
+
+            done++;
+            progressCallback?.Invoke((done, candidates.Count));
+        }
+
+        return cachedCount;
+    }
+
+    private async Task<IReadOnlyList<GeoCoordinate>?> FetchOsrmRouteGeoAsync(
+        double srcLat,
+        double srcLon,
+        double dstLat,
+        double dstLon)
+    {
+        try
+        {
+            var ic = CultureInfo.InvariantCulture;
+            var url = $"https://router.project-osrm.org/route/v1/walking/" +
+                      $"{srcLon.ToString(ic)},{srcLat.ToString(ic)};" +
+                      $"{dstLon.ToString(ic)},{dstLat.ToString(ic)}" +
+                      "?geometries=geojson&overview=full";
+
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            using var response = await _http.GetAsync(url, timeoutCts.Token);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var json = await response.Content.ReadAsStringAsync(timeoutCts.Token);
+            using var doc = JsonDocument.Parse(json);
+            var routes = doc.RootElement.GetProperty("routes");
+            if (routes.GetArrayLength() == 0)
+                return null;
+
+            var points = routes[0]
+                .GetProperty("geometry")
+                .GetProperty("coordinates")
+                .EnumerateArray()
+                .Where(c => c.ValueKind == JsonValueKind.Array && c.GetArrayLength() >= 2)
+                .Select(c => new GeoCoordinate(c[1].GetDouble(), c[0].GetDouble()))
+                .ToList();
+
+            return points.Count >= 2 ? points : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     private static string GetOfflineMapCacheDbPath()
     {

@@ -13,6 +13,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Core.Services.Implementations;
 using StreetFoodNarrator.App.Core.Utils;
 using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
@@ -31,6 +32,7 @@ public partial class MainPage : ContentPage
     private readonly ITTSService _tts;
     private readonly LanguageService _lang;
     private readonly IAudioCacheService? _audioCache;
+    private readonly HttpClient? _httpClient;
     private readonly IOfflineRoutingService? _offlineRouting;
     private readonly IVirtualTourViewModel _virtualTourVm;
     private bool _isMapInitialized;
@@ -56,8 +58,12 @@ public partial class MainPage : ContentPage
     private bool _autoOpenInZoneDirectly;
     private bool _isInitialLoadCompleted;
     private bool _hasShownOfflineCapabilityNoticeThisSession;
+    private bool _isMapPrewarmQueued;
+    private bool _isLiveSyncTickInProgress;
     private IDispatcherTimer? _exploreAudioUiTimer;
     private IDispatcherTimer? _liveSyncTimer;
+    private static readonly TimeSpan LiveSyncNearInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan LiveSyncFarInterval = TimeSpan.FromSeconds(60);
 
     private static bool IsAutoExploreMapNavigationEnabled()
         => false;
@@ -145,6 +151,7 @@ public partial class MainPage : ContentPage
 
             // Resolve IAudioCacheService (optional)
             _audioCache = audioCache ?? ResolveOptionalService<IAudioCacheService>();
+            _httpClient = ResolveOptionalService<HttpClient>();
             _offlineRouting = offlineRouting ?? ResolveOptionalService<IOfflineRoutingService>();
 
             // Resolve IVirtualTourViewModel
@@ -213,6 +220,7 @@ public partial class MainPage : ContentPage
 
     private void ApplyStaticLocalizedTexts()
     {
+        MainHeaderTitleLabel.Text = Ui("PHỐ ẨM THỰC VĨNH KHÁNH", "VINH KHANH STREET FOOD", "永庆美食街");
         FarHeadlineLine1Label.Text = AppStrings.Get("Main_Far_Headline1");
         FarHeadlineLine2Label.Text = AppStrings.Get("Main_Far_Headline2");
         FarDescriptionLabel.Text = AppStrings.Get("Main_Far_Description");
@@ -242,6 +250,7 @@ public partial class MainPage : ContentPage
         MapToolCenterButton.Text = AppStrings.Get("Main_Action_CenterMap");
         MapToolCloseButton.Text = AppStrings.Get("Main_Action_CloseMap");
         OfflineBannerTextLabel.Text = AppStrings.Get("Offline_Banner_Full");
+        LoadingTitleLabel.Text = Ui("Phố Ẩm Thực Vĩnh Khánh", "Vinh Khanh Street Food", "永庆美食街");
         if (LoadingStatusLabel != null && string.IsNullOrWhiteSpace(LoadingStatusLabel.Text))
             LoadingStatusLabel.Text = AppStrings.Get("Main_Status_LoadingData");
     }
@@ -1047,6 +1056,9 @@ public partial class MainPage : ContentPage
         if (_vm.CurrentExploreState == MainViewModel.ExploreState.Far)
             return;
 
+        if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone)
+            return;
+
         await StartRealGuidanceFromExploreAsync();
     }
 
@@ -1452,12 +1464,14 @@ public partial class MainPage : ContentPage
     {
         _virtualTourVm.OnAppBackgrounded();
         _vm.ReduceTrackingForBackground();
+        StopLiveSyncTimer();
     }
 
     private void OnAppWindowResumed(object? sender, EventArgs e)
     {
         _virtualTourVm.OnAppResumed();
         _vm.RestoreTrackingFromBackground();
+        StartLiveSyncTimer();
     }
 
     private async Task InitializePageAsync()
@@ -1485,47 +1499,115 @@ public partial class MainPage : ContentPage
         SetLoadingStatus(AppStrings.Get("Main_Status_GettingLocation"));
         await PrimeInitialExploreStateAsync();
 
-        // Prewarm ExploreMap pages while the loading overlay is still visible
-        // so "Start/View map" navigation is instant after MainPage appears.
-        SetLoadingStatus(AppStrings.Get("Main_Status_OpeningMap"));
-        await PrewarmExploreMapsAsync();
-
         // Hide loading only after initial state is decided.
         try { HideLoadingOverlay(); } catch { /* safe */ }
         _isInitialLoadCompleted = true;
+        StartDeferredMapPrewarm();
         _ = TryAutoOpenInZoneMapAsync();
 
         // Continue location bootstrap asynchronously without blocking initial render.
         _ = BootstrapLocationAndTrackingAsync();
 
-        // Preload audio in background
-        if (_audioCache != null && _vm.AllPOIs.Count > 0)
+        StartOpportunisticMediaWarmup();
+
+    }
+
+    private void StartOpportunisticMediaWarmup()
+    {
+        if (_vm.AllPOIs.Count == 0)
+            return;
+
+        var hasInternet = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
+                          Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
+        if (!hasInternet)
+            return;
+
+        var spotPois = _vm.AllPOIs
+            .Where(p => p.IsActive && p.ZoneType != "Area" && p.ZoneType != "District")
+            .ToList();
+        if (spotPois.Count == 0)
+            return;
+
+        if (_audioCache != null)
+            _ = Task.Run(() => WarmupAudioOfflineCacheAsync(spotPois));
+
+        if (_httpClient != null)
+            _ = Task.Run(() => WarmupImageOfflineCacheAsync(spotPois));
+    }
+
+    private async Task WarmupAudioOfflineCacheAsync(IReadOnlyCollection<StreetFoodNarrator.App.Core.Models.POI> spots)
+    {
+        if (_audioCache == null)
+            return;
+
+        try
         {
-            _ = Task.Run(async () =>
+            var preferredLanguage = _lang.CurrentLanguage switch
+            {
+                "en" => "en-US",
+                "zh" => "zh-CN",
+                _ => "vi-VN"
+            };
+
+            var priorityIds = spots
+                .OrderBy(p =>
+                {
+                    var latDiff = p.Latitude - AppConfig.DefaultLatitude;
+                    var lonDiff = p.Longitude - AppConfig.DefaultLongitude;
+                    return (latDiff * latDiff) + (lonDiff * lonDiff);
+                })
+                .Take(4)
+                .Select(p => p.Id)
+                .ToList();
+
+            if (priorityIds.Count > 0)
+                await _audioCache.PreloadAllAsync(priorityIds);
+
+            foreach (var poi in spots)
             {
                 try
                 {
-                    var ids = _vm.AllPOIs
-                        .Where(p => p.ZoneType != "Area" && p.ZoneType != "District")
-                        .OrderBy(p =>
-                        {
-                            var latDiff = p.Latitude - AppConfig.DefaultLatitude;
-                            var lonDiff = p.Longitude - AppConfig.DefaultLongitude;
-                            return (latDiff * latDiff) + (lonDiff * lonDiff);
-                        })
-                        .Take(4)
-                        .Select(p => p.Id)
-                        .ToList();
-                    if (ids.Count > 0)
-                        await _audioCache.PreloadAllAsync(ids);
+                    await using var stream = await _audioCache.GetOrDownloadCachedStreamAsync(poi.Id, preferredLanguage);
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[MainPage] Audio preload error: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[MainPage] Preferred audio warmup failed for POI {poi.Id}: {ex.Message}");
                 }
-            });
+            }
         }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] Audio warmup error: {ex.Message}");
+        }
+    }
 
+    private async Task WarmupImageOfflineCacheAsync(IReadOnlyCollection<StreetFoodNarrator.App.Core.Models.POI> spots)
+    {
+        if (_httpClient == null)
+            return;
+
+        try
+        {
+            var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+            foreach (var poi in spots)
+            {
+                if (string.IsNullOrWhiteSpace(poi.ImageUrl))
+                    continue;
+
+                try
+                {
+                    await PoiImageCacheService.EnsureCachedAsync(_httpClient, baseUrl, poi.ImageUrl);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainPage] Image warmup failed for POI {poi.Id}: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] Image warmup error: {ex.Message}");
+        }
     }
 
     private async Task PrewarmExploreMapsAsync()
@@ -1534,17 +1616,38 @@ public partial class MainPage : ContentPage
         {
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                var standardMapPage = GetOrCreateExploreMapPage(false);
-                standardMapPage.Prewarm();
-
-                var nearFocusMapPage = GetOrCreateExploreMapPage(true);
-                nearFocusMapPage.Prewarm();
+                var shouldPrewarmNearFocus = _vm.CurrentExploreState == MainViewModel.ExploreState.Near;
+                var mapPage = GetOrCreateExploreMapPage(shouldPrewarmNearFocus);
+                mapPage.Prewarm();
             });
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MainPage] PrewarmExploreMapsAsync error: {ex}");
         }
+    }
+
+    private void StartDeferredMapPrewarm()
+    {
+        if (_isMapPrewarmQueued)
+            return;
+
+        _isMapPrewarmQueued = true;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(1200);
+                if (_isOpeningExploreMapPage)
+                    return;
+
+                await PrewarmExploreMapsAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainPage] Deferred prewarm error: {ex}");
+            }
+        });
     }
 
     private bool TryConsumeMainPagePrewarmFlag()
@@ -1780,7 +1883,6 @@ public partial class MainPage : ContentPage
             VirtualModeComponent.RewindRequested += OnRewindTapped;
             VirtualModeComponent.ForwardRequested += OnForwardTapped;
             VirtualModeComponent.QueueItemTapped += OnJournalQueueItemTapped;
-            VirtualModeComponent.QueueSeeMoreTapped += OnJournalQueueSeeMoreTapped;
             VirtualModeComponent.CurrentlyPlayingSeeMoreTapped += OnJournalCurrentlyPlayingSeeMoreTapped;
         }
 
@@ -1925,6 +2027,11 @@ public partial class MainPage : ContentPage
         // Only refresh the queue list - do NOT update Currently Playing card YET
         // The card updates when audio actually starts playing (in OnPlayPauseTapped)
         _vm.RefreshJournalQueueOnly();
+
+        // Keep card switching responsive: only switch audio automatically if something is already playing/paused.
+        var shouldSwitchAudio = _tts.IsPlaying() || _vm.IsAudioPlaying || _vm.IsAudioPaused;
+        if (!shouldSwitchAudio)
+            return;
 
         // Switch audio in background - fire and forget so UI is instant
         _queueAudioSwitchCts?.Cancel();
@@ -2090,34 +2197,6 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private async void OnJournalQueueSeeMoreTapped(object? sender, Core.Models.POI poi)
-    {
-        if (poi == null) return;
-        if (!TryBeginPoiDetailNavigation()) return;
-
-        try
-        {
-            _queueAudioSwitchCts?.Cancel();
-            _preserveNarrationOnNextDisappearing = false;
-            await StopNarrationForNavigationAsync();
-
-            var nav = Shell.Current?.Navigation;
-            if (nav == null)
-                return;
-
-            await nav.PushModalAsync(new POIDetailPage(poi), false);
-        }
-        catch (Exception ex)
-        {
-            _preserveNarrationOnNextDisappearing = false;
-            System.Diagnostics.Debug.WriteLine($"[MainPage] QueueSeeMore navigation error: {ex}");
-        }
-        finally
-        {
-            _isNavigatingToPoiDetail = false;
-        }
-    }
-
     private async void OnJournalCurrentlyPlayingSeeMoreTapped(object? sender, EventArgs e)
     {
         var targetPoi = _vm.JournalCurrentlyPlayingPoi ?? _vm.PrimaryZone;
@@ -2255,6 +2334,7 @@ public partial class MainPage : ContentPage
         }
         else if (e.PropertyName == nameof(MainViewModel.CurrentAppMode))
         {
+            UpdateLiveSyncTimerInterval();
             ApplyMapPresentation();
             SyncExplorePresentationState();
 
@@ -2272,6 +2352,7 @@ public partial class MainPage : ContentPage
         }
         else if (e.PropertyName == nameof(MainViewModel.CurrentExploreState) && MapView != null && !MapToolOverlay.IsVisible)
         {
+            UpdateLiveSyncTimerInterval();
             var currentState = _vm.CurrentExploreState;
             var previousState = _lastObservedExploreState;
             if (!_hasObservedExploreState)
@@ -2468,12 +2549,19 @@ public partial class MainPage : ContentPage
             return;
 
         _liveSyncTimer = Dispatcher.CreateTimer();
-        _liveSyncTimer.Interval = TimeSpan.FromSeconds(30);
+        _liveSyncTimer.Interval = GetLiveSyncTimerInterval();
         _liveSyncTimer.Tick += async (_, _) =>
         {
-            if (!IsVisible || _vm.CurrentAppMode == MainViewModel.AppMode.Detail)
+            if (!IsVisible || _vm.CurrentAppMode != MainViewModel.AppMode.Explore)
+                return;
+            if (!IsCurrentMapShellRoute())
+                return;
+            if (_isLiveSyncTickInProgress)
                 return;
 
+            UpdateLiveSyncTimerInterval();
+
+            _isLiveSyncTickInProgress = true;
             try
             {
                 await _vm.LiveSyncIfDueAsync();
@@ -2482,8 +2570,45 @@ public partial class MainPage : ContentPage
             {
                 System.Diagnostics.Debug.WriteLine($"[MainPage] LiveSync timer error: {ex.Message}");
             }
+            finally
+            {
+                _isLiveSyncTickInProgress = false;
+            }
         };
         _liveSyncTimer.Start();
+    }
+
+    private TimeSpan GetLiveSyncTimerInterval()
+    {
+        return _vm.CurrentExploreState == MainViewModel.ExploreState.Far
+            ? LiveSyncFarInterval
+            : LiveSyncNearInterval;
+    }
+
+    private void UpdateLiveSyncTimerInterval()
+    {
+        if (_liveSyncTimer == null)
+            return;
+
+        var targetInterval = GetLiveSyncTimerInterval();
+        if (_liveSyncTimer.Interval != targetInterval)
+            _liveSyncTimer.Interval = targetInterval;
+    }
+
+    private static bool IsCurrentMapShellRoute()
+    {
+        try
+        {
+            var route = Shell.Current?.CurrentState?.Location?.OriginalString ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(route))
+                return true;
+
+            return route.Contains("MapPage", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return true;
+        }
     }
 
     private void StopLiveSyncTimer()

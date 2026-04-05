@@ -120,7 +120,7 @@
 💡 Khuyến nghị: Tải dữ liệu offline để có trải nghiệm tốt nhất (không cần mạng, phát audio nhanh hơn).</value>
   </data>
   <data name="Info_DontShowAgain" xml:space="preserve">
-    <value>☑️ Không hiển thị lại</value>
+    <value>Không hiển thị lại</value>
   </data>
   <data name="Alert_NeedInternet_Title" xml:space="preserve">
     <value>🌐 Cần kết nối Internet</value>
@@ -263,6 +263,9 @@ Bạn có thể dùng app offline hoàn toàn.</value>
   <data name="Nav_Tour" xml:space="preserve">
     <value>Tour</value>
   </data>
+  <data name="Nav_Menu" xml:space="preserve">
+    <value>Danh sách</value>
+  </data>
   <data name="Nav_Saved" xml:space="preserve">
     <value>Đã lưu</value>
   </data>
@@ -378,7 +381,7 @@ XEM BẢN ĐỒ</value>
     <value>Đang ở chế độ offline cơ bản</value>
   </data>
   <data name="Main_OfflineBasic_Message" xml:space="preserve">
-    <value>Hiện bạn chưa có gói offline đầy đủ. Ứng dụng vẫn chạy với dữ liệu và mô phỏng sẵn có, nhưng một số tính năng nâng cao có thể giới hạn. Khi có mạng, vào Cài đặt &gt; Tải dữ liệu offline để dùng ổn định cho các lần sau.</value>
+    <value>Hiện bạn đang dùng chế độ offline cơ bản. Ứng dụng vẫn chạy với dữ liệu đã lưu trong máy; khuyên dùng khi có mạng để có được trải nghiệm tốt hơn.</value>
   </data>
   <data name="Main_OfflineBasic_Ack" xml:space="preserve">
     <value>Đã hiểu</value>
@@ -430,6 +433,339 @@ XEM BẢN ĐỒ</value>
   </data>
   <data name="TabMenu_EmptyTour" xml:space="preserve">
     <value>Chưa có tour phù hợp</value>
+  </data>
+  <data name="TourCard_PoiStopsFormat" xml:space="preserve">
+    <value>🧭 {0} điểm dừng</value>
+  </data>
+  <data name="TourCard_DurationFormat" xml:space="preserve">
+    <value>~{0}p</value>
+  </data>
+  <data name="TourCard_DetailButton" xml:space="preserve">
+    <value>Xem chi tiết</value>
+  </data>
+  <data name="TourCard_StartNowButton" xml:space="preserve">
+    <value>Bắt đầu ngay</value>
+  </data>
+  <data name="Virtual_Header_Title" xml:space="preserve">
+    <value>Chuyến ẩm thực ảo</value>
+  </data>
+  <data name="Virtual_Proximity_Banner" xml:space="preserve">
+    <value>Bạn đang ở khu ẩm thực. Khám phá ngay!</value>
+  </data>
+  <data name="Virtual_Tour_Title" xml:space="preserve">
+    <value>Khám phá Vĩnh Khánh</value>
+  </data>
+  <data name="Virtual_Progress_Label" xml:space="preserve">
+    <value>TIẾN ĐỘ</value>
+  </data>
+  <data name="Virtual_CurrentlyPlaying_Header" xml:space="preserve">
+    <value>ĐANG PHÁT</value>
+  </data>
+  <data name="Virtual_NowPlaying_Badge" xml:space="preserve">
+    <value>🎧 Đang phát</value>
+  </data>
+  <data name="Virtual_Legendary_Recipe" xml:space="preserve">
+    <value>CÔNG THỨC NỔI BẬT</value>
+  </data>
+  <data name="Virtual_SeeMore" xml:space="preserve">
+    <value>XEM THÊM</value>
+  </data>
+  <data name="Virtual_Queue_Header" xml:space="preserve">
+    <value>ĐỊA ĐIỂM TIẾP THEO</value>
+  </data>
+  <data name="Virtual_Queue_Item_Header" xml:space="preserve">
+    <value>ĐỊA ĐIỂM TIẾP THEO</value>
+  </data>
+  <data name="Virtual_Queue_Empty" xml:space="preserve">
+    <value>Không có địa điểm tiếp theo</value>
+  </data>
+  <data name="Virtual_Audio_StreetSuffix" xml:space="preserve">
+    <value> • Vĩnh Khánh</value>
+  </data>
+  <data name="Map_Header_Title" xml:space="preserve">
+    <value>STREET FOOD NARRATOR</value>
+  </data>
+  <data name="Map_SearchPlaceholder" xml:space="preserve">
+    <value>Tìm quán ăn...</value>
+  </data>
+  <data name="Map_Legend_Unseen" xml:space="preserve">
+    <value>Chưa xem</value>
+  </data>
+  <data name="Map_Legend_Seen" xml:space="preserve">
+    <value>Đã xem</value>
+  </data>
+  <data name="Map_Legend_Saved" xml:space="preserve">
+    <value>Đã lưu</value>
+  </data>
+  <data name="Map_PreviewAudio_Listen" xml:space="preserve">
+    <value>Nghe thử</value>
+  </data>
+  <data name="Map_PreviewAudio_Pause" xml:space="preserve">
+    <value>Tạm dừng</value>
+  </data>
+  <data name="Map_PreviewAudio_Resume" xml:space="preserve">
+    <value>Tiếp tục</value>
+  </data>
+  <data name="Map_PreviewAudio_Hint" xml:space="preserve">
+    <value>Mô tả nhanh quán này</value>
+  </data>
+  <data name="Map_PreviewAudio_Quick" xml:space="preserve">
+    <value>Nghe thử nhanh</value>
+  </data>
+  <data name="Map_Action_ViewDetail" xml:space="preserve">
+    <value>XEM CHI TIẾT</value>
+  </data>
+  <data name="Map_Action_ViewDetail_Arrow" xml:space="preserve">
+    <value>XEM CHI TIẾT →</value>
+  </data>
+  <data name="Map_Action_StartFromHere" xml:space="preserve">
+    <value>BẮT ĐẦU TỪ ĐÂY</value>
+  </data>
+  <data name="Map_Action_StartCompact" xml:space="preserve">
+    <value>BẮT ĐẦU</value>
+  </data>
+  <data name="Map_Card_Expand" xml:space="preserve">
+    <value>Mở rộng</value>
+  </data>
+  <data name="Map_Card_Collapse" xml:space="preserve">
+    <value>Thu gọn</value>
+  </data>
+  <data name="Tour_Destination_Description_Title" xml:space="preserve">
+    <value>Mô tả điểm đến</value>
+  </data>
+  <data name="Tour_NextStop_Title" xml:space="preserve">
+    <value>Điểm tiếp theo</value>
+  </data>
+  <data name="Tour_Desc_Expand" xml:space="preserve">
+    <value>Xem thêm ›</value>
+  </data>
+  <data name="Tour_Desc_Collapse" xml:space="preserve">
+    <value>Thu gọn ›</value>
+  </data>
+  <data name="Tour_Status_Online" xml:space="preserve">
+    <value>Online</value>
+  </data>
+  <data name="Tour_Status_Offline" xml:space="preserve">
+    <value>Ngoại tuyến</value>
+  </data>
+  <data name="Tour_Approaching_Tag" xml:space="preserve">
+    <value>ĐANG TIẾN ĐẾN</value>
+  </data>
+  <data name="Tour_Distance_Meter" xml:space="preserve">
+    <value>mét</value>
+  </data>
+  <data name="Tour_Legend_Title" xml:space="preserve">
+    <value>CHÚ THÍCH</value>
+  </data>
+  <data name="Tour_Legend_Current" xml:space="preserve">
+    <value>Điểm hiện tại</value>
+  </data>
+  <data name="Tour_Legend_Visited" xml:space="preserve">
+    <value>Đã ghé</value>
+  </data>
+  <data name="Tour_Legend_Unvisited" xml:space="preserve">
+    <value>Chưa ghé</value>
+  </data>
+  <data name="Tour_Virtual_Start" xml:space="preserve">
+    <value>Bắt đầu Tour Ảo</value>
+  </data>
+  <data name="Tour_Virtual_Stop" xml:space="preserve">
+    <value>Dừng</value>
+  </data>
+  <data name="Tour_Virtual_Continue" xml:space="preserve">
+    <value>Tiếp tục</value>
+  </data>
+  <data name="Tour_ClearTour_ReturnNormal" xml:space="preserve">
+    <value>Xóa tour và quay về chế độ thường</value>
+  </data>
+  <data name="Tour_Badge_Narrating" xml:space="preserve">
+    <value>Đang thuyết minh</value>
+  </data>
+  <data name="Tour_Badge_Approaching" xml:space="preserve">
+    <value>Sắp đến</value>
+  </data>
+  <data name="Tour_Info_Distance" xml:space="preserve">
+    <value>Khoảng cách</value>
+  </data>
+  <data name="Tour_Info_Walk" xml:space="preserve">
+    <value>Đi bộ</value>
+  </data>
+  <data name="Tour_Info_Category" xml:space="preserve">
+    <value>Danh mục</value>
+  </data>
+  <data name="Tour_Highlight_Tag" xml:space="preserve">
+    <value>⭐ Nổi bật</value>
+  </data>
+  <data name="Tour_Audio_Header" xml:space="preserve">
+    <value>🎵 Thuyết minh</value>
+  </data>
+  <data name="Tour_Audio_Language_Vi" xml:space="preserve">
+    <value>🇻🇳 Tiếng Việt</value>
+  </data>
+  <data name="Tour_CurrentStop_Here" xml:space="preserve">
+    <value> ← Đang ở đây</value>
+  </data>
+  <data name="Tour_CurrentStop_Narrating" xml:space="preserve">
+    <value>Đang thuyết minh</value>
+  </data>
+  <data name="PopupTour_Badge" xml:space="preserve">
+    <value>TRẢI NGHIỆM TOUR</value>
+  </data>
+  <data name="PopupTour_Duration_Estimate" xml:space="preserve">
+    <value>THỜI LƯỢNG (DỰ KIẾN)</value>
+  </data>
+  <data name="PopupTour_Type" xml:space="preserve">
+    <value>KIỂU TOUR</value>
+  </data>
+  <data name="PopupTour_Theme" xml:space="preserve">
+    <value>CHỦ ĐỀ / THỂ LOẠI</value>
+  </data>
+  <data name="PopupTour_Itinerary" xml:space="preserve">
+    <value>Lịch trình tour</value>
+  </data>
+  <data name="PopupTour_Save" xml:space="preserve">
+    <value>Lưu tour</value>
+  </data>
+  <data name="PopupTour_StartNow" xml:space="preserve">
+    <value>Bắt đầu tour ngay</value>
+  </data>
+  <data name="PopupTour_Stop_DefaultTitleFormat" xml:space="preserve">
+    <value>Điểm dừng {0}</value>
+  </data>
+  <data name="PopupTour_Stop_DefaultSubtitle" xml:space="preserve">
+    <value>Thông tin điểm dừng sẽ được cập nhật khi đồng bộ dữ liệu.</value>
+  </data>
+  <data name="PopupTour_DefaultName" xml:space="preserve">
+    <value>Tour ẩm thực</value>
+  </data>
+  <data name="PopupTour_DefaultDescription" xml:space="preserve">
+    <value>Khám phá ẩm thực theo nhịp sống đường phố, với các điểm dừng được chọn sẵn cho bạn.</value>
+  </data>
+  <data name="PopupTour_SignatureDish_Format" xml:space="preserve">
+    <value>Món nổi bật: {0}</value>
+  </data>
+  <data name="PopupTour_DefaultPoiExperience" xml:space="preserve">
+    <value>Điểm dừng ẩm thực với nhiều trải nghiệm đặc trưng.</value>
+  </data>
+  <data name="PopupTour_Type_Curated" xml:space="preserve">
+    <value>Chọn sẵn</value>
+  </data>
+  <data name="PopupTour_Type_Long" xml:space="preserve">
+    <value>Khám phá dài</value>
+  </data>
+  <data name="PopupTour_Type_Flexible" xml:space="preserve">
+    <value>Linh hoạt</value>
+  </data>
+  <data name="PopupTour_Theme_Default" xml:space="preserve">
+    <value>Ẩm thực</value>
+  </data>
+  <data name="Main_Virtual_NotAvailable_Title" xml:space="preserve">
+    <value>Chưa thể xem ảo</value>
+  </data>
+  <data name="Main_Virtual_NotAvailable_Message" xml:space="preserve">
+    <value>Chế độ xem ảo chỉ nên dùng khi bạn đang ở xa khu POI hơn 1km.</value>
+  </data>
+  <data name="Main_NoAttractions_Message" xml:space="preserve">
+    <value>Không có điểm tham quan nào.</value>
+  </data>
+  <data name="Main_ResetDb_Success_Title" xml:space="preserve">
+    <value>Hoàn tất</value>
+  </data>
+  <data name="Main_ResetDb_Success_Message" xml:space="preserve">
+    <value>Database đã được reset với tọa độ đúng!</value>
+  </data>
+  <data name="Main_ResetDb_Error_Format" xml:space="preserve">
+    <value>Không thể reset database: {0}</value>
+  </data>
+  <data name="Explore_Near_Header_Title" xml:space="preserve">
+    <value>ẨM THỰC VĨNH KHÁNH</value>
+  </data>
+  <data name="Explore_Near_Simulate_Tour" xml:space="preserve">
+    <value>Tour</value>
+  </data>
+  <data name="Explore_Near_Simulate_Zone" xml:space="preserve">
+    <value>Vùng</value>
+  </data>
+  <data name="Explore_Near_Legend_You" xml:space="preserve">
+    <value>Bạn</value>
+  </data>
+  <data name="Explore_Near_Legend_Normal" xml:space="preserve">
+    <value>Thường</value>
+  </data>
+  <data name="Explore_Near_Legend_Saved" xml:space="preserve">
+    <value>Đã lưu</value>
+  </data>
+  <data name="Explore_Near_Legend_Visited" xml:space="preserve">
+    <value>Đã ghé</value>
+  </data>
+  <data name="Explore_Near_SeeMore_Arrow" xml:space="preserve">
+    <value>XEM THÊM →</value>
+  </data>
+  <data name="Explore_Near_Nearby_Title" xml:space="preserve">
+    <value>QUÁN GẦN BẠN</value>
+  </data>
+  <data name="Explore_Near_Nearby_SeeAll" xml:space="preserve">
+    <value>XEM TẤT CẢ</value>
+  </data>
+  <data name="Explore_Near_Sheet_Expand" xml:space="preserve">
+    <value>Mở rộng</value>
+  </data>
+  <data name="Explore_Near_Sheet_Collapse" xml:space="preserve">
+    <value>Thu gọn</value>
+  </data>
+  <data name="Explore_Near_Route_Skip" xml:space="preserve">
+    <value>⏭  Bỏ qua quán</value>
+  </data>
+  <data name="Explore_Near_Route_Skip_Short" xml:space="preserve">
+    <value>Bỏ qua</value>
+  </data>
+  <data name="Explore_Near_Route_Detail" xml:space="preserve">
+    <value>Xem chi tiết</value>
+  </data>
+  <data name="Explore_Near_Route_StartHere" xml:space="preserve">
+    <value>🚀  Bắt đầu từ đây</value>
+  </data>
+  <data name="Explore_Near_Route_CancelNav" xml:space="preserve">
+    <value>⏹  Hủy chỉ đường</value>
+  </data>
+  <data name="Explore_Near_Route_Navigate" xml:space="preserve">
+    <value>➤  Chỉ đường</value>
+  </data>
+  <data name="Explore_Near_Status_Narrating" xml:space="preserve">
+    <value>ĐANG THUYẾT MINH</value>
+  </data>
+  <data name="Explore_Near_Action_Approach" xml:space="preserve">
+    <value>Gần</value>
+  </data>
+  <data name="Explore_Near_Action_Enter" xml:space="preserve">
+    <value>Vào</value>
+  </data>
+  <data name="Explore_Near_Route_StopTour" xml:space="preserve">
+    <value>⏹  Dừng tour hiện tại</value>
+  </data>
+  <data name="Explore_Near_Route_Hint_SelectStart" xml:space="preserve">
+    <value>Chọn quán rồi bấm bắt đầu</value>
+  </data>
+  <data name="Explore_Near_Placeholder_PoiName" xml:space="preserve">
+    <value>Địa điểm</value>
+  </data>
+  <data name="Explore_Near_Placeholder_NearbyName" xml:space="preserve">
+    <value>Địa điểm gần</value>
+  </data>
+  <data name="Explore_Near_Placeholder_RouteMeta" xml:space="preserve">
+    <value>—</value>
+  </data>
+  <data name="Explore_Near_Tag_Default_1" xml:space="preserve">
+    <value>#MONNGON</value>
+  </data>
+  <data name="Explore_Near_Tag_Default_2" xml:space="preserve">
+    <value>#KHAMPHA</value>
+  </data>
+  <data name="Explore_Near_RouteMeta_Eta_Format" xml:space="preserve">
+    <value>{0} • ~{1} phút</value>
+  </data>
+  <data name="Explore_Near_EtaOnly_Format" xml:space="preserve">
+    <value>~{0} phút</value>
   </data>
 </root>
 

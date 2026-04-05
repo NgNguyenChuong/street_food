@@ -28,7 +28,7 @@
                 </Grid>
                 <!-- Text & Indicator -->
                 <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
-                    <Label x:Name="ExploreLabel" Text="Khám phá" FontSize="11" FontAttributes="Bold" TextColor="#4BE277" HorizontalTextAlignment="Center"/>
+                    <Label x:Name="ExploreLabel" Text="" FontSize="11" FontAttributes="Bold" TextColor="#4BE277" HorizontalTextAlignment="Center"/>
                     <BoxView x:Name="ExploreIndicator" WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="True"/>
                 </VerticalStackLayout>
             </VerticalStackLayout>
@@ -45,7 +45,7 @@
                 </Grid>
                 <!-- Text & Indicator -->
                 <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
-                    <Label x:Name="SavedLabel" Text="Thư viện" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                    <Label x:Name="SavedLabel" Text="" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
                     <BoxView x:Name="SavedIndicator" WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
                 </VerticalStackLayout>
             </VerticalStackLayout>
@@ -62,7 +62,7 @@
                 </Grid>
                 <!-- Text & Indicator -->
                 <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
-                    <Label x:Name="SettingsLabel" Text="Cài đặt" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                    <Label x:Name="SettingsLabel" Text="" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
                     <BoxView x:Name="SettingsIndicator" WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
                 </VerticalStackLayout>
             </VerticalStackLayout>

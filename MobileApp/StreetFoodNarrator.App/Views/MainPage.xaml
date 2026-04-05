@@ -52,7 +52,7 @@
                         BackgroundColor="#0F1D18" BorderColor="#1C3024" BorderWidth="1"
                         FontFamily="MDI" Text="&#xF0343;" FontSize="22" TextColor="#E57373"
                         Clicked="OnLogoutButtonClicked" />
-                <Label Grid.Column="1" Text="STREET FOOD NARRATOR"
+                  <Label Grid.Column="1" x:Name="MainHeaderTitleLabel" Text="STREET FOOD NARRATOR"
                        VerticalTextAlignment="Center"
                        TextColor="#4BE277" FontSize="15" FontAttributes="Bold"
                        CharacterSpacing="1.8" LineBreakMode="TailTruncation" />
@@ -169,13 +169,13 @@
                                                     <Image Source="{Binding ImageUrl, TargetNullValue='welcome_streetfood.jpg', FallbackValue='welcome_streetfood.jpg'}" Aspect="AspectFill" />
                                                     <BoxView Color="#08110D" Opacity="0.08" />
                                                 </Grid>
-                                                <Label Text="{Binding Name, TargetNullValue='Địa điểm gợi ý', FallbackValue='Địa điểm gợi ý'}"
+                                                      <Label Text="{Binding Name, TargetNullValue='—', FallbackValue='—'}"
                                                        FontSize="16"
                                                        FontAttributes="Bold"
                                                        TextColor="#E8F0EA"
                                                        LineBreakMode="TailTruncation"
                                                        MaxLines="1" />
-                                                <Label Text="{Binding SuggestionInfoText, TargetNullValue='— • 4.5★', FallbackValue='— • 4.5★'}"
+                                                      <Label Text="{Binding SuggestionInfoText, TargetNullValue='—', FallbackValue='—'}"
                                                        FontSize="10"
                                                        FontAttributes="Bold"
                                                        TextColor="#B3C5BB" />
@@ -598,7 +598,7 @@
               IsVisible="True">
             <VerticalStackLayout Spacing="22" HorizontalOptions="Center" VerticalOptions="Center">
                 <Label Text="🍜" FontSize="62" HorizontalOptions="Center" />
-                <Label Text="Street Food Narrator" FontSize="24" FontAttributes="Bold" TextColor="#4BE277" HorizontalOptions="Center" />
+                <Label x:Name="LoadingTitleLabel" Text="Street Food Narrator" FontSize="24" FontAttributes="Bold" TextColor="#4BE277" HorizontalOptions="Center" />
                 <Label x:Name="LoadingStatusLabel" Text="Đang tải dữ liệu..." FontSize="14" TextColor="#9FB0A8" HorizontalOptions="Center" />
                 <ActivityIndicator IsRunning="True" Color="#4BE277" WidthRequest="36" HeightRequest="36" HorizontalOptions="Center" />
             </VerticalStackLayout>

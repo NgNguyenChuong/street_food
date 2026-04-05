@@ -75,7 +75,8 @@
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnViewDetailsTapped"/>
                 </Border.GestureRecognizers>
-                <Label Text="XEM CHI TIẾT &#x2192;" 
+                  <Label x:Name="ViewDetailActionLabel"
+                      Text="XEM CHI TIẾT &#x2192;" 
                        FontSize="15" FontAttributes="Bold"
                        TextColor="#064E3B" 
                        HorizontalOptions="Center" VerticalOptions="Center"/>

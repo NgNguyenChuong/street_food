@@ -451,7 +451,7 @@
                             FontAttributes="Bold"
                             CornerRadius="12"
                             HeightRequest="46"
-                            Clicked="OnBackClicked" />
+                            Clicked="OnResetDefaultsClicked" />
                     <Button x:Name="SaveSettingsButton"
                             Grid.Column="1"
                             Text="Lưu thay đổi"

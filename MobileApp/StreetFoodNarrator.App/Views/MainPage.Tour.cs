@@ -15,6 +15,7 @@ using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Views.Components;
 using StreetFoodNarrator.App.Helpers;
+using StreetFoodNarrator.App.Resources.Strings;
 
 namespace StreetFoodNarrator.App.Views;
 
@@ -322,7 +323,11 @@ public partial class MainPage
     {
         if (string.IsNullOrWhiteSpace(_vm.VirtualTourStatus))
         {
-            _ = CustomAlert.ShowAsync("Chưa thể xem ảo", "Chế độ xem ảo chỉ nên dùng khi bạn đang ở xa khu POI hơn 1km.", "OK", AlertType.Warning);
+            _ = CustomAlert.ShowAsync(
+                AppStrings.Get("Main_Virtual_NotAvailable_Title"),
+                AppStrings.Get("Main_Virtual_NotAvailable_Message"),
+                AppStrings.Get("Common_OK"),
+                AlertType.Warning);
             return;
         }
 
@@ -406,7 +411,11 @@ public partial class MainPage
 
         if (spots.Count == 0)
         {
-            await CustomAlert.ShowAsync("Thông báo", "Không có điểm tham quan nào.", "OK", AlertType.Info);
+            await CustomAlert.ShowAsync(
+                AppStrings.Get("Alert_Notice_Title"),
+                AppStrings.Get("Main_NoAttractions_Message"),
+                AppStrings.Get("Common_OK"),
+                AlertType.Info);
             return;
         }
 
@@ -629,7 +638,8 @@ public partial class MainPage
         int steps  = 20,
         int stepMs = 250)
     {
-        const double stopFraction = 0.85;
+        // Keep a little more distance from the POI center while still staying in the arrival zone.
+        const double stopFraction = 0.60;
 
         _vm.ApproachingZoneName = destinationName;
         _vm.IsApproaching = true;
@@ -645,17 +655,21 @@ public partial class MainPage
             var distMeters = HaversineDistance(_vm.CurrentLat, _vm.CurrentLon, toLat, toLon);
             _vm.ApproachingDistance = ((int)Math.Round(distMeters)).ToString();
 
-            double capLat = _vm.CurrentLat;
-            double capLon = _vm.CurrentLon;
-            MainThread.BeginInvokeOnMainThread(() =>
+            var shouldRefreshMapThisStep = step == 1 || step == steps || step % 2 == 0;
+            if (shouldRefreshMapThisStep)
             {
-                UpdateZonePins();
-                if (MapView?.Map?.Navigator != null)
+                double capLat = _vm.CurrentLat;
+                double capLon = _vm.CurrentLon;
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    var (ux, uy) = SphericalMercator.FromLonLat(capLon, capLat);
-                    MapView.Map.Navigator.CenterOn(new MPoint(ux, uy));
-                }
-            });
+                    UpdateZonePins();
+                    if (MapView?.Map?.Navigator != null)
+                    {
+                        var (ux, uy) = SphericalMercator.FromLonLat(capLon, capLat);
+                        MapView.Map.Navigator.CenterOn(new MPoint(ux, uy));
+                    }
+                });
+            }
 
             try { await Task.Delay(stepMs, token); }
             catch (OperationCanceledException) { return; }

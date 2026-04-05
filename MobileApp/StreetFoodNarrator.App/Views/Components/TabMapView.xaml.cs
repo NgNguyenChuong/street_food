@@ -5,6 +5,8 @@
 
 using Microsoft.Maui.Controls;
 using StreetFoodNarrator.App.Core.Models;
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 
 namespace StreetFoodNarrator.App.Views.Components;
@@ -58,11 +60,52 @@ private const string IconPause = "\U000F03E4";
     {
         InitializeComponent();
         SetPoiCardCollapsed(false);
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
         Loaded += (_, _) =>
         {
             RefreshLikeIcon();
             RefreshPreviewAudioUi();
+            ApplyLocalizedTexts();
         };
+    }
+
+    private void OnLoaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
+        ApplyLocalizedTexts();
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ApplyLocalizedTexts();
+            RefreshPreviewAudioUi();
+            SetPoiCardCollapsed(_isPoiCardCollapsed);
+        });
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        MapHeaderTitleLabel.Text = AppStrings.Get("Map_Header_Title");
+        SearchEntry.Placeholder = AppStrings.Get("Map_SearchPlaceholder");
+        MapLegendUnseenLabel.Text = AppStrings.Get("Map_Legend_Unseen");
+        MapLegendSeenLabel.Text = AppStrings.Get("Map_Legend_Seen");
+        MapLegendSavedLabel.Text = AppStrings.Get("Map_Legend_Saved");
+
+        PreviewAudioHintLabel.Text = AppStrings.Get("Map_PreviewAudio_Hint");
+        ExpandedViewDetailLabel.Text = AppStrings.Get("Map_Action_ViewDetail");
+        ExpandedStartFromHereLabel.Text = AppStrings.Get("Map_Action_StartFromHere");
+        CollapsedPreviewLabel.Text = AppStrings.Get("Map_PreviewAudio_Quick");
+        CollapsedViewDetailLabel.Text = AppStrings.Get("Map_Action_ViewDetail");
+        CollapsedStartFromHereLabel.Text = AppStrings.Get("Map_Action_StartCompact");
     }
 
     protected override void OnBindingContextChanged()
@@ -153,19 +196,19 @@ private const string IconPause = "\U000F03E4";
             if (!isCurrentPreview)
             {
                 PreviewAudioToggleIcon.Text = IconPlay;
-                PreviewAudioActionLabel.Text = "Nghe thử";
+                PreviewAudioActionLabel.Text = AppStrings.Get("Map_PreviewAudio_Listen");
                 return;
             }
 
             if (_isPreviewAudioPlaying)
             {
                 PreviewAudioToggleIcon.Text = IconPause;
-                PreviewAudioActionLabel.Text = "Tạm dừng";
+                PreviewAudioActionLabel.Text = AppStrings.Get("Map_PreviewAudio_Pause");
                 return;
             }
 
             PreviewAudioToggleIcon.Text = IconPlay;
-            PreviewAudioActionLabel.Text = "Tiếp tục";
+            PreviewAudioActionLabel.Text = AppStrings.Get("Map_PreviewAudio_Resume");
         }
         catch (Exception ex)
         {
@@ -265,7 +308,7 @@ private const string IconPause = "\U000F03E4";
         if (PoiCardCollapsedSection != null)
             PoiCardCollapsedSection.IsVisible = collapsed;
         if (PoiCardToggleLabel != null)
-            PoiCardToggleLabel.Text = collapsed ? "Mở rộng" : "Thu gọn";
+            PoiCardToggleLabel.Text = collapsed ? AppStrings.Get("Map_Card_Expand") : AppStrings.Get("Map_Card_Collapse");
     }
 
     // ── Filter Chips ──────────────────────────────────────────────────────

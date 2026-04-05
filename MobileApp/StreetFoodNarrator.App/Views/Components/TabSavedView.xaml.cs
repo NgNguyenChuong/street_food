@@ -45,6 +45,7 @@ public partial class TabSavedView : ContentView
         {
             ApplyLocalizedTexts();
             ApplySavedSegmentVisualState();
+            RefreshTourCardBindings();
         });
     }
 
@@ -58,6 +59,16 @@ public partial class TabSavedView : ContentView
         EmptySavedTourSubtitleLabel.Text = AppStrings.Get("TabSaved_EmptyTour_Subtitle");
         EmptySavedPoiTitleLabel.Text = AppStrings.Get("TabSaved_EmptyPoi_Title");
         EmptySavedPoiSubtitleLabel.Text = AppStrings.Get("TabSaved_EmptyPoi_Subtitle");
+    }
+
+    private void RefreshTourCardBindings()
+    {
+        if (SavedTourList == null)
+            return;
+
+        var source = SavedTourList.ItemsSource;
+        SavedTourList.ItemsSource = null;
+        SavedTourList.ItemsSource = source;
     }
 
     private async void OnCardSelectionChanged(object sender, SelectionChangedEventArgs e)

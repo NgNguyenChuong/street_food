@@ -20,7 +20,7 @@ public partial class WelcomePage : ContentPage
     private const string LangEn = "en";
     private const string LangZh = "zh";
     private const string PREF_FULL_OFFLINE = "has_full_offline";
-    private const string PREF_DONT_SHOW_INFO = "dont_show_offline_info";
+    private const string PREF_DONT_SHOW_INFO = "dont_show_offline_info_v2";
     private static readonly Regex ProgressPairRegex = new(@"(\d+)\s*/\s*(\d+)", RegexOptions.Compiled);
 
     private readonly IZoneRepository _repository;
@@ -35,7 +35,6 @@ public partial class WelcomePage : ContentPage
     private bool _hasSystemUpdate = false;
     private bool _isNavigatingToMap = false;
     private bool _hasShownOfflineFirstLaunchNotice;
-    private const string StartCtaText = "Bắt đầu khám phá Vĩnh Khánh";
 
     private enum StatusKind
     {
@@ -162,6 +161,8 @@ public partial class WelcomePage : ContentPage
             // ✅ Record sync time so MainPage won't re-sync unnecessarily
             if (_repository.CurrentDataSource == DataSourceKind.LiveApi)
                 Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
+
+            _ = _dataSyncService.EnsureDeferredOfflineCompletionAsync();
 
             MainThread.BeginInvokeOnMainThread(UpdateDataSourceLabel);
         }
@@ -454,7 +455,7 @@ public partial class WelcomePage : ContentPage
 
         try
         {
-            var alreadyHasOffline = Preferences.Get(PREF_FULL_OFFLINE, false);
+            var alreadyHasOffline = Preferences.Get(PREF_FULL_OFFLINE, false) && _dataSyncService.HasOfflineData();
             var dontShowInfo     = Preferences.Get(PREF_DONT_SHOW_INFO, false);
             if (!alreadyHasOffline && !dontShowInfo && IsOnline())
             {
@@ -968,6 +969,11 @@ public partial class WelcomePage : ContentPage
             return "Dang tai ban do can thiet...";
         if (clean.Contains("ban do offline", StringComparison.OrdinalIgnoreCase))
             return "Dang tai ban do offline...";
+        if (clean.Contains("hinh anh", StringComparison.OrdinalIgnoreCase) ||
+            clean.Contains("anh", StringComparison.OrdinalIgnoreCase))
+            return "Dang tai hinh anh dia diem...";
+        if (clean.Contains("chi duong", StringComparison.OrdinalIgnoreCase))
+            return "Dang chuan bi chi duong offline...";
         if (clean.Contains("thuc don", StringComparison.OrdinalIgnoreCase))
             return "Dang tai thuc don...";
         if (clean.Contains("danh sach quan", StringComparison.OrdinalIgnoreCase))
@@ -1708,7 +1714,7 @@ public partial class WelcomePage : ContentPage
         AppStrings.SetCulture(lang);
         TitleLabel.Text = AppStrings.Welcome_AppTitle;
         SubtitleLabel.Text = AppStrings.Welcome_Subtitle;
-        StartButton.Text = StartCtaText;
+        StartButton.Text = AppStrings.Welcome_StartTour;
         FeatureAutoTitleLabel.Text = AppStrings.Welcome_Feature_Auto_Title;
         FeatureAutoSubtitleLabel.Text = AppStrings.Welcome_Feature_Auto_Desc;
         FeatureOfflineTitleLabel.Text = AppStrings.Welcome_Feature_Offline_Title;
@@ -1752,26 +1758,31 @@ public partial class WelcomePage : ContentPage
 
         var sourceText = _repository.CurrentDataSource switch
         {
-            DataSourceKind.LiveApi => "Nguồn dữ liệu: Server",
-            DataSourceKind.SqliteCache => "Nguồn dữ liệu: Cache",
-            DataSourceKind.BundledJson => "Nguồn dữ liệu: Bundled",
-            DataSourceKind.MockFallback => "Nguồn dữ liệu: Mock",
-            _ => "Nguồn dữ liệu: Đang kiểm tra"
+            DataSourceKind.LiveApi => Ui("Nguồn dữ liệu: Server", "Data source: Server", "数据来源：服务器"),
+            DataSourceKind.SqliteCache => Ui("Nguồn dữ liệu: Cache", "Data source: Cache", "数据来源：缓存"),
+            DataSourceKind.BundledJson => Ui("Nguồn dữ liệu: Bundled", "Data source: Bundled", "数据来源：内置"),
+            DataSourceKind.MockFallback => Ui("Nguồn dữ liệu: Mock", "Data source: Mock", "数据来源：模拟"),
+            _ => Ui("Nguồn dữ liệu: Đang kiểm tra", "Data source: Checking", "数据来源：检查中")
         };
 
-        var lastSync = Preferences.Get("LastSyncTime", "Chưa đồng bộ");
+        var lastSync = Preferences.Get("LastSyncTime", Ui("Chưa đồng bộ", "Not synced yet", "尚未同步"));
         if (DateTime.TryParse(lastSync, out var parsed))
         {
             lastSync = parsed.ToString("dd/MM HH:mm");
-            // Optimistically show Cache instead of 'Đang kiểm tra' if we have a valid previous sync time
             if (_repository.CurrentDataSource == DataSourceKind.Unknown)
-            {
-                sourceText = "Nguồn dữ liệu: Cache";
-            }
+                sourceText = Ui("Nguồn dữ liệu: Cache", "Data source: Cache", "数据来源：缓存");
         }
 
-        DataSourceLabel.Text = $"{sourceText} | Lần cuối: {lastSync}";
+        DataSourceLabel.Text = $"{sourceText} | {Ui("Lần cuối", "Last sync", "最近同步")}: {lastSync}";
     }
+
+    private string Ui(string vi, string en, string zh)
+        => _currentLang switch
+        {
+            LangEn => en,
+            LangZh => zh,
+            _ => vi
+        };
 
     private static bool IsOnline()
     {
@@ -1790,8 +1801,9 @@ public partial class WelcomePage : ContentPage
         if (StartButton == null)
             return;
 
-        StartButton.Text = StartCtaText;
+        StartButton.Text = AppStrings.Welcome_StartTour;
         StartButton.IsEnabled = _canStartTour;
         StartButton.Opacity = _canStartTour ? 1.0 : 0.55;
     }
 }
+

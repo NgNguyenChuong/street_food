@@ -2,6 +2,7 @@ using SQLite;
 using System.Text.RegularExpressions;
 using Microsoft.Maui.Networking;
 using Microsoft.Maui.Storage;
+using StreetFoodNarrator.App.Core.Services.Implementations;
 
 namespace StreetFoodNarrator.App.Core.Models;
 
@@ -115,6 +116,10 @@ public class POI
             if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
+                var cachedPath = PoiImageCacheService.GetCachedPathIfExists(AppConfig.GetResolvedApiBaseUrl(), value);
+                if (!string.IsNullOrWhiteSpace(cachedPath))
+                    return cachedPath;
+
                 return isOnline ? value : ResolveBundledFallbackImage();
             }
 
@@ -129,10 +134,21 @@ public class POI
             }
 
             if (!isOnline)
-                return ResolveBundledFallbackImage();
+            {
+                var cachedPath = PoiImageCacheService.GetCachedPathIfExists(AppConfig.GetResolvedApiBaseUrl(), value);
+                return !string.IsNullOrWhiteSpace(cachedPath)
+                    ? cachedPath
+                    : ResolveBundledFallbackImage();
+            }
 
             var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
-            return $"{baseUrl}/{value.TrimStart('/')}";
+            var absoluteUrl = PoiImageCacheService.NormalizeToAbsoluteUrl(baseUrl, value)
+                ?? $"{baseUrl}/{value.TrimStart('/')}";
+
+            var onlineCachedPath = PoiImageCacheService.GetCachedPathIfExists(baseUrl, absoluteUrl);
+            return !string.IsNullOrWhiteSpace(onlineCachedPath)
+                ? onlineCachedPath
+                : absoluteUrl;
         }
     }
 

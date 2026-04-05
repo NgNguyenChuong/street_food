@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<resources>
+  <style name="StreetFoodNarrator.MainTheme" parent="Maui.MainTheme">
+    <item name="android:windowBackground">#0A1612</item>
+  </style>
+
+  <style name="StreetFoodNarrator.MainTheme.NoActionBar" parent="Maui.MainTheme.NoActionBar">
+    <item name="android:windowBackground">#0A1612</item>
+  </style>
+
+  <style name="StreetFoodNarrator.SplashTheme" parent="Maui.SplashTheme">
+    <!-- Maui.SplashTheme already manages splash transition; keep custom splash style minimal for compatibility. -->
+  </style>
+</resources>
