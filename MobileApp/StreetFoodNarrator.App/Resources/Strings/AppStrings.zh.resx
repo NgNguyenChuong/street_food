@@ -120,7 +120,7 @@
 💡 建议：下载离线数据以获得最佳体验（无需网络，音频播放更快）。</value>
   </data>
   <data name="Info_DontShowAgain" xml:space="preserve">
-    <value>☑️ 不再显示</value>
+    <value>不再显示</value>
   </data>
   <data name="Alert_NeedInternet_Title" xml:space="preserve">
     <value>🌐 需要网络连接</value>
@@ -262,10 +262,508 @@
   <data name="Nav_Tour" xml:space="preserve">
     <value>游览</value>
   </data>
+  <data name="Nav_Menu" xml:space="preserve">
+    <value>列表</value>
+  </data>
   <data name="Nav_Saved" xml:space="preserve">
     <value>已保存</value>
   </data>
   <data name="Nav_Settings" xml:space="preserve">
     <value>设置</value>
+  </data>
+  <data name="Nav_Library" xml:space="preserve">
+    <value>资料库</value>
+  </data>
+  <data name="Nav_Explore" xml:space="preserve">
+    <value>探索</value>
+  </data>
+  <data name="Saved_Tab_Tours" xml:space="preserve">
+    <value>行程列表</value>
+  </data>
+  <data name="Saved_Tab_Saved" xml:space="preserve">
+    <value>已保存</value>
+  </data>
+  <data name="Offline_Banner_Short" xml:space="preserve">
+    <value>你当前离线。建议开启网络以获得更好体验。</value>
+  </data>
+  <data name="Offline_Banner_Full" xml:space="preserve">
+    <value>你当前离线。建议开启网络以获得完整体验并更新最新数据。</value>
+  </data>
+  <data name="Main_Far_Headline1" xml:space="preserve">
+    <value>你离这里较远</value>
+  </data>
+  <data name="Main_Far_Headline2" xml:space="preserve">
+    <value>美食街</value>
+  </data>
+  <data name="Main_Far_Description" xml:space="preserve">
+    <value>周边还比较安静。现在开始探索，为接下来的美食之旅做好准备。</value>
+  </data>
+  <data name="Main_Action_ViewMap" xml:space="preserve">
+    <value>查看地图</value>
+  </data>
+  <data name="Main_InZone_Title" xml:space="preserve">
+    <value>你已进入美食区</value>
+  </data>
+  <data name="Main_InZone_Area" xml:space="preserve">
+    <value>永庆</value>
+  </data>
+  <data name="Main_InZone_Description" xml:space="preserve">
+    <value>让语音带你走过第四郡最具代表性的街头美食摊位。</value>
+  </data>
+  <data name="Main_NowPlaying_Tag" xml:space="preserve">
+    <value>正在播放</value>
+  </data>
+  <data name="Main_Action_ContinueExplore" xml:space="preserve">
+    <value>继续探索</value>
+  </data>
+  <data name="Main_Action_ViewYourLocation" xml:space="preserve">
+    <value>查看你的位置</value>
+  </data>
+  <data name="Main_Narrating_Tag" xml:space="preserve">
+    <value>正在讲解</value>
+  </data>
+  <data name="Main_Action_Directions" xml:space="preserve">
+    <value>➡
+导航</value>
+  </data>
+  <data name="Main_Action_SwitchSpot" xml:space="preserve">
+    <value>🔀
+换店</value>
+  </data>
+  <data name="Main_Action_ViewMap_Multiline" xml:space="preserve">
+    <value>🗺️
+查看地图</value>
+  </data>
+  <data name="Main_NearYou_Title" xml:space="preserve">
+    <value>你附近还有：</value>
+  </data>
+  <data name="Main_NearYou_SeeAll" xml:space="preserve">
+    <value>查看全部</value>
+  </data>
+  <data name="Main_Action_ExploreNow" xml:space="preserve">
+    <value>立即探索  -&gt;</value>
+  </data>
+  <data name="Main_MapTool_Title" xml:space="preserve">
+    <value>美食区地图</value>
+  </data>
+  <data name="Main_MapTool_Subtitle" xml:space="preserve">
+    <value>地图用于快速定位，不是主界面。</value>
+  </data>
+  <data name="Main_MapTool_Description" xml:space="preserve">
+    <value>你可以用地图查看重点店铺位置并调整前进方向。</value>
+  </data>
+  <data name="Main_Action_CenterMap" xml:space="preserve">
+    <value>居中</value>
+  </data>
+  <data name="Main_Action_CloseMap" xml:space="preserve">
+    <value>关闭地图</value>
+  </data>
+  <data name="Main_Status_LoadingData" xml:space="preserve">
+    <value>正在加载数据...</value>
+  </data>
+  <data name="Main_Status_OpeningMap" xml:space="preserve">
+    <value>正在打开地图...</value>
+  </data>
+  <data name="Main_Status_Finishing" xml:space="preserve">
+    <value>正在完成...</value>
+  </data>
+  <data name="Main_Status_GettingLocation" xml:space="preserve">
+    <value>正在定位...</value>
+  </data>
+  <data name="Main_Logout_Title" xml:space="preserve">
+    <value>退出登录</value>
+  </data>
+  <data name="Main_Logout_Confirm" xml:space="preserve">
+    <value>你确定要退出登录并关闭应用吗？</value>
+  </data>
+  <data name="Main_OfflineBasic_Title" xml:space="preserve">
+    <value>当前为基础离线模式</value>
+  </data>
+  <data name="Main_OfflineBasic_Message" xml:space="preserve">
+    <value>你当前处于基础离线模式。应用仍可使用本机已缓存数据；当网络可用时，系统会在后台自动同步，逐步补全后续离线使用所需数据。</value>
+  </data>
+  <data name="Main_OfflineBasic_Ack" xml:space="preserve">
+    <value>明白了</value>
+  </data>
+  <data name="Common_Error" xml:space="preserve">
+    <value>错误</value>
+  </data>
+  <data name="PoiDetail_Call_Error" xml:space="preserve">
+    <value>无法拨打电话。</value>
+  </data>
+  <data name="PoiDetail_Far_Title" xml:space="preserve">
+    <value>你离这里较远</value>
+  </data>
+  <data name="PoiDetail_Far_Message" xml:space="preserve">
+    <value>当前距离下仅支持虚拟浏览模式。</value>
+  </data>
+  <data name="PoiDetail_Virtual_Message" xml:space="preserve">
+    <value>你距离该店超过 1 公里。地图将切换到虚拟交互模式。</value>
+  </data>
+  <data name="PoiDetail_Navigate_Error" xml:space="preserve">
+    <value>暂时无法开始导航。</value>
+  </data>
+  <data name="TabSaved_Subtitle" xml:space="preserve">
+    <value>你收藏的行程和地点</value>
+  </data>
+  <data name="TabSaved_Segment_Tours" xml:space="preserve">
+    <value>已保存行程</value>
+  </data>
+  <data name="TabSaved_Segment_Pois" xml:space="preserve">
+    <value>已保存地点</value>
+  </data>
+  <data name="TabSaved_EmptyTour_Title" xml:space="preserve">
+    <value>还没有已保存行程</value>
+  </data>
+  <data name="TabSaved_EmptyTour_Subtitle" xml:space="preserve">
+    <value>在行程列表中点击心形即可收藏</value>
+  </data>
+  <data name="TabSaved_EmptyPoi_Title" xml:space="preserve">
+    <value>还没有已保存地点</value>
+  </data>
+  <data name="TabSaved_EmptyPoi_Subtitle" xml:space="preserve">
+    <value>在地图/探索页点击心形即可保存地点</value>
+  </data>
+  <data name="TabMenu_SearchPlaceholder" xml:space="preserve">
+    <value>搜索行程...</value>
+  </data>
+  <data name="TabMenu_OfflineNotice" xml:space="preserve">
+    <value>当前显示离线行程（缓存数据）。</value>
+  </data>
+  <data name="TabMenu_EmptyTour" xml:space="preserve">
+    <value>没有匹配的行程</value>
+  </data>
+  <data name="TourCard_PoiStopsFormat" xml:space="preserve">
+    <value>🧭 {0} 个站点</value>
+  </data>
+  <data name="TourCard_DurationFormat" xml:space="preserve">
+    <value>约 {0} 分钟</value>
+  </data>
+  <data name="TourCard_DetailButton" xml:space="preserve">
+    <value>查看详情</value>
+  </data>
+  <data name="TourCard_StartNowButton" xml:space="preserve">
+    <value>立即开始</value>
+  </data>
+  <data name="Virtual_Header_Title" xml:space="preserve">
+    <value>虚拟美食之旅</value>
+  </data>
+  <data name="Virtual_Proximity_Banner" xml:space="preserve">
+    <value>你已在美食区，立即探索！</value>
+  </data>
+  <data name="Virtual_Tour_Title" xml:space="preserve">
+    <value>探索永庆</value>
+  </data>
+  <data name="Virtual_Progress_Label" xml:space="preserve">
+    <value>进度</value>
+  </data>
+  <data name="Virtual_CurrentlyPlaying_Header" xml:space="preserve">
+    <value>当前播放</value>
+  </data>
+  <data name="Virtual_NowPlaying_Badge" xml:space="preserve">
+    <value>🎧 播放中</value>
+  </data>
+  <data name="Virtual_Legendary_Recipe" xml:space="preserve">
+    <value>招牌配方</value>
+  </data>
+  <data name="Virtual_SeeMore" xml:space="preserve">
+    <value>查看更多</value>
+  </data>
+  <data name="Virtual_Queue_Header" xml:space="preserve">
+    <value>下一站</value>
+  </data>
+  <data name="Virtual_Queue_Item_Header" xml:space="preserve">
+    <value>下一站</value>
+  </data>
+  <data name="Virtual_Queue_Empty" xml:space="preserve">
+    <value>没有后续地点</value>
+  </data>
+  <data name="Virtual_Audio_StreetSuffix" xml:space="preserve">
+    <value> • 永庆</value>
+  </data>
+  <data name="Map_Header_Title" xml:space="preserve">
+    <value>STREET FOOD NARRATOR</value>
+  </data>
+  <data name="Map_SearchPlaceholder" xml:space="preserve">
+    <value>搜索店铺...</value>
+  </data>
+  <data name="Map_Legend_Unseen" xml:space="preserve">
+    <value>未看过</value>
+  </data>
+  <data name="Map_Legend_Seen" xml:space="preserve">
+    <value>已看过</value>
+  </data>
+  <data name="Map_Legend_Saved" xml:space="preserve">
+    <value>已保存</value>
+  </data>
+  <data name="Map_PreviewAudio_Listen" xml:space="preserve">
+    <value>试听</value>
+  </data>
+  <data name="Map_PreviewAudio_Pause" xml:space="preserve">
+    <value>暂停</value>
+  </data>
+  <data name="Map_PreviewAudio_Resume" xml:space="preserve">
+    <value>继续</value>
+  </data>
+  <data name="Map_PreviewAudio_Hint" xml:space="preserve">
+    <value>快速了解该店</value>
+  </data>
+  <data name="Map_PreviewAudio_Quick" xml:space="preserve">
+    <value>快速试听</value>
+  </data>
+  <data name="Map_Action_ViewDetail" xml:space="preserve">
+    <value>查看详情</value>
+  </data>
+  <data name="Map_Action_ViewDetail_Arrow" xml:space="preserve">
+    <value>查看详情 →</value>
+  </data>
+  <data name="Map_Action_StartFromHere" xml:space="preserve">
+    <value>从这里开始</value>
+  </data>
+  <data name="Map_Action_StartCompact" xml:space="preserve">
+    <value>开始</value>
+  </data>
+  <data name="Map_Card_Expand" xml:space="preserve">
+    <value>展开</value>
+  </data>
+  <data name="Map_Card_Collapse" xml:space="preserve">
+    <value>收起</value>
+  </data>
+  <data name="Tour_Destination_Description_Title" xml:space="preserve">
+    <value>目的地简介</value>
+  </data>
+  <data name="Tour_NextStop_Title" xml:space="preserve">
+    <value>下一站</value>
+  </data>
+  <data name="Tour_Desc_Expand" xml:space="preserve">
+    <value>查看更多 ›</value>
+  </data>
+  <data name="Tour_Desc_Collapse" xml:space="preserve">
+    <value>收起 ›</value>
+  </data>
+  <data name="Tour_Status_Online" xml:space="preserve">
+    <value>在线</value>
+  </data>
+  <data name="Tour_Status_Offline" xml:space="preserve">
+    <value>离线</value>
+  </data>
+  <data name="Tour_Approaching_Tag" xml:space="preserve">
+    <value>正在接近</value>
+  </data>
+  <data name="Tour_Distance_Meter" xml:space="preserve">
+    <value>米</value>
+  </data>
+  <data name="Tour_Legend_Title" xml:space="preserve">
+    <value>图例</value>
+  </data>
+  <data name="Tour_Legend_Current" xml:space="preserve">
+    <value>当前位置</value>
+  </data>
+  <data name="Tour_Legend_Visited" xml:space="preserve">
+    <value>已到访</value>
+  </data>
+  <data name="Tour_Legend_Unvisited" xml:space="preserve">
+    <value>未到访</value>
+  </data>
+  <data name="Tour_Virtual_Start" xml:space="preserve">
+    <value>开始虚拟游览</value>
+  </data>
+  <data name="Tour_Virtual_Stop" xml:space="preserve">
+    <value>停止</value>
+  </data>
+  <data name="Tour_Virtual_Continue" xml:space="preserve">
+    <value>继续</value>
+  </data>
+  <data name="Tour_ClearTour_ReturnNormal" xml:space="preserve">
+    <value>清除行程并返回普通模式</value>
+  </data>
+  <data name="Tour_Badge_Narrating" xml:space="preserve">
+    <value>正在讲解</value>
+  </data>
+  <data name="Tour_Badge_Approaching" xml:space="preserve">
+    <value>即将到达</value>
+  </data>
+  <data name="Tour_Info_Distance" xml:space="preserve">
+    <value>距离</value>
+  </data>
+  <data name="Tour_Info_Walk" xml:space="preserve">
+    <value>步行</value>
+  </data>
+  <data name="Tour_Info_Category" xml:space="preserve">
+    <value>分类</value>
+  </data>
+  <data name="Tour_Highlight_Tag" xml:space="preserve">
+    <value>⭐ 推荐</value>
+  </data>
+  <data name="Tour_Audio_Header" xml:space="preserve">
+    <value>🎵 语音讲解</value>
+  </data>
+  <data name="Tour_Audio_Language_Vi" xml:space="preserve">
+    <value>🇻🇳 越南语</value>
+  </data>
+  <data name="Tour_CurrentStop_Here" xml:space="preserve">
+    <value> ← 你在这里</value>
+  </data>
+  <data name="Tour_CurrentStop_Narrating" xml:space="preserve">
+    <value>正在讲解</value>
+  </data>
+  <data name="PopupTour_Badge" xml:space="preserve">
+    <value>游览体验</value>
+  </data>
+  <data name="PopupTour_Duration_Estimate" xml:space="preserve">
+    <value>预计时长</value>
+  </data>
+  <data name="PopupTour_Type" xml:space="preserve">
+    <value>行程类型</value>
+  </data>
+  <data name="PopupTour_Theme" xml:space="preserve">
+    <value>主题 / 类别</value>
+  </data>
+  <data name="PopupTour_Itinerary" xml:space="preserve">
+    <value>行程路线</value>
+  </data>
+  <data name="PopupTour_Save" xml:space="preserve">
+    <value>保存行程</value>
+  </data>
+  <data name="PopupTour_StartNow" xml:space="preserve">
+    <value>立即开始</value>
+  </data>
+  <data name="PopupTour_Stop_DefaultTitleFormat" xml:space="preserve">
+    <value>站点 {0}</value>
+  </data>
+  <data name="PopupTour_Stop_DefaultSubtitle" xml:space="preserve">
+    <value>同步数据后将更新站点信息。</value>
+  </data>
+  <data name="PopupTour_DefaultName" xml:space="preserve">
+    <value>美食行程</value>
+  </data>
+  <data name="PopupTour_DefaultDescription" xml:space="preserve">
+    <value>按街头节奏探索美食，系统已为你准备好推荐停靠点。</value>
+  </data>
+  <data name="PopupTour_SignatureDish_Format" xml:space="preserve">
+    <value>招牌菜：{0}</value>
+  </data>
+  <data name="PopupTour_DefaultPoiExperience" xml:space="preserve">
+    <value>一个拥有多种特色体验的美食站点。</value>
+  </data>
+  <data name="PopupTour_Type_Curated" xml:space="preserve">
+    <value>精选路线</value>
+  </data>
+  <data name="PopupTour_Type_Long" xml:space="preserve">
+    <value>长线探索</value>
+  </data>
+  <data name="PopupTour_Type_Flexible" xml:space="preserve">
+    <value>灵活</value>
+  </data>
+  <data name="PopupTour_Theme_Default" xml:space="preserve">
+    <value>美食</value>
+  </data>
+  <data name="Main_Virtual_NotAvailable_Title" xml:space="preserve">
+    <value>暂不可虚拟浏览</value>
+  </data>
+  <data name="Main_Virtual_NotAvailable_Message" xml:space="preserve">
+    <value>虚拟模式仅建议在距离 POI 区域超过 1 公里时使用。</value>
+  </data>
+  <data name="Main_NoAttractions_Message" xml:space="preserve">
+    <value>当前没有可用景点。</value>
+  </data>
+  <data name="Main_ResetDb_Success_Title" xml:space="preserve">
+    <value>完成</value>
+  </data>
+  <data name="Main_ResetDb_Success_Message" xml:space="preserve">
+    <value>数据库已按正确坐标重置。</value>
+  </data>
+  <data name="Main_ResetDb_Error_Format" xml:space="preserve">
+    <value>无法重置数据库：{0}</value>
+  </data>
+  <data name="Explore_Near_Header_Title" xml:space="preserve">
+    <value>永庆美食街</value>
+  </data>
+  <data name="Explore_Near_Simulate_Tour" xml:space="preserve">
+    <value>路线</value>
+  </data>
+  <data name="Explore_Near_Simulate_Zone" xml:space="preserve">
+    <value>范围</value>
+  </data>
+  <data name="Explore_Near_Legend_You" xml:space="preserve">
+    <value>你</value>
+  </data>
+  <data name="Explore_Near_Legend_Normal" xml:space="preserve">
+    <value>普通</value>
+  </data>
+  <data name="Explore_Near_Legend_Saved" xml:space="preserve">
+    <value>已收藏</value>
+  </data>
+  <data name="Explore_Near_Legend_Visited" xml:space="preserve">
+    <value>已到访</value>
+  </data>
+  <data name="Explore_Near_SeeMore_Arrow" xml:space="preserve">
+    <value>查看更多 →</value>
+  </data>
+  <data name="Explore_Near_Nearby_Title" xml:space="preserve">
+    <value>附近店铺</value>
+  </data>
+  <data name="Explore_Near_Nearby_SeeAll" xml:space="preserve">
+    <value>查看全部</value>
+  </data>
+  <data name="Explore_Near_Sheet_Expand" xml:space="preserve">
+    <value>展开</value>
+  </data>
+  <data name="Explore_Near_Sheet_Collapse" xml:space="preserve">
+    <value>收起</value>
+  </data>
+  <data name="Explore_Near_Route_Skip" xml:space="preserve">
+    <value>⏭  跳过当前店铺</value>
+  </data>
+  <data name="Explore_Near_Route_Skip_Short" xml:space="preserve">
+    <value>跳过</value>
+  </data>
+  <data name="Explore_Near_Route_Detail" xml:space="preserve">
+    <value>详情</value>
+  </data>
+  <data name="Explore_Near_Route_StartHere" xml:space="preserve">
+    <value>🚀 从这里开始</value>
+  </data>
+  <data name="Explore_Near_Route_CancelNav" xml:space="preserve">
+    <value>⏹  取消导航</value>
+  </data>
+  <data name="Explore_Near_Route_Navigate" xml:space="preserve">
+    <value>➤  开始导航</value>
+  </data>
+  <data name="Explore_Near_Status_Narrating" xml:space="preserve">
+    <value>正在讲解</value>
+  </data>
+  <data name="Explore_Near_Action_Approach" xml:space="preserve">
+    <value>靠近</value>
+  </data>
+  <data name="Explore_Near_Action_Enter" xml:space="preserve">
+    <value>进入</value>
+  </data>
+  <data name="Explore_Near_Route_StopTour" xml:space="preserve">
+    <value>⏹  停止当前路线</value>
+  </data>
+  <data name="Explore_Near_Route_Hint_SelectStart" xml:space="preserve">
+    <value>选择店铺后点击开始</value>
+  </data>
+  <data name="Explore_Near_Placeholder_PoiName" xml:space="preserve">
+    <value>地点</value>
+  </data>
+  <data name="Explore_Near_Placeholder_NearbyName" xml:space="preserve">
+    <value>附近地点</value>
+  </data>
+  <data name="Explore_Near_Placeholder_RouteMeta" xml:space="preserve">
+    <value>—</value>
+  </data>
+  <data name="Explore_Near_Tag_Default_1" xml:space="preserve">
+    <value>#美食</value>
+  </data>
+  <data name="Explore_Near_Tag_Default_2" xml:space="preserve">
+    <value>#探索</value>
+  </data>
+  <data name="Explore_Near_RouteMeta_Eta_Format" xml:space="preserve">
+    <value>{0} • 约{1}分钟</value>
+  </data>
+  <data name="Explore_Near_EtaOnly_Format" xml:space="preserve">
+    <value>约{0}分钟</value>
   </data>
 </root>

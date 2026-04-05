@@ -1,5 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using SQLite;
+using Microsoft.Maui.Storage;
 
 namespace StreetFoodNarrator.App.Core.Models;
 
@@ -41,6 +42,36 @@ public class MenuItemDto
     
     [JsonPropertyName("isSignatureDish")]
     public bool IsSignatureDish { get; set; }
+
+    [Ignore]
+    public string DisplayName
+    {
+        get
+        {
+            var lang = Preferences.Get("app_language", "vi");
+            return lang switch
+            {
+                "en" => !string.IsNullOrWhiteSpace(Name_En) ? Name_En : Name_Vi,
+                "zh" => !string.IsNullOrWhiteSpace(Name_Zh) ? Name_Zh : (!string.IsNullOrWhiteSpace(Name_En) ? Name_En : Name_Vi),
+                _ => !string.IsNullOrWhiteSpace(Name_Vi) ? Name_Vi : (!string.IsNullOrWhiteSpace(Name_En) ? Name_En : Name_Zh)
+            };
+        }
+    }
+
+    [Ignore]
+    public string DisplayDescription
+    {
+        get
+        {
+            var lang = Preferences.Get("app_language", "vi");
+            return lang switch
+            {
+                "en" => !string.IsNullOrWhiteSpace(Description_En) ? Description_En : (Description_Vi ?? Description_Zh ?? string.Empty),
+                "zh" => !string.IsNullOrWhiteSpace(Description_Zh) ? Description_Zh : (Description_En ?? Description_Vi ?? string.Empty),
+                _ => !string.IsNullOrWhiteSpace(Description_Vi) ? Description_Vi : (Description_En ?? Description_Zh ?? string.Empty)
+            };
+        }
+    }
     
     public string DisplayImageUrl
     {

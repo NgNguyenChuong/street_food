@@ -57,8 +57,15 @@ public partial class MainPage
         if (_vm.SelectedPinPOI == null) return;
         // Ưu tiên: cache MP3 offline → TTS API → native MAUI TTS
         _ = _tts.SpeakAsync(
-            _vm.SelectedPinPOI.Description_Vi ?? _vm.SelectedPinPOI.Name_Vi ?? "Điểm thăm quan",
-            "vi-VN",
+            _vm.SelectedPinPOI.GetDisplayDescription(_lang.CurrentLanguage)
+                ?? _vm.SelectedPinPOI.GetDisplayName(_lang.CurrentLanguage)
+                ?? Ui("Điểm thăm quan", "Attraction", "景点"),
+            _lang.CurrentLanguage switch
+            {
+                "en" => "en-US",
+                "zh" => "zh-CN",
+                _ => "vi-VN"
+            },
             poiId: _vm.SelectedPinPOI.Id);
     }
 
@@ -102,8 +109,8 @@ public partial class MainPage
         _vm.CurrentAppMode = MainViewModel.AppMode.Detail;
         
         // Cập nhật thủ công các trường vì Binding PrimaryZoneName có khi trễ
-        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
-        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? "Không có mô tả";
+        _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);
+        _vm.PrimaryZoneDesc = poi.GetDisplayDescription(_lang.CurrentLanguage);
         _vm.PrimaryZoneAddress= poi.Address ?? "Địa chỉ đang cập nhật";
         _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
 
@@ -119,8 +126,8 @@ public partial class MainPage
         if (poi == null) return;
         _vm.SelectedPinPOI = poi;
         _vm.PrimaryZone = poi;
-        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
-        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? "";
+        _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);
+        _vm.PrimaryZoneDesc = poi.GetDisplayDescription(_lang.CurrentLanguage);
         _vm.PrimaryZoneAddress = poi.Address ?? "Đang cập nhật";
         _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
         _vm.CurrentAppMode = MainViewModel.AppMode.Detail;

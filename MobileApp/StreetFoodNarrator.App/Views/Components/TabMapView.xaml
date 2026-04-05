@@ -40,7 +40,7 @@
                 </Border>
 
                 <!-- Tiêu đề -->
-                <Label Grid.Column="1"
+                <Label x:Name="MapHeaderTitleLabel" Grid.Column="1"
                        Text="STREET FOOD NARRATOR"
                        FontSize="15" FontAttributes="Bold"
                        CharacterSpacing="1.8"
@@ -143,7 +143,7 @@
                                     StrokeThickness="0"
                                     StrokeShape="RoundRectangle 5"
                                     VerticalOptions="Center"/>
-                            <Label Text="Chưa xem"
+                            <Label x:Name="MapLegendUnseenLabel" Text="Chưa xem"
                                    FontSize="10"
                                    FontAttributes="Bold"
                                    TextColor="#D6E3DD"
@@ -157,7 +157,7 @@
                                     StrokeThickness="0"
                                     StrokeShape="RoundRectangle 5"
                                     VerticalOptions="Center"/>
-                            <Label Text="Đã xem"
+                            <Label x:Name="MapLegendSeenLabel" Text="Đã xem"
                                    FontSize="10"
                                    FontAttributes="Bold"
                                    TextColor="#D6E3DD"
@@ -171,7 +171,7 @@
                                     StrokeThickness="0"
                                     StrokeShape="RoundRectangle 5"
                                     VerticalOptions="Center"/>
-                            <Label Text="Đã lưu"
+                            <Label x:Name="MapLegendSavedLabel" Text="Đã lưu"
                                    FontSize="10"
                                    FontAttributes="Bold"
                                    TextColor="#D6E3DD"
@@ -303,7 +303,7 @@
                             <VerticalStackLayout Grid.Column="1"
                                                  Spacing="3"
                                                  VerticalOptions="Center">
-                                <Label Text="{Binding Name_Vi}"
+                                    <Label Text="{Binding DisplayName}"
                                        FontSize="15" FontAttributes="Bold"
                                        TextColor="#E8F3EE"
                                        LineBreakMode="TailTruncation"/>
@@ -370,7 +370,7 @@
                     <VerticalStackLayout Grid.Column="1"
                                          Spacing="4"
                                          VerticalOptions="Center">
-                        <Label Text="{Binding SelectedPinPOI.Name_Vi, FallbackValue='Phở Hà Nội'}"
+                           <Label Text="{Binding SelectedPinPOI.DisplayName, FallbackValue='Phở Hà Nội'}"
                                FontSize="18" FontAttributes="Bold"
                                TextColor="#F0F7F3"
                                LineBreakMode="TailTruncation"/>
@@ -455,7 +455,8 @@
                                        FontSize="13"
                                        FontAttributes="Bold"
                                        TextColor="#DCE8E2"/>
-                                <Label Text="Mô tả nhanh quán này"
+                                <Label x:Name="PreviewAudioHintLabel"
+                                    Text="Mô tả nhanh quán này"
                                        FontSize="11"
                                        TextColor="#89A097"/>
                             </VerticalStackLayout>
@@ -481,6 +482,7 @@
                                                HorizontalOptions="Center"
                                                VerticalOptions="Center">
                             <Label Text="XEM CHI TIẾT"
+                                x:Name="ExpandedViewDetailLabel"
                                    FontSize="12"
                                    FontAttributes="Bold"
                                    CharacterSpacing="0.4"
@@ -516,7 +518,8 @@
                             <Label Text="🚀"
                                    FontSize="15"
                                    VerticalOptions="Center"/>
-                            <Label Text="BẮT ĐẦU TỪ ĐÂY"
+                            <Label x:Name="ExpandedStartFromHereLabel"
+                                Text="BẮT ĐẦU TỪ ĐÂY"
                                    FontSize="12" FontAttributes="Bold"
                                    CharacterSpacing="0.4"
                                    TextColor="#063014"
@@ -531,69 +534,80 @@
 
                 <Grid x:Name="PoiCardCollapsedSection"
                       Grid.Row="1"
-                      IsVisible="False"
-                      RowDefinitions="Auto,Auto"
-                      RowSpacing="8">
-                    <Border Grid.Row="0"
-                            HeightRequest="44"
-                            BackgroundColor="#101916"
-                            Stroke="#20312A"
-                            StrokeThickness="1"
-                            StrokeShape="RoundRectangle 20"
-                            Padding="10,0,12,0">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnPreviewAudioTapped"/>
-                        </Border.GestureRecognizers>
-                        <Grid ColumnDefinitions="Auto,*"
-                              VerticalOptions="Center">
-                            <Border WidthRequest="30"
-                                    HeightRequest="30"
-                                    BackgroundColor="#1A2A23"
-                                    Stroke="#284036"
-                                    StrokeThickness="1"
-                                    StrokeShape="RoundRectangle 15"
-                                    VerticalOptions="Center"
-                                    HorizontalOptions="Center">
-                                <Label Text="{Binding Source={x:Reference PreviewAudioToggleIcon}, Path=Text}"
-                                       FontFamily="MDI"
-                                       FontSize="16"
-                                       TextColor="#DCE8E2"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center"/>
-                            </Border>
-                            <Label Grid.Column="1"
-                                   Text="Nghe thử nhanh"
-                                   FontSize="12"
-                                   FontAttributes="Bold"
-                                   TextColor="#DCE8E2"
-                                   VerticalOptions="Center"/>
-                        </Grid>
-                    </Border>
-
-                    <Grid Grid.Row="1"
-                          ColumnDefinitions="*,*"
-                          ColumnSpacing="10">
+                      IsVisible="False">
+                    <Grid ColumnDefinitions="40,*,Auto,Auto"
+                          ColumnSpacing="8"
+                          HeightRequest="52"
+                          VerticalOptions="Center">
                         <Border Grid.Column="0"
-                                HeightRequest="46"
-                                BackgroundColor="#1B2823"
-                                Stroke="#214534"
+                                WidthRequest="36"
+                                HeightRequest="36"
+                                BackgroundColor="#173126"
+                                Stroke="#2A5A44"
                                 StrokeThickness="1"
-                                StrokeShape="RoundRectangle 22">
+                                StrokeShape="RoundRectangle 18"
+                                VerticalOptions="Center">
                             <Border.GestureRecognizers>
-                                <TapGestureRecognizer Tapped="OnViewDetailTapped"/>
+                                <TapGestureRecognizer Tapped="OnPreviewAudioTapped"/>
                             </Border.GestureRecognizers>
-                            <Label Text="XEM CHI TIẾT"
-                                   FontSize="11"
-                                   FontAttributes="Bold"
-                                   TextColor="#DCE8E2"
+                            <Label Text="{Binding Source={x:Reference PreviewAudioToggleIcon}, Path=Text}"
+                                   FontFamily="MDI"
+                                   FontSize="18"
+                                   TextColor="#4BE277"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center"/>
                         </Border>
 
-                        <Border Grid.Column="1"
-                                HeightRequest="46"
+                        <VerticalStackLayout Grid.Column="1"
+                                             Spacing="1"
+                                             VerticalOptions="Center">
+                            <Label Text="{Binding SelectedPinPOI.DisplayName, FallbackValue='Phở Hà Nội'}"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="#E8F0EA"
+                                   LineBreakMode="TailTruncation"/>
+                            <HorizontalStackLayout Spacing="5"
+                                                   VerticalOptions="Center">
+                                <Label Text="★"
+                                       FontSize="12"
+                                       TextColor="#FFB690"/>
+                                <Label Text="{Binding SelectedPinPOI.Rating, StringFormat='{}{0:F1}', FallbackValue='4.8'}"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="#DCE8E2"/>
+                                <Label x:Name="CollapsedPreviewLabel"
+                                       IsVisible="False"
+                                       Text="Nghe thử nhanh"
+                                       FontSize="1"
+                                       TextColor="Transparent"/>
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+
+                        <Border Grid.Column="2"
+                                HeightRequest="40"
+                                Padding="14,0"
+                                BackgroundColor="#1B2823"
+                                Stroke="#214534"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 20"
+                                VerticalOptions="Center">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnViewDetailTapped"/>
+                            </Border.GestureRecognizers>
+                            <Label x:Name="CollapsedViewDetailLabel"
+                                   Text="XEM CHI TIẾT"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="#DCE8E2"
+                                   VerticalOptions="Center"/>
+                        </Border>
+
+                        <Border Grid.Column="3"
+                                HeightRequest="40"
+                                Padding="14,0"
                                 StrokeThickness="0"
-                                StrokeShape="RoundRectangle 22">
+                                StrokeShape="RoundRectangle 20"
+                                VerticalOptions="Center">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                                     <GradientStop Color="#4BE277" Offset="0.0"/>
@@ -603,12 +617,20 @@
                             <Border.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnStartFromHereTapped"/>
                             </Border.GestureRecognizers>
-                            <Label Text="BẮT ĐẦU TỪ ĐÂY"
-                                   FontSize="11"
-                                   FontAttributes="Bold"
-                                   TextColor="#063014"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center"/>
+                            <HorizontalStackLayout Spacing="6"
+                                                   VerticalOptions="Center">
+                                <Label x:Name="CollapsedStartFromHereLabel"
+                                       Text="BẮT ĐẦU"
+                                       FontSize="11"
+                                       FontAttributes="Bold"
+                                       TextColor="#063014"
+                                       VerticalOptions="Center"/>
+                                <Label Text="&#xF0142;"
+                                       FontFamily="MDI"
+                                       FontSize="14"
+                                       TextColor="#063014"
+                                       VerticalOptions="Center"/>
+                            </HorizontalStackLayout>
                         </Border>
                     </Grid>
                 </Grid>

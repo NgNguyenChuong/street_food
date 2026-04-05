@@ -154,7 +154,7 @@ public class TextToSpeechService : ITTSService
         CancellationToken cancellationToken = default)
     {
         await StopAsync();
-        return await NativeSpeakAsync(text, languageCode, cancellationToken);
+        return await SpeakWithResilientNativeFallbackAsync(text, languageCode, cancellationToken);
     }
 
     public async Task<bool> SpeakAsync(
@@ -166,6 +166,7 @@ public class TextToSpeechService : ITTSService
     {
         try
         {
+            text = EnsureNarrationText(text, languageCode);
             var preferredVoice = ResolvePreferredVoice(voiceName, languageCode);
 
             await StopAsync();
@@ -227,13 +228,13 @@ public class TextToSpeechService : ITTSService
                 System.Diagnostics.Debug.WriteLine($"[TTS] No published audio for POI {poiId}, falling back to TTS.");
 
                 if (!EnablePoiServerTtsFallback)
-                    return await NativeSpeakAsync(text, languageCode, cancellationToken);
+                    return await SpeakWithResilientNativeFallbackAsync(text, languageCode, cancellationToken);
             }
 
             if (!isOnline)
             {
                 System.Diagnostics.Debug.WriteLine("[TTS] Offline and no cache available, use native TTS.");
-                return await NativeSpeakAsync(text, languageCode, cancellationToken);
+                return await SpeakWithResilientNativeFallbackAsync(text, languageCode, cancellationToken);
             }
 
             var request = new
@@ -255,13 +256,13 @@ public class TextToSpeechService : ITTSService
             {
                 var errBody = await response.Content.ReadAsStringAsync(cancellationToken);
                 System.Diagnostics.Debug.WriteLine($"[TTS] API error: {response.StatusCode}. Body={errBody}");
-                return await NativeSpeakAsync(text, languageCode, cancellationToken);
+                return await SpeakWithResilientNativeFallbackAsync(text, languageCode, cancellationToken);
             }
 
             var result = await response.Content.ReadFromJsonAsync<TtsGenerateResponse>(
                 cancellationToken: timeoutCts2.Token);
             if (result == null || string.IsNullOrEmpty(result.FilePath))
-                return await NativeSpeakAsync(text, languageCode, cancellationToken);
+                return await SpeakWithResilientNativeFallbackAsync(text, languageCode, cancellationToken);
 
             var audioUrl2 = $"{_baseUrl}{result.FilePath}";
             System.Diagnostics.Debug.WriteLine($"[TTS] Generated TTS audio: {audioUrl2}");
@@ -276,17 +277,17 @@ public class TextToSpeechService : ITTSService
         catch (System.OperationCanceledException)
         {
             System.Diagnostics.Debug.WriteLine("[TTS] API timeout, falling back to native TTS.");
-            return await NativeSpeakAsync(text, languageCode, cancellationToken);
+            return await SpeakWithResilientNativeFallbackAsync(text, languageCode, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[TTS] Network error, falling back to native TTS: {ex.Message}");
-            return await NativeSpeakAsync(text, languageCode, cancellationToken);
+            return await SpeakWithResilientNativeFallbackAsync(text, languageCode, cancellationToken);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[TTS] Error: {ex.Message}");
-            return await NativeSpeakAsync(text, languageCode, cancellationToken);
+            return await SpeakWithResilientNativeFallbackAsync(text, languageCode, cancellationToken);
         }
     }
 
@@ -484,7 +485,7 @@ public class TextToSpeechService : ITTSService
         {
             System.Diagnostics.Debug.WriteLine($"[TTS] Voice package TTS error: {ex.Message}");
             // Fallback to generic native TTS
-            return await NativeSpeakAsync(text, languageCode, cancellationToken);
+            return await SpeakWithResilientNativeFallbackAsync(text, languageCode, cancellationToken);
         }
         finally
         {
@@ -564,6 +565,63 @@ public class TextToSpeechService : ITTSService
         {
             _isNativeTts = false;
         }
+    }
+
+    private async Task<bool> SpeakWithResilientNativeFallbackAsync(
+        string text,
+        string languageCode,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedText = EnsureNarrationText(text, languageCode);
+        if (await NativeSpeakAsync(normalizedText, languageCode, cancellationToken))
+            return true;
+
+        try
+        {
+            _isNativeTts = true;
+            _nativeTtsDuration = Math.Max(2.0, normalizedText.Length / 12.0);
+            _nativeTtsStartTime = DateTime.Now;
+            _lastKnownDuration = 0;
+
+            var fallbackSettings = new SpeechOptions
+            {
+                Volume = 1.0f,
+                Pitch = 1.0f
+            };
+
+            await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(
+                normalizedText,
+                fallbackSettings,
+                cancellationToken);
+
+            if (!_manualStop)
+                OnPlaybackEnded?.Invoke();
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Resilient native fallback failed: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            _isNativeTts = false;
+        }
+    }
+
+    private static string EnsureNarrationText(string? text, string languageCode)
+    {
+        var cleaned = (text ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(cleaned))
+            return cleaned;
+
+        var lang = (languageCode ?? string.Empty).Trim().ToLowerInvariant();
+        if (lang.StartsWith("en"))
+            return "Welcome to this destination.";
+        if (lang.StartsWith("zh"))
+            return "欢迎来到这个地点。";
+        return "Chao mung ban den diem nay.";
     }
 
     private string MapToApiLanguageCode(string languageCode)

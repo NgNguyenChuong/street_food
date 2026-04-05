@@ -91,7 +91,7 @@
                         <!-- Title in header -->
                         <StackLayout Grid.Column="1" HorizontalOptions="Center"
                                      VerticalOptions="Center" Spacing="2">
-                            <Label Text="{Binding Poi.Name_Vi}"
+                            <Label Text="{Binding LocalizedPoiName}"
                                    FontSize="18" FontAttributes="Bold"
                                    TextColor="White"
                                    HorizontalTextAlignment="Center"
@@ -127,14 +127,14 @@
                                            FontFamily="MDI" FontSize="14"
                                            TextColor="{StaticResource Primary}"
                                            VerticalOptions="Center"/>
-                                    <Label Text="{Binding Poi.Category, TargetNullValue='ẨM THỰC ĐƯỜNG PHỐ'}"
+                                     <Label x:Name="CategoryBadgeLabel" Text="{Binding Poi.Category, TargetNullValue='—'}"
                                            FontSize="10" FontAttributes="Bold"
                                            TextColor="{StaticResource Primary}"/>
                                 </HorizontalStackLayout>
                             </Border>
                         </HorizontalStackLayout>
                         <!-- Hero headline — dùng Bold thay vì font chưa đăng ký -->
-                        <Label Text="{Binding Poi.Name_Vi}"
+                           <Label Text="{Binding LocalizedPoiName}"
                                FontSize="38" FontAttributes="Bold"
                                TextColor="{StaticResource OnSurface}"
                                LineHeight="1.05"/>
@@ -163,7 +163,7 @@
                                            FontSize="14" FontAttributes="Bold"
                                            TextColor="{StaticResource OnSurface}"
                                            HorizontalOptions="Center"/>
-                                    <Label Text="Đánh giá" FontSize="9"
+                                     <Label x:Name="RatingTitleLabel" Text="Đánh giá" FontSize="9"
                                            TextColor="#80ffffff"
                                            HorizontalOptions="Center"/>
                                 </StackLayout>
@@ -177,12 +177,12 @@
                                     <Label Text="&#xF0B0F;" FontFamily="MDI" FontSize="22"
                                            TextColor="{StaticResource Primary}"
                                            HorizontalOptions="Center"/>
-                                    <Label Text="{Binding Poi.SignatureDish, TargetNullValue='Đặc sản'}"
+                                     <Label x:Name="SignatureValueLabel" Text="{Binding Poi.SignatureDish, TargetNullValue='—'}"
                                            FontSize="11" FontAttributes="Bold"
                                            TextColor="{StaticResource OnSurface}"
                                            HorizontalOptions="Center"
                                            LineBreakMode="TailTruncation"/>
-                                    <Label Text="Top món" FontSize="9"
+                                     <Label x:Name="SignatureTitleLabel" Text="Top món" FontSize="9"
                                            TextColor="#80ffffff"
                                            HorizontalOptions="Center"/>
                                 </StackLayout>
@@ -196,13 +196,13 @@
                                     <Label Text="&#xF0954;" FontFamily="MDI" FontSize="22"
                                            TextColor="{StaticResource Tertiary}"
                                            HorizontalOptions="Center"/>
-                                    <Label Text="{Binding Poi.DisplayOpeningHoursText, TargetNullValue='16:00-23:00'}"
+                                     <Label x:Name="OpeningHoursValueLabel" Text="{Binding Poi.DisplayOpeningHoursText, TargetNullValue='—'}"
                                            FontSize="9" FontAttributes="Bold"
                                            TextColor="{StaticResource OnSurface}"
                                            HorizontalOptions="Center"
                                            MaxLines="2"
                                            LineBreakMode="TailTruncation"/>
-                                    <Label Text="Giờ mở cửa" FontSize="9"
+                                     <Label x:Name="OpeningHoursTitleLabel" Text="Giờ mở cửa" FontSize="9"
                                            TextColor="#80ffffff"
                                            HorizontalOptions="Center"/>
                                 </StackLayout>
@@ -217,21 +217,21 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <Button Grid.Column="0" x:Name="TabInfoBtn"
+                                <Button Grid.Column="0" x:Name="TabInfoBtn"
                                     Text="Thông tin" FontSize="13" FontAttributes="Bold"
                                     CornerRadius="8" HeightRequest="44"
                                     BackgroundColor="{StaticResource PrimaryContainer}"
                                     TextColor="{StaticResource OnPrimaryContainer}"
                                     Clicked="OnTabInfoClicked"/>
 
-                            <Button Grid.Column="1" x:Name="TabMenuBtn"
+                                <Button Grid.Column="1" x:Name="TabMenuBtn"
                                     Text="Menu" FontSize="13" FontAttributes="Bold"
                                     CornerRadius="8" HeightRequest="44"
                                     BackgroundColor="{StaticResource SurfaceContainer}"
                                     TextColor="{StaticResource OnSurfaceVariant}"
                                     Clicked="OnTabMenuClicked"/>
 
-                            <Button Grid.Column="2" x:Name="TabMapBtn"
+                                <Button Grid.Column="2" x:Name="TabMapBtn"
                                     Text="Bản đồ" FontSize="13" FontAttributes="Bold"
                                     CornerRadius="8" HeightRequest="44"
                                     BackgroundColor="{StaticResource SurfaceContainer}"
@@ -247,10 +247,10 @@
 
                             <!-- Story section -->
                             <VerticalStackLayout Spacing="8">
-                                <Label Text="Câu chuyện"
+                                <Label x:Name="StoryTitleLabel" Text="Câu chuyện"
                                        FontSize="18" FontAttributes="Bold"
                                        TextColor="{StaticResource OnSurface}"/>
-                                <Label Text="{Binding Poi.Description_Vi, TargetNullValue='Quán ẩm thực đường phố nổi tiếng tại khu Vĩnh Khánh, Quận 4. Hương vị đậm đà, phục vụ tận tình.'}"
+                                    <Label Text="{Binding LocalizedPoiDescription, TargetNullValue='—'}"
                                        FontSize="15"
                                        TextColor="{StaticResource OnSurfaceVariant}"
                                        LineHeight="1.6"/>
@@ -258,7 +258,7 @@
 
                             <!-- Audio block -->
                             <VerticalStackLayout Spacing="10">
-                                <Label Text="Audio Guide"
+                                    <Label x:Name="AudioGuideTitleLabel" Text="Audio Guide"
                                        FontSize="16" FontAttributes="Bold"
                                        TextColor="{StaticResource OnSurface}"/>
 
@@ -345,10 +345,10 @@
                                         <Label Text="&#xF0CFE;" FontFamily="MDI" FontSize="26"
                                                TextColor="{StaticResource Secondary}"/>
                                         <VerticalStackLayout Spacing="2">
-                                            <Label Text="Top Món"
+                                              <Label x:Name="CardTopDishTitleLabel" Text="Top Món"
                                                    FontSize="13" FontAttributes="Bold"
                                                    TextColor="{StaticResource OnSurface}"/>
-                                            <Label Text="{Binding Poi.SignatureDish, TargetNullValue='Menu đặc trưng'}"
+                                              <Label x:Name="CardTopDishValueLabel" Text="{Binding Poi.SignatureDish, TargetNullValue='—'}"
                                                    FontSize="12"
                                                    TextColor="{StaticResource OnSurfaceVariant}"
                                                    MaxLines="2" LineBreakMode="TailTruncation"/>
@@ -364,10 +364,10 @@
                                         <Label Text="&#xF0D3D;" FontFamily="MDI" FontSize="26"
                                                TextColor="{StaticResource Tertiary}"/>
                                         <VerticalStackLayout Spacing="2">
-                                            <Label Text="Không gian"
+                                              <Label x:Name="CardSpaceTitleLabel" Text="Không gian"
                                                    FontSize="13" FontAttributes="Bold"
                                                    TextColor="{StaticResource OnSurface}"/>
-                                            <Label Text="{Binding Poi.Category, TargetNullValue='Ẩm thực đường phố'}"
+                                              <Label x:Name="CardSpaceValueLabel" Text="{Binding Poi.Category, TargetNullValue='—'}"
                                                    FontSize="12"
                                                    TextColor="{StaticResource OnSurfaceVariant}"/>
                                         </VerticalStackLayout>
@@ -383,7 +383,7 @@
                                              Spacing="12"
                                              IsVisible="False">
 
-                            <Label Text="Danh sách món"
+                            <Label x:Name="MenuSectionTitleLabel" Text="Danh sách món"
                                    FontSize="18" FontAttributes="Bold"
                                    TextColor="{StaticResource OnSurface}"/>
 
@@ -412,11 +412,11 @@
                                                 <VerticalStackLayout Grid.Column="1"
                                                                      Spacing="4"
                                                                      VerticalOptions="Center">
-                                                    <Label Text="{Binding Name_Vi}"
+                                                       <Label Text="{Binding DisplayName}"
                                                            FontSize="15" FontAttributes="Bold"
                                                            TextColor="{StaticResource OnSurface}"
                                                            LineBreakMode="TailTruncation"/>
-                                                    <Label Text="{Binding Description_Vi}"
+                                                       <Label Text="{Binding DisplayDescription}"
                                                            FontSize="12"
                                                            TextColor="{StaticResource OnSurfaceVariant}"
                                                            MaxLines="2" LineBreakMode="TailTruncation"/>
@@ -424,7 +424,7 @@
                                                             BackgroundColor="#334be277"
                                                             IsVisible="{Binding IsSignatureDish}"
                                                             Padding="6,2" HorizontalOptions="Start">
-                                                        <Label Text="Đặc trưng"
+                                                        <Label Text="★"
                                                                FontSize="9" FontAttributes="Bold"
                                                                TextColor="{StaticResource Primary}"/>
                                                     </Border>
@@ -451,7 +451,7 @@
                                     <Label Text="&#xF0CFE;" FontFamily="MDI" FontSize="48"
                                            TextColor="{StaticResource OnSurfaceVariant}"
                                            HorizontalOptions="Center"/>
-                                    <Label Text="Menu đang cập nhật"
+                                     <Label x:Name="MenuEmptyTitleLabel" Text="Menu đang cập nhật"
                                            FontSize="14"
                                            TextColor="{StaticResource OnSurfaceVariant}"
                                            HorizontalOptions="Center"/>
@@ -465,7 +465,7 @@
                                              Spacing="12"
                                              IsVisible="False">
 
-                            <Label Text="Vị trí trên bản đồ"
+                            <Label x:Name="MapSectionTitleLabel" Text="Vị trí trên bản đồ"
                                    FontSize="18" FontAttributes="Bold"
                                    TextColor="{StaticResource OnSurface}"/>
 
@@ -510,7 +510,7 @@
                                    Spacing="12" VerticalOptions="Center">
                 <Label Text="&#xF03B0;" FontFamily="MDI" FontSize="22"
                        TextColor="#05100d" VerticalOptions="Center"/>
-                <Label Text="Chỉ đường ngay"
+                  <Label x:Name="NavigateCtaLabel" Text="Chỉ đường ngay"
                        FontSize="17" FontAttributes="Bold"
                        TextColor="#05100d" VerticalOptions="Center"/>
             </HorizontalStackLayout>

@@ -1,12 +1,30 @@
 ﻿using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using StreetFoodNarrator.App.Core.Models;
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 
 namespace StreetFoodNarrator.App.Views.Components;
 
 public partial class VirtualModeView : ContentView
 {
+    public string HeaderTitleText => AppStrings.Get("Virtual_Header_Title");
+    public string ProximityBannerText => AppStrings.Get("Virtual_Proximity_Banner");
+    public string TourTitleText => AppStrings.Get("Virtual_Tour_Title");
+    public string ProgressLabelText => AppStrings.Get("Virtual_Progress_Label");
+    public string CurrentlyPlayingHeaderText => AppStrings.Get("Virtual_CurrentlyPlaying_Header");
+    public string NowPlayingBadgeText => AppStrings.Get("Virtual_NowPlaying_Badge");
+    public string LegendaryRecipeText => AppStrings.Get("Virtual_Legendary_Recipe");
+    public string SeeMoreText => AppStrings.Get("Virtual_SeeMore");
+    public string QueueHeaderText => AppStrings.Get("Virtual_Queue_Header");
+    public string QueueItemHeaderText => AppStrings.Get("Virtual_Queue_Item_Header");
+    public string QueueEmptyText => AppStrings.Get("Virtual_Queue_Empty");
+    public string AudioStreetSuffixText => AppStrings.Get("Virtual_Audio_StreetSuffix");
+    public string BottomExploreText => AppStrings.Get("Nav_Explore");
+    public string BottomLibraryText => AppStrings.Get("Nav_Library");
+    public string BottomSettingsText => AppStrings.Get("Nav_Settings");
+
     // ── Events ────────────────────────────────────────────────────────────────
     public event EventHandler? BackRequested;
     public event EventHandler? HeaderSettingsRequested;
@@ -27,15 +45,51 @@ public partial class VirtualModeView : ContentView
 
     // POI events
     public event EventHandler<POI>? QueueItemTapped;
-    public event EventHandler<POI>? QueueSeeMoreTapped;
     public event EventHandler? CurrentlyPlayingSeeMoreTapped;
 
     private MainViewModel? _boundVm;
-    private DateTime _lastQueueSeeMoreTapAt = DateTime.MinValue;
     public VirtualModeView()
     {
         InitializeComponent();
         BindingContextChanged += OnBindingContextChanged;
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+        RefreshLocalizedTexts();
+    }
+
+    private void OnLoaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(RefreshLocalizedTexts);
+    }
+
+    private void RefreshLocalizedTexts()
+    {
+        OnPropertyChanged(nameof(HeaderTitleText));
+        OnPropertyChanged(nameof(ProximityBannerText));
+        OnPropertyChanged(nameof(TourTitleText));
+        OnPropertyChanged(nameof(ProgressLabelText));
+        OnPropertyChanged(nameof(CurrentlyPlayingHeaderText));
+        OnPropertyChanged(nameof(NowPlayingBadgeText));
+        OnPropertyChanged(nameof(LegendaryRecipeText));
+        OnPropertyChanged(nameof(SeeMoreText));
+        OnPropertyChanged(nameof(QueueHeaderText));
+        OnPropertyChanged(nameof(QueueItemHeaderText));
+        OnPropertyChanged(nameof(QueueEmptyText));
+        OnPropertyChanged(nameof(AudioStreetSuffixText));
+        OnPropertyChanged(nameof(BottomExploreText));
+        OnPropertyChanged(nameof(BottomLibraryText));
+        OnPropertyChanged(nameof(BottomSettingsText));
     }
 
     private void OnBindingContextChanged(object? sender, EventArgs e)
@@ -86,20 +140,8 @@ public partial class VirtualModeView : ContentView
 
     private void OnQueueItemTapped(object? sender, TappedEventArgs e)
     {
-        // Ignore parent-card tap fired right after tapping the nested "Xem thêm" button.
-        if ((DateTime.UtcNow - _lastQueueSeeMoreTapAt).TotalMilliseconds < 320)
-            return;
-
         if (sender is View view && view.BindingContext is POI poi)
             QueueItemTapped?.Invoke(this, poi);
-    }
-
-    private void OnQueueSeeMoreTapped(object? sender, TappedEventArgs e)
-    {
-        _lastQueueSeeMoreTapAt = DateTime.UtcNow;
-
-        if (sender is View view && view.BindingContext is POI poi)
-            QueueSeeMoreTapped?.Invoke(this, poi);
     }
 
     // ── Bottom Navigation ────────────────────────────────────────────────────

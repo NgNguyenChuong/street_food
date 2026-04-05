@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true" android:usesCleartextTraffic="true" android:theme="@style/Maui.MainTheme.NoActionBar">
+	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true" android:usesCleartextTraffic="true" android:theme="@style/StreetFoodNarrator.MainTheme.NoActionBar" android:enableOnBackInvokedCallback="true">
 		<!-- Google Maps meta-data removed: app uses Mapsui (offline OSM), not Google Maps SDK -->
 		<service
 			android:name="StreetFoodNarrator.App.Platforms.Android.Services.GpsForegroundService"

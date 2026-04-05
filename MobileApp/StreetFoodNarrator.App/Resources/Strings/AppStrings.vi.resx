@@ -120,7 +120,7 @@
 💡 Khuyến nghị: Tải dữ liệu offline để có trải nghiệm tốt nhất (không cần mạng, phát audio nhanh hơn).</value>
   </data>
   <data name="Info_DontShowAgain" xml:space="preserve">
-    <value>☑️ Không hiển thị lại</value>
+    <value>Không hiển thị lại</value>
   </data>
   <data name="Alert_NeedInternet_Title" xml:space="preserve">
     <value>🌐 Cần kết nối Internet</value>
@@ -268,6 +268,261 @@ Bạn có thể dùng app offline hoàn toàn.</value>
   </data>
   <data name="Nav_Settings" xml:space="preserve">
     <value>Cài đặt</value>
+  </data>
+  <data name="Nav_Library" xml:space="preserve">
+    <value>Thư viện</value>
+  </data>
+  <data name="Nav_Explore" xml:space="preserve">
+    <value>Khám phá</value>
+  </data>
+  <data name="Saved_Tab_Tours" xml:space="preserve">
+    <value>Danh sách tour</value>
+  </data>
+  <data name="Saved_Tab_Saved" xml:space="preserve">
+    <value>Đã lưu</value>
+  </data>
+  <data name="Offline_Banner_Short" xml:space="preserve">
+    <value>Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm tốt hơn.</value>
+  </data>
+  <data name="Offline_Banner_Full" xml:space="preserve">
+    <value>Bạn đang ngoại tuyến. Nên bật mạng để trải nghiệm đầy đủ và cập nhật dữ liệu mới nhất.</value>
+  </data>
+  <data name="Main_Far_Headline1" xml:space="preserve">
+    <value>Bạn đang ở xa</value>
+  </data>
+  <data name="Main_Far_Headline2" xml:space="preserve">
+    <value>Khu ẩm thực</value>
+  </data>
+  <data name="Main_Far_Description" xml:space="preserve">
+    <value>Không gian xung quanh thực yên tĩnh. Hãy bắt đầu chuyến thám hiểm ngay bây giờ để chuẩn bị cho hành trình sắp tới của bạn.</value>
+  </data>
+  <data name="Main_Action_ViewMap" xml:space="preserve">
+    <value>Xem bản đồ</value>
+  </data>
+  <data name="Main_InZone_Title" xml:space="preserve">
+    <value>Bạn đang trong khu ẩm thực</value>
+  </data>
+  <data name="Main_InZone_Area" xml:space="preserve">
+    <value>Vĩnh Khánh</value>
+  </data>
+  <data name="Main_InZone_Description" xml:space="preserve">
+    <value>Hãy để âm thanh dẫn lối bạn qua những gian hàng ẩm thực danh tiếng của Quận 4.</value>
+  </data>
+  <data name="Main_NowPlaying_Tag" xml:space="preserve">
+    <value>ĐANG NGHE</value>
+  </data>
+  <data name="Main_Action_ContinueExplore" xml:space="preserve">
+    <value>Tiếp tục khám phá</value>
+  </data>
+  <data name="Main_Action_ViewYourLocation" xml:space="preserve">
+    <value>Xem vị trí của bạn</value>
+  </data>
+  <data name="Main_Narrating_Tag" xml:space="preserve">
+    <value>ĐANG THUYẾT MINH</value>
+  </data>
+  <data name="Main_Action_Directions" xml:space="preserve">
+    <value>➡
+CHỈ ĐƯỜNG</value>
+  </data>
+  <data name="Main_Action_SwitchSpot" xml:space="preserve">
+    <value>🔀
+ĐỔI QUÁN</value>
+  </data>
+  <data name="Main_Action_ViewMap_Multiline" xml:space="preserve">
+    <value>🗺️
+XEM BẢN ĐỒ</value>
+  </data>
+  <data name="Main_NearYou_Title" xml:space="preserve">
+    <value>Gần bạn còn:</value>
+  </data>
+  <data name="Main_NearYou_SeeAll" xml:space="preserve">
+    <value>XEM TẤT CẢ</value>
+  </data>
+  <data name="Main_Action_ExploreNow" xml:space="preserve">
+    <value>Khám phá ngay  -&gt;</value>
+  </data>
+  <data name="Main_MapTool_Title" xml:space="preserve">
+    <value>Bản đồ khu ẩm thực</value>
+  </data>
+  <data name="Main_MapTool_Subtitle" xml:space="preserve">
+    <value>Bản đồ là công cụ phụ để định hướng nhanh, không phải màn hình chính.</value>
+  </data>
+  <data name="Main_MapTool_Description" xml:space="preserve">
+    <value>Bạn có thể dùng bản đồ để xem vị trí quán nổi bật và căn lại hướng di chuyển.</value>
+  </data>
+  <data name="Main_Action_CenterMap" xml:space="preserve">
+    <value>Căn giữa</value>
+  </data>
+  <data name="Main_Action_CloseMap" xml:space="preserve">
+    <value>Đóng bản đồ</value>
+  </data>
+  <data name="Main_Status_LoadingData" xml:space="preserve">
+    <value>Đang tải dữ liệu...</value>
+  </data>
+  <data name="Main_Status_OpeningMap" xml:space="preserve">
+    <value>Đang mở bản đồ...</value>
+  </data>
+  <data name="Main_Status_Finishing" xml:space="preserve">
+    <value>Đang hoàn tất...</value>
+  </data>
+  <data name="Main_Status_GettingLocation" xml:space="preserve">
+    <value>Đang xác định vị trí...</value>
+  </data>
+  <data name="Main_Logout_Title" xml:space="preserve">
+    <value>Đăng xuất</value>
+  </data>
+  <data name="Main_Logout_Confirm" xml:space="preserve">
+    <value>Bạn có chắc chắn muốn đăng xuất và thoát ứng dụng không?</value>
+  </data>
+  <data name="Main_OfflineBasic_Title" xml:space="preserve">
+    <value>Đang ở chế độ offline cơ bản</value>
+  </data>
+  <data name="Main_OfflineBasic_Message" xml:space="preserve">
+    <value>Hiện bạn đang dùng chế độ offline cơ bản. Ứng dụng vẫn chạy với dữ liệu đã lưu trong máy; khuyến khích kết nối internet để có trải nghiệm tốt hơn.</value>
+  </data>
+  <data name="Main_OfflineBasic_Ack" xml:space="preserve">
+    <value>Đã hiểu</value>
+  </data>
+  <data name="Common_Error" xml:space="preserve">
+    <value>Lỗi</value>
+  </data>
+  <data name="PoiDetail_Call_Error" xml:space="preserve">
+    <value>Không thể gọi điện.</value>
+  </data>
+  <data name="PoiDetail_Far_Title" xml:space="preserve">
+    <value>Bạn đang ở xa</value>
+  </data>
+  <data name="PoiDetail_Far_Message" xml:space="preserve">
+    <value>Khu ẩm thực nên chỉ có thể thực hiện chức năng xem ảo.</value>
+  </data>
+  <data name="PoiDetail_Virtual_Message" xml:space="preserve">
+    <value>Bạn đang ở cách quán hơn 1km. Bản đồ sẽ chuyển sang tương tác Xem Ảo.</value>
+  </data>
+  <data name="PoiDetail_Navigate_Error" xml:space="preserve">
+    <value>Không thể chỉ đường lúc này.</value>
+  </data>
+  <data name="TabSaved_Subtitle" xml:space="preserve">
+    <value>Các Tour và POI yêu thích</value>
+  </data>
+  <data name="TabSaved_Segment_Tours" xml:space="preserve">
+    <value>Tour đã lưu</value>
+  </data>
+  <data name="TabSaved_Segment_Pois" xml:space="preserve">
+    <value>POI đã lưu</value>
+  </data>
+  <data name="TabSaved_EmptyTour_Title" xml:space="preserve">
+    <value>Chưa có tour nào được lưu</value>
+  </data>
+  <data name="TabSaved_EmptyTour_Subtitle" xml:space="preserve">
+    <value>Nhấn tim ở Danh sách tour để lưu tour yêu thích</value>
+  </data>
+  <data name="TabSaved_EmptyPoi_Title" xml:space="preserve">
+    <value>Chưa có quán nào được lưu</value>
+  </data>
+  <data name="TabSaved_EmptyPoi_Subtitle" xml:space="preserve">
+    <value>Nhấn tim trong tab Map/Explore để lưu POI</value>
+  </data>
+  <data name="TabMenu_SearchPlaceholder" xml:space="preserve">
+    <value>Tìm kiếm tour...</value>
+  </data>
+  <data name="TabMenu_OfflineNotice" xml:space="preserve">
+    <value>Đang xem tour ngoại tuyến (dữ liệu đã lưu).</value>
+  </data>
+  <data name="TabMenu_EmptyTour" xml:space="preserve">
+    <value>Chưa có tour phù hợp</value>
+  </data>
+  <data name="TourCard_PoiStopsFormat" xml:space="preserve">
+    <value>🧭 {0} điểm dừng</value>
+  </data>
+  <data name="TourCard_DurationFormat" xml:space="preserve">
+    <value>~{0}p</value>
+  </data>
+  <data name="TourCard_DetailButton" xml:space="preserve">
+    <value>Xem chi tiết</value>
+  </data>
+  <data name="TourCard_StartNowButton" xml:space="preserve">
+    <value>Bắt đầu ngay</value>
+  </data>
+  <data name="Virtual_Header_Title" xml:space="preserve">
+    <value>Chuyến ẩm thực ảo</value>
+  </data>
+  <data name="Virtual_Proximity_Banner" xml:space="preserve">
+    <value>Bạn đang ở khu ẩm thực. Khám phá ngay!</value>
+  </data>
+  <data name="Virtual_Tour_Title" xml:space="preserve">
+    <value>Khám phá Vĩnh Khánh</value>
+  </data>
+  <data name="Virtual_Progress_Label" xml:space="preserve">
+    <value>TIẾN ĐỘ</value>
+  </data>
+  <data name="Virtual_CurrentlyPlaying_Header" xml:space="preserve">
+    <value>ĐANG PHÁT</value>
+  </data>
+  <data name="Virtual_NowPlaying_Badge" xml:space="preserve">
+    <value>🎧 Đang phát</value>
+  </data>
+  <data name="Virtual_Legendary_Recipe" xml:space="preserve">
+    <value>CÔNG THỨC NỔI BẬT</value>
+  </data>
+  <data name="Virtual_SeeMore" xml:space="preserve">
+    <value>XEM THÊM</value>
+  </data>
+  <data name="Virtual_Queue_Header" xml:space="preserve">
+    <value>ĐỊA ĐIỂM TIẾP THEO</value>
+  </data>
+  <data name="Virtual_Queue_Item_Header" xml:space="preserve">
+    <value>ĐỊA ĐIỂM TIẾP THEO</value>
+  </data>
+  <data name="Virtual_Queue_Empty" xml:space="preserve">
+    <value>Không có địa điểm tiếp theo</value>
+  </data>
+  <data name="Virtual_Audio_StreetSuffix" xml:space="preserve">
+    <value> • Vĩnh Khánh</value>
+  </data>
+  <data name="Map_PreviewAudio_Listen" xml:space="preserve">
+    <value>Nghe thử</value>
+  </data>
+  <data name="Map_PreviewAudio_Pause" xml:space="preserve">
+    <value>Tạm dừng</value>
+  </data>
+  <data name="Map_PreviewAudio_Resume" xml:space="preserve">
+    <value>Tiếp tục</value>
+  </data>
+  <data name="Map_PreviewAudio_Hint" xml:space="preserve">
+    <value>Mô tả nhanh quán này</value>
+  </data>
+  <data name="Map_PreviewAudio_Quick" xml:space="preserve">
+    <value>Nghe thử nhanh</value>
+  </data>
+  <data name="Map_Action_ViewDetail" xml:space="preserve">
+    <value>XEM CHI TIẾT</value>
+  </data>
+  <data name="Map_Action_ViewDetail_Arrow" xml:space="preserve">
+    <value>XEM CHI TIẾT →</value>
+  </data>
+  <data name="Map_Action_StartFromHere" xml:space="preserve">
+    <value>BẮT ĐẦU TỪ ĐÂY</value>
+  </data>
+  <data name="Map_Action_StartCompact" xml:space="preserve">
+    <value>BẮT ĐẦU</value>
+  </data>
+  <data name="Map_Card_Expand" xml:space="preserve">
+    <value>Mở rộng</value>
+  </data>
+  <data name="Map_Card_Collapse" xml:space="preserve">
+    <value>Thu gọn</value>
+  </data>
+  <data name="Tour_Destination_Description_Title" xml:space="preserve">
+    <value>Mô tả điểm đến</value>
+  </data>
+  <data name="Tour_NextStop_Title" xml:space="preserve">
+    <value>Điểm tiếp theo</value>
+  </data>
+  <data name="Tour_Desc_Expand" xml:space="preserve">
+    <value>Xem thêm ›</value>
+  </data>
+  <data name="Tour_Desc_Collapse" xml:space="preserve">
+    <value>Thu gọn ›</value>
   </data>
 </root>
 

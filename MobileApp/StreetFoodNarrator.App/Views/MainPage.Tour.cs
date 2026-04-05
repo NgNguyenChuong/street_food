@@ -15,6 +15,7 @@ using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Views.Components;
 using StreetFoodNarrator.App.Helpers;
+using StreetFoodNarrator.App.Resources.Strings;
 
 namespace StreetFoodNarrator.App.Views;
 
@@ -322,7 +323,11 @@ public partial class MainPage
     {
         if (string.IsNullOrWhiteSpace(_vm.VirtualTourStatus))
         {
-            _ = CustomAlert.ShowAsync("Chưa thể xem ảo", "Chế độ xem ảo chỉ nên dùng khi bạn đang ở xa khu POI hơn 1km.", "OK", AlertType.Warning);
+            _ = CustomAlert.ShowAsync(
+                AppStrings.Get("Main_Virtual_NotAvailable_Title"),
+                AppStrings.Get("Main_Virtual_NotAvailable_Message"),
+                AppStrings.Get("Common_OK"),
+                AlertType.Warning);
             return;
         }
 
@@ -406,7 +411,11 @@ public partial class MainPage
 
         if (spots.Count == 0)
         {
-            await CustomAlert.ShowAsync("Thông báo", "Không có điểm tham quan nào.", "OK", AlertType.Info);
+            await CustomAlert.ShowAsync(
+                AppStrings.Get("Alert_Notice_Title"),
+                AppStrings.Get("Main_NoAttractions_Message"),
+                AppStrings.Get("Common_OK"),
+                AlertType.Info);
             return;
         }
 
@@ -428,7 +437,7 @@ public partial class MainPage
 
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    TabTourComponent.UpdateVirtualTourStopLabel($"{i + 1}/{spots.Count} — {poi.Name_Vi ?? poi.Name_En}");
+                    TabTourComponent.UpdateVirtualTourStopLabel($"{i + 1}/{spots.Count} — {poi.GetDisplayName(_lang.CurrentLanguage)}");
                 });
 
                 double startLat, startLon;
@@ -443,7 +452,7 @@ public partial class MainPage
                     startLon = _prevSimLon;
                 }
 
-                string destName = poi.Name_Vi ?? poi.Name_En ?? "";
+                string destName = poi.GetDisplayName(_lang.CurrentLanguage);
                 await SimulateWalkToAsync(startLat, startLon, poi.Latitude, poi.Longitude, token, destName);
                 if (token.IsCancellationRequested) break;
 
@@ -452,8 +461,8 @@ public partial class MainPage
                 _prevSimLon = _vm.CurrentLon;
 
                 _vm.PrimaryZone       = poi;
-                _vm.PrimaryZoneName   = poi.Name_Vi ?? poi.Name_En ?? "—";
-                _vm.PrimaryZoneDesc   = poi.Description_Vi ?? poi.Description_En ?? "Không có mô tả.";
+                _vm.PrimaryZoneName   = poi.GetDisplayName(_lang.CurrentLanguage);
+                _vm.PrimaryZoneDesc   = poi.GetDisplayDescription(_lang.CurrentLanguage);
                 _vm.PrimaryZoneAddress= poi.Address ?? "Địa chỉ đang cập nhật";
                 _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
                 _vm.PrimaryZoneEmoji  = "🍽️";
@@ -480,12 +489,11 @@ public partial class MainPage
                     "zh" => "zh-CN",
                     _    => "vi-VN"
                 };
-                string text = (_lang.CurrentLanguage switch
-                {
-                    "en" => poi.Description_En ?? poi.Name_En,
-                    "zh" => poi.Description_Zh ?? poi.Name_Zh ?? poi.Name_Vi,
-                    _    => poi.Description_Vi ?? poi.Name_Vi
-                }) ?? poi.Name_Vi ?? "Điểm tham quan";
+                string text = poi.GetDisplayDescription(_lang.CurrentLanguage);
+                if (string.IsNullOrWhiteSpace(text))
+                    text = poi.GetDisplayName(_lang.CurrentLanguage);
+                if (string.IsNullOrWhiteSpace(text))
+                    text = Ui("Điểm tham quan", "Attraction", "景点");
 
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
@@ -568,12 +576,11 @@ public partial class MainPage
             _ => "vi-VN"
         };
 
-        var text = _lang.CurrentLanguage switch
-        {
-            "en" => zone.Description_En ?? zone.Name_En ?? zone.Name_Vi,
-            "zh" => zone.Description_Zh ?? zone.Name_Zh ?? zone.Name_En ?? zone.Name_Vi,
-            _ => zone.Description_Vi ?? zone.Name_Vi ?? zone.Name_En
-        } ?? "Chao mung den voi diem tham quan.";
+        var text = zone.GetDisplayDescription(_lang.CurrentLanguage);
+        if (string.IsNullOrWhiteSpace(text))
+            text = zone.GetDisplayName(_lang.CurrentLanguage);
+        if (string.IsNullOrWhiteSpace(text))
+            text = Ui("Chao mung den voi diem tham quan.", "Welcome to this attraction.", "欢迎来到这个景点。");
 
         return (text, language);
     }
@@ -631,7 +638,8 @@ public partial class MainPage
         int steps  = 20,
         int stepMs = 250)
     {
-        const double stopFraction = 0.85;
+        // Keep a little more distance from the POI center while still staying in the arrival zone.
+        const double stopFraction = 0.60;
 
         _vm.ApproachingZoneName = destinationName;
         _vm.IsApproaching = true;
@@ -647,17 +655,21 @@ public partial class MainPage
             var distMeters = HaversineDistance(_vm.CurrentLat, _vm.CurrentLon, toLat, toLon);
             _vm.ApproachingDistance = ((int)Math.Round(distMeters)).ToString();
 
-            double capLat = _vm.CurrentLat;
-            double capLon = _vm.CurrentLon;
-            MainThread.BeginInvokeOnMainThread(() =>
+            var shouldRefreshMapThisStep = step == 1 || step == steps || step % 2 == 0;
+            if (shouldRefreshMapThisStep)
             {
-                UpdateZonePins();
-                if (MapView?.Map?.Navigator != null)
+                double capLat = _vm.CurrentLat;
+                double capLon = _vm.CurrentLon;
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    var (ux, uy) = SphericalMercator.FromLonLat(capLon, capLat);
-                    MapView.Map.Navigator.CenterOn(new MPoint(ux, uy));
-                }
-            });
+                    UpdateZonePins();
+                    if (MapView?.Map?.Navigator != null)
+                    {
+                        var (ux, uy) = SphericalMercator.FromLonLat(capLon, capLat);
+                        MapView.Map.Navigator.CenterOn(new MPoint(ux, uy));
+                    }
+                });
+            }
 
             try { await Task.Delay(stepMs, token); }
             catch (OperationCanceledException) { return; }
@@ -678,9 +690,9 @@ public partial class MainPage
     private void UpdateBottomSheetForVirtualStop(List<POI> spots, int idx, POI poi)
     {
         _vm.PrimaryZone = poi;
-        _vm.PrimaryZoneName = poi.Name_Vi ?? poi.Name_En ?? "—";
+        _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);
         _vm.PrimaryZoneType = poi.ZoneType ?? "Spot";
-        _vm.PrimaryZoneDesc = poi.Description_Vi ?? poi.Description_En ?? "Không có mô tả.";
+        _vm.PrimaryZoneDesc = poi.GetDisplayDescription(_lang.CurrentLanguage);
         _vm.PrimaryZoneAddress = poi.Address ?? "Địa chỉ đang cập nhật";
         _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
         _vm.PrimaryZoneEmoji = "🍽️";
@@ -711,7 +723,7 @@ public partial class MainPage
             var next1 = spots[idx + 1];
             var d1 = HaversineDistance(_vm.CurrentLat, _vm.CurrentLon, next1.Latitude, next1.Longitude);
             _vm.NextStop1Index = idx + 2;
-            _vm.NextStop1Name = next1.Name_Vi ?? next1.Name_En ?? "Điểm tiếp theo";
+            _vm.NextStop1Name = next1.GetDisplayName(_lang.CurrentLanguage);
             _vm.NextStop1Dist = $"~{d1:F0}m • {Math.Max(1, (int)Math.Ceiling(d1 / 80.0))} phút";
         }
 
@@ -720,7 +732,7 @@ public partial class MainPage
             var next2 = spots[idx + 2];
             var d2 = HaversineDistance(_vm.CurrentLat, _vm.CurrentLon, next2.Latitude, next2.Longitude);
             _vm.NextStop2Index = idx + 3;
-            _vm.NextStop2Name = next2.Name_Vi ?? next2.Name_En ?? "Điểm kế";
+            _vm.NextStop2Name = next2.GetDisplayName(_lang.CurrentLanguage);
             _vm.NextStop2Dist = $"~{d2:F0}m • {Math.Max(1, (int)Math.Ceiling(d2 / 80.0))} phút";
         }
     }

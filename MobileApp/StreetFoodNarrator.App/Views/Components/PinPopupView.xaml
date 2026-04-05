@@ -35,7 +35,7 @@
                 
                 <!-- Middle: Texts -->
                 <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="6">
-                    <Label Text="{Binding SelectedPinPOI.Name_Vi, TargetNullValue='Tên Quán'}"
+                          <Label Text="{Binding SelectedPinPOI.DisplayName, TargetNullValue='Tên Quán'}"
                            FontSize="18" FontAttributes="Bold" TextColor="White" LineBreakMode="TailTruncation"/>
                     <HorizontalStackLayout Spacing="6">
                         <!-- Rating with Star -->
@@ -75,7 +75,8 @@
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnViewDetailsTapped"/>
                 </Border.GestureRecognizers>
-                <Label Text="XEM CHI TIẾT &#x2192;" 
+                  <Label x:Name="ViewDetailActionLabel"
+                      Text="XEM CHI TIẾT &#x2192;" 
                        FontSize="15" FontAttributes="Bold"
                        TextColor="#064E3B" 
                        HorizontalOptions="Center" VerticalOptions="Center"/>

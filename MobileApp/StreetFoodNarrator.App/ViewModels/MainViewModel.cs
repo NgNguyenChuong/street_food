@@ -3,12 +3,16 @@ using CommunityToolkit.Mvvm.Input;
 using StreetFoodNarrator.App.Converters;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Core.Services.Implementations;
 using StreetFoodNarrator.App.Helpers;
+using StreetFoodNarrator.App.Resources.Strings;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Maui.Networking;
 
 namespace StreetFoodNarrator.App.ViewModels;
 
@@ -19,6 +23,9 @@ public partial class MainViewModel : ObservableObject
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string DescriptionVi { get; set; } = string.Empty;
+        public string DescriptionEn { get; set; } = string.Empty;
+        public string DescriptionZh { get; set; } = string.Empty;
         public int EstimatedDurationMinutes { get; set; }
         public int PoiCount { get; set; }
         public List<int> PoiIds { get; set; } = new();
@@ -26,6 +33,11 @@ public partial class MainViewModel : ObservableObject
         public string CoverImageUrl { get; set; } = "welcome_streetfood.jpg";
         public bool IsActive { get; set; } = true;
         public bool IsFavorite { get; set; }
+
+        public string DisplayPoiStopsText => AppStrings.Format("TourCard_PoiStopsFormat", PoiCount);
+        public string DisplayDurationText => AppStrings.Format("TourCard_DurationFormat", EstimatedDurationMinutes);
+        public string DetailButtonText => AppStrings.Get("TourCard_DetailButton");
+        public string StartNowButtonText => AppStrings.Get("TourCard_StartNowButton");
     }
 
     public enum AppMode
@@ -73,6 +85,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IZoneRepository _repository;
     private readonly ILocalDatabaseService _db;
     private readonly IReviewService _reviewService;
+    private readonly HttpClient _httpClient;
     private readonly SimulatedLocationService? _simulator;
     private readonly SimulatedLocationService _fallbackSimulator;
     private readonly List<ExplorePoiCard> _exploreDemoCards = new();
@@ -85,13 +98,15 @@ public partial class MainViewModel : ObservableObject
         ILocationService location,
         IZoneRepository repository,
         ILocalDatabaseService db,
-        IReviewService reviewService)
+        IReviewService reviewService,
+        HttpClient httpClient)
     {
         _geofence = geofence;
         _repository = repository;
         _location = location;
         _db = db;
         _reviewService = reviewService;
+        _httpClient = httpClient;
         _simulator = location as SimulatedLocationService;
         _fallbackSimulator = new SimulatedLocationService();
         InitializeLocationSourceMode();
@@ -459,9 +474,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private ExploreState currentExploreState = ExploreState.Far;
     [ObservableProperty] private bool isExploreStateDemoLocked = false;
     [ObservableProperty] private bool isLegacyMapVisible = false;
-    [ObservableProperty] private string exploreStateBadge = "Vị trí: Ở xa";
-    [ObservableProperty] private string exploreHeadline = "Bạn đang ở xa khu ẩm thực";
-    [ObservableProperty] private string exploreSubtitle = "Khám phá trước hành trình";
+    [ObservableProperty] private string exploreStateBadge = UiText("Vị trí: Ở xa", "Location: Far away", "位置：较远");
+    [ObservableProperty] private string exploreHeadline = UiText("Bạn đang ở xa khu ẩm thực", "You are far from the food area", "你距离美食区较远");
+    [ObservableProperty] private string exploreSubtitle = UiText("Khám phá trước hành trình", "Preview before arriving", "到达前先预览");
     [ObservableProperty] private string explorePrimaryActionText = "🎬 Xem thử tour";
     [ObservableProperty] private string exploreSecondaryActionText = "🗺️ Xem bản đồ";
     [ObservableProperty] private bool hasSecondaryExploreAction = true;
@@ -470,8 +485,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<ExplorePoiCard> nearbyExplorePois = new();
     [ObservableProperty] private bool nearPrimaryIsTour = false;
     [ObservableProperty] private string nearPrimaryTourId = string.Empty;
-    [ObservableProperty] private string nearMainIntroText = "🍜 Gần bạn";
-    [ObservableProperty] private string nearSecondaryIntroText = "Hoặc khám phá nhanh:";
+    [ObservableProperty] private string nearMainIntroText = UiText("🍜 Gần bạn", "🍜 Near you", "🍜 在你附近");
+    [ObservableProperty] private string nearSecondaryIntroText = UiText("Hoặc khám phá nhanh:", "Or quick explore:", "或快速探索：");
     [ObservableProperty] private bool isExploreAudioAvailable = false;
     [ObservableProperty] private bool isExploreAudioPlaying = false;
     [ObservableProperty] private double exploreAudioProgressValue = 0.32;
@@ -637,6 +652,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<POI> searchSuggestions = new();
     [ObservableProperty] private bool hasSearchText = false;
     [ObservableProperty] private bool isToursLoading = false;
+    [ObservableProperty] private bool isToursRefreshing = false;
     [ObservableProperty] private bool isTourDataStale = false;
     [ObservableProperty] private ObservableCollection<POI> virtualTourPOIs = new();
     [ObservableProperty] private bool isVirtualTourPopupShown = false;
@@ -685,13 +701,16 @@ public partial class MainViewModel : ObservableObject
     private bool _isTourSyncInFlight;
     private readonly SemaphoreSlim _liveSyncGate = new(1, 1);
     private readonly SemaphoreSlim _loadPoisGate = new(1, 1);
+    private readonly SemaphoreSlim _loadSavedPoisGate = new(1, 1);
     private bool _isLiveSyncInFlight;
+    private DateTime _lastSavedPoisLoadedUtc = DateTime.MinValue;
     private const string ToursCacheJsonKey = "tours_cache_json_v1";
     private const string SavedTourIdsKey = "saved_tour_ids_v1";
     private const string LastTourSyncTimeKey = "LastTourSyncTime";
     private const string LastPoiSyncTimeKey = "LastSyncTime";
-    private const int PoiSyncIntervalSeconds = 300;
-    private const int TourSyncIntervalSeconds = 300;
+    private const int PoiSyncIntervalSeconds = 60;
+    private const int TourSyncIntervalSeconds = 180;
+    private static readonly TimeSpan SavedPoisReloadInterval = TimeSpan.FromSeconds(8);
     private static readonly JsonSerializerOptions TourJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -1228,8 +1247,8 @@ public partial class MainViewModel : ObservableObject
 
         NearPrimaryIsTour = false;
         NearPrimaryTourId = string.Empty;
-        NearMainIntroText = "🍜 Gần bạn";
-        NearSecondaryIntroText = "Hoặc khám phá nhanh:";
+        NearMainIntroText = UiText("🍜 Gần bạn", "🍜 Near you", "🍜 在你附近");
+        NearSecondaryIntroText = UiText("Hoặc khám phá nhanh:", "Or quick explore:", "或快速探索：");
 
         if (resolvedState == ExploreState.Near && !IsExploreStateDemoLocked)
         {
@@ -1242,7 +1261,7 @@ public partial class MainViewModel : ObservableObject
                     featured = nearTourCard;
                     NearPrimaryIsTour = true;
                     NearPrimaryTourId = suggestedTour.Id;
-                    NearMainIntroText = "🎯 Gợi ý cho bạn";
+                    NearMainIntroText = UiText("🎯 Gợi ý cho bạn", "🎯 Suggested for you", "🎯 为你推荐");
                 }
             }
 
@@ -1270,6 +1289,8 @@ public partial class MainViewModel : ObservableObject
 
         RefreshExploreExperience();
         RefreshJournalState();
+        ApplyLocalizedTourTexts(AllTours);
+        ApplyTourFilterCore();
         ApplyFilterCore();
     }
 
@@ -1789,8 +1810,7 @@ public partial class MainViewModel : ObservableObject
             if (isOnline)
             {
                 var url = $"{AppConfig.GetResolvedApiBaseUrl()}api/MenuItems?poiId={poi.Id}&page=1&pageSize=50";
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
-                var response = await client.GetAsync(url);
+                var response = await _httpClient.GetAsync(url);
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
@@ -2263,7 +2283,7 @@ public partial class MainViewModel : ObservableObject
         _ = ApplyFilterAsync();
         _ = LoadToursAsync(forceSyncNow);
         RefreshDataSourceState();
-        await LoadSavedPOIsAsync();
+        _ = LoadSavedPOIsAsync();
         RefreshExploreExperience();
 
         Console.WriteLine($"[MainViewModel] ✅ Cache-first load done! AllPOIs={AllPOIs.Count}, VirtualTourPOIs={VirtualTourPOIs.Count}");
@@ -2312,7 +2332,8 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>
     /// Check if we should sync from API.
-    /// Only sync if > 5 minutes since last sync, or no previous sync recorded.
+    /// Only sync if due by short live interval (about 1 minute),
+    /// or no previous sync is recorded.
     /// </summary>
     private bool ShouldSyncNow()
     {
@@ -2353,7 +2374,9 @@ public partial class MainViewModel : ObservableObject
         if (!HasInternetAccess())
             return;
 
-        if (!ShouldSyncNow() && !ShouldSyncToursNow())
+        var shouldSyncPois = ShouldSyncNow();
+        var shouldSyncTours = ShouldSyncToursNow();
+        if (!shouldSyncPois && !shouldSyncTours)
             return;
 
         await _liveSyncGate.WaitAsync();
@@ -2363,22 +2386,27 @@ public partial class MainViewModel : ObservableObject
                 return;
             _isLiveSyncInFlight = true;
 
-            await _repository.SyncFromMongoAsync();
-            await _repository.LoadLocalAsync();
-            var updatedZones = _repository.GetAllActiveZones();
-
-            await MainThread.InvokeOnMainThreadAsync(() =>
+            if (shouldSyncPois)
             {
-                AllPOIs = new ObservableCollection<POI>(updatedZones);
-                RefreshRuntimeTourPools(refreshExplore: false);
-                BuildMapCategories();
-                _ = ApplyFilterAsync();
-                RefreshExploreExperience();
-                RefreshDataSourceState();
-            });
+                await _repository.SyncFromMongoAsync();
+                await _repository.LoadLocalAsync();
+                var updatedZones = _repository.GetAllActiveZones();
 
-            Preferences.Set(LastPoiSyncTimeKey, DateTime.Now.ToString("O"));
-            await LoadToursAsync(forceSyncNow: true);
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    AllPOIs = new ObservableCollection<POI>(updatedZones);
+                    RefreshRuntimeTourPools(refreshExplore: false);
+                    BuildMapCategories();
+                    _ = ApplyFilterAsync();
+                    RefreshExploreExperience();
+                    RefreshDataSourceState();
+                });
+
+                Preferences.Set(LastPoiSyncTimeKey, DateTime.Now.ToString("O"));
+            }
+
+            if (shouldSyncTours)
+                await LoadToursAsync(forceSyncNow: true);
         }
         catch (Exception ex)
         {
@@ -2393,6 +2421,9 @@ public partial class MainViewModel : ObservableObject
 
     public async Task LoadToursAsync(bool forceSyncNow = false)
     {
+        if (IsToursLoading)
+            return;
+
         try
         {
             IsToursLoading = true;
@@ -2404,6 +2435,7 @@ public partial class MainViewModel : ObservableObject
                 ApplySavedTourStateToTours(cachedTours);
                 AllTours = new ObservableCollection<TourListItem>(cachedTours);
                 ApplyTourFilterCore();
+                _ = WarmupTourCoverImagesAsync(cachedTours);
 
                 // If cached tours are missing critical fields, fetch fresh data immediately.
                 if (!forceSyncNow && cachedTours.Any(t =>
@@ -2443,6 +2475,7 @@ public partial class MainViewModel : ObservableObject
                     AllTours = new ObservableCollection<TourListItem>(liveTours);
                     ApplyTourFilterCore();
                     WriteToursToCache(liveTours);
+                    _ = WarmupTourCoverImagesAsync(liveTours);
                 }
 
                 Preferences.Set(LastTourSyncTimeKey, DateTime.Now.ToString("O"));
@@ -2470,7 +2503,18 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshToursAsync()
     {
-        await LoadToursAsync(forceSyncNow: true);
+        if (IsToursRefreshing)
+            return;
+
+        IsToursRefreshing = true;
+        try
+        {
+            await LoadToursAsync(forceSyncNow: true);
+        }
+        finally
+        {
+            IsToursRefreshing = false;
+        }
     }
 
     private void ApplyTourFilterCore()
@@ -2481,7 +2525,10 @@ public partial class MainViewModel : ObservableObject
             ? AllTours.ToList()
             : AllTours.Where(t =>
                     t.Name.ToLowerInvariant().Contains(q) ||
-                    t.Description.ToLowerInvariant().Contains(q))
+                    t.Description.ToLowerInvariant().Contains(q) ||
+                    t.DescriptionVi.ToLowerInvariant().Contains(q) ||
+                    t.DescriptionEn.ToLowerInvariant().Contains(q) ||
+                    t.DescriptionZh.ToLowerInvariant().Contains(q))
                 .ToList();
 
         FilteredTours = new ObservableCollection<TourListItem>(results);
@@ -2501,6 +2548,8 @@ public partial class MainViewModel : ObservableObject
             {
                 tour.CoverImageUrl = ResolveTourCoverImageUrl(tour.CoverImageUrl);
             }
+
+            ApplyLocalizedTourTexts(tours);
             return tours;
         }
         catch
@@ -2524,26 +2573,24 @@ public partial class MainViewModel : ObservableObject
 
     private async Task<List<TourListItem>> FetchToursFromApiAsync()
     {
-        var baseUrl = AppConfig.GetResolvedApiBaseUrl();
-        using var http = new HttpClient
-        {
-            BaseAddress = new Uri(baseUrl),
-            Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds)
-        };
-
-        var response = await http.GetAsync("api/Tours?page=1&pageSize=100");
+        var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+        var url = $"{baseUrl}/api/Tours?page=1&pageSize=100";
+        var response = await _httpClient.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
         var payload = JsonSerializer.Deserialize<TourListResponseDto>(json, TourJsonOptions);
         var data = payload?.Data ?? new List<TourDto>();
 
-        return data
+        var tours = data
             .Select(t => new TourListItem
             {
                 Id = t.Id ?? string.Empty,
                 Name = string.IsNullOrWhiteSpace(t.TourName) ? "Tour ẩm thực" : t.TourName,
-                Description = t.Description ?? string.Empty,
+                DescriptionVi = ResolveTourLocalizedField(t.DescriptionVi, t.Description_Vi, t.Description),
+                DescriptionEn = ResolveTourLocalizedField(t.DescriptionEn, t.Description_En),
+                DescriptionZh = ResolveTourLocalizedField(t.DescriptionZh, t.Description_Zh),
+                Description = string.Empty,
                 EstimatedDurationMinutes = Math.Max(1, t.EstimatedDurationMinutes),
                 PoiCount = t.Pois?.Count ?? 0,
                 PoiIds = ParseTourPoiIds(t.Pois),
@@ -2554,6 +2601,46 @@ public partial class MainViewModel : ObservableObject
             .OrderByDescending(t => t.IsActive)
             .ThenBy(t => t.Name)
             .ToList();
+
+        ApplyLocalizedTourTexts(tours);
+        return tours;
+    }
+
+    private static string ResolveTourLocalizedField(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                return value.Trim();
+        }
+
+        return string.Empty;
+    }
+
+    private static string ResolveLocalizedTourDescription(TourListItem tour)
+    {
+        var localized = CurrentUiLanguage switch
+        {
+            "en" => ResolveTourLocalizedField(tour.DescriptionEn, tour.DescriptionVi, tour.DescriptionZh, tour.Description),
+            "zh" => ResolveTourLocalizedField(tour.DescriptionZh, tour.DescriptionVi, tour.DescriptionEn, tour.Description),
+            _ => ResolveTourLocalizedField(tour.DescriptionVi, tour.DescriptionEn, tour.DescriptionZh, tour.Description)
+        };
+
+        return string.IsNullOrWhiteSpace(localized)
+            ? UiText(
+                "Tour này chưa có mô tả chi tiết từ hệ thống quản trị.",
+                "This tour does not have a detailed description from the admin system yet.",
+                "该行程暂未提供详细介绍。")
+            : localized;
+    }
+
+    private static void ApplyLocalizedTourTexts(IEnumerable<TourListItem> tours)
+    {
+        foreach (var tour in tours)
+        {
+            tour.DescriptionVi = ResolveTourLocalizedField(tour.DescriptionVi, tour.Description);
+            tour.Description = ResolveLocalizedTourDescription(tour);
+        }
     }
 
     private static List<int> ParseTourPoiIds(List<TourPoiDto>? pois)
@@ -2609,33 +2696,93 @@ public partial class MainViewModel : ObservableObject
             return fallback;
 
         var value = rawImageUrl.Trim().Replace('\\', '/');
+        if (value.Equals(fallback, StringComparison.OrdinalIgnoreCase))
+            return fallback;
+
+        // Keep plain file names as local MAUI image assets; do not prefix API host.
+        var looksLikeLocalFileName = !value.Contains('/') &&
+                                     !value.Contains(':') &&
+                                     value.Contains('.');
+        if (looksLikeLocalFileName)
+            return value;
+
         var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
         var uploadsMarkerIndex = value.LastIndexOf("/uploads/", StringComparison.OrdinalIgnoreCase);
 
+        string absoluteUrl;
         if (uploadsMarkerIndex >= 0)
         {
             var uploadsPath = value.Substring(uploadsMarkerIndex);
-            return baseUrl + uploadsPath;
+            absoluteUrl = baseUrl + uploadsPath;
         }
-
-        if (Uri.TryCreate(value, UriKind.Absolute, out var absoluteUri))
+        else if (Uri.TryCreate(value, UriKind.Absolute, out var absoluteUri))
         {
             // Normalize uploads URL to current API host to avoid stale cached hosts
             // (e.g. localhost / old LAN IP / emulator host mismatch).
             var path = absoluteUri.AbsolutePath;
             if (!string.IsNullOrWhiteSpace(path) &&
                 path.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
-            {
-                return baseUrl + path;
-            }
-
-            return value;
+                absoluteUrl = baseUrl + path;
+            else
+                absoluteUrl = value;
+        }
+        else
+        {
+            if (!value.StartsWith('/'))
+                value = "/" + value;
+            absoluteUrl = baseUrl + value;
         }
 
-        if (!value.StartsWith('/'))
-            value = "/" + value;
+        var cachedPath = PoiImageCacheService.GetCachedPathIfExists(baseUrl, absoluteUrl);
+        if (!string.IsNullOrWhiteSpace(cachedPath))
+            return cachedPath;
 
-        return baseUrl + value;
+        var hasInternet = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
+                          Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
+        return hasInternet ? absoluteUrl : fallback;
+    }
+
+    private async Task WarmupTourCoverImagesAsync(IEnumerable<TourListItem> tours)
+    {
+        var hasInternet = Connectivity.Current.NetworkAccess == NetworkAccess.Internet ||
+                          Connectivity.Current.NetworkAccess == NetworkAccess.ConstrainedInternet;
+        if (!hasInternet)
+            return;
+
+        var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+        var changed = false;
+
+        foreach (var tour in tours)
+        {
+            var cover = tour.CoverImageUrl;
+            if (string.IsNullOrWhiteSpace(cover) ||
+                cover.Equals("welcome_streetfood.jpg", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            try
+            {
+                await PoiImageCacheService.EnsureCachedAsync(_httpClient, baseUrl, cover);
+                var cachedPath = PoiImageCacheService.GetCachedPathIfExists(baseUrl, cover);
+                if (!string.IsNullOrWhiteSpace(cachedPath) &&
+                    !string.Equals(tour.CoverImageUrl, cachedPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    tour.CoverImageUrl = cachedPath;
+                    changed = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] Tour cover warmup failed ({tour.Name}): {ex.Message}");
+            }
+        }
+
+        if (changed)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                ApplyTourFilterCore();
+            });
+        }
     }
 
     private sealed class TourListResponseDto
@@ -2648,6 +2795,12 @@ public partial class MainViewModel : ObservableObject
         public string? Id { get; set; }
         public string TourName { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public string? DescriptionVi { get; set; }
+        public string? DescriptionEn { get; set; }
+        public string? DescriptionZh { get; set; }
+        [JsonPropertyName("description_vi")] public string? Description_Vi { get; set; }
+        [JsonPropertyName("description_en")] public string? Description_En { get; set; }
+        [JsonPropertyName("description_zh")] public string? Description_Zh { get; set; }
         public string? ImageUrl { get; set; }
         public int EstimatedDurationMinutes { get; set; }
         public bool IsActive { get; set; }
@@ -2811,14 +2964,38 @@ public partial class MainViewModel : ObservableObject
         }, token);
     }
 
-    public async Task LoadSavedPOIsAsync()
+    public async Task LoadSavedPOIsAsync(bool forceReload = false)
     {
-        var liked = await _db.GetLikedPOIsAsync();
-        SavedPOIIds.Clear();
-        SavedPOIs = new ObservableCollection<POI>(liked);
-        foreach (var poi in liked)
+        if (!forceReload &&
+            (DateTime.UtcNow - _lastSavedPoisLoadedUtc) < SavedPoisReloadInterval)
         {
-            SavedPOIIds.Add(poi.Id);
+            return;
+        }
+
+        await _loadSavedPoisGate.WaitAsync();
+        try
+        {
+            if (!forceReload &&
+                (DateTime.UtcNow - _lastSavedPoisLoadedUtc) < SavedPoisReloadInterval)
+            {
+                return;
+            }
+
+            var liked = await _db.GetLikedPOIsAsync();
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                SavedPOIIds.Clear();
+                SavedPOIs = new ObservableCollection<POI>(liked);
+                foreach (var poi in liked)
+                    SavedPOIIds.Add(poi.Id);
+            });
+
+            _lastSavedPoisLoadedUtc = DateTime.UtcNow;
+        }
+        finally
+        {
+            _loadSavedPoisGate.Release();
         }
     }
 
@@ -2932,8 +3109,9 @@ public partial class MainViewModel : ObservableObject
             ActivateTourOverride(tour, requestedStops);
             RequestedTourStops = requestedStops;
             AutoStartRequestedTour = false;
-            AutoOpenRequestedTourOnMap = true;
+            AutoOpenRequestedTourOnMap = CurrentExploreState != ExploreState.InZone;
             CurrentAppMode = AppMode.Explore;
+            RefreshExploreExperience();
 
             if (Shell.Current != null)
                 await Shell.Current.GoToAsync("//MapPage", false);

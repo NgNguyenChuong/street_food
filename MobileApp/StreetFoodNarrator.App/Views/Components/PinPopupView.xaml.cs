@@ -7,6 +7,9 @@
 
 namespace StreetFoodNarrator.App.Views.Components;
 
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
+
 public partial class PinPopupView : ContentView
 {
     // ── Sự kiện ra ngoài ─────────────────────────────────────────────────────
@@ -19,6 +22,30 @@ public partial class PinPopupView : ContentView
     public PinPopupView()
     {
         InitializeComponent();
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+        ApplyLocalizedTexts();
+    }
+
+    private void OnLoaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(ApplyLocalizedTexts);
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        ViewDetailActionLabel.Text = AppStrings.Get("Map_Action_ViewDetail_Arrow");
     }
 
     // ── Event forwarders ─────────────────────────────────────────────────────

@@ -1,4 +1,6 @@
 using StreetFoodNarrator.App.Core.Models;
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 using System.Globalization;
 using System.Text;
@@ -16,6 +18,41 @@ public partial class TourDetailPopupPage : ContentPage
         _vm = viewModel;
         _tour = tour;
         BindingContext = BuildVm();
+        ApplyLocalizedTexts();
+
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+    }
+
+    private void OnLoaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            BindingContext = BuildVm();
+            ApplyLocalizedTexts();
+        });
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        TourExperienceBadgeLabel.Text = AppStrings.Get("PopupTour_Badge");
+        DurationTitleLabel.Text = AppStrings.Get("PopupTour_Duration_Estimate");
+        TourTypeTitleLabel.Text = AppStrings.Get("PopupTour_Type");
+        ThemeTitleLabel.Text = AppStrings.Get("PopupTour_Theme");
+        ItineraryTitleLabel.Text = AppStrings.Get("PopupTour_Itinerary");
+        SaveTourButton.Text = AppStrings.Get("PopupTour_Save");
+        StartNowButton.Text = AppStrings.Get("PopupTour_StartNow");
     }
 
     private PopupVm BuildVm()
@@ -24,7 +61,7 @@ public partial class TourDetailPopupPage : ContentPage
         var stops = tourPois
             .Select((poi, index) => new TourStopItem
             {
-                Title = $"{index + 1}. {poi.Name_Vi ?? poi.Name_En ?? $"Điểm dừng {index + 1}"}",
+                Title = $"{index + 1}. {(string.IsNullOrWhiteSpace(poi.DisplayName) ? AppStrings.Format("PopupTour_Stop_DefaultTitleFormat", index + 1) : poi.DisplayName)}",
                 Subtitle = ResolvePoiSubtitle(poi)
             })
             .ToList();
@@ -34,8 +71,8 @@ public partial class TourDetailPopupPage : ContentPage
             stops = Enumerable.Range(1, Math.Max(1, _tour.PoiCount))
                 .Select(i => new TourStopItem
                 {
-                    Title = $"Điểm dừng {i}",
-                    Subtitle = "Thông tin điểm dừng sẽ được cập nhật khi đồng bộ dữ liệu."
+                    Title = AppStrings.Format("PopupTour_Stop_DefaultTitleFormat", i),
+                    Subtitle = AppStrings.Get("PopupTour_Stop_DefaultSubtitle")
                 })
                 .ToList();
         }
@@ -43,10 +80,10 @@ public partial class TourDetailPopupPage : ContentPage
         var duration = Math.Max(1, _tour.EstimatedDurationMinutes);
         return new PopupVm
         {
-            Name = string.IsNullOrWhiteSpace(_tour.Name) ? "Tour ẩm thực" : _tour.Name,
+            Name = string.IsNullOrWhiteSpace(_tour.Name) ? AppStrings.Get("PopupTour_DefaultName") : _tour.Name,
             CoverImageUrl = ResolveCoverImage(_tour.CoverImageUrl, tourPois),
             DescriptionQuote = string.IsNullOrWhiteSpace(_tour.Description)
-                ? "Khám phá ẩm thực theo nhịp sống đường phố, với các điểm dừng được chọn sẵn cho bạn."
+                ? AppStrings.Get("PopupTour_DefaultDescription")
                 : $"\"{_tour.Description.Trim()}\"",
             DurationText = duration >= 60
                 ? $"{duration / 60}h{duration % 60:D2}"
@@ -71,16 +108,13 @@ public partial class TourDetailPopupPage : ContentPage
         if (!string.IsNullOrWhiteSpace(poi.FunFact))
             return poi.FunFact.Trim();
 
-        if (!string.IsNullOrWhiteSpace(poi.Description_Vi))
-            return Shorten(poi.Description_Vi, 95);
-
-        if (!string.IsNullOrWhiteSpace(poi.Description_En))
-            return Shorten(poi.Description_En, 95);
+        if (!string.IsNullOrWhiteSpace(poi.DisplayDescription))
+            return Shorten(poi.DisplayDescription, 95);
 
         if (!string.IsNullOrWhiteSpace(poi.SignatureDish))
-            return $"Món nổi bật: {poi.SignatureDish.Trim()}";
+            return AppStrings.Format("PopupTour_SignatureDish_Format", poi.SignatureDish.Trim());
 
-        return "Điểm dừng ẩm thực với nhiều trải nghiệm đặc trưng.";
+        return AppStrings.Get("PopupTour_DefaultPoiExperience");
     }
 
     private static string Shorten(string value, int maxLength)
@@ -98,18 +132,18 @@ public partial class TourDetailPopupPage : ContentPage
     private static string ResolveTourType(MainViewModel.TourListItem tour, IReadOnlyList<POI> tourPois)
     {
         if (tour.PoiIds.Count > 0 && tourPois.Count > 0)
-            return "Chọn sẵn";
+            return AppStrings.Get("PopupTour_Type_Curated");
 
         if (tourPois.Count >= 6)
-            return "Khám phá dài";
+            return AppStrings.Get("PopupTour_Type_Long");
 
-        return "Linh hoạt";
+        return AppStrings.Get("PopupTour_Type_Flexible");
     }
 
     private static string ResolveThemeText(IReadOnlyList<POI> tourPois)
     {
         if (tourPois == null || tourPois.Count == 0)
-            return "Ẩm thực";
+            return AppStrings.Get("PopupTour_Theme_Default");
 
         var normalized = tourPois
             .Select(p => !string.IsNullOrWhiteSpace(p.Category)
@@ -119,14 +153,14 @@ public partial class TourDetailPopupPage : ContentPage
             .ToList();
 
         if (normalized.Count == 0)
-            return "Ẩm thực";
+            return AppStrings.Get("PopupTour_Theme_Default");
 
         return normalized
             .GroupBy(v => v, StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(g => g.Count())
             .ThenBy(g => g.Key)
             .Select(g => g.Key)
-            .FirstOrDefault() ?? "Ẩm thực";
+            .FirstOrDefault() ?? AppStrings.Get("PopupTour_Theme_Default");
     }
 
     private static List<POI> ResolveTourStops(MainViewModel.TourListItem tour, IEnumerable<POI> allPois)

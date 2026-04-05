@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
              xmlns:models="clr-namespace:StreetFoodNarrator.App.Core.Models"
              x:Class="StreetFoodNarrator.App.Views.Components.VirtualModeView"
+             x:Name="Root"
              x:DataType="vm:MainViewModel"
              BackgroundColor="#0A1612">
 
@@ -38,7 +39,7 @@
 
                     <!-- Title -->
                     <Label Grid.Column="1"
-                           Text="Virtual Food Tour"
+                              Text="{Binding Source={x:Reference Root}, Path=HeaderTitleText}"
                            VerticalTextAlignment="Center"
                            HorizontalOptions="Center"
                            FontAttributes="Bold"
@@ -70,7 +71,7 @@
                             <Label Text="🌍"
                                    FontSize="18"
                                    VerticalOptions="Center"/>
-                            <Label Text="Bạn đang ở khu ẩm thực. Khám phá ngay!"
+                            <Label Text="{Binding Source={x:Reference Root}, Path=ProximityBannerText}"
                                    FontSize="14"
                                    FontAttributes="Bold"
                                    TextColor="White"
@@ -103,7 +104,7 @@
                     </HorizontalStackLayout>
 
                     <!-- Tour Title -->
-                    <Label Text="Khám phá Vĩnh Khánh"
+                          <Label Text="{Binding Source={x:Reference Root}, Path=TourTitleText}"
                            FontSize="28"
                            FontAttributes="Bold"
                            TextColor="#D8E6DF"
@@ -113,7 +114,7 @@
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,4,0,0">
                         <!-- Progress Count (left) -->
                         <VerticalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center">
-                            <Label Text="PROGRESS"
+                            <Label Text="{Binding Source={x:Reference Root}, Path=ProgressLabelText}"
                                    FontSize="10"
                                    FontAttributes="Bold"
                                    TextColor="#BCCBB9"
@@ -130,7 +131,7 @@
 
                         <!-- Progress Count (right) -->
                         <VerticalStackLayout Grid.Column="1" HorizontalOptions="End" VerticalOptions="Center" Spacing="2">
-                            <Label Text="PROGRESS"
+                            <Label Text="{Binding Source={x:Reference Root}, Path=ProgressLabelText}"
                                    FontSize="10"
                                    FontAttributes="Bold"
                                    TextColor="#869585"
@@ -164,7 +165,7 @@
                     <!-- Section Header Row -->
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Grid.Column="0"
-                               Text="CURRENTLY PLAYING"
+                               Text="{Binding Source={x:Reference Root}, Path=CurrentlyPlayingHeaderText}"
                                FontSize="11"
                                FontAttributes="Bold"
                                TextColor="#BCCBB9"
@@ -188,7 +189,7 @@
                                          BackgroundColor="#869585"
                                          VerticalOptions="Center"
                                          IsVisible="{Binding IsAudioPlaying, Converter={StaticResource InvertedBoolConverter}}"/>
-                                <Label Text="🎧 Đang phát"
+                                    <Label Text="{Binding Source={x:Reference Root}, Path=NowPlayingBadgeText}"
                                        FontSize="10"
                                        FontAttributes="Bold"
                                        TextColor="#4BE277"
@@ -235,7 +236,7 @@
                                             StrokeShape="RoundRectangle 6"
                                             Padding="8,3"
                                             HorizontalOptions="Start">
-                                        <Label Text="LEGENDARY RECIPE"
+                                                                                <Label Text="{Binding Source={x:Reference Root}, Path=LegendaryRecipeText}"
                                                FontSize="9"
                                                FontAttributes="Bold"
                                                TextColor="#4BE277"
@@ -267,7 +268,7 @@
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer Tapped="OnCurrentlyPlayingSeeMoreTapped"/>
                                     </Border.GestureRecognizers>
-                                    <Label Text="XEM THÊM"
+                                     <Label Text="{Binding Source={x:Reference Root}, Path=SeeMoreText}"
                                            FontSize="9"
                                            FontAttributes="Bold"
                                            TextColor="#4BE277"
@@ -284,7 +285,7 @@
                 <!-- SECTION 4: Up Next Queue -->
                 <VerticalStackLayout Spacing="12" Padding="20,0,20,0">
 
-                    <Label Text="ĐỊA ĐIỂM TIẾP THEO"
+                          <Label Text="{Binding Source={x:Reference Root}, Path=QueueHeaderText}"
                            FontSize="11"
                            FontAttributes="Bold"
                            TextColor="#BCCBB9"
@@ -308,7 +309,7 @@
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer Tapped="OnQueueItemTapped" CommandParameter="{Binding}"/>
                                     </Border.GestureRecognizers>
-                                    <Grid ColumnDefinitions="80,*,Auto" ColumnSpacing="14">
+                                    <Grid ColumnDefinitions="80,*" ColumnSpacing="14">
                                         <!-- Thumbnail -->
                                         <Border Grid.Column="0"
                                                 WidthRequest="80" HeightRequest="80"
@@ -323,13 +324,13 @@
                                         <!-- Info -->
                                         <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
                                             <!-- Tiếp theo label -->
-                                            <Label Text="ĐỊA ĐIỂM TIẾP THEO"
+                                              <Label Text="{Binding Source={x:Reference Root}, Path=QueueItemHeaderText}"
                                                    FontSize="9"
                                                    FontAttributes="Bold"
                                                    TextColor="#FFB690"
                                                    CharacterSpacing="1.5"/>
                                             <!-- Name -->
-                                            <Label Text="{Binding Name_Vi}"
+                                              <Label Text="{Binding DisplayName}"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
                                                    TextColor="#D8E6DF"/>
@@ -347,30 +348,12 @@
                                             </HorizontalStackLayout>
                                         </VerticalStackLayout>
 
-                                        <!-- Xem thêm button -->
-                                        <Border Grid.Column="2"
-                                                WidthRequest="76" HeightRequest="32"
-                                                StrokeThickness="0"
-                                                BackgroundColor="#2B3733"
-                                                StrokeShape="RoundRectangle 16"
-                                                VerticalOptions="Center">
-                                            <Border.GestureRecognizers>
-                                                <TapGestureRecognizer Tapped="OnQueueSeeMoreTapped" CommandParameter="{Binding}"/>
-                                            </Border.GestureRecognizers>
-                                            <Label Text="XEM THÊM"
-                                                   FontSize="9"
-                                                   FontAttributes="Bold"
-                                                   TextColor="#4BE277"
-                                                   HorizontalOptions="Center"
-                                                   VerticalOptions="Center"
-                                                   CharacterSpacing="0.6"/>
-                                        </Border>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                         <CollectionView.EmptyView>
-                            <Label Text="Không có địa điểm tiếp theo"
+                            <Label Text="{Binding Source={x:Reference Root}, Path=QueueEmptyText}"
                                    FontSize="13"
                                    TextColor="#869585"
                                    HorizontalOptions="Center"
@@ -421,7 +404,7 @@
                             <Label.FormattedText>
                                 <FormattedString>
                                     <Span Text="{Binding AudioDuration}"/>
-                                    <Span Text=" • Vĩnh Khánh St."/>
+                                        <Span Text="{Binding Source={x:Reference Root}, Path=AudioStreetSuffixText}"/>
                                 </FormattedString>
                             </Label.FormattedText>
                         </Label>
@@ -512,7 +495,7 @@
                                TextColor="#4BE277" HorizontalOptions="Center" VerticalOptions="Center"/>
                     </Grid>
                     <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
-                        <Label Text="Khám phá" FontSize="11" FontAttributes="Bold" TextColor="#4BE277" HorizontalTextAlignment="Center"/>
+                        <Label Text="{Binding Source={x:Reference Root}, Path=BottomExploreText}" FontSize="11" FontAttributes="Bold" TextColor="#4BE277" HorizontalTextAlignment="Center"/>
                         <BoxView WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="True"/>
                     </VerticalStackLayout>
                 </VerticalStackLayout>
@@ -527,7 +510,7 @@
                                TextColor="#92A89D" HorizontalOptions="Center" VerticalOptions="Center"/>
                     </Grid>
                     <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
-                        <Label Text="Thư viện" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                        <Label Text="{Binding Source={x:Reference Root}, Path=BottomLibraryText}" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
                         <BoxView WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
                     </VerticalStackLayout>
                 </VerticalStackLayout>
@@ -542,7 +525,7 @@
                                TextColor="#92A89D" HorizontalOptions="Center" VerticalOptions="Center"/>
                     </Grid>
                     <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
-                        <Label Text="Cài đặt" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
+                        <Label Text="{Binding Source={x:Reference Root}, Path=BottomSettingsText}" FontSize="11" FontAttributes="Bold" TextColor="#92A89D" HorizontalTextAlignment="Center"/>
                         <BoxView WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#4BE277" HorizontalOptions="Center" IsVisible="False"/>
                     </VerticalStackLayout>
                 </VerticalStackLayout>

@@ -6,6 +6,9 @@
 //   • SetActiveTab(int index)                → MainPage.Nav.cs gọi sau khi xử lý
 // ─────────────────────────────────────────────────────────────────────────────
 
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
+
 namespace StreetFoodNarrator.App.Views.Components;
 
 public partial class BottomNavView : ContentView
@@ -20,6 +23,35 @@ public partial class BottomNavView : ContentView
     public BottomNavView()
     {
         InitializeComponent();
+        ApplyLocalizedTexts();
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+    }
+
+    private void OnLoaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
+        ApplyLocalizedTexts();
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(ApplyLocalizedTexts);
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        NavMapLabel.Text = AppStrings.Get("Nav_Map");
+        NavTourLabel.Text = AppStrings.Get("Nav_Tour");
+        NavMenuLabel.Text = AppStrings.Get("Nav_Menu");
+        NavSavedLabel.Text = AppStrings.Get("Nav_Saved");
+        NavSettingsLabel.Text = AppStrings.Get("Nav_Settings");
     }
 
     // ─── Tab tap handlers (forwarding events) ────────────────────────────────

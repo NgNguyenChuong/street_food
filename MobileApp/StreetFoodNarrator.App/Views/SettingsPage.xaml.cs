@@ -173,6 +173,24 @@ public partial class SettingsPage : ContentPage
         };
     }
 
+    private static UserSettings CreateDefaultSettings()
+    {
+        return new UserSettings
+        {
+            TTS = new TTSSettings
+            {
+                Voice = "vi-VN-HoaiMyNeural",
+                Volume = 80,
+                AutoPlay = true,
+                AudioPlaybackMode = AudioPlaybackModes.Auto
+            },
+            Location = new LocationSettings
+            {
+                SensitivityRadius = 40
+            }
+        };
+    }
+
     private void SetupLanguagePicker()
     {
         _isLoadingLanguagePicker = true;
@@ -390,6 +408,7 @@ public partial class SettingsPage : ContentPage
 
         SwitchVoiceForLanguage(_pendingLanguageCode);
         _hasPendingChanges = true;
+        _languageService.ApplyLanguage(_pendingLanguageCode);
         ReloadUIStrings();
         RefreshPlaybackModeOptions();
         RefreshLocationSourceOptions();
@@ -574,6 +593,85 @@ public partial class SettingsPage : ContentPage
         }
     }
 
+    private async void OnResetDefaultsClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            var confirmed = await CustomAlert.ShowConfirmAsync(
+                Localize("Khôi phục mặc định", "Restore defaults", "恢复默认设置"),
+                Localize(
+                    "Bạn có muốn đưa toàn bộ cài đặt về mặc định ban đầu của ứng dụng không?",
+                    "Do you want to restore all settings to the app defaults?",
+                    "你要将所有设置恢复为应用默认值吗？"),
+                Localize("Khôi phục", "Restore", "恢复"),
+                Localize("Không", "No", "否"),
+                AlertType.Warning);
+
+            if (!confirmed)
+                return;
+
+            _isApplyingControls = true;
+
+            _settings = CreateDefaultSettings();
+            _pendingLanguageCode = "vi";
+            _pendingLocationSourceMode = AppConfig.LocationSourceReal;
+
+            Preferences.Set(AppConfig.LocationSourceModePrefKey, AppConfig.LocationSourceReal);
+            Preferences.Set(PrefHapticFeedback, true);
+            Preferences.Set(PrefKeepScreenOn, false);
+            Preferences.Set(PrefLargeText, false);
+            Preferences.Set(PrefSettings, JsonSerializer.Serialize(_settings));
+
+            DeviceDisplay.Current.KeepScreenOn = false;
+
+            _languageService.ApplyLanguage(_pendingLanguageCode);
+
+            SetupLanguagePicker();
+            RefreshPlaybackModeOptions();
+            RefreshLocationSourceOptions();
+            SetupLocationSourcePicker();
+            ApplySettingsToControls();
+            ApplyUserPreferencesToControls();
+
+            foreach (var voice in _allVoices)
+                voice.IsSelected = voice.Voice == _settings.TTS.Voice;
+
+            FilterVoicesByLanguage(_pendingLanguageCode);
+            VoiceListView.ItemsSource = _voices;
+            UpdateSelectedVoiceDisplay();
+
+            if (_mainViewModel != null)
+            {
+                await _mainViewModel.ApplyLocationSourceModeAsync(
+                    useSimulatedGps: false);
+            }
+
+            _hasPendingChanges = false;
+            ReloadUIStrings();
+
+            await CustomAlert.ShowAsync(
+                Localize("Đã khôi phục", "Restored", "已恢复"),
+                Localize(
+                    "Tất cả cài đặt đã được đưa về mặc định.",
+                    "All settings have been restored to defaults.",
+                    "所有设置已恢复为默认值。"),
+                "OK",
+                AlertType.Success);
+        }
+        catch (Exception ex)
+        {
+            await CustomAlert.ShowAsync(
+                Localize("Lỗi", "Error", "错误"),
+                $"{Localize("Không thể khôi phục cài đặt mặc định", "Unable to restore defaults", "无法恢复默认设置")}: {ex.Message}",
+                "OK",
+                AlertType.Error);
+        }
+        finally
+        {
+            _isApplyingControls = false;
+        }
+    }
+
     private static void QuitApplication()
     {
         try
@@ -600,6 +698,8 @@ public partial class SettingsPage : ContentPage
         AutoPlaySubtitleLabel.Text = AppStrings.Settings_AutoPlayDesc;
         VolumeTitleLabel.Text = AppStrings.Settings_VolumeShort;
         SensitivityTitleLabel.Text = AppStrings.Settings_SensitivityShort;
+        SensitivityLeftLabel.Text = Localize("Mượt hơn", "Smoother", "更平滑");
+        SensitivityRightLabel.Text = Localize("Chính xác hơn", "More precise", "更精准");
         HapticTitleLabel.Text = Localize("Rung phản hồi", "Haptic feedback", "触觉反馈");
         HapticSubtitleLabel.Text = Localize("Rung nhẹ khi thao tác chính", "Light vibration for key actions", "关键操作时轻微振动");
         KeepScreenOnTitleLabel.Text = Localize("Giữ màn hình sáng", "Keep screen on", "保持屏幕常亮");
@@ -612,6 +712,7 @@ public partial class SettingsPage : ContentPage
         LogoutSubtitleLabel.Text = Localize("Thoát khỏi phiên hiện tại và đóng ứng dụng", "Exit current session and close app", "退出当前会话并关闭应用");
         LogoutButton.Text = Localize("Đăng xuất", "Log out", "退出登录");
         FooterPolicyLabel.Text = AppStrings.Settings_PrivacyTerms;
+        FooterVersionLabel.Text = $"{Localize("Phiên bản", "Version", "版本")} 1.0.0";
         LocationSourceTitleLabel.Text = Localize("Nguồn vị trí", "Location source", "位置来源");
         LocationSourceSubtitleLabel.Text = Localize(
             "Chọn GPS thật hoặc GPS giả lập khi test",
@@ -620,7 +721,7 @@ public partial class SettingsPage : ContentPage
         LanguagePicker.Title = Localize("Chọn ngôn ngữ", "Choose language", "选择语言");
         LocationSourcePicker.Title = Localize("Chọn nguồn vị trí", "Choose location source", "选择定位来源");
         AudioPlaybackModePicker.Title = Localize("Chọn chế độ", "Choose mode", "选择模式");
-        DefaultBackButton.Text = Localize("Quay lại", "Back", "返回");
+        DefaultBackButton.Text = Localize("Khôi phục mặc định", "Restore defaults", "恢复默认设置");
         SaveSettingsButton.Text = Localize("Lưu thay đổi", "Save changes", "保存更改");
     }
 

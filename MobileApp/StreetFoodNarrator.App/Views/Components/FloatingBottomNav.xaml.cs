@@ -1,4 +1,6 @@
 using System.Runtime.CompilerServices;
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
 
 namespace StreetFoodNarrator.App.Views.Components;
 
@@ -20,7 +22,33 @@ public partial class FloatingBottomNav : ContentView
     public FloatingBottomNav()
     {
         InitializeComponent();
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+        ApplyLocalizedTexts();
         UpdateUI();
+    }
+
+    private void OnLoaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(ApplyLocalizedTexts);
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        ExploreLabel.Text = AppStrings.Get("Nav_Explore");
+        SavedLabel.Text = AppStrings.Get("Nav_Library");
+        SettingsLabel.Text = AppStrings.Get("Nav_Settings");
     }
 
     private static void OnActiveTabChanged(BindableObject bindable, object oldValue, object newValue)

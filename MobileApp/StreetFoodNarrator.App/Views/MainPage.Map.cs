@@ -19,10 +19,12 @@ using MapsColor = Mapsui.Styles.Color;
 using MapsBrush = Mapsui.Styles.Brush;
 using StreetFoodNarrator.App;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Core.Services.Implementations;
 using NetTopologySuite.Geometries;
 using Mapsui.Nts;
 using System.Text.Json;
 using StreetFoodNarrator.App.Helpers;
+using StreetFoodNarrator.App.Resources.Strings;
 
 namespace StreetFoodNarrator.App.Views;
 
@@ -219,7 +221,7 @@ public partial class MainPage
                         SymbolType = SymbolType.Ellipse
                     });
 
-                    var labelText = poi.Name_Vi ?? poi.Name_En ?? string.Empty;
+                    var labelText = poi.DisplayName;
                     if (labelText.Length > 15) labelText = labelText[..15];
                     poiFeature.Styles.Add(new LabelStyle
                     {
@@ -340,11 +342,39 @@ public partial class MainPage
             }
             else
             {
-                routeCoords = new[]
-                {
-                    new Coordinate(startPx, startPy),
-                    new Coordinate(endPx, endPy)
-                };
+                var cachedPath = await OfflineRouteCacheService.TryGetRouteAsync(
+                    target.Id,
+                    startLat,
+                    startLon);
+
+                routeCoords = cachedPath is { Count: >= 2 }
+                    ? cachedPath.Select(point =>
+                    {
+                        var (x, y) = SphericalMercator.FromLonLat(point.Longitude, point.Latitude);
+                        return new Coordinate(x, y);
+                    }).ToArray()
+                    : new[]
+                    {
+                        new Coordinate(startPx, startPy),
+                        new Coordinate(endPx, endPy)
+                    };
+            }
+
+            if (routeCoords.Length >= 4)
+            {
+                var snapshotPath = routeCoords
+                    .Select(coord =>
+                    {
+                        var lonLat = SphericalMercator.ToLonLat(coord.X, coord.Y);
+                        return new GeoCoordinate(lonLat.lat, lonLat.lon);
+                    })
+                    .ToList();
+
+                _ = OfflineRouteCacheService.SaveRouteAsync(
+                    target.Id,
+                    startLat,
+                    startLon,
+                    snapshotPath);
             }
 
             var lineString = new LineString(routeCoords);
@@ -587,12 +617,20 @@ public partial class MainPage
             await _vm.ResetDatabaseAsync();
             UpdateZonePins();
 
-            await CustomAlert.ShowAsync("Hoan tat", "Database da duoc reset voi toa do dung!", "OK", AlertType.Success);
+            await CustomAlert.ShowAsync(
+                AppStrings.Get("Main_ResetDb_Success_Title"),
+                AppStrings.Get("Main_ResetDb_Success_Message"),
+                AppStrings.Get("Common_OK"),
+                AlertType.Success);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Map] OnResetDatabaseClicked error: {ex.Message}");
-            await CustomAlert.ShowAsync("Loi", $"Khong the reset database: {ex.Message}", "OK", AlertType.Error);
+            await CustomAlert.ShowAsync(
+                AppStrings.Get("Common_Error"),
+                AppStrings.Format("Main_ResetDb_Error_Format", ex.Message),
+                AppStrings.Get("Common_OK"),
+                AlertType.Error);
         }
     }
 }

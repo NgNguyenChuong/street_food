@@ -17,8 +17,8 @@
     <Grid RowDefinitions="Auto,Auto,*">
 
         <VerticalStackLayout Grid.Row="0" Padding="16,52,16,8" Spacing="4">
-            <Label Text="Đã lưu" FontSize="22" FontAttributes="Bold" TextColor="White"/>
-            <Label Text="Các Tour và POI yêu thích" FontSize="13" TextColor="#6B7280"/>
+            <Label x:Name="SavedHeaderTitleLabel" Text="Đã lưu" FontSize="22" FontAttributes="Bold" TextColor="White"/>
+            <Label x:Name="SavedHeaderSubtitleLabel" Text="Các Tour và POI yêu thích" FontSize="13" TextColor="#6B7280"/>
         </VerticalStackLayout>
 
         <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="14,0,14,10" ColumnSpacing="8">
@@ -53,16 +53,17 @@
                     <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
                         <Label Text="&#xF0349;" FontFamily="MDI" FontSize="48"
                                TextColor="#4B5563" HorizontalOptions="Center"/>
-                        <Label Text="Chưa có tour nào được lưu" FontSize="15"
+                           <Label x:Name="EmptySavedTourTitleLabel" Text="Chưa có tour nào được lưu" FontSize="15"
                                TextColor="#6B7280" HorizontalOptions="Center"/>
-                        <Label Text="Nhấn tim ở Danh sách tour để lưu tour yêu thích" FontSize="12"
+                           <Label x:Name="EmptySavedTourSubtitleLabel" Text="Nhấn tim ở Danh sách tour để lưu tour yêu thích" FontSize="12"
                                TextColor="#4B5563" HorizontalOptions="Center"/>
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="vm:MainViewModel+TourListItem">
                         <Border Margin="14,0,14,10" StrokeShape="RoundRectangle 16"
-                                BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12">
+                                BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12"
+                                MinimumHeightRequest="164">
                             <VerticalStackLayout Spacing="10">
                                 <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="10">
                                     <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
@@ -71,13 +72,15 @@
                                                WidthRequest="64" HeightRequest="64" />
                                     </Border>
 
-                                    <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                    <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center" MinimumHeightRequest="82">
                                         <Label Text="{Binding Name}" FontSize="14"
-                                               FontAttributes="Bold" TextColor="White"/>
+                                               FontAttributes="Bold" TextColor="White"
+                                               LineBreakMode="TailTruncation" MaxLines="2"
+                                               HeightRequest="34" VerticalTextAlignment="Start"/>
                                         <Label Text="{Binding Description}" FontSize="12"
                                              TextColor="#9CA3AF" LineBreakMode="TailTruncation" MaxLines="2"
                                              HeightRequest="34" VerticalTextAlignment="Start"/>
-                                        <Label Text="{Binding PoiCount, StringFormat='🧭 {0} điểm dừng'}"
+                                             <Label Text="{Binding DisplayPoiStopsText}"
                                                FontSize="11" TextColor="#22C55E"/>
                                     </VerticalStackLayout>
 
@@ -94,20 +97,22 @@
 
                                 <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                                     <Button Grid.Column="0"
-                                            Text="Xem chi tiết"
+                                            Text="{Binding DetailButtonText}"
                                             FontSize="12"
                                             HeightRequest="38"
                                             CornerRadius="10"
+                                            Padding="0"
                                             BackgroundColor="#1A2E40"
                                             TextColor="#CDE4FF"
                                             Clicked="OnSavedTourDetailClicked"/>
 
                                     <Button Grid.Column="1"
-                                            Text="Bắt đầu ngay"
+                                            Text="{Binding StartNowButtonText}"
                                             FontSize="12"
                                             FontAttributes="Bold"
                                             HeightRequest="38"
                                             CornerRadius="10"
+                                            Padding="0"
                                             BackgroundColor="#22C55E"
                                             TextColor="White"
                                             Clicked="OnSavedTourStartClicked"/>
@@ -128,9 +133,9 @@
                     <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
                         <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="48"
                                TextColor="#4B5563" HorizontalOptions="Center"/>
-                        <Label Text="Chưa có quán nào được lưu" FontSize="15"
+                           <Label x:Name="EmptySavedPoiTitleLabel" Text="Chưa có quán nào được lưu" FontSize="15"
                                TextColor="#6B7280" HorizontalOptions="Center"/>
-                        <Label Text="Nhấn tim ❤ trong tab Map/Explore để lưu POI" FontSize="12"
+                           <Label x:Name="EmptySavedPoiSubtitleLabel" Text="Nhấn tim ❤ trong tab Map/Explore để lưu POI" FontSize="12"
                                TextColor="#4B5563" HorizontalOptions="Center"/>
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>
@@ -146,7 +151,7 @@
                                 </Border>
 
                                 <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="{Binding Name_Vi, Converter={StaticResource StringFallbackConverter}, ConverterParameter='Tên quán đang cập nhật'}"
+                                     <Label Text="{Binding DisplayName, Converter={StaticResource StringFallbackConverter}, ConverterParameter='Tên quán đang cập nhật'}"
                                            FontSize="14" FontAttributes="Bold" TextColor="White"/>
                                     <Label Text="{Binding DisplaySignatureDishText}"
                                            FontSize="12" TextColor="#9CA3AF" LineBreakMode="TailTruncation"/>

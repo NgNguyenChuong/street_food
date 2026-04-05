@@ -16,6 +16,7 @@ public partial class POIDetailViewModel : ObservableObject
     private readonly ITTSService _tts;
     private readonly LanguageService _lang;
     private readonly ILocalDatabaseService _db;
+    private readonly HttpClient _httpClient;
     private readonly Action<double>? _seekCallback;
     private readonly bool _keepCurrentAudio;
 
@@ -69,12 +70,19 @@ public partial class POIDetailViewModel : ObservableObject
     [ObservableProperty]
     private bool _isOpen = false;
 
+    [ObservableProperty]
+    private string _localizedPoiName = string.Empty;
+
+    [ObservableProperty]
+    private string _localizedPoiDescription = string.Empty;
+
     public POIDetailViewModel(POI poi, Action<double>? seekCallback = null, bool keepCurrentAudio = false)
     {
         _poi = poi;
         _tts = MauiProgram.Services.GetRequiredService<ITTSService>();
         _lang = MauiProgram.Services.GetRequiredService<LanguageService>();
         _db = MauiProgram.Services.GetRequiredService<ILocalDatabaseService>();
+        _httpClient = MauiProgram.Services.GetRequiredService<HttpClient>();
         _seekCallback = seekCallback;
         _keepCurrentAudio = keepCurrentAudio;
 
@@ -83,6 +91,7 @@ public partial class POIDetailViewModel : ObservableObject
 
         // Set audio title/subtitle based on current language
         RefreshLocalizedAudioTitle();
+        RefreshLocalizedContent();
 
         // Set rating / review count
         RatingText = _poi.Rating?.ToString("F1") ?? "4.5";
@@ -127,7 +136,27 @@ public partial class POIDetailViewModel : ObservableObject
     public void RefreshLocalizedContent()
     {
         RefreshLocalizedAudioTitle();
-        // Future: refresh localized POI fields here
+        var lang = _lang.CurrentLanguage;
+        LocalizedPoiName = _poi.GetName(lang);
+        LocalizedPoiDescription = _poi.GetDescription(lang)
+            ?? _poi.Description_Vi
+            ?? _poi.Description_En
+            ?? _poi.Description_Zh
+            ?? string.Empty;
+
+        if (_poi.NumReviews > 0)
+        {
+            ReviewCountText = lang switch
+            {
+                "en" => $"{_poi.NumReviews:N0} reviews",
+                "zh" => $"{_poi.NumReviews:N0} 条评价",
+                _ => _poi.NumReviews.ToString("N0") + " đánh giá"
+            };
+        }
+        else
+        {
+            ReviewCountText = string.Empty;
+        }
     }
 
     private void UpdateOpenStatus()
@@ -373,8 +402,7 @@ public partial class POIDetailViewModel : ObservableObject
             if (isOnline)
             {
                 var url = $"{AppConfig.GetResolvedApiBaseUrl()}api/MenuItems?poiId={_poi.Id}&page=1&pageSize=50";
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-                var resp = await client.GetAsync(url);
+                var resp = await _httpClient.GetAsync(url);
                 if (resp.IsSuccessStatusCode)
                 {
                     var content = await resp.Content.ReadAsStringAsync();
