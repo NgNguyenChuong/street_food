@@ -73,6 +73,7 @@
                             <ColumnDefinition Width="48"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="48"/>
+                                                        <ColumnDefinition Width="48"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Back -->
@@ -111,6 +112,24 @@
                                    Text="&#xF02D1;" FontFamily="MDI" FontSize="22"
                                    TextColor="White"
                                    HorizontalOptions="Center" VerticalOptions="Center"/>
+                        </Border>
+
+                        <Border Grid.Column="3"
+                                WidthRequest="48"
+                                HeightRequest="48"
+                                StrokeShape="RoundRectangle 24"
+                                BackgroundColor="#66000000"
+                                Stroke="Transparent">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnHeaderLanguageTapped"/>
+                            </Border.GestureRecognizers>
+                            <Label x:Name="HeaderLanguageLabel"
+                                   Text="VI"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="#4be277"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
                         </Border>
                     </Grid>
 
@@ -202,6 +221,19 @@
                                            HorizontalOptions="Center"
                                            MaxLines="2"
                                            LineBreakMode="TailTruncation"/>
+                                    <Border x:Name="OpeningStatusBadge"
+                                            StrokeShape="RoundRectangle 8"
+                                            BackgroundColor="#224BE277"
+                                            Stroke="#404BE277"
+                                            Padding="6,2"
+                                            HorizontalOptions="Center">
+                                        <Label x:Name="OpeningStatusBadgeLabel"
+                                               Text="Đang mở cửa"
+                                               FontSize="8"
+                                               FontAttributes="Bold"
+                                               TextColor="#4BE277"
+                                               HorizontalOptions="Center"/>
+                                    </Border>
                                      <Label x:Name="OpeningHoursTitleLabel" Text="Giờ mở cửa" FontSize="9"
                                            TextColor="#80ffffff"
                                            HorizontalOptions="Center"/>

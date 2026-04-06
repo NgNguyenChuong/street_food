@@ -44,7 +44,7 @@ public static class AppConfig
     public static string EmulatorApiBaseUrl { get; set; } = "http://10.0.2.2:5004/";
 
     // ── Máy thật (Real Device): dùng IP LAN của PC chạy API
-    public static string DefaultRealDeviceApiUrl { get; set; } = "http://192.168.100.9:5004/";
+    public static string DefaultRealDeviceApiUrl { get; set; } = "http://192.168.31.253:5004/";
 
     public const int NetworkTimeoutSeconds = 30;
     public static bool UseBackendApi { get; set; } = true;
@@ -55,6 +55,12 @@ public static class AppConfig
     public const string LocationSourceModePrefKey = "settings_location_source_mode";
     public const string LocationSourceReal = "real";
     public const string LocationSourceSimulated = "simulated";
+    public const string GpsTestModeEnabledPrefKey = "settings_gps_test_mode_enabled";
+    public const string GpsTestEnsurePoiApiPath = "api/POIs/test-mode/ensure-nearby";
+    public const string GpsTestApiKey = "streetfood-gps-test-mode-2026";
+    public const double GpsTestLatitude = 10.842597772316791;
+    public const double GpsTestLongitude = 106.60874204402752;
+    public const string GpsTestAddress = "Toa do test GPS thuc te - 10.842597772316791, 106.60874204402752";
     public const string OfflineRouterDbAssetName = "routing/vinhkhanh_q4.routerdb";
     public const string OfflineRouterDbFileName = "vinhkhanh_q4.routerdb";
 
@@ -134,5 +140,20 @@ public static class AppConfig
     public static bool HasCustomApiUrl()
     {
         return !string.IsNullOrEmpty(Preferences.Get(CUSTOM_API_URL_KEY, ""));
+    }
+
+    /// <summary>
+    /// Builds an absolute API URL from the current base URL and a relative path.
+    /// </summary>
+    public static string BuildApiUrl(string relativePath)
+    {
+        var baseUrl = GetResolvedApiBaseUrl().TrimEnd('/');
+        var path = string.IsNullOrWhiteSpace(relativePath)
+            ? string.Empty
+            : relativePath.TrimStart('/');
+
+        return string.IsNullOrEmpty(path)
+            ? baseUrl
+            : $"{baseUrl}/{path}";
     }
 }

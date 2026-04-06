@@ -162,6 +162,13 @@ public class POI
     [MaxLength(100)]
     public string? ReviewedBy { get; set; }
 
+    /// <summary>
+    /// Snapshot of major fields changed by vendor, pending admin review.
+    /// Key = field label (e.g. "T\u00ean qu\u00e1n"), Value = old/new string pair.
+    /// Cleared when admin approves or rejects via ReviewPOI.
+    /// </summary>
+    public Dictionary<string, PendingFieldChange>? PendingChanges { get; set; }
+
     // Vendor relationship
     public int? VendorId { get; set; }
     [BsonIgnore]
@@ -211,4 +218,15 @@ public class POI
             _ => AudioUrl_Vi
         };
     }
+}
+
+/// <summary>
+/// Represents a single field change tracked for admin review.
+/// </summary>
+public class PendingFieldChange
+{
+    /// <summary>Previous value before vendor edit.</summary>
+    public string? Old { get; set; }
+    /// <summary>New value submitted by vendor.</summary>
+    public string? New { get; set; }
 }

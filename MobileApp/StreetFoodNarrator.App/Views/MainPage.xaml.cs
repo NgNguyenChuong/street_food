@@ -221,6 +221,7 @@ public partial class MainPage : ContentPage
     private void ApplyStaticLocalizedTexts()
     {
         MainHeaderTitleLabel.Text = Ui("PHỐ ẨM THỰC VĨNH KHÁNH", "VINH KHANH STREET FOOD", "永庆美食街");
+        MainHeaderLanguageButton.Text = LanguageSwitcher.GetHeaderLabel(_lang.CurrentLanguage);
         FarHeadlineLine1Label.Text = AppStrings.Get("Main_Far_Headline1");
         FarHeadlineLine2Label.Text = AppStrings.Get("Main_Far_Headline2");
         FarDescriptionLabel.Text = AppStrings.Get("Main_Far_Description");
@@ -273,6 +274,11 @@ public partial class MainPage : ContentPage
 
     private void OnMenuButtonClicked(object? sender, EventArgs e)
         => OnSettingsClicked(sender, e);
+
+    private void OnHeaderLanguageClicked(object? sender, EventArgs e)
+    {
+        LanguageSwitcher.CycleLanguage(_lang);
+    }
 
     private async void OnProfileButtonClicked(object? sender, EventArgs e)
     {

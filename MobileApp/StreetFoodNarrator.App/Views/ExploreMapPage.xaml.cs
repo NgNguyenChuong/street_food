@@ -440,6 +440,9 @@ public partial class ExploreMapPage : ContentPage
 
     private void ApplyLocalizedStaticTexts()
     {
+        if (NearFocusLanguageLabel != null)
+            NearFocusLanguageLabel.Text = LanguageSwitcher.GetHeaderLabel(_lang.CurrentLanguage);
+
         if (NearFocusHeaderTitleLabel != null)
             NearFocusHeaderTitleLabel.Text = AppStrings.Get("Explore_Near_Header_Title");
 
@@ -509,6 +512,11 @@ public partial class ExploreMapPage : ContentPage
 
         if (ExploreOfflineBannerTextLabel != null)
             ExploreOfflineBannerTextLabel.Text = AppStrings.Get("Offline_Banner_Full");
+    }
+
+    private void OnNearFocusLanguageTapped(object? sender, EventArgs e)
+    {
+        LanguageSwitcher.CycleLanguage(_lang);
     }
 
     private void PrewarmPoiDetailForNearFocus(POI? poi)

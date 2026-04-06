@@ -259,12 +259,17 @@ public class AudioController : ControllerBase
             Builders<AudioContent>.Filter.Eq(a => a.IsDeleted, false)
         );
 
-        // Get most recent version if multiple exist
-        var audio = await _db.AudioContents
-            .Find(filter)
-            .SortByDescending(a => a.Version)
+        // Get all candidate audios, then sort in memory for priority:
+        // 1. Admin > Vendor
+        // 2. Highest Version
+        // 3. Newest CreatedAt
+        var audios = await _db.AudioContents.Find(filter).ToListAsync();
+
+        var audio = audios
+            .OrderByDescending(a => string.Equals(a.CreatedByRole, "Admin", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(a => a.Version)
             .ThenByDescending(a => a.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefault();
 
         if (audio == null)
         {
@@ -301,11 +306,13 @@ public class AudioController : ControllerBase
             Builders<AudioContent>.Filter.Eq(a => a.IsDeleted, false)
         );
 
-        var audio = await _db.AudioContents
-            .Find(filter)
-            .SortByDescending(a => a.Version)
+        var audios = await _db.AudioContents.Find(filter).ToListAsync();
+
+        var audio = audios
+            .OrderByDescending(a => string.Equals(a.CreatedByRole, "Admin", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(a => a.Version)
             .ThenByDescending(a => a.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefault();
 
         if (audio == null)
         {
@@ -343,7 +350,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Create audio content record (for TTS-generated files)
     /// </summary>
-    [Authorize(Roles = "Vendor")]
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpPost]
     public async Task<ActionResult<AudioContent>> CreateAudioContent([FromBody] CreateAudioModel model)
     {
@@ -367,7 +374,35 @@ public class AudioController : ControllerBase
 
             var nextId = await _sequence.GetNextAsync("audio_content_id");
             var role = GetPrimaryRole();
-            var status = AudioStatuses.Pending;
+            var normalizedLang = NormalizeLanguage(model.Language);
+            var status = role == "Admin" ? AudioStatuses.Approved : AudioStatuses.Draft;
+
+            // Deduplication guards
+            if (role == "Admin")
+            {
+                // Deactivate any existing Admin-created audio for same POI + language to avoid duplicates
+                var oldAdminFilter = Builders<AudioContent>.Filter.And(
+                    Builders<AudioContent>.Filter.Eq(a => a.POI_ID, model.PoiId),
+                    Builders<AudioContent>.Filter.Regex(a => a.Language, new BsonRegularExpression($"^{normalizedLang}", "i")),
+                    Builders<AudioContent>.Filter.Eq(a => a.CreatedByRole, "Admin"),
+                    Builders<AudioContent>.Filter.Eq(a => a.IsActive, true)
+                );
+                await _db.AudioContents.UpdateManyAsync(oldAdminFilter,
+                    Builders<AudioContent>.Update.Set(a => a.IsActive, false).Set(a => a.UpdatedAt, DateTime.UtcNow));
+            }
+            else
+            {
+                // Vendor: block if there is already a pending audio for same POI + language (awaiting review)
+                var pendingExists = await _db.AudioContents.Find(
+                    Builders<AudioContent>.Filter.And(
+                        Builders<AudioContent>.Filter.Eq(a => a.POI_ID, model.PoiId),
+                        Builders<AudioContent>.Filter.Regex(a => a.Language, new BsonRegularExpression($"^{normalizedLang}", "i")),
+                        Builders<AudioContent>.Filter.Eq(a => a.Status, AudioStatuses.Pending),
+                        Builders<AudioContent>.Filter.Eq(a => a.IsDeleted, false)
+                    )).AnyAsync();
+                if (pendingExists)
+                    return Conflict(new { message = "B\u1ea1n đ\u00e3 c\u00f3 m\u1ed9t audio đang ch\u1edd duy\u1ec7t cho ng\u00f4n ng\u1eef n\u00e0y. H\u00e3y ch\u1edd admin duy\u1ec7t ho\u1eb7c x\u00f3a b\u1ea3n c\u0169." });
+            }
 
             // If file is in temp uploads, move it to final audio folder before saving
             if (!string.IsNullOrWhiteSpace(model.FilePath) && IsTempAudioPath(model.FilePath))
@@ -444,7 +479,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Upload audio file for a POI
     /// </summary>
-    [Authorize(Roles = "Vendor")]
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpPost("upload")]
     public async Task<ActionResult<AudioContent>> UploadAudio([FromForm] UploadAudioModel model)
     {
@@ -495,9 +530,39 @@ public class AudioController : ControllerBase
 
         var nextId = await _sequence.GetNextAsync("audio_content_id");
         var role = GetPrimaryRole();
-        var status = AudioStatuses.Pending;
+        var normalizedLangUpload = NormalizeLanguage(model.Language);
+        var status = role == "Admin" ? AudioStatuses.Approved : AudioStatuses.Draft;
 
-        // Create audio record
+        // Deduplication guards
+        if (role == "Admin")
+        {
+            // Deactivate existing Admin audio for same POI + language
+            var oldAdminFilter = Builders<AudioContent>.Filter.And(
+                Builders<AudioContent>.Filter.Eq(a => a.POI_ID, model.POI_ID),
+                Builders<AudioContent>.Filter.Regex(a => a.Language, new BsonRegularExpression($"^{normalizedLangUpload}", "i")),
+                Builders<AudioContent>.Filter.Eq(a => a.CreatedByRole, "Admin"),
+                Builders<AudioContent>.Filter.Eq(a => a.IsActive, true)
+            );
+            await _db.AudioContents.UpdateManyAsync(oldAdminFilter,
+                Builders<AudioContent>.Update.Set(a => a.IsActive, false).Set(a => a.UpdatedAt, DateTime.UtcNow));
+        }
+        else
+        {
+            // Vendor: block if already has a pending audio for same POI + language
+            var pendingExists = await _db.AudioContents.Find(
+                Builders<AudioContent>.Filter.And(
+                    Builders<AudioContent>.Filter.Eq(a => a.POI_ID, model.POI_ID),
+                    Builders<AudioContent>.Filter.Regex(a => a.Language, new BsonRegularExpression($"^{normalizedLangUpload}", "i")),
+                    Builders<AudioContent>.Filter.Eq(a => a.Status, AudioStatuses.Pending),
+                    Builders<AudioContent>.Filter.Eq(a => a.IsDeleted, false)
+                )).AnyAsync();
+            if (pendingExists)
+            {
+                // Clean up the already-saved file since we abort
+                if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
+                return Conflict(new { message = "B\u1ea1n đ\u00e3 c\u00f3 m\u1ed9t audio đang ch\u1edd duy\u1ec7t. H\u00e3y ch\u1edd admin duy\u1ec7t ho\u1eb7c x\u00f3a b\u1ea3n c\u0169." });
+            }
+}
             var audio = new AudioContent
             {
                 AudioContent_ID = nextId,
@@ -526,7 +591,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Replace audio file for an existing audio record
     /// </summary>
-    [Authorize(Roles = "Vendor")]
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpPost("{id}/replace-file")]
     public async Task<ActionResult<AudioContent>> ReplaceAudioFile(int id, [FromForm] ReplaceAudioFileModel model)
     {
@@ -597,6 +662,14 @@ public class AudioController : ControllerBase
             .Set(a => a.Duration, null)
             .Set(a => a.UpdatedAt, updatedAt);
 
+        // Vendor replacing file: reset status to draft so they can re-submit for review
+        if (IsVendor())
+        {
+            update = update
+                .Set(a => a.Status, AudioStatuses.Draft)
+                .Set(a => a.RejectedReason, null);
+        }
+
         await _db.AudioContents.UpdateOneAsync(a => a.AudioContent_ID == id, update);
 
         audio.AudioUrl = audioUrl;
@@ -611,7 +684,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Get POIs without audio for a specific language
     /// </summary>
-    [Authorize(Roles = "Vendor")]
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpGet("pois-without-audio")]
     public async Task<ActionResult<List<POIWithoutAudioDto>>> GetPOIsWithoutAudio([FromQuery] string language = "vi")
     {
@@ -679,7 +752,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Update audio metadata
     /// </summary>
-    [Authorize(Roles = "Vendor")]
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateAudio(int id, [FromBody] UpdateAudioModel model)
     {
@@ -719,7 +792,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Delete audio
     /// </summary>
-    [Authorize(Roles = "Vendor")]
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteAudio(int id)
     {
@@ -762,7 +835,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Generate audio file for an existing audio record (using TTSText)
     /// </summary>
-    [Authorize(Roles = "Vendor")]
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpPost("{id}/generate-file")]
     public async Task<IActionResult> GenerateAudioFile(int id)
     {
@@ -793,7 +866,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Vendor submits audio for admin review
     /// </summary>
-    [Authorize(Roles = "Vendor")]
+    [Authorize(Roles = "Vendor")] // Admin doesn't need to submit since it's auto-approved
     [HttpPost("{id}/submit")]
     public async Task<IActionResult> SubmitAudio(int id)
     {
@@ -810,17 +883,31 @@ public class AudioController : ControllerBase
         }
 
         var status = NormalizeStatus(audio.Status);
-        if (status == AudioStatuses.Approved || status == AudioStatuses.Published)
+        if (status == AudioStatuses.Approved)
         {
-            return BadRequest(new { message = "Approved audio cannot be submitted again" });
+            return BadRequest(new { message = "Audio đã được duyệt, không thể gửi lại." });
+        }
+        if (status == AudioStatuses.Pending)
+        {
+            return BadRequest(new { message = "Audio đang chờ duyệt, không cần gửi lại." });
+        }
+        // Only allow submit from draft or rejected
+        if (status != AudioStatuses.Draft && status != AudioStatuses.Rejected)
+        {
+            return BadRequest(new { message = $"Không thể gửi duyệt audio ở trạng thái '{status}'." });
+        }
+        if (string.IsNullOrWhiteSpace(audio.AudioUrl))
+        {
+            return BadRequest(new { message = "Audio chưa có file âm thanh. Hãy tạo hoặc tải lên file trước khi gửi duyệt." });
         }
 
         var update = Builders<AudioContent>.Update
             .Set(a => a.Status, AudioStatuses.Pending)
+            .Set(a => a.RejectedReason, null)
             .Set(a => a.UpdatedAt, DateTime.UtcNow);
 
         await _db.AudioContents.UpdateOneAsync(a => a.AudioContent_ID == id, update);
-        return Ok(new { message = "Audio submitted for review" });
+        return Ok(new { message = "Audio đã được gửi đến Admin để duyệt." });
     }
 
     /// <summary>
@@ -875,7 +962,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Bulk generate audio files for POIs based on existing descriptions.
     /// </summary>
-    [Authorize(Roles = "Vendor")]
+    [Authorize(Roles = "Admin,Vendor")]
     [HttpPost("bulk-generate")]
     public async Task<IActionResult> BulkGenerate([FromBody] BulkGenerateAudioRequest request)
     {
@@ -904,8 +991,11 @@ public class AudioController : ControllerBase
             .Find(a => poiIds.Contains(a.POI_ID))
             .ToListAsync();
 
+        // OnlyMissing: only skip when there is an APPROVED audio for this POI+lang.
+        // draft/rejected records do NOT count as having audio.
+        var approvedStatuses = new[] { AudioStatuses.Approved };
         var existingSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var audio in existingAudios)
+        foreach (var audio in existingAudios.Where(a => approvedStatuses.Contains(a.Status, StringComparer.OrdinalIgnoreCase) && a.IsActive))
         {
             var key = $"{audio.POI_ID}:{NormalizeLanguage(audio.Language)}";
             existingSet.Add(key);
@@ -933,6 +1023,7 @@ public class AudioController : ControllerBase
                     continue;
                 }
 
+                var role = GetPrimaryRole();
                 var nextId = await _sequence.GetNextAsync("audio_content_id");
                 var audio = new AudioContent
                 {
@@ -946,9 +1037,10 @@ public class AudioController : ControllerBase
                     TTSText = null,
                     POI_ID = poi.POI_ID,
                     VendorId = poi.VendorId,
-                    Status = AudioStatuses.Pending,
+                    // Admin auto-approved; Vendor starts as draft and needs to submit for review
+                    Status = role == "Admin" ? AudioStatuses.Approved : AudioStatuses.Draft,
                     CreatedByUserId = GetUserId(),
-                    CreatedByRole = GetPrimaryRole(),
+                    CreatedByRole = role,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -1153,7 +1245,7 @@ public class AudioController : ControllerBase
         return status.Trim().ToLowerInvariant();
     }
 
-    private bool IsVendor() => User.IsInRole("Vendor");
+    private bool IsVendor() => User.IsInRole("Vendor") && !User.IsInRole("Admin");
 
     private string GetUserId()
     {

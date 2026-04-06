@@ -102,7 +102,27 @@
                          WidthRequest="44"
                          HeightRequest="44"
                          Opacity="0"
-                         InputTransparent="True"/>
+                         InputTransparent="True"
+                         IsVisible="False"/>
+
+                <Border Grid.Column="2"
+                        WidthRequest="44"
+                        HeightRequest="44"
+                        BackgroundColor="#1D3A2E"
+                        Stroke="#2D5A47"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 22">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnNearFocusLanguageTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label x:Name="NearFocusLanguageLabel"
+                           Text="VI"
+                           FontSize="11"
+                           FontAttributes="Bold"
+                           TextColor="#4BE277"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"/>
+                </Border>
             </Grid>
 
             <Border x:Name="InZoneToast"

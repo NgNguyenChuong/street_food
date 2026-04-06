@@ -56,7 +56,19 @@
                        VerticalTextAlignment="Center"
                        TextColor="#4BE277" FontSize="15" FontAttributes="Bold"
                        CharacterSpacing="1.8" LineBreakMode="TailTruncation" />
-                <BoxView Grid.Column="2" WidthRequest="50" HeightRequest="50" Opacity="0" InputTransparent="True" />
+                <Button x:Name="MainHeaderLanguageButton"
+                    Grid.Column="2"
+                    WidthRequest="50"
+                    HeightRequest="50"
+                    CornerRadius="25"
+                    BackgroundColor="#0F1D18"
+                    BorderColor="#1C3024"
+                    BorderWidth="1"
+                    FontSize="13"
+                    FontAttributes="Bold"
+                    TextColor="#4BE277"
+                    Text="VI"
+                    Clicked="OnHeaderLanguageClicked" />
             </Grid>
 
             <Grid Grid.Row="1">

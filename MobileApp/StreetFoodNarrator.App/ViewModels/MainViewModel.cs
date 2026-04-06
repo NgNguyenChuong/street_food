@@ -8,6 +8,7 @@ using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -281,6 +282,11 @@ public partial class MainViewModel : ObservableObject
 
         Action<Microsoft.Maui.Devices.Sensors.Location> onLocationUpdateSync = loc =>
         {
+            _ = MovementFileLogger.LogLocationAsync(
+                _isUsingFallback ? "location.simulated" : "location.real",
+                loc,
+                $"tracking={IsTracking};state={CurrentExploreState}");
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 // If demo lock was turned on earlier, real/sim GPS updates should unlock it.
@@ -327,6 +333,7 @@ public partial class MainViewModel : ObservableObject
             }
             catch (Exception ex)
             {
+                await MovementFileLogger.LogEventAsync("geofence.error", ex.Message);
                 System.Diagnostics.Debug.WriteLine($"[Geofence] Unhandled error: {ex.Message}");
             }
         };
@@ -1144,7 +1151,50 @@ public partial class MainViewModel : ObservableObject
     private static bool HasInternetAccess()
     {
         var access = Connectivity.Current.NetworkAccess;
-        return access == NetworkAccess.Internet || access == NetworkAccess.ConstrainedInternet;
+        if (access is NetworkAccess.Internet or NetworkAccess.ConstrainedInternet)
+            return true;
+
+        // Android can report Local even when LAN API is reachable.
+        if (access == NetworkAccess.Local && AppConfig.UseBackendApi)
+        {
+            var baseUrl = AppConfig.GetResolvedApiBaseUrl();
+            return IsLikelyLocalApiHost(baseUrl);
+        }
+
+        return false;
+    }
+
+    private static bool IsLikelyLocalApiHost(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return false;
+
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri))
+            return false;
+
+        var host = uri.Host;
+        if (string.IsNullOrWhiteSpace(host))
+            return false;
+
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("10.0.2.2", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!IPAddress.TryParse(host, out var ip))
+            return false;
+
+        var bytes = ip.GetAddressBytes();
+        if (bytes.Length == 4)
+        {
+            // RFC1918 private ranges + loopback IPv4.
+            if (bytes[0] == 10) return true;
+            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
+            if (bytes[0] == 192 && bytes[1] == 168) return true;
+            if (bytes[0] == 127) return true;
+        }
+
+        return IPAddress.IsLoopback(ip);
     }
 
     public bool ShowOfflineBanner => IsNetworkOffline && !OfflineBannerSessionState.IsDismissed;
@@ -1809,7 +1859,7 @@ public partial class MainViewModel : ObservableObject
 
             if (isOnline)
             {
-                var url = $"{AppConfig.GetResolvedApiBaseUrl()}api/MenuItems?poiId={poi.Id}&page=1&pageSize=50";
+                var url = AppConfig.BuildApiUrl($"api/MenuItems?poiId={poi.Id}&page=1&pageSize=50");
                 var response = await _httpClient.GetAsync(url);
                 if (response.IsSuccessStatusCode)
                 {
@@ -1820,6 +1870,10 @@ public partial class MainViewModel : ObservableObject
                         menuItems = result.Data;
                         await _db.SaveMenuItemsAsync(menuItems);
                     }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainVM] Menu API failed for POI {poi.Id}: {(int)response.StatusCode}");
                 }
             }
         }
@@ -1890,20 +1944,25 @@ public partial class MainViewModel : ObservableObject
     public async Task LoadMenuForCurrentPOIAsync()
     {
         if (PrimaryZone == null) return;
+        var hasInternet = HasInternetAccess();
+        var hasCached = _menuCache.TryGetValue(PrimaryZone.Id, out var cachedMenu);
 
-        // ✅ Check cache first
-        if (_menuCache.TryGetValue(PrimaryZone.Id, out var cachedMenu))
+        // Show cache immediately for snappy UI.
+        if (hasCached && cachedMenu != null)
         {
             VirtualMenuItems = new ObservableCollection<MenuItemDto>(cachedMenu);
-            return;
+
+            // Offline: keep cached menu and stop.
+            if (!hasInternet)
+                return;
         }
 
-        // ✅ Load from repository (will be cached)
+        // Online (or no cache): load latest from API/local fallback path.
         var originalMethod = PrimaryZone;
         await LoadVirtualMenuItemsAsync(PrimaryZone);
 
-        // ✅ Cache the loaded items (only if still on same POI)
-        if (PrimaryZone == originalMethod)
+        // Cache the loaded items (only if still on same POI)
+        if (PrimaryZone == originalMethod && VirtualMenuItems.Count > 0)
         {
             _menuCache[PrimaryZone.Id] = VirtualMenuItems.ToList();
         }
@@ -2025,6 +2084,9 @@ public partial class MainViewModel : ObservableObject
         else
             activeLoc.SetTrackingState(TrackingProximityState.Near);
         LatestStatus = "📡 GPS đang chạy...";
+        await MovementFileLogger.LogEventAsync(
+            "tracking.start",
+            _isUsingFallback ? "source=simulated" : "source=real");
         await activeLoc.StartAsync();
     }
 
@@ -2058,6 +2120,10 @@ public partial class MainViewModel : ObservableObject
                 ? "👣 Đang dùng GPS giả lập."
                 : "📡 Đang dùng GPS thật.";
 
+            await MovementFileLogger.LogEventAsync(
+                "tracking.source",
+                useSimulatedGps ? "simulated" : "real");
+
             RefreshExploreExperience();
 
             if (wasTracking)
@@ -2084,12 +2150,16 @@ public partial class MainViewModel : ObservableObject
             await activeLoc.StartAsync();
             IsTracking = true;
             LatestStatus = _isUsingFallback ? "👣 Xem Ảo đang chạy..." : "📡 GPS đang chạy...";
+            await MovementFileLogger.LogEventAsync(
+                "tracking.toggle",
+                _isUsingFallback ? "started-simulated" : "started-real");
         }
         else
         {
             await activeLoc.StopAsync();
             IsTracking = false;
             LatestStatus = "⏹ Đã dừng theo dõi.";
+            await MovementFileLogger.LogEventAsync("tracking.toggle", "stopped");
         }
     }
 
@@ -2544,6 +2614,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var tours = JsonSerializer.Deserialize<List<TourListItem>>(json, TourJsonOptions) ?? new List<TourListItem>();
+            tours = tours.Where(t => t.IsActive).ToList();
             foreach (var tour in tours)
             {
                 tour.CoverImageUrl = ResolveTourCoverImageUrl(tour.CoverImageUrl);
@@ -2574,7 +2645,8 @@ public partial class MainViewModel : ObservableObject
     private async Task<List<TourListItem>> FetchToursFromApiAsync()
     {
         var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
-        var url = $"{baseUrl}/api/Tours?page=1&pageSize=100";
+        // Mobile only syncs active tours to keep in-app tour list aligned with admin activation state.
+        var url = $"{baseUrl}/api/Tours?page=1&pageSize=100&isActive=true";
         var response = await _httpClient.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
@@ -2598,6 +2670,7 @@ public partial class MainViewModel : ObservableObject
                 CoverImageUrl = ResolveTourCoverImageUrl(t.ImageUrl),
                 IsActive = t.IsActive
             })
+            .Where(t => t.IsActive)
             .OrderByDescending(t => t.IsActive)
             .ThenBy(t => t.Name)
             .ToList();

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -6,7 +7,6 @@
     <title>Quản lý POI - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -21,11 +21,7 @@
             --shadow: rgba(26, 26, 46, 0.08);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'DM Sans', sans-serif;
@@ -39,13 +35,11 @@
             padding: 2rem;
         }
 
-        /* Header */
         .page-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
-            animation: fadeInDown 0.6s ease-out;
         }
 
         .page-title {
@@ -56,11 +50,6 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 1rem;
         }
 
         .btn {
@@ -83,84 +72,10 @@
             color: white;
         }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
-        }
-
         .btn-outline {
             background: white;
             border: 2px solid var(--border);
             color: var(--dark);
-        }
-
-        .btn-outline:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-
-        /* Filter Section */
-        .filter-section {
-            background: white;
-            border-radius: 20px;
-            padding: 2rem;
-            box-shadow: 0 4px 20px var(--shadow);
-            margin-bottom: 2rem;
-            animation: fadeInUp 0.6s ease-out 0.1s backwards;
-        }
-
-        .filter-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
-            gap: 1rem;
-            align-items: end;
-        }
-
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .filter-label {
-            font-weight: 600;
-            color: var(--dark);
-            font-size: 0.9rem;
-        }
-
-        .filter-input,
-        .filter-select {
-            padding: 0.875rem 1.25rem;
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            font-size: 0.95rem;
-            font-family: 'DM Sans', sans-serif;
-            transition: all 0.3s ease;
-            background: var(--light);
-        }
-
-        .filter-input:focus,
-        .filter-select:focus {
-            outline: none;
-            border-color: var(--primary);
-            background: white;
-            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
-        }
-
-        .search-wrapper {
-            position: relative;
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 1.25rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #999;
-        }
-
-        .filter-input.with-icon {
-            padding-left: 3rem;
         }
 
         /* Stats Bar */
@@ -176,33 +91,58 @@
             padding: 1.5rem;
             border-radius: 16px;
             box-shadow: 0 4px 20px var(--shadow);
-            animation: fadeInUp 0.6s ease-out backwards;
+            cursor: pointer;
         }
 
-        .stat-item:nth-child(1) { animation-delay: 0.2s; }
-        .stat-item:nth-child(2) { animation-delay: 0.3s; }
-        .stat-item:nth-child(3) { animation-delay: 0.4s; }
-        .stat-item:nth-child(4) { animation-delay: 0.5s; }
+        .stat-value { font-size: 2rem; font-weight: 700; color: var(--dark); margin-bottom: 0.25rem; }
+        .stat-label { color: #666; font-size: 0.9rem; }
 
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--dark);
-            margin-bottom: 0.25rem;
+        /* Filter */
+        .filter-section {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 2rem;
         }
 
-        .stat-label {
-            color: #666;
-            font-size: 0.9rem;
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
         }
 
-        /* POI Table */
+        .filter-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .filter-label { font-weight: 600; color: var(--dark); font-size: 0.9rem; }
+
+        .filter-input, .filter-select {
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .search-wrapper { position: relative; }
+        .search-icon { position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); color: #999; }
+        .filter-input.with-icon { padding-left: 3rem; }
+
+        /* Table */
         .table-container {
             background: white;
             border-radius: 20px;
             padding: 2rem;
             box-shadow: 0 4px 20px var(--shadow);
-            animation: fadeInUp 0.6s ease-out 0.6s backwards;
             overflow-x: auto;
         }
 
@@ -217,32 +157,21 @@
             font-family: 'Playfair Display', serif;
             font-size: 1.5rem;
             font-weight: 700;
-            color: var(--dark);
         }
 
-        .bulk-actions {
-            display: none;
-            gap: 0.75rem;
-            align-items: center;
-        }
-
-        .bulk-actions.active {
-            display: flex;
-        }
+        .bulk-actions { display: none; gap: 0.75rem; align-items: center; }
+        .bulk-actions.active { display: flex; }
 
         table {
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
-            table-layout: fixed;
         }
 
-        thead {
-            background: linear-gradient(to right, #F8F9FA, #F0F4F8);
-        }
+        thead { background: linear-gradient(to right, #F8F9FA, #F0F4F8); }
 
         th {
-            padding: 0.875rem 0.75rem;
+            padding: 0.875rem 1rem;
             text-align: left;
             font-weight: 600;
             color: var(--dark);
@@ -253,51 +182,34 @@
             white-space: nowrap;
         }
 
-        th:first-child {
-            border-radius: 12px 0 0 0;
-            width: 40px;
-        }
-
-        th:last-child {
-            border-radius: 0 12px 0 0;
-        }
-
-        /* Định nghĩa độ rộng cho từng cột */
-        th:nth-child(2) { width: 16%; } /* POI */
-        th:nth-child(3) { width: 17%; } /* Địa chỉ */
-        th:nth-child(4) { width: 9%; } /* Danh mục */
-        th:nth-child(5) { width: 15%; } /* Giờ mở cửa */
-        th:nth-child(6) { width: 9%; } /* SĐT */
-        th:nth-child(7) { width: 12%; } /* Giá/Đánh giá */
-        th:nth-child(8) { width: 10%; } /* Trạng thái */
-        th:nth-child(9) { width: 120px; } /* Hành động */
+        th:nth-child(1) { width: 40px; }
+        th:nth-child(2) { min-width: 160px; }
+        th:nth-child(3) { min-width: 180px; }
+        th:nth-child(4) { min-width: 110px; }
+        th:nth-child(5) { min-width: 130px; }
+        th:nth-child(6) { min-width: 90px; }
+        th:nth-child(7) { min-width: 90px; }
+        th:nth-child(8) { min-width: 130px; }
+        th:nth-child(9) { min-width: 130px; }
 
         td {
-            padding: 0.875rem 0.75rem;
+            padding: 0.875rem 1rem;
             border-bottom: 1px solid var(--border);
-            color: #666;
-            font-size: 0.85rem;
+            color: #555;
+            font-size: 0.875rem;
             vertical-align: middle;
             white-space: nowrap;
         }
 
-        /* Only truncate first 3 data columns (POI, Địa chỉ, Danh mục) */
-        td:nth-child(2),
-        td:nth-child(3),
-        td:nth-child(4) {
+        td:nth-child(3) {
+            max-width: 200px;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        tr:hover td {
-            background: rgba(255, 107, 53, 0.02);
-        }
+        tr:hover td { background: rgba(255, 107, 53, 0.02); }
 
-        .poi-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
+        .poi-info { display: flex; align-items: center; gap: 0.75rem; }
 
         .poi-icon {
             width: 48px;
@@ -312,40 +224,42 @@
             overflow: hidden;
         }
 
-        .poi-icon img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
+        .poi-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
         .poi-details h4 {
             color: var(--dark);
             font-weight: 600;
-            margin-bottom: 0.25rem;
             font-size: 0.9rem;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            max-width: 220px;
         }
 
-        .poi-details p {
-            font-size: 0.8rem;
-            color: #999;
-        }
-
-        .truncate {
+        .cell-text {
+            display: inline-block;
             max-width: 100%;
-            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            display: block;
+            vertical-align: bottom;
         }
+
+        .poi-details p { font-size: 0.8rem; color: #999; }
+
+        .poi-qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+        .poi-qr-box {
+            width: 62px; height: 62px;
+            border-radius: 8px; border: 1px solid var(--border);
+            background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .poi-qr-box img, .poi-qr-box canvas { width: 58px; height: 58px; display: block; }
+        .poi-qr-link { font-size: 0.7rem; color: var(--secondary); text-decoration: none; }
+        .poi-qr-link:hover { text-decoration: underline; }
 
         .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.4rem;
             padding: 0.4rem 0.875rem;
             border-radius: 50px;
             font-size: 0.8rem;
@@ -353,823 +267,543 @@
             white-space: nowrap;
         }
 
-        .status-badge.active {
-            background: rgba(6, 214, 160, 0.15);
-            color: var(--success);
-        }
+        .status-badge.active { background: rgba(6, 214, 160, 0.15); color: var(--success); }
+        .status-badge.inactive { background: rgba(239, 71, 111, 0.15); color: var(--danger); }
 
-        .status-badge.inactive {
-            background: rgba(239, 71, 111, 0.15);
-            color: var(--danger);
-        }
-
-
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; }
         .status-dot.active { background: var(--success); }
         .status-dot.inactive { background: var(--danger); }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 0.5rem;
-            justify-content: flex-start;
-        }
+        .action-buttons { display: flex; gap: 0.4rem; align-items: center; }
 
         .btn-icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
-            border: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: var(--light);
-            color: var(--dark);
-            flex-shrink: 0;
+            width: 34px; height: 34px;
+            border-radius: 8px; border: none;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s ease;
+            background: var(--light); color: var(--dark); flex-shrink: 0;
         }
 
-        .btn-icon:hover {
-            transform: scale(1.1);
-        }
+        .btn-icon:hover { transform: scale(1.1); }
+        .btn-icon.edit:hover { background: rgba(0, 78, 137, 0.1); color: var(--secondary); }
+        .btn-icon.delete:hover { background: rgba(239, 71, 111, 0.1); color: var(--danger); }
+        .btn-icon.view:hover { background: rgba(255, 107, 53, 0.1); color: var(--primary); }
+        .btn-icon.approve:hover { background: rgba(6, 214, 160, 0.15); color: #059669; }
+        .btn-icon.reject:hover { background: rgba(239, 71, 111, 0.1); color: var(--danger); }
 
-        .btn-icon.edit:hover {
-            background: rgba(0, 78, 137, 0.1);
-            color: var(--secondary);
-        }
+        .checkbox { width: 18px; height: 18px; cursor: pointer; }
 
-        .btn-icon.delete:hover {
-            background: rgba(239, 71, 111, 0.1);
-            color: var(--danger);
-        }
-
-        .app-confirm-overlay{position:fixed;inset:0;background:rgba(26,26,46,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9999;padding:1rem}
-        .app-confirm-overlay.active{display:flex}
-        .app-confirm{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-width:420px;width:100%;overflow:hidden}
-        .app-confirm-header{padding:1rem 1.25rem;border-bottom:1px solid #eee;font-weight:700}
-        .app-confirm-body{padding:1.1rem 1.25rem;color:#333;line-height:1.5}
-        .app-confirm-actions{display:flex;justify-content:flex-end;gap:.5rem;padding:1rem 1.25rem;border-top:1px solid #eee;background:#fafafa}
-        .app-confirm-btn{padding:.55rem .9rem;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:600}
-        .app-confirm-btn.primary{background:linear-gradient(135deg,#FF6B35 0%,#004E89 100%);border:none;color:#fff}
-
-        .btn-icon.view:hover {
-            background: rgba(255, 107, 53, 0.1);
-            color: var(--primary);
-        }
-
-        /* Pagination */
         .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 2rem;
+            display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem;
         }
 
         .pagination-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            border: 2px solid var(--border);
-            background: white;
-            color: var(--dark);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--border);
+            background: white; color: var(--dark); font-weight: 600; cursor: pointer; transition: all 0.3s ease;
         }
 
-        .pagination-btn:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
+        .pagination-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .pagination-btn.active { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border-color: transparent; }
+        .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .pagination-btn.active {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            border-color: transparent;
+        .app-confirm-overlay {
+            position: fixed; inset: 0; background: rgba(26,26,46,.5);
+            backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center;
+            z-index: 9999; padding: 1rem;
         }
+        .app-confirm-overlay.active { display: flex; }
+        .app-confirm { background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.2); max-width: 420px; width: 100%; overflow: hidden; }
+        .app-confirm-header { padding: 1rem 1.25rem; border-bottom: 1px solid #eee; font-weight: 700; }
+        .app-confirm-body { padding: 1.1rem 1.25rem; color: #333; line-height: 1.5; }
+        .app-confirm-actions { display: flex; justify-content: flex-end; gap: .5rem; padding: 1rem 1.25rem; border-top: 1px solid #eee; background: #fafafa; }
+        .app-confirm-btn { padding: .55rem .9rem; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-weight: 600; }
+        .app-confirm-btn.primary { background: linear-gradient(135deg,#FF6B35 0%,#004E89 100%); border: none; color: #fff; }
 
-        .pagination-info {
-            color: #666;
-            margin: 0 1rem;
-        }
-
-        /* Checkbox */
-        .checkbox {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-
-        /* Animations */
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Responsive */
         @media (max-width: 1024px) {
-            .filter-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .stats-bar {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .filter-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-bar {
-                grid-template-columns: 1fr;
-            }
-
-            .page-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-            }
-
-            .header-actions {
-                width: 100%;
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
+            .filter-grid { grid-template-columns: 1fr 1fr; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Page Header -->
-        <div class="page-header">
-            <h1 class="page-title">Quản lý POI</h1>
-            <div class="header-actions">
-                <button class="btn btn-outline" onclick="window.history.back()">
-                    <i class="fas fa-arrow-left"></i>
-                    <span>Quay lại</span>
-                </button>
-            </div>
+<div class="container">
+
+    <div class="page-header">
+        <h1 class="page-title">Quản lý POI</h1>
+        <button class="btn btn-outline" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i> Quay lại
+        </button>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-item" onclick="filterByReview('')">
+            <div class="stat-value" id="totalPOIsStat">0</div>
+            <div class="stat-label">Tổng POI</div>
         </div>
-
-        <!-- Stats Bar -->
-        <div class="stats-bar">
-            <div class="stat-item">
-                <div class="stat-value" id="totalPOIsStat">0</div>
-                <div class="stat-label">Tổng POI</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="activePOIsStat">0</div>
-                <div class="stat-label">Đang hoạt động</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="inactivePOIsStat">0</div>
-                <div class="stat-label">Đã tắt</div>
-            </div>
+        <div class="stat-item" onclick="filterByActive('active')">
+            <div class="stat-value" id="activePOIsStat">0</div>
+            <div class="stat-label">Đang hoạt động</div>
         </div>
-
-        <!-- Filter Section -->
-        <div class="filter-section">
-            <div class="filter-grid">
-                <div class="filter-group">
-                    <label class="filter-label">Tìm kiếm</label>
-                    <div class="search-wrapper">
-                        <i class="search-icon fas fa-search"></i>
-                        <input type="text" class="filter-input with-icon" placeholder="Tìm theo tên, địa chỉ..." id="searchInput">
-                    </div>
-                </div>
-
-                <div class="filter-group">
-                    <label class="filter-label">Danh mục</label>
-                    <select class="filter-select" id="categoryFilter">
-                        <option value="">Tất cả</option>
-                    </select>
-                </div>
-
-                <div class="filter-group">
-                    <label class="filter-label">Trạng thái hoạt động</label>
-                    <select class="filter-select" id="statusFilter">
-                        <option value="">Tất cả</option>
-                        <option value="active">Đang hoạt động</option>
-                        <option value="inactive">Đã tắt</option>
-                    </select>
-                </div>
-
-                <div class="filter-group">
-                    <label class="filter-label">Sắp xếp</label>
-                    <select class="filter-select" id="sortFilter">
-                        <option value="newest">Mới nhất</option>
-                        <option value="oldest">Cũ nhất</option>
-                        <option value="name-asc">Tên A-Z</option>
-                        <option value="name-desc">Tên Z-A</option>
-                        <option value="views">Lượt xem</option>
-                    </select>
-                </div>
-
-                <div class="filter-group">
-                    <button class="btn btn-primary" onclick="applyFilters()">
-                        <i class="fas fa-filter"></i>
-                        Lọc
-                    </button>
-                </div>
-            </div>
+        <div class="stat-item" onclick="filterByReview('pending')" style="border-left:3px solid #F97316;">
+            <div class="stat-value" id="pendingPOIsStat" style="color:#F97316;">0</div>
+            <div class="stat-label">⏳ Chờ duyệt</div>
         </div>
+        <div class="stat-item" onclick="filterByActive('inactive')">
+            <div class="stat-value" id="inactivePOIsStat">0</div>
+            <div class="stat-label">Đã tắt</div>
+        </div>
+    </div>
 
-        <!-- POI Table -->
-        <div class="table-container">
-            <div class="table-header">
-                <h2 class="table-title">Danh sách POI</h2>
-                <div class="bulk-actions" id="bulkActions">
-                    <span style="color: #666; font-weight: 600;">
-                        <span id="selectedCount">0</span> đã chọn
-                    </span>
-                    <button class="btn btn-outline" onclick="bulkDelete()">
-                        <i class="fas fa-trash"></i>
-                        Xóa
-                    </button>
+    <div class="filter-section">
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label class="filter-label">Tìm kiếm</label>
+                <div class="search-wrapper">
+                    <i class="search-icon fas fa-search"></i>
+                    <input type="text" class="filter-input with-icon" placeholder="Tìm theo tên, địa chỉ..." id="searchInput">
                 </div>
             </div>
-
-            <table id="poiTable">
-                <thead>
-                    <tr>
-                        <th>
-                            <input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()">
-                        </th>
-                        <th>POI</th>
-                        <th>ĐỊA CHỈ</th>
-                        <th>DANH MỤC</th>
-                        <th>GIỜ MỞ CỬA</th>
-                        <th>SĐT</th>
-                        <th>ĐÁNH GIÁ</th>
-                        <th>TRẠNG THÁI</th>
-                        <th>HÀNH ĐỘNG</th>
-                    </tr>
-                </thead>
-                <tbody id="poiTableBody">
-                    <!-- Data will be populated by JavaScript -->
-                </tbody>
-            </table>
-
-            <!-- Pagination -->
-            <div class="pagination">
-                <button class="pagination-btn" onclick="changePage('prev')">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                
-                <button class="pagination-btn active">1</button>
-                <button class="pagination-btn">2</button>
-                <button class="pagination-btn">3</button>
-                <span class="pagination-info">...</span>
-                <button class="pagination-btn">10</button>
-                
-                <button class="pagination-btn" onclick="changePage('next')">
-                    <i class="fas fa-chevron-right"></i>
+            <div class="filter-group">
+                <label class="filter-label">Danh mục</label>
+                <select class="filter-select" id="categoryFilter"><option value="">Tất cả</option></select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Duyệt</label>
+                <select class="filter-select" id="reviewFilter">
+                    <option value="">Tất cả</option>
+                    <option value="pending">⏳ Chờ duyệt</option>
+                    <option value="approved">✅ Đã duyệt</option>
+                    <option value="rejected">❌ Từ chối</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Trạng thái</label>
+                <select class="filter-select" id="statusFilter">
+                    <option value="">Tất cả</option>
+                    <option value="active">Đang hoạt động</option>
+                    <option value="inactive">Đã tắt</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Sắp xếp</label>
+                <select class="filter-select" id="sortFilter">
+                    <option value="newest">Mới nhất</option>
+                    <option value="oldest">Cũ nhất</option>
+                    <option value="name-asc">Tên A-Z</option>
+                    <option value="name-desc">Tên Z-A</option>
+                    <option value="views">Lượt xem</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button class="btn btn-primary" onclick="applyFilters()">
+                    <i class="fas fa-filter"></i> Lọc
                 </button>
             </div>
         </div>
     </div>
 
-    <script src="api.js"></script>
-    <script>
-        // API instance is already created in api.js
-        
-        // Check authentication
-        const user = TokenManager.getUser();
-        if (!user) {
-            window.location.href = TokenManager.getLoginUrl();
-        }
+    <div class="table-container">
+        <div class="table-header">
+            <h2 class="table-title">Danh sách POI</h2>
+            <div class="bulk-actions" id="bulkActions">
+                <span style="color:#666;font-weight:600;"><span id="selectedCount">0</span> đã chọn</span>
+                <button class="btn btn-outline" id="batchApproveBtn" onclick="batchApprove()" style="display:none;background:rgba(6,214,160,0.1);color:#059669;border-color:#06D6A0;">
+                    <i class="fas fa-check-double"></i> Duyệt tất cả
+                </button>
+                <button class="btn btn-outline" onclick="bulkDelete()">
+                    <i class="fas fa-trash"></i> Xóa
+                </button>
+            </div>
+        </div>
 
-        const roles = user?.roles || [];
-        const roleContext = TokenManager.getRoleContext ? TokenManager.getRoleContext() : null;
-        const isAdmin = roleContext ? roleContext === 'Admin' : roles.includes('Admin');
-        const isVendor = roleContext ? roleContext === 'Vendor' : roles.includes('Vendor');
-
-        let currentPage = 1;
-        let currentPageSize = 5;
-        let currentSearch = '';
-        let currentStatus = null;
-        let currentSort = 'newest';
-        let currentCategory = null;
-        let selectedPOIs = new Set();
-        let allPOIs = [];
-        let vendorAllPOIs = [];
-        let vendorContext = null;
-        let categoryCache = [];
-
-        async function ensureVendorContext() {
-            if (!isVendor) return null;
-            if (vendorContext) return vendorContext;
-            try {
-                vendorContext = await api.getVendorMe();
-            } catch {
-                vendorContext = null;
-            }
-            return vendorContext;
-        }
-
-        // Load POIs from API
-        async function loadPOIs() {
-            try {
-                const tbody = document.getElementById('poiTableBody');
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="9" style="text-align: center; padding: 2rem;">
-                            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
-                            <p style="margin-top: 1rem; color: #999;">Đang tải dữ liệu...</p>
-                        </td>
-                    </tr>
-                `;
-
-                let data = null;
-                if (isVendor) {
-                    const vendor = await ensureVendorContext();
-                    const vendorId = vendor?.vendorId ?? null;
-                    if (vendorId === null) {
-                        vendorAllPOIs = [];
-                    } else {
-                    const raw = await api.getPOIs(1, 5000, currentSearch, currentStatus, currentCategory);
-                    const all = raw.data || [];
-                    vendorAllPOIs = all.filter(p => p.vendorId === vendorId);
-                    vendorAllPOIs = sortPois(vendorAllPOIs, currentSort);
-                    }
-                    const total = vendorAllPOIs.length;
-                    const totalPages = Math.max(1, Math.ceil(total / currentPageSize));
-                    const safePage = Math.min(Math.max(1, currentPage), totalPages);
-                    currentPage = safePage;
-                    const start = (safePage - 1) * currentPageSize;
-                    const paged = vendorAllPOIs.slice(start, start + currentPageSize);
-                    data = { data: paged, totalPages, page: safePage };
-                } else {
-                    const raw = await api.getPOIs(1, 5000, currentSearch, currentStatus, currentCategory);
-                    const all = sortPois(raw.data || [], currentSort);
-                    const total = all.length;
-                    const totalPages = Math.max(1, Math.ceil(total / currentPageSize));
-                    const safePage = Math.min(Math.max(1, currentPage), totalPages);
-                    currentPage = safePage;
-                    const start = (safePage - 1) * currentPageSize;
-                    const paged = all.slice(start, start + currentPageSize);
-                    data = { data: paged, totalPages, page: safePage };
-                    vendorAllPOIs = [];
-                    updateCategoryFilter(all);
-                }
-
-                allPOIs = data.data || [];
-                if (isVendor) updateCategoryFilter(data.data || []);
-                renderTable(allPOIs);
-                renderPagination(data.totalPages, data.page);
-                await loadPOIStats();
-
-            } catch (error) {
-                console.error('Error loading POIs:', error);
-                const tbody = document.getElementById('poiTableBody');
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="9" style="text-align: center; padding: 2rem; color: var(--danger);">
-                            <i class="fas fa-exclamation-triangle" style="font-size: 2rem;"></i>
-                            <p style="margin-top: 1rem;">Không thể tải dữ liệu: ${error.message}</p>
-                            <button class="btn btn-primary" onclick="loadPOIs()" style="margin-top: 1rem;">
-                                <i class="fas fa-redo"></i> Thử lại
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }
-        }
-        async function loadPOIStats() {
-            try {
-                if (isVendor) {
-                    const total = vendorAllPOIs.length;
-                    const active = vendorAllPOIs.filter(p => p.isActive).length;
-                    const inactive = total - active;
-                    document.getElementById('totalPOIsStat').textContent = total;
-                    document.getElementById('activePOIsStat').textContent = active;
-                    document.getElementById('inactivePOIsStat').textContent = inactive;
-                    return;
-                }
-
-                const stats = await api.getPOIStats();
-                document.getElementById('totalPOIsStat').textContent = stats.totalPOIs ?? 0;
-                document.getElementById('activePOIsStat').textContent = stats.activePOIs ?? 0;
-                document.getElementById('inactivePOIsStat').textContent = stats.inactivePOIs ?? 0;
-            } catch (error) {
-                console.error('Error loading POI stats:', error);
-            }
-        }
-
-
-        // Render table with data
-        function renderTable(pois) {
-            const tbody = document.getElementById('poiTableBody');
-            
-            if (!pois || pois.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="9" style="text-align: center; padding: 2rem; color: #999;">
-                            Chưa có POI nào. <a href="poi-create" style="color: var(--primary);">Tạo POI đầu tiên</a>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            tbody.innerHTML = pois.map(poi => `
+        <table id="poiTable">
+            <thead>
                 <tr>
-                    <td>
-                        <input type="checkbox" class="checkbox poi-checkbox" data-id="${poi.poI_ID}" onchange="toggleSelect(${poi.poI_ID})">
-                    </td>
-                    <td>
-                        <div class="poi-info">
-                            <div class="poi-icon">
-                                ${poi.imageUrl ? `<img src="${poi.imageUrl}" alt="${poi.name_Vi || 'POI'}">` : '📍'}
-                            </div>
-                            <div class="poi-details">
-                                <h4 title="${poi.name_Vi || 'N/A'}">${poi.name_Vi || 'N/A'}</h4>
-                            </div>
-                        </div>
-                    </td>
-                    <td><span class="truncate" title="${poi.address || ''}">${poi.address || '-'}</span></td>
-                    <td>${formatCategory(poi.category)}</td>
-                    <td><span class="truncate" title="${formatOpeningHours(poi.openingHoursText, poi.openingHours)}">${formatOpeningHours(poi.openingHoursText, poi.openingHours)}</span></td>
-                    <td>${poi.phoneNumber || '-'}</td>
-                    <td><span class="truncate" title="${formatPriceRating(poi)}">${formatPriceRating(poi)}</span></td>
-                    <td>
-                        ${formatReviewBadge(poi)}
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn-icon view" onclick="viewPOI(${poi.poI_ID})" title="Xem chi tiết">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn-icon edit" onclick="editPOI(${poi.poI_ID})" title="Chỉnh sửa">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-icon delete" onclick="deletePOI(${poi.poI_ID})" title="Xóa">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
+                    <th><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                    <th>POI</th>
+                    <th>ĐỊA CHỈ</th>
+                    <th>DANH MỤC</th>
+                    <th>SĐT</th>
+                    <th>ĐÁNH GIÁ</th>
+                    <th>QR POI</th>
+                    <th>TRẠNG THÁI</th>
+                    <th>HÀNH ĐỘNG</th>
+                </tr>
+            </thead>
+            <tbody id="poiTableBody">
+                <tr>
+                    <td colspan="9" style="text-align:center;padding:2rem;color:#999;">
+                        Kết nối API để tải dữ liệu...
                     </td>
                 </tr>
-            `).join('');
+            </tbody>
+        </table>
+
+        <div class="pagination" id="paginationContainer">
+            <button class="pagination-btn" onclick="changePage('prev')"><i class="fas fa-chevron-left"></i></button>
+            <button class="pagination-btn active" onclick="goToPage(1)">1</button>
+            <button class="pagination-btn" onclick="changePage('next')"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="api.js"></script>
+<script src="sidebar.js?v=20260406"></script>
+<script>
+    let currentPage = 1, currentPageSize = 5;
+    let currentSearch = '', currentStatus = null, currentSort = 'newest';
+    let currentCategory = null, currentReviewStatus = null;
+    let selectedPOIs = new Set(), allPOIs = [], vendorAllPOIs = [];
+    let vendorContext = null, categoryCache = [];
+
+    const user = (typeof TokenManager !== 'undefined') ? TokenManager.getUser() : null;
+    if (!user && typeof TokenManager !== 'undefined') window.location.href = TokenManager.getLoginUrl();
+
+    const roles = user?.roles || [];
+    const roleContext = (typeof TokenManager !== 'undefined' && TokenManager.getRoleContext) ? TokenManager.getRoleContext() : null;
+    const isAdmin = roleContext ? roleContext === 'Admin' : roles.includes('Admin');
+    const isVendor = roleContext ? roleContext === 'Vendor' : roles.includes('Vendor');
+
+    function getPoiQrLink(id) { return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}`; }
+
+    function formatCategory(cat) {
+        if (!cat) return '-';
+        const k = String(cat).trim().toLowerCase();
+        const m = {
+            'oc':'Ốc',
+            'pho':'Phở',
+            'bun':'Bún',
+            'banh-mi':'Bánh mì',
+            'com':'Cơm',
+            'com-tam':'Cơm tấm',
+            'lau':'Lẩu',
+            'hotpot':'Lẩu',
+            'nuong':'Nướng',
+            'hai-san':'Hải sản',
+            'seafood':'Hải sản',
+            'do-uong':'Đồ uống',
+            'trang-mieng':'Tráng miệng',
+            'snack':'Đồ ăn vặt',
+            'breakfast':'Ăn sáng',
+            'che':'Chè',
+            'khac':'Khác',
+            'other':'Khác',
+            'street entrance':'Cổng vào phố ẩm thực',
+            'snails restaurant':'Quán ốc',
+            'hot pot restaurant':'Quán lẩu',
+            'bbq & hot pot':'Nướng & lẩu',
+            'vietnamese traditional food':'Ẩm thực truyền thống Việt',
+            'vietnamese beef steak':'Bò né',
+            'late night dining':'Ăn khuya',
+            'late night seafood':'Hải sản đêm',
+            'vietnamese rice & noodles':'Cơm & bún Việt',
+            'vietnamese-chinese bbq':'Nướng Trung - Việt'
+        };
+        return m[k] || (/[^\x00-\x7F]/.test(cat) ? cat : 'Khác');
+    }
+
+    function formatOpeningHours(text, list) {
+        const parts = (() => {
+            const t = (text || '').trim();
+            if (t) return t.split(';').map(p => p.trim()).filter(Boolean);
+            if (Array.isArray(list) && list.length) return list;
+            return [];
+        })();
+        if (!parts.length) return '-';
+        const entries = parts.map(p => {
+            const cleaned = p.replace(/^Th?\s*(\d+)\s*:\s*/i, (m, d) => `T${d}: `).replace(/^Ch?\s*nh?t\s*:\s*/i, 'CN: ').replace(/^CN\s*:\s*/i, 'CN: ');
+            const [day, time] = cleaned.split(':').map(s => s.trim());
+            return { day, time: time || '' };
+        }).filter(e => e.day && e.time);
+        const gt = d => entries.find(e => e.day === d)?.time || '';
+        const wd = [gt('T2'),gt('T3'),gt('T4'),gt('T5'),gt('T6'),gt('T7')].filter(Boolean);
+        const allSame = wd.length === 6 && wd.every(t => t === wd[0]);
+        const cn = gt('CN');
+        if (allSame) {
+            if (cn && cn === wd[0]) return `T2-CN: ${wd[0]}`;
+            if (cn) return `T2-T7: ${wd[0]}; CN: ${cn}`;
+            return `T2-T7: ${wd[0]}`;
         }
+        return parts.join('; ');
+    }
 
-        // Render pagination
-        function renderPagination(totalPages, currentPageNum) {
-            const pagination = document.querySelector('.pagination');
-            let html = `
-                <button class="pagination-btn" onclick="changePage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-            `;
+    function formatPriceRating(poi) {
+        const r = (poi.rating !== undefined && poi.rating !== null) ? `⭐ ${Number(poi.rating).toFixed(1)}` : '';
+        return r || '-';
+    }
 
-            // Show page numbers
-            for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-                html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-            }
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 
-            if (totalPages > 5) {
-                html += `<span class="pagination-info">... ${totalPages}</span>`;
-            }
+    function truncateDisplay(value, maxLen = 32) {
+        const text = String(value ?? '').trim();
+        if (!text) return '-';
+        if (text.length <= maxLen) return text;
+        return `${text.slice(0, Math.max(1, maxLen - 3)).trim()}...`;
+    }
 
-            html += `
-                <button class="pagination-btn" onclick="changePage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            `;
+    function formatReviewBadge(poi) {
+        const review = (poi.reviewStatus || poi.ReviewStatus || 'approved').toLowerCase();
+        const isActive = !!(poi.isActive ?? poi.IsActive);
+        if (review === 'pending') return `<span class="status-badge" style="background:rgba(249,115,22,0.12);color:#C2410C;border:1px solid rgba(249,115,22,0.4);"><span class="status-dot" style="background:#F97316;animation:none;"></span>⏳ Chờ duyệt</span>`;
+        if (review === 'rejected') return `<span class="status-badge inactive"><span class="status-dot inactive"></span>❌ Từ chối</span>`;
+        return `<span class="status-badge ${isActive ? 'active' : 'inactive'}"><span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>${isActive ? '✅ Hoạt động' : '⏸ Tạm dừng'}</span>`;
+    }
 
-            pagination.innerHTML = html;
+    function sortPois(list, key) {
+        const a = (list || []).slice();
+        switch (key) {
+            case 'oldest': return a.sort((x,y) => new Date(x.createdAt||0) - new Date(y.createdAt||0));
+            case 'name-asc': return a.sort((x,y) => String(x.name_Vi||'').localeCompare(String(y.name_Vi||''), 'vi'));
+            case 'name-desc': return a.sort((x,y) => String(y.name_Vi||'').localeCompare(String(x.name_Vi||''), 'vi'));
+            case 'views': return a.sort((x,y) => (y.viewCount||0) - (x.viewCount||0));
+            default: return a.sort((x,y) => new Date(y.createdAt||0) - new Date(x.createdAt||0));
         }
+    }
 
-        // Pagination functions
-        function changePage(direction) {
-            if (direction === 'prev' && currentPage > 1) {
-                currentPage--;
-                loadPOIs();
-            } else if (direction === 'next') {
-                currentPage++;
-                loadPOIs();
-            }
+    function updateCategoryFilter(pois) {
+        const sel = document.getElementById('categoryFilter');
+        if (!sel) return;
+        const set = new Set(categoryCache);
+        (pois || []).forEach(p => { if (p.category) set.add(p.category); });
+        const list = Array.from(set).filter(Boolean).sort((a,b) => formatCategory(a).localeCompare(formatCategory(b), 'vi'));
+        categoryCache = list;
+        const cur = sel.value || '';
+        sel.innerHTML = '<option value="">Tất cả</option>' + list.map(c => `<option value="${String(c).replace(/"/g,'&quot;')}">${formatCategory(c)}</option>`).join('');
+        sel.value = cur;
+    }
+
+    function renderTable(pois) {
+        const tbody = document.getElementById('poiTableBody');
+        if (!pois || !pois.length) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:#999;">Chưa có POI nào. <a href="poi-create" style="color:var(--primary);">Tạo POI đầu tiên</a></td></tr>`;
+            return;
         }
-
-        function goToPage(page) {
-            currentPage = page;
-            loadPOIs();
-        }
-
-        // Toggle select all
-        function toggleSelectAll() {
-            const selectAll = document.getElementById('selectAll');
-            const checkboxes = document.querySelectorAll('.poi-checkbox');
-            
-            checkboxes.forEach(cb => {
-                cb.checked = selectAll.checked;
-                if (selectAll.checked) {
-                    selectedPOIs.add(parseInt(cb.dataset.id));
-                } else {
-                    selectedPOIs.delete(parseInt(cb.dataset.id));
-                }
-            });
-            
-            updateBulkActions();
-        }
-
-        // Toggle individual select
-        function toggleSelect(id) {
-            if (selectedPOIs.has(id)) {
-                selectedPOIs.delete(id);
-            } else {
-                selectedPOIs.add(id);
-            }
-            updateBulkActions();
-        }
-
-        // Update bulk actions visibility
-        function updateBulkActions() {
-            const bulkActions = document.getElementById('bulkActions');
-            const selectedCount = document.getElementById('selectedCount');
-            
-            if (selectedPOIs.size > 0) {
-                bulkActions.classList.add('active');
-                selectedCount.textContent = selectedPOIs.size;
-            } else {
-                bulkActions.classList.remove('active');
-            }
-        }
-
-        // Actions
-        function viewPOI(id) {
-            window.location.href = `poi-detail?id=${id}`;
-        }
-
-        function editPOI(id) {
-            window.location.href = `poi-edit?id=${id}`;
-        }
-
-        async function deletePOI(id) {
-            showConfirm('Bạn có chắc muốn xóa POI này?', async () => {
-                try {
-                    await api.deletePOI(id);
-                    showAlert('Đã xóa POI thành công!');
-                    loadPOIs();
-                } catch (error) {
-                    showAlert('Lỗi khi xóa POI: ' + error.message);
-                }
-            });
-        }
-
-        async function bulkDelete() {
-            showConfirm(`Bạn có chắc muốn xóa ${selectedPOIs.size} POI đã chọn?`, async () => {
-                try {
-                    for (const id of selectedPOIs) {
-                        await api.deletePOI(id);
-                    }
-                    showAlert(`Đã xóa ${selectedPOIs.size} POI thành công!`);
-                    selectedPOIs.clear();
-                    updateBulkActions();
-                    loadPOIs();
-                } catch (error) {
-                    showAlert('Lỗi khi xóa POI: ' + error.message);
-                }
-            });
-        }
-
-        function ensureConfirmModal() {
-            if (document.getElementById('appConfirmModal')) return;
-            const overlay = document.createElement('div');
-            overlay.id = 'appConfirmModal';
-            overlay.className = 'app-confirm-overlay';
-            overlay.innerHTML = `
-                <div class="app-confirm" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle">
-                    <div class="app-confirm-header" id="appConfirmTitle">Xác nhận</div>
-                    <div class="app-confirm-body" id="appConfirmMessage"></div>
-                    <div class="app-confirm-actions">
-                        <button class="app-confirm-btn" id="appConfirmCancel">Hủy</button>
-                        <button class="app-confirm-btn primary" id="appConfirmOk">Đồng ý</button>
+        tbody.innerHTML = pois.map(poi => `
+            <tr>
+                <td><input type="checkbox" class="checkbox poi-checkbox" data-id="${poi.poI_ID}" onchange="toggleSelect(${poi.poI_ID})"></td>
+                <td>
+                    <div class="poi-info">
+                        <div class="poi-icon">${poi.imageUrl ? `<img src="${poi.imageUrl}" alt="${escapeHtml(poi.name_Vi||'POI')}">` : '🍜'}</div>
+                        <div class="poi-details"><h4 title="${escapeHtml(poi.name_Vi||'N/A')}">${escapeHtml(truncateDisplay(poi.name_Vi||'N/A', 26))}</h4></div>
                     </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-        }
+                </td>
+                <td title="${escapeHtml(poi.address||'')}"><span class="cell-text">${escapeHtml(truncateDisplay(poi.address||'-', 34))}</span></td>
+                <td title="${escapeHtml(formatCategory(poi.category))}"><span class="cell-text">${escapeHtml(truncateDisplay(formatCategory(poi.category), 18))}</span></td>
+                <td title="${escapeHtml(poi.phoneNumber||'-')}"><span class="cell-text">${escapeHtml(truncateDisplay(poi.phoneNumber||'-', 18))}</span></td>
+                <td>${formatPriceRating(poi)}</td>
+                <td>
+                    <div class="poi-qr-wrap">
+                        <div class="poi-qr-box" id="poiQr_${poi.poI_ID}"></div>
+                        <a class="poi-qr-link" href="${getPoiQrLink(poi.poI_ID)}" target="_blank" rel="noopener noreferrer">Mở link</a>
+                    </div>
+                </td>
+                <td>${formatReviewBadge(poi)}</td>
+                <td>
+                    <div class="action-buttons">
+                        ${(isAdmin && (poi.reviewStatus||'').toLowerCase() === 'pending') ? `
+                        <button class="btn-icon approve" onclick="approvePOI(${poi.poI_ID})" title="Duyệt"><i class="fas fa-check"></i></button>
+                        <button class="btn-icon reject" onclick="rejectPOI(${poi.poI_ID})" title="Từ chối"><i class="fas fa-times"></i></button>
+                        <div style="width:1px;background:var(--border);margin:0 2px;height:20px;"></div>
+                        ` : ''}
+                        <button class="btn-icon view" onclick="viewPOI(${poi.poI_ID})" title="Xem"><i class="fas fa-eye"></i></button>
+                        <button class="btn-icon edit" onclick="editPOI(${poi.poI_ID})" title="Sửa"><i class="fas fa-edit"></i></button>
+                        <button class="btn-icon delete" onclick="deletePOI(${poi.poI_ID})" title="Xóa"><i class="fas fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        renderPoiQrCodes(pois);
+    }
 
-        function showConfirm(message, onConfirm) {
-            ensureConfirmModal();
-            const overlay = document.getElementById('appConfirmModal');
-            const msg = document.getElementById('appConfirmMessage');
-            const okBtn = document.getElementById('appConfirmOk');
-            const cancelBtn = document.getElementById('appConfirmCancel');
-            msg.textContent = message || '';
-            const close = () => overlay.classList.remove('active');
-            const handleOk = () => { close(); onConfirm && onConfirm(); };
-            const handleCancel = () => { close(); };
-            okBtn.onclick = handleOk;
-            cancelBtn.onclick = handleCancel;
-            overlay.onclick = (e) => { if (e.target === overlay) handleCancel(); };
-            overlay.classList.add('active');
-        }
-
-        function showAlert(message) {
-            showConfirm(message, null);
-            const okBtn = document.getElementById('appConfirmOk');
-            const cancelBtn = document.getElementById('appConfirmCancel');
-            if (cancelBtn) cancelBtn.style.display = 'none';
-            if (okBtn) okBtn.textContent = 'OK';
-        }
-
-        function applyFilters() {
-            currentSearch = document.getElementById('searchInput').value;
-            const statusFilter = document.getElementById('statusFilter').value;
-            currentCategory = document.getElementById('categoryFilter').value || null;
-            currentSort = document.getElementById('sortFilter').value || 'newest';
-
-            if (!statusFilter) {
-                currentStatus = null;
-            } else if (statusFilter === 'active') {
-                currentStatus = true;
-            } else if (statusFilter === 'inactive') {
-                currentStatus = false;
-            }
-
-            currentPage = 1;
-            loadPOIs();
-        }
-
-        function sortPois(list, sortKey) {
-            const arr = (list || []).slice();
-            switch (sortKey) {
-                case 'oldest':
-                    return arr.sort((a,b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-                case 'name-asc':
-                    return arr.sort((a,b) => String(a.name_Vi||a.name||'').localeCompare(String(b.name_Vi||b.name||''), 'vi'));
-                case 'name-desc':
-                    return arr.sort((a,b) => String(b.name_Vi||b.name||'').localeCompare(String(a.name_Vi||a.name||''), 'vi'));
-                case 'views':
-                    return arr.sort((a,b) => (b.viewCount||0) - (a.viewCount||0));
-                case 'newest':
-                default:
-                    return arr.sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-            }
-        }
-
-        function formatPriceRating(poi) {
-            const rating = (poi.rating !== undefined && poi.rating !== null) ? `⭐ ${Number(poi.rating).toFixed(1)}` : '';
-            return rating || '-';
-        }
-
-        function formatReviewBadge(poi) {
-            const isActive = poi.isActive ?? poi.IsActive ?? true;
-            return `
-                <span class="status-badge ${isActive ? 'active' : 'inactive'}">
-                    <span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>
-                    ${isActive ? 'Hoạt động' : 'Đã tắt'}
-                </span>
-            `;
-        }
-
-        function formatCategory(category) {
-            if (!category) return '-';
-            const key = String(category).trim().toLowerCase();
-            const map = {
-                // Vietnamese-coded values
-                'oc': 'Ốc',
-                'pho': 'Phở',
-                'bun': 'Bún',
-                'banh-mi': 'Bánh mì',
-                'com': 'Cơm',
-                'com-tam': 'Cơm tấm',
-                'lau': 'Lẩu',
-                'hotpot': 'Lẩu',
-                'nuong': 'Nướng',
-                'hai-san': 'Hải sản',
-                'seafood': 'Hải sản',
-                'do-uong': 'Đồ uống',
-                'trang-mieng': 'Tráng miệng',
-                'snack': 'Đồ ăn vặt',
-                'breakfast': 'Ăn sáng',
-                'che': 'Chè',
-                'khac': 'Khác',
-                'other': 'Khác',
-
-                // English categories from seed data
-                'street entrance': 'Cổng vào phố ẩm thực',
-                'snails restaurant': 'Quán ốc',
-                'hot pot restaurant': 'Quán lẩu',
-                'bbq & hot pot': 'Nướng & lẩu',
-                'vietnamese traditional food': 'Ẩm thực truyền thống Việt',
-                'vietnamese beef steak': 'Bò né',
-                'late night dining': 'Ăn khuya',
-                'late night seafood': 'Hải sản đêm',
-                'vietnamese rice & noodles': 'Cơm & bún Việt',
-                'vietnamese-chinese bbq': 'Nướng Trung - Việt'
-            };
-            return map[key] || (/[^\x00-\x7F]/.test(category) ? category : 'Khác');
-        }
-
-        function updateCategoryFilter(pois) {
-            const select = document.getElementById('categoryFilter');
-            if (!select) return;
-            const set = new Set(categoryCache);
-            (pois || []).forEach(p => {
-                const raw = p.category || '';
-                if (raw) set.add(raw);
-            });
-            const list = Array.from(set).filter(Boolean);
-            list.sort((a,b) => formatCategory(a).localeCompare(formatCategory(b), 'vi'));
-            categoryCache = list;
-
-            const current = select.value || '';
-            select.innerHTML = '<option value="">Tất cả</option>' + list.map(c => {
-                const label = formatCategory(c);
-                return `<option value="${String(c).replace(/"/g,'&quot;')}">${label}</option>`;
-            }).join('');
-            select.value = current;
-        }
-
-        function formatOpeningHours(openingHoursText, openingHoursList) {
-            const parts = (() => {
-                const text = (openingHoursText || '').trim();
-                if (text) return text.split(';').map(p => p.trim()).filter(Boolean);
-                if (Array.isArray(openingHoursList) && openingHoursList.length) return openingHoursList;
-                return [];
-            })();
-
-            if (!parts.length) return '-';
-
-            const entries = parts.map(p => {
-                const cleaned = p.replace(/^Thứ\s*(\d+)\s*:\s*/i, (m, d) => `T${d}: `)
-                    .replace(/^Chủ\s*nhật\s*:\s*/i, 'CN: ')
-                    .replace(/^CN\s*:\s*/i, 'CN: ');
-                const [day, time] = cleaned.split(':').map(s => s.trim());
-                return { day, time: time || '' };
-            }).filter(e => e.day && e.time);
-
-            const getTime = (day) => entries.find(e => e.day === day)?.time || '';
-            const t2 = getTime('T2');
-            const t3 = getTime('T3');
-            const t4 = getTime('T4');
-            const t5 = getTime('T5');
-            const t6 = getTime('T6');
-            const t7 = getTime('T7');
-            const cn = getTime('CN');
-
-            const weekdays = [t2, t3, t4, t5, t6, t7].filter(Boolean);
-            const allWeekdaysSame = weekdays.length === 6 && weekdays.every(t => t === weekdays[0]);
-
-            if (allWeekdaysSame) {
-                if (cn && cn === weekdays[0]) {
-                    return `T2–CN: ${weekdays[0]}`;
-                }
-                if (cn) {
-                    return `T2–T7: ${weekdays[0]}; CN: ${cn}`;
-                }
-                return `T2–T7: ${weekdays[0]}`;
-            }
-
-            return parts.join('; ');
-        }
-
-        // Initialize - Load POIs on page load
-        loadPOIs();
-
-        // Search on Enter key
-        document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                applyFilters();
-            }
+    function renderPoiQrCodes(pois) {
+        if (!Array.isArray(pois) || !pois.length || typeof QRCode === 'undefined') return;
+        pois.forEach(poi => {
+            const box = document.getElementById(`poiQr_${poi.poI_ID}`);
+            if (!box) return;
+            box.innerHTML = '';
+            new QRCode(box, { text: getPoiQrLink(poi.poI_ID), width: 58, height: 58, colorDark: '#111', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
         });
-    </script>
+    }
+
+    function renderPagination(totalPages, curPage) {
+        const container = document.getElementById('paginationContainer');
+        let html = `<button class="pagination-btn" onclick="changePage('prev')" ${curPage===1?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
+        const maxShow = Math.min(totalPages, 5);
+        for (let i = 1; i <= maxShow; i++) html += `<button class="pagination-btn ${i===curPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+        if (totalPages > 5) html += `<span style="color:#666;padding:0 0.5rem">... ${totalPages}</span>`;
+        html += `<button class="pagination-btn" onclick="changePage('next')" ${curPage===totalPages?'disabled':''}><i class="fas fa-chevron-right"></i></button>`;
+        container.innerHTML = html;
+    }
+
+    async function loadPOIs() {
+        if (typeof api === 'undefined') return;
+        try {
+            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i><p style="margin-top:1rem;color:#999;">Đang tải...</p></td></tr>`;
+            const raw = await api.getPOIs(1, 5000, currentSearch, currentStatus, currentCategory, currentReviewStatus);
+            const sorted = sortPois(raw.data || [], currentSort);
+            const total = sorted.length;
+            const totalPages = Math.max(1, Math.ceil(total / currentPageSize));
+            currentPage = Math.min(Math.max(1, currentPage), totalPages);
+            const start = (currentPage - 1) * currentPageSize;
+            allPOIs = sorted.slice(start, start + currentPageSize);
+            updateCategoryFilter(sorted);
+            renderTable(allPOIs);
+            renderPagination(totalPages, currentPage);
+            await loadPOIStats(sorted);
+        } catch (err) {
+            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--danger);"><i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i><p style="margin-top:1rem;">Lỗi: ${err.message}</p><button class="btn btn-primary" onclick="loadPOIs()" style="margin-top:1rem;"><i class="fas fa-redo"></i> Thử lại</button></td></tr>`;
+        }
+    }
+
+    async function loadPOIStats(allData) {
+        try {
+            if (allData) {
+                document.getElementById('totalPOIsStat').textContent = allData.length;
+                document.getElementById('activePOIsStat').textContent = allData.filter(p => p.isActive).length;
+                document.getElementById('inactivePOIsStat').textContent = allData.filter(p => !p.isActive).length;
+                const pendingEl = document.getElementById('pendingPOIsStat');
+                if (pendingEl) pendingEl.textContent = allData.filter(p => (p.reviewStatus||'').toLowerCase() === 'pending').length;
+                return;
+            }
+            if (typeof api === 'undefined') return;
+            const stats = await api.getPOIStats();
+            document.getElementById('totalPOIsStat').textContent = stats.totalPOIs ?? 0;
+            document.getElementById('activePOIsStat').textContent = stats.activePOIs ?? 0;
+            document.getElementById('inactivePOIsStat').textContent = stats.inactivePOIs ?? 0;
+            const pendingEl = document.getElementById('pendingPOIsStat');
+            if (pendingEl) pendingEl.textContent = stats.pendingPOIs ?? 0;
+        } catch {}
+    }
+
+    function applyFilters() {
+        currentSearch = document.getElementById('searchInput').value;
+        const sv = document.getElementById('statusFilter').value;
+        currentCategory = document.getElementById('categoryFilter').value || null;
+        currentSort = document.getElementById('sortFilter').value || 'newest';
+        currentReviewStatus = document.getElementById('reviewFilter')?.value || null;
+        currentStatus = sv === 'active' ? true : sv === 'inactive' ? false : null;
+        currentPage = 1;
+        loadPOIs();
+    }
+
+    function filterByReview(status) {
+        currentReviewStatus = status || null;
+        const el = document.getElementById('reviewFilter');
+        if (el) el.value = status || '';
+        currentPage = 1; loadPOIs();
+    }
+
+    function filterByActive(status) {
+        currentStatus = status === 'active' ? true : status === 'inactive' ? false : null;
+        const el = document.getElementById('statusFilter');
+        if (el) el.value = status || '';
+        currentPage = 1; loadPOIs();
+    }
+
+    function changePage(dir) {
+        if (dir === 'prev' && currentPage > 1) { currentPage--; loadPOIs(); }
+        else if (dir === 'next') { currentPage++; loadPOIs(); }
+    }
+    function goToPage(p) { currentPage = p; loadPOIs(); }
+
+    function toggleSelectAll() {
+        const all = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.poi-checkbox').forEach(cb => {
+            cb.checked = all;
+            if (all) selectedPOIs.add(parseInt(cb.dataset.id));
+            else selectedPOIs.delete(parseInt(cb.dataset.id));
+        });
+        updateBulkActions();
+    }
+    function toggleSelect(id) {
+        if (selectedPOIs.has(id)) selectedPOIs.delete(id);
+        else selectedPOIs.add(id);
+        updateBulkActions();
+    }
+    function updateBulkActions() {
+        const ba = document.getElementById('bulkActions');
+        const sc = document.getElementById('selectedCount');
+        const bb = document.getElementById('batchApproveBtn');
+        if (selectedPOIs.size > 0) {
+            ba.classList.add('active');
+            sc.textContent = selectedPOIs.size;
+            if (bb) { const hp = allPOIs.some(p => selectedPOIs.has(p.poI_ID) && (p.reviewStatus||'').toLowerCase() === 'pending'); bb.style.display = (isAdmin && hp) ? '' : 'none'; }
+        } else {
+            ba.classList.remove('active');
+            if (bb) bb.style.display = 'none';
+        }
+    }
+
+    function viewPOI(id) { window.location.href = `poi-detail?id=${id}`; }
+    function editPOI(id) { window.location.href = `poi-edit?id=${id}`; }
+
+    async function approvePOI(id) {
+        showConfirm('Duyệt POI này?', async () => {
+            try { await api.reviewPOI(id, { status: 'approved', note: '' }); showAlert('Đã duyệt!'); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
+        });
+    }
+    async function rejectPOI(id) {
+        const note = prompt('Lý do từ chối (tùy chọn):');
+        if (note === null) return;
+        try { await api.reviewPOI(id, { status: 'rejected', note }); showAlert('Đã từ chối.'); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
+    }
+    async function deletePOI(id) {
+        showConfirm('Xóa POI này?', async () => {
+            try { await api.deletePOI(id); showAlert('Đã xóa!'); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
+        });
+    }
+    async function bulkDelete() {
+        showConfirm(`Xóa ${selectedPOIs.size} POI đã chọn?`, async () => {
+            try { for (const id of selectedPOIs) await api.deletePOI(id); showAlert(`Đã xóa ${selectedPOIs.size} POI!`); selectedPOIs.clear(); updateBulkActions(); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
+        });
+    }
+    async function batchApprove() {
+        const ids = allPOIs.filter(p => selectedPOIs.has(p.poI_ID) && (p.reviewStatus||'').toLowerCase() === 'pending').map(p => p.poI_ID);
+        if (!ids.length) return;
+        showConfirm(`Duyệt ${ids.length} POI?`, async () => {
+            let ok = 0, fail = 0;
+            for (const id of ids) { try { await api.reviewPOI(id, { status: 'approved', note: '' }); ok++; } catch { fail++; } }
+            showAlert(`Đã duyệt ${ok} POI${fail>0?`, ${fail} lỗi`:''}.`);
+            selectedPOIs.clear(); updateBulkActions(); loadPOIs();
+        });
+    }
+
+    function ensureConfirmModal() {
+        if (document.getElementById('appConfirmModal')) return;
+        const el = document.createElement('div');
+        el.id = 'appConfirmModal'; el.className = 'app-confirm-overlay';
+        el.innerHTML = `<div class="app-confirm" role="dialog"><div class="app-confirm-header">Xác nhận</div><div class="app-confirm-body" id="appConfirmMessage"></div><div class="app-confirm-actions"><button class="app-confirm-btn" id="appConfirmCancel">Hủy</button><button class="app-confirm-btn primary" id="appConfirmOk">Đồng ý</button></div></div>`;
+        document.body.appendChild(el);
+    }
+    function showConfirm(msg, onOk) {
+        ensureConfirmModal();
+        const overlay = document.getElementById('appConfirmModal');
+        document.getElementById('appConfirmMessage').textContent = msg || '';
+        const close = () => overlay.classList.remove('active');
+        document.getElementById('appConfirmOk').onclick = () => { close(); onOk && onOk(); };
+        document.getElementById('appConfirmCancel').onclick = close;
+        overlay.onclick = e => { if (e.target === overlay) close(); };
+        const cancelBtn = document.getElementById('appConfirmCancel');
+        if (cancelBtn) cancelBtn.style.display = '';
+        document.getElementById('appConfirmOk').textContent = 'Đồng ý';
+        overlay.classList.add('active');
+    }
+    function showAlert(msg) {
+        showConfirm(msg, null);
+        document.getElementById('appConfirmCancel').style.display = 'none';
+        document.getElementById('appConfirmOk').textContent = 'OK';
+    }
+
+    if (typeof api !== 'undefined') loadPOIs();
+    document.getElementById('searchInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
+</script>
 </body>
 </html>

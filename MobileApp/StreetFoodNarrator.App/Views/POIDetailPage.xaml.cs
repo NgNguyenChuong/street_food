@@ -134,6 +134,8 @@ public partial class POIDetailPage : ContentPage
 
     private void ApplyLocalizedStaticTexts()
     {
+        HeaderLanguageLabel.Text = LanguageSwitcher.GetHeaderLabel(_langService.CurrentLanguage);
+
         CategoryBadgeLabel.Text = string.IsNullOrWhiteSpace(_poi.Category)
             ? Ui("ẨM THỰC ĐƯỜNG PHỐ", "STREET FOOD", "街头美食")
             : _poi.Category;
@@ -149,6 +151,10 @@ public partial class POIDetailPage : ContentPage
             ? Ui("Đang cập nhật", "Updating", "更新中")
             : _poi.DisplayOpeningHoursText;
         OpeningHoursTitleLabel.Text = Ui("Giờ mở cửa", "Opening hours", "营业时间");
+        OpeningStatusBadgeLabel.Text = _poi.DisplayOpenStatusText;
+        OpeningStatusBadgeLabel.TextColor = MauiColor.FromArgb(_poi.DisplayOpenStatusTextColor);
+        OpeningStatusBadge.BackgroundColor = MauiColor.FromArgb(_poi.DisplayOpenStatusBackgroundColor);
+        OpeningStatusBadge.Stroke = MauiColor.FromArgb(_poi.DisplayOpenStatusStrokeColor);
 
         TabInfoBtn.Text = Ui("Thông tin", "Info", "信息");
         TabMenuBtn.Text = Ui("Menu", "Menu", "菜单");
@@ -222,6 +228,11 @@ public partial class POIDetailPage : ContentPage
         SwitchTab(2);
         if (!_mapInitialized)
             InitializeMap();
+    }
+
+    private void OnHeaderLanguageTapped(object? sender, EventArgs e)
+    {
+        LanguageSwitcher.CycleLanguage(_langService);
     }
 
     private void SwitchTab(int idx)

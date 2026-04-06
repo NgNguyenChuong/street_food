@@ -10,6 +10,7 @@ using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 using StreetFoodNarrator.App.Core.Models;
+using System.Net;
 using System.Text.RegularExpressions;
 namespace StreetFoodNarrator.App.Views;
 
@@ -26,6 +27,7 @@ public partial class WelcomePage : ContentPage
     private readonly IZoneRepository _repository;
     private readonly IAudioCacheService? _audioCache;
     private readonly DataSyncService _dataSyncService;
+    private readonly LanguageService _languageService;
     private bool _flowStarted = false;
     private bool _canStartTour = false;
     private string _currentLang = LangVi;
@@ -52,6 +54,7 @@ public partial class WelcomePage : ContentPage
         _repository      = MauiProgram.Services.GetRequiredService<IZoneRepository>();
         _audioCache      = MauiProgram.Services.GetService<IAudioCacheService>();
         _dataSyncService = MauiProgram.Services.GetRequiredService<DataSyncService>();
+        _languageService = MauiProgram.Services.GetRequiredService<LanguageService>();
         var lang = Preferences.Get(AppConfig.LanguagePrefKey, LangVi);
         ApplyLanguage(lang);
     }
@@ -133,6 +136,10 @@ public partial class WelcomePage : ContentPage
 
             // First-time user might need offline data, but we only ask them when they click Start.
             MainThread.BeginInvokeOnMainThread(() => EnableStartButton());
+
+            // Keep offline assets (menu/audio/map/route) in sync even on first-launch online flow.
+            if (IsOnline())
+                _ = _dataSyncService.EnsureDeferredOfflineCompletionAsync();
 
             if (!didInitialSync)
                 _ = RunBackgroundSyncAsync();
@@ -1698,6 +1705,12 @@ public partial class WelcomePage : ContentPage
         }
     }
 
+    private void OnHeaderLanguageClicked(object sender, EventArgs e)
+    {
+        var next = LanguageSwitcher.CycleLanguage(_languageService);
+        ApplyLanguage(next);
+    }
+
     // LANGUAGE
     
     private void OnLanguageClicked(object sender, EventArgs e)
@@ -1712,6 +1725,7 @@ public partial class WelcomePage : ContentPage
     {
         _currentLang = lang;
         AppStrings.SetCulture(lang);
+        HeaderLanguageButton.Text = LanguageSwitcher.GetHeaderLabel(lang);
         TitleLabel.Text = AppStrings.Welcome_AppTitle;
         SubtitleLabel.Text = AppStrings.Welcome_Subtitle;
         StartButton.Text = AppStrings.Welcome_StartTour;
@@ -1787,7 +1801,45 @@ public partial class WelcomePage : ContentPage
     private static bool IsOnline()
     {
         var access = Connectivity.Current.NetworkAccess;
-        return access == NetworkAccess.Internet || access == NetworkAccess.ConstrainedInternet;
+        if (access is NetworkAccess.Internet or NetworkAccess.ConstrainedInternet)
+            return true;
+
+        if (access == NetworkAccess.Local && AppConfig.UseBackendApi)
+            return IsLikelyLocalApiHost(AppConfig.GetResolvedApiBaseUrl());
+
+        return false;
+    }
+
+    private static bool IsLikelyLocalApiHost(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return false;
+
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri))
+            return false;
+
+        var host = uri.Host;
+        if (string.IsNullOrWhiteSpace(host))
+            return false;
+
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("10.0.2.2", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!IPAddress.TryParse(host, out var ip))
+            return false;
+
+        var bytes = ip.GetAddressBytes();
+        if (bytes.Length == 4)
+        {
+            if (bytes[0] == 10) return true;
+            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
+            if (bytes[0] == 192 && bytes[1] == 168) return true;
+            if (bytes[0] == 127) return true;
+        }
+
+        return IPAddress.IsLoopback(ip);
     }
 
     private void EnableStartButton()

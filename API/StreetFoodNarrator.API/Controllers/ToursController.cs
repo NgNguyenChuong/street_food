@@ -36,8 +36,14 @@ public class ToursController : ControllerBase
 
         if (!string.IsNullOrEmpty(search))
         {
-            filter = Builders<Tour>.Filter.Regex(t => t.TourName, 
-                new MongoDB.Bson.BsonRegularExpression(search, "i"));
+            var rx = new MongoDB.Bson.BsonRegularExpression(search, "i");
+            filter = Builders<Tour>.Filter.Or(
+                Builders<Tour>.Filter.Regex(t => t.TourName, rx),
+                Builders<Tour>.Filter.Regex(t => t.TourName_En, rx),
+                Builders<Tour>.Filter.Regex(t => t.TourName_Zh, rx),
+                Builders<Tour>.Filter.Regex(t => t.Description, rx),
+                Builders<Tour>.Filter.Regex(t => t.Description_En, rx),
+                Builders<Tour>.Filter.Regex(t => t.Description_Zh, rx));
         }
 
         if (isActive.HasValue)
@@ -92,7 +98,11 @@ public class ToursController : ControllerBase
                 Id = t.Id.ToString(),
                 Tour_ID = t.Tour_ID,
                 TourName = t.TourName,
+                TourName_En = t.TourName_En,
+                TourName_Zh = t.TourName_Zh,
                 Description = t.Description,
+                Description_En = t.Description_En,
+                Description_Zh = t.Description_Zh,
                 ImageUrl = NormalizeImageUrlForResponse(t.ImageUrl),
                 EstimatedDurationMinutes = t.EstimatedDurationMinutes,
                 IsActive = t.IsActive,
@@ -143,7 +153,11 @@ public class ToursController : ControllerBase
         {
             Tour_ID = tourId,
             TourName = request.TourName,
+            TourName_En = request.TourName_En,
+            TourName_Zh = request.TourName_Zh,
             Description = request.Description,
+            Description_En = request.Description_En,
+            Description_Zh = request.Description_Zh,
             ImageUrl = NormalizeImageUrlForStorage(request.ImageUrl),
             EstimatedDurationMinutes = request.EstimatedDurationMinutes,
             IsActive = request.IsActive ?? true,
@@ -171,7 +185,11 @@ public class ToursController : ControllerBase
 
         var update = Builders<Tour>.Update
             .Set(t => t.TourName, request.TourName)
+            .Set(t => t.TourName_En, request.TourName_En)
+            .Set(t => t.TourName_Zh, request.TourName_Zh)
             .Set(t => t.Description, request.Description)
+            .Set(t => t.Description_En, request.Description_En)
+            .Set(t => t.Description_Zh, request.Description_Zh)
             .Set(t => t.ImageUrl, NormalizeImageUrlForStorage(request.ImageUrl))
             .Set(t => t.EstimatedDurationMinutes, request.EstimatedDurationMinutes)
             .Set(t => t.IsActive, request.IsActive)
@@ -320,7 +338,11 @@ public class TourDto
     public string Id { get; set; } = string.Empty;
     public int Tour_ID { get; set; }
     public string TourName { get; set; } = string.Empty;
+    public string? TourName_En { get; set; }
+    public string? TourName_Zh { get; set; }
     public string? Description { get; set; }
+    public string? Description_En { get; set; }
+    public string? Description_Zh { get; set; }
     public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; }
@@ -355,7 +377,11 @@ public class TourListResponse
 public class CreateTourRequest
 {
     public string TourName { get; set; } = string.Empty;
+    public string? TourName_En { get; set; }
+    public string? TourName_Zh { get; set; }
     public string? Description { get; set; }
+    public string? Description_En { get; set; }
+    public string? Description_Zh { get; set; }
     public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool? IsActive { get; set; }
@@ -370,7 +396,11 @@ public class CreateTourRequest
 public class UpdateTourRequest
 {
     public string TourName { get; set; } = string.Empty;
+    public string? TourName_En { get; set; }
+    public string? TourName_Zh { get; set; }
     public string? Description { get; set; }
+    public string? Description_En { get; set; }
+    public string? Description_Zh { get; set; }
     public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; }

@@ -21,7 +21,7 @@
               Padding="16,22,16,8"
               BackgroundColor="Transparent">
 
-            <Grid ColumnDefinitions="48,*,48" VerticalOptions="Center">
+            <Grid ColumnDefinitions="48,*,48,48" VerticalOptions="Center">
 
                 <!-- Nút Back — MDI arrow-left F004D -->
                 <Border Grid.Column="0"
@@ -60,6 +60,23 @@
                     </Border.GestureRecognizers>
                     <Label Text="&#xF066E;"
                            FontFamily="MDI" FontSize="22"
+                           TextColor="#4BE277"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"/>
+                </Border>
+
+                <Border Grid.Column="3"
+                        WidthRequest="48" HeightRequest="48"
+                        BackgroundColor="#112019"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 24">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnLanguageTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label x:Name="MapHeaderLanguageLabel"
+                           Text="VI"
+                           FontSize="12"
+                           FontAttributes="Bold"
                            TextColor="#4BE277"
                            HorizontalOptions="Center"
                            VerticalOptions="Center"/>

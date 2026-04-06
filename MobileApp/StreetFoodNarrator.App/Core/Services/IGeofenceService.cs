@@ -2,6 +2,7 @@ namespace StreetFoodNarrator.App.Core.Services.Implementations;
 
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using System.Net.Http.Json;
 
 /// <summary>
 /// Core geofencing logic - the brain of the system.
@@ -13,12 +14,15 @@ public class GeofenceService : IGeofenceService
     private const double GPS_DEBOUNCE_METERS = 5.0;
     private const int GPS_DEBOUNCE_MS = 3000;
     private const double EARTH_RADIUS_M = 6_371_000.0;
+    private const int MOVEMENT_UPLOAD_INTERVAL_SECONDS = 8;
+    private const double MOVEMENT_UPLOAD_DISTANCE_METERS = 10.0;
 
     // ── Dependencies ──────────────────────────────────────────────
     private readonly IZoneRepository _repository;
     private readonly IAudioService _audio;
     private readonly UserSession _session;
     private readonly ILocalDatabaseService _db;
+    private readonly HttpClient _httpClient;
 
     // ── State ─────────────────────────────────────────────────────
     private Microsoft.Maui.Devices.Sensors.Location? _lastLocation;
@@ -26,18 +30,22 @@ public class GeofenceService : IGeofenceService
     private POI? _primaryZone = null;
     private bool _localLoaded = false;
     private bool _isMonitoringEnabled = true;
+    private readonly Dictionary<int, DateTime> _zoneEnteredAtUtc = new();
+    private DateTime _lastMovementUploadAtUtc = DateTime.MinValue;
+    private Microsoft.Maui.Devices.Sensors.Location? _lastUploadedMovementLocation;
 
     // ── Events ────────────────────────────────────────────────────
     public event Action<List<POI>>? OnActiveZonesChanged;
     public event Action<POI?>? OnPrimaryZoneChanged;
     public event Action<string>? OnStatusMessage;
 
-    public GeofenceService(IZoneRepository repository, IAudioService audio, UserSession session, ILocalDatabaseService db)
+    public GeofenceService(IZoneRepository repository, IAudioService audio, UserSession session, ILocalDatabaseService db, HttpClient httpClient)
     {
         _repository = repository;
         _audio = audio;
         _session = session;
         _db = db;
+        _httpClient = httpClient;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -89,6 +97,8 @@ public class GeofenceService : IGeofenceService
 
         _currentZones = insideZones;
         OnActiveZonesChanged?.Invoke(_currentZones);
+
+        await UploadMovementPingAsync(newLocation, insideZones);
 
         // STEP 5: Handle exits first
         foreach (var zone in exitedZones)
@@ -206,6 +216,13 @@ public class GeofenceService : IGeofenceService
     {
         OnStatusMessage?.Invoke($"🚶 Rời {exited.Name_Vi}");
 
+        if (_zoneEnteredAtUtc.TryGetValue(exited.Id, out var enteredAtUtc))
+        {
+            var dwellSeconds = Math.Max(0, (int)(DateTime.UtcNow - enteredAtUtc).TotalSeconds);
+            _zoneEnteredAtUtc.Remove(exited.Id);
+            await UploadMobileLogAsync(exited, _lastLocation, "ExitZone", "GeofenceExit", false, dwellSeconds);
+        }
+
         if (exited.ZoneType != "Spot") return;
 
         // Find parent Area still in active zones
@@ -229,6 +246,8 @@ public class GeofenceService : IGeofenceService
     {
         OnStatusMessage?.Invoke($"▶️ Phát: {zone.Name_Vi}");
         await _audio.PlayAsync(zone.Id, zone.AudioUrl_Vi ?? "", 45); // Mock 45s duration
+
+        await UploadMobileLogAsync(zone, _lastLocation, "NarrationPlayed", "GeofenceEnter", true, null);
 
         _session.MarkPlayedThisSession(zone.Id);
         _session.SetCooldown(zone.Id, zone.CooldownMinutes);
@@ -279,13 +298,95 @@ public class GeofenceService : IGeofenceService
             OnActiveZonesChanged?.Invoke(_currentZones);
         }
 
+        _zoneEnteredAtUtc.Clear();
+
         if (!string.IsNullOrWhiteSpace(statusMessage))
             OnStatusMessage?.Invoke(statusMessage);
     }
 
     private void LogEntry(POI zone)
     {
+        _zoneEnteredAtUtc[zone.Id] = DateTime.UtcNow;
         OnStatusMessage?.Invoke($"✅ Vào vùng: {zone.Name_Vi} ({zone.DistanceFromUser:F0}m)");
+    }
+
+    private async Task UploadMovementPingAsync(Microsoft.Maui.Devices.Sensors.Location location, List<POI> insideZones)
+    {
+        if (!insideZones.Any())
+            return;
+
+        var now = DateTime.UtcNow;
+        var nearestPoi = insideZones.OrderBy(z => z.DistanceFromUser).First();
+
+        var secondsSinceLast = (now - _lastMovementUploadAtUtc).TotalSeconds;
+        var movedEnough = _lastUploadedMovementLocation == null ||
+            HaversineDistance(
+                _lastUploadedMovementLocation.Latitude,
+                _lastUploadedMovementLocation.Longitude,
+                location.Latitude,
+                location.Longitude) >= MOVEMENT_UPLOAD_DISTANCE_METERS;
+
+        if (secondsSinceLast < MOVEMENT_UPLOAD_INTERVAL_SECONDS && !movedEnough)
+            return;
+
+        await UploadMobileLogAsync(nearestPoi, location, "LocationPing", "Proximity", false, null);
+        _lastMovementUploadAtUtc = now;
+        _lastUploadedMovementLocation = location;
+    }
+
+    private async Task UploadMobileLogAsync(
+        POI poi,
+        Microsoft.Maui.Devices.Sensors.Location? location,
+        string actionType,
+        string triggerType,
+        bool wasPlayed,
+        int? dwellSeconds)
+    {
+        try
+        {
+            var baseUrl = AppConfig.GetResolvedApiBaseUrl()?.TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                return;
+
+            var payload = new MobileNarrationLogPayload
+            {
+                POI_ID = poi.Id,
+                UserId = _session.SessionId,
+                SessionId = _session.SessionId,
+                DeviceId = GetOrCreateAnonymousDeviceId(),
+                Platform = Microsoft.Maui.Devices.DeviceInfo.Platform.ToString(),
+                Model = Microsoft.Maui.Devices.DeviceInfo.Model,
+                OsVersion = Microsoft.Maui.Devices.DeviceInfo.VersionString,
+                AppVersion = Microsoft.Maui.ApplicationModel.AppInfo.Current.VersionString,
+                Language = "vi",
+                TriggerType = triggerType,
+                ActionType = actionType,
+                TriggeredAt = DateTime.UtcNow,
+                UserLatitude = location != null ? Convert.ToDecimal(location.Latitude) : null,
+                UserLongitude = location != null ? Convert.ToDecimal(location.Longitude) : null,
+                DwellSeconds = dwellSeconds,
+                WasPlayed = wasPlayed
+            };
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+            await _httpClient.PostAsJsonAsync($"{baseUrl}/api/Analytics/narration-logs/mobile", payload, cts.Token);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Geofence] Upload analytics log failed: {ex.Message}");
+        }
+    }
+
+    private static string GetOrCreateAnonymousDeviceId()
+    {
+        const string key = "analytics_anonymous_device_id";
+        var current = Microsoft.Maui.Storage.Preferences.Get(key, string.Empty);
+        if (!string.IsNullOrWhiteSpace(current))
+            return current;
+
+        var created = $"m-{Guid.NewGuid():N}";
+        Microsoft.Maui.Storage.Preferences.Set(key, created);
+        return created;
     }
 
     private bool ShouldProcess(Microsoft.Maui.Devices.Sensors.Location newLoc)
@@ -316,5 +417,25 @@ public class GeofenceService : IGeofenceService
                 Math.Sin(dLon / 2) * Math.Sin(dLon / 2) * Math.Cos(lat1) * Math.Cos(lat2);
         var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
         return EARTH_RADIUS_M * c;
+    }
+
+    private sealed class MobileNarrationLogPayload
+    {
+        public int POI_ID { get; set; }
+        public string? UserId { get; set; }
+        public string? SessionId { get; set; }
+        public string? DeviceId { get; set; }
+        public string? Platform { get; set; }
+        public string? Model { get; set; }
+        public string? OsVersion { get; set; }
+        public string? AppVersion { get; set; }
+        public string? Language { get; set; }
+        public string? TriggerType { get; set; }
+        public string? ActionType { get; set; }
+        public DateTime TriggeredAt { get; set; }
+        public decimal? UserLatitude { get; set; }
+        public decimal? UserLongitude { get; set; }
+        public int? DwellSeconds { get; set; }
+        public bool WasPlayed { get; set; }
     }
 }

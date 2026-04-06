@@ -112,5 +112,5 @@ public static class AudioStatuses
     public const string Pending = "pending";
     public const string Approved = "approved";
     public const string Rejected = "rejected";
-    public const string Published = "published";
+    public const string Published = "approved"; // Aliased to approved to avoid breaking legacy app queries
 }

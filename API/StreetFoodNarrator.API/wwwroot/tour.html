@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-    <script src="sidebar.js"></script>
+    <script src="sidebar.js?v=20260406"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -223,10 +223,10 @@
     </header>
 
     <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon si-o"><i class="fas fa-route"></i></div><div class="stat-value" id="stat-total">—</div><div class="stat-label">Tổng số Tour</div></div>
-        <div class="stat-card"><div class="stat-icon si-g"><i class="fas fa-check-circle"></i></div><div class="stat-value" id="stat-active">—</div><div class="stat-label">Đang hoạt động</div></div>
-        <div class="stat-card"><div class="stat-icon si-y"><i class="fas fa-pencil-alt"></i></div><div class="stat-value" id="stat-draft">—</div><div class="stat-label">Bản nháp</div></div>
-        <div class="stat-card"><div class="stat-icon si-b"><i class="fas fa-map-marked-alt"></i></div><div class="stat-value" id="stat-routed">—</div><div class="stat-label">Đã có đường đi</div></div>
+        <div class="stat-card"><div class="stat-icon si-o"><i class="fas fa-route"></i></div><div class="stat-value" id="stat-total">0</div><div class="stat-label">Tổng số Tour</div></div>
+        <div class="stat-card"><div class="stat-icon si-g"><i class="fas fa-check-circle"></i></div><div class="stat-value" id="stat-active">0</div><div class="stat-label">Đang hoạt động</div></div>
+        <div class="stat-card"><div class="stat-icon si-y"><i class="fas fa-pencil-alt"></i></div><div class="stat-value" id="stat-draft">0</div><div class="stat-label">Bản nháp</div></div>
+        <div class="stat-card"><div class="stat-icon si-b"><i class="fas fa-map-marked-alt"></i></div><div class="stat-value" id="stat-routed">0</div><div class="stat-label">Đã có đường đi</div></div>
     </div>
 
     <div class="toolbar">
@@ -235,12 +235,12 @@
             <input type="text" id="searchInput" placeholder="Tìm kiếm tên tour, mô tả..." oninput="filterTours()">
         </div>
         <button class="chip-filter active" data-filter="all"    onclick="setFilter(this)">Tất cả</button>
-        <button class="chip-filter" data-filter="oc"     onclick="setFilter(this)">🐌 Ốc</button>
-        <button class="chip-filter" data-filter="lau"    onclick="setFilter(this)">🍲 Lẩu</button>
-        <button class="chip-filter" data-filter="nuong"  onclick="setFilter(this)">🔥 Nướng</button>
-        <button class="chip-filter" data-filter="khuya"  onclick="setFilter(this)">🌙 Khuya</button>
-        <button class="chip-filter" data-filter="sang"   onclick="setFilter(this)">☀️ Sáng sớm</button>
-        <button class="chip-filter" data-filter="routed" onclick="setFilter(this)">🗺️ Có đường đi</button>
+        <button class="chip-filter" data-filter="oc"     onclick="setFilter(this)">Ốc</button>
+        <button class="chip-filter" data-filter="lau"    onclick="setFilter(this)">Lẩu</button>
+        <button class="chip-filter" data-filter="nuong"  onclick="setFilter(this)">Nướng</button>
+        <button class="chip-filter" data-filter="khuya"  onclick="setFilter(this)">Khuya</button>
+        <button class="chip-filter" data-filter="sang"   onclick="setFilter(this)">Sáng sớm</button>
+        <button class="chip-filter" data-filter="routed" onclick="setFilter(this)">Có đường đi</button>
     </div>
 
     <div class="tours-grid" id="toursGrid">
@@ -251,7 +251,7 @@
     <div class="pagination" id="tourPagination"></div>
 </main>
 
-<!-- ══ MODAL ══ -->
+<!-- -- MODAL -- -->
 <div class="modal-overlay" id="tourModal">
   <div class="modal">
     <div class="modal-header">
@@ -296,24 +296,24 @@
         <div>
             <div class="sec-title">Chủ đề / Thể loại</div>
             <div class="chip-group" id="themeChips">
-                <span class="chip-opt" data-val="oc">🐌 Ốc</span>
-                <span class="chip-opt" data-val="lau">🍲 Lẩu</span>
-                <span class="chip-opt" data-val="nuong">🔥 Nướng</span>
-                <span class="chip-opt" data-val="haisan">🦐 Hải sản</span>
-                <span class="chip-opt" data-val="mi">🍜 Mì &amp; Phở</span>
-                <span class="chip-opt" data-val="com">🍱 Cơm</span>
-                <span class="chip-opt" data-val="douong">🧋 Đồ uống</span>
-                <span class="chip-opt" data-val="banh">🥐 Bánh</span>
+                <span class="chip-opt" data-val="oc">Ốc</span>
+                <span class="chip-opt" data-val="lau">Lẩu</span>
+                <span class="chip-opt" data-val="nuong">Nướng</span>
+                <span class="chip-opt" data-val="haisan">Hải sản</span>
+                <span class="chip-opt" data-val="mi">Mì &amp; Phở</span>
+                <span class="chip-opt" data-val="com">Cơm</span>
+                <span class="chip-opt" data-val="douong">Đồ uống</span>
+                <span class="chip-opt" data-val="banh">Bánh</span>
             </div>
         </div>
 
         <div>
             <div class="sec-title">Khung giờ</div>
             <div class="chip-group" id="timeChips">
-                <span class="chip-opt time" data-val="sang">🌅 Sáng sớm (5–9h)</span>
-                <span class="chip-opt time" data-val="trua">☀️ Trưa (10–14h)</span>
-                <span class="chip-opt time" data-val="chieu">🌆 Chiều (15–18h)</span>
-                <span class="chip-opt time" data-val="khuya">🌙 Khuya (20h–2h)</span>
+                <span class="chip-opt time" data-val="sang">Sáng sớm (5-9h)</span>
+                <span class="chip-opt time" data-val="trua">Trưa (10-14h)</span>
+                <span class="chip-opt time" data-val="chieu">Chiều (15-18h)</span>
+                <span class="chip-opt time" data-val="khuya">Khuya (20h-2h)</span>
             </div>
         </div>
 
@@ -356,18 +356,18 @@
 
 <script src="api.js"></script>
 <script>
-/* ─── CONSTANTS ─── */
+/* --- CONSTANTS --- */
 const THEME_MAP = {
-    oc:'🐌 Ốc', lau:'🍲 Lẩu', nuong:'🔥 Nướng', haisan:'🦐 Hải sản',
-    mi:'🍜 Mì & Phở', com:'🍱 Cơm', douong:'🧋 Đồ uống', banh:'🥐 Bánh'
+    oc:'Ốc', lau:'Lẩu', nuong:'Nướng', haisan:'Hải sản',
+    mi:'Mì & Phở', com:'Cơm', douong:'Đồ uống', banh:'Bánh'
 };
 const TIME_MAP = {
-    sang:'🌅 Sáng sớm', trua:'☀️ Trưa', chieu:'🌆 Chiều', khuya:'🌙 Khuya'
+    sang:'Sáng sớm', trua:'Trưa', chieu:'Chiều', khuya:'Khuya'
 };
 const HCM_LL = [10.762, 106.682];
 const DEFAULT_TOUR_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 600'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23ff6b35'/%3E%3Cstop offset='100%25' stop-color='%23004e89'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='600' fill='url(%23g)'/%3E%3Ccircle cx='1040' cy='130' r='150' fill='rgba(255,255,255,0.16)'/%3E%3Ccircle cx='230' cy='460' r='210' fill='rgba(255,255,255,0.10)'/%3E%3Cpath d='M120 430 L350 265 L570 375 L760 225 L1030 355' stroke='rgba(255,255,255,0.88)' stroke-width='15' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='350' cy='265' r='21' fill='white'/%3E%3Ccircle cx='570' cy='375' r='21' fill='white'/%3E%3Ccircle cx='760' cy='225' r='21' fill='white'/%3E%3Ctext x='78' y='112' font-family='DM Sans,Arial,sans-serif' font-size='64' fill='white' font-weight='700'%3EStreet Food Tour%3C/text%3E%3Ctext x='78' y='176' font-family='DM Sans,Arial,sans-serif' font-size='34' fill='rgba(255,255,255,0.92)'%3EKh%C3%A1m ph%C3%A1 h%C3%A0nh tr%C3%ACnh %E1%BA%A9m th%E1%BB%B1c%3C/text%3E%3C/svg%3E";
 
-/* ─── STATE ─── */
+/* --- STATE --- */
 let allTours = [], allPOIs = [];
 let selPOIs  = [];   // ordered array of id strings
 let activeFilter = 'all';
@@ -376,7 +376,7 @@ let savedRouteGeom = null;   // stored routeGeometry from DB
 let currentPage = 1;
 const pageSize = 6;
 
-/* ─── INIT ─── */
+/* --- INIT --- */
 document.addEventListener('DOMContentLoaded', async () => {
     if (typeof requireAuth === 'function' && !requireAuth()) return;
     const role = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await Promise.all([loadTours(), loadPOIs()]);
 });
 
-/* ─── LOAD ─── */
+/* --- LOAD --- */
 async function loadTours() {
     try {
         grid('<div style="grid-column:1/-1;text-align:center;padding:4rem;color:#ccc"><i class="fas fa-spinner fa-spin fa-2x"></i></div>');
@@ -414,7 +414,7 @@ async function loadPOIs() {
     renderPOIList('');
 }
 
-/* ─── RENDER CARDS ─── */
+/* --- RENDER CARDS --- */
 function renderTours(data) {
     if (!data.length) {
         grid('<div class="empty"><i class="fas fa-map fa-2x"></i><h3>Chưa có Tour nào</h3><p>Hãy tạo tour mới để bắt đầu.</p></div>');
@@ -467,7 +467,7 @@ function renderTours(data) {
     }).join(''));
 }
 
-/* ─── FILTER ─── */
+/* --- FILTER --- */
 function filtered() {
     const q = document.getElementById('searchInput').value.toLowerCase();
     return allTours.filter(t => {
@@ -534,7 +534,7 @@ function goToPage(page) {
     renderPagedTours();
 }
 
-/* ─── MODAL ─── */
+/* --- MODAL --- */
 function openModal(t) {
     const isEdit = !!t;
     set2('modalTitle', isEdit ? 'Chỉnh sửa Tour' : 'Tạo Tour mới');
@@ -567,7 +567,7 @@ function closeModal() {
 
 function editTour(id) { openModal(allTours.find(x=>x.id===id)); }
 
-/* ─── PREVIEW MAP ─── */
+/* --- PREVIEW MAP --- */
 function initPreview(t) {
     if (pMap) pMap.remove();
     pMap = L.map('previewMap',{zoomControl:true,attributionControl:false});
@@ -600,7 +600,7 @@ function redrawPreview() {
     try { pMap.fitBounds(bounds,{padding:[28,28]}); } catch(e){}
 }
 
-/* ─── POI LIST ─── */
+/* --- POI LIST --- */
 function renderPOIList(q) {
     const list = document.getElementById('poiList');
     const visible = allPOIs.filter(p=>!q||(p.name_Vi||p.name||'').toLowerCase().includes(q.toLowerCase())||(p.address||'').toLowerCase().includes(q.toLowerCase()));
@@ -615,7 +615,7 @@ function renderPOIList(q) {
                 <div class="order-dot">${sel?idx+1:''}</div>
                 <div>
                     <div class="poi-name">${esc(p.name_Vi||p.name||'')}</div>
-                    <div class="poi-cat">${esc(p.category||'')}${p.address?' · '+esc(p.address):''}</div>
+                    <div class="poi-cat">${esc(p.category||'')}${p.address?' • '+esc(p.address):''}</div>
                 </div>
             </div>
             <div class="poi-chk">${sel?'<i class="fas fa-check" style="font-size:.58rem"></i>':''}</div>
@@ -641,7 +641,7 @@ function renderSel() {
     }).join('');
 }
 
-/* ─── CHIPS ─── */
+/* --- CHIPS --- */
 function resetChips(cid, vals) {
     document.querySelectorAll(`#${cid} .chip-opt`).forEach(c=>c.classList.toggle('active',vals.includes(c.dataset.val)));
 }
@@ -755,15 +755,22 @@ async function uploadPoiImageDirect(file, token) {
     return result;
 }
 
-/* ─── SAVE ─── */
+/* --- SAVE --- */
 async function saveTour() {
     const id=document.getElementById('tourId').value;
     const name=document.getElementById('tourName').value.trim();
     if (!name) { toast('Tên Tour không được để trống!','err'); return; }
+    const descriptionVi = document.getElementById('tourDesc').value.trim();
     const selectedImageUrl = document.getElementById('tourImageUrl').value.trim();
+    const existingTour = id ? allTours.find(x => x.id === id) : null;
+    const translationPayload = await buildTourTranslationPayload(name, descriptionVi, existingTour);
     const data = {
         tourName: name,
-        description: document.getElementById('tourDesc').value.trim(),
+        description: descriptionVi,
+        tourName_En: translationPayload.tourName_En,
+        tourName_Zh: translationPayload.tourName_Zh,
+        description_En: translationPayload.description_En,
+        description_Zh: translationPayload.description_Zh,
         imageUrl: selectedImageUrl || null,
         ImageUrl: selectedImageUrl || null,
         estimatedDurationMinutes: parseInt(document.getElementById('tourDuration').value)||90,
@@ -798,14 +805,64 @@ async function saveTour() {
     } catch(e) { toast('Lỗi lưu: '+e.message,'err'); }
 }
 
-/* ─── DELETE ─── */
+function pickNonEmpty(...values) {
+    for (const value of values) {
+        if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    return '';
+}
+
+function readExistingTourTranslations(tour) {
+    return {
+        tourName_En: pickNonEmpty(tour?.tourName_En, tour?.TourName_En, tour?.tourNameEn, tour?.TourNameEn),
+        tourName_Zh: pickNonEmpty(tour?.tourName_Zh, tour?.TourName_Zh, tour?.tourNameZh, tour?.TourNameZh),
+        description_En: pickNonEmpty(tour?.description_En, tour?.Description_En, tour?.descriptionEn, tour?.DescriptionEn),
+        description_Zh: pickNonEmpty(tour?.description_Zh, tour?.Description_Zh, tour?.descriptionZh, tour?.DescriptionZh)
+    };
+}
+
+function mapTranslateResult(result, existingValue, lang) {
+    if (!result || typeof result !== 'object') return existingValue || null;
+    if (lang === 'en') {
+        return pickNonEmpty(result.en, result['en-US'], existingValue) || null;
+    }
+    return pickNonEmpty(result['zh-CN'], result.zh, existingValue) || null;
+}
+
+async function safeAutoTranslateText(text) {
+    const clean = (text || '').trim();
+    if (!clean) return {};
+    try {
+        return await api.autoTranslate(clean, ['en', 'zh-CN']);
+    } catch (err) {
+        console.warn('[tour] autoTranslate failed:', err);
+        return {};
+    }
+}
+
+async function buildTourTranslationPayload(nameVi, descVi, existingTour) {
+    const existing = readExistingTourTranslations(existingTour);
+    const [nameResult, descResult] = await Promise.all([
+        safeAutoTranslateText(nameVi),
+        safeAutoTranslateText(descVi)
+    ]);
+
+    return {
+        tourName_En: mapTranslateResult(nameResult, existing.tourName_En, 'en'),
+        tourName_Zh: mapTranslateResult(nameResult, existing.tourName_Zh, 'zh'),
+        description_En: mapTranslateResult(descResult, existing.description_En, 'en'),
+        description_Zh: mapTranslateResult(descResult, existing.description_Zh, 'zh')
+    };
+}
+
+/* --- DELETE --- */
 async function delTour(id) {
     if (!confirm('Bạn có chắc muốn xóa tour này?')) return;
     try { await ToursApi.delete(id); toast('Đã xóa tour.','ok'); loadTours(); }
     catch(e) { toast('Lỗi xóa: '+e.message,'err'); }
 }
 
-/* ─── UTILS ─── */
+/* --- UTILS --- */
 function rtLabel(v){ return {ordered:'Địa lý',free:'Tự do',theme:'Chủ đề'}[v]||v; }
 function esc(s){ return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''; }
 function grid(h){ document.getElementById('toursGrid').innerHTML=h; }

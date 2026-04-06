@@ -37,6 +37,22 @@
                        TextColor="White"
                        HorizontalTextAlignment="Center"
                        VerticalTextAlignment="Center" />
+
+                <Button Grid.Column="2"
+                    x:Name="HeaderLanguageButton"
+                    Text="VI"
+                    FontSize="12"
+                    FontAttributes="Bold"
+                    BackgroundColor="#1A2925"
+                    TextColor="#22C55E"
+                    BorderColor="#2B4B40"
+                    BorderWidth="1"
+                    CornerRadius="10"
+                    WidthRequest="52"
+                    HeightRequest="36"
+                    Clicked="OnHeaderLanguageClicked"
+                    HorizontalOptions="End"
+                    VerticalOptions="Center" />
             </Grid>
         </Border>
 
@@ -94,6 +110,44 @@
                                         TitleColor="#64748B"
                                         SelectedIndexChanged="OnLocationSourceChanged" />
                             </Border>
+                        </VerticalStackLayout>
+
+                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
+
+                        <VerticalStackLayout Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label x:Name="GpsTestModeTitleLabel"
+                                           Text="GPS test mode"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           TextColor="White" />
+                                    <Label x:Name="GpsTestModeSubtitleLabel"
+                                           Text="Bat mode rieng de test GPS that ngoai hien truong"
+                                           FontSize="12"
+                                           TextColor="#64748B" />
+                                </VerticalStackLayout>
+                                <Switch x:Name="GpsTestModeSwitch"
+                                        Grid.Column="1"
+                                        OnColor="#22C55E"
+                                        ThumbColor="White"
+                                        Toggled="OnGpsTestModeToggled"
+                                        VerticalOptions="Center" />
+                            </Grid>
+
+                            <Label x:Name="GpsTestCoordinateLabel"
+                                   Text="Toa do test: 10.842598, 106.608742"
+                                   FontSize="11"
+                                   TextColor="#94A3B8" />
+
+                            <Button x:Name="GpsTestModeActionButton"
+                                    Text="Bat GPS test mode"
+                                    BackgroundColor="#F97316"
+                                    TextColor="White"
+                                    FontAttributes="Bold"
+                                    CornerRadius="10"
+                                    HeightRequest="42"
+                                    Clicked="OnGpsTestModeActionClicked" />
                         </VerticalStackLayout>
 
                         <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />

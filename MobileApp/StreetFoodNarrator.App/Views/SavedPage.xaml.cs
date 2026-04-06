@@ -1,5 +1,6 @@
 using StreetFoodNarrator.App.ViewModels;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 
 namespace StreetFoodNarrator.App.Views;
@@ -9,6 +10,7 @@ public partial class SavedPage : ContentPage
     public const string OpenBrowseSegmentOnNextAppearKey = "saved_open_browse_segment_once";
 
     private readonly MainViewModel _vm;
+    private readonly LanguageService _languageService;
     private bool _isBrowseSegment = false;
     private StreetFoodNarrator.App.Views.Components.TabMenuView? _browseContent;
     private bool _isDataWarmupRunning;
@@ -19,6 +21,7 @@ public partial class SavedPage : ContentPage
     {
         InitializeComponent();
         _vm = MauiProgram.Services.GetRequiredService<MainViewModel>();
+        _languageService = MauiProgram.Services.GetRequiredService<LanguageService>();
         BindingContext = _vm;
         ApplyLocalizedTexts();
         
@@ -58,7 +61,13 @@ public partial class SavedPage : ContentPage
     {
         LabelBrowse.Text = AppStrings.Get("Saved_Tab_Tours");
         LabelSaved.Text = AppStrings.Get("Saved_Tab_Saved");
+        HeaderLanguageButton.Text = LanguageSwitcher.GetHeaderLabel(_languageService.CurrentLanguage);
         OfflineBannerLabel.Text = AppStrings.Get("Offline_Banner_Short");
+    }
+
+    private void OnHeaderLanguageClicked(object sender, EventArgs e)
+    {
+        LanguageSwitcher.CycleLanguage(_languageService);
     }
 
     private void OnSegmentBrowseTapped(object sender, EventArgs e)

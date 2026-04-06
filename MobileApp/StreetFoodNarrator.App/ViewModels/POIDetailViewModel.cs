@@ -28,6 +28,7 @@ public partial class POIDetailViewModel : ObservableObject
     private DateTime _nativeTtsStartTime;
     private bool _ownsCurrentPlayback = false;
     private bool _isMenuLoaded;
+    private bool _menuSyncedFromApi;
 
     public POI Poi => _poi;
 
@@ -390,18 +391,22 @@ public partial class POIDetailViewModel : ObservableObject
     // ── Load menu ───────────────────────────────────────────────────────
     public async Task LoadMenuItemsAsync(bool forceReload = false)
     {
+        var netAccess = Microsoft.Maui.Networking.Connectivity.Current.NetworkAccess;
+        var isOnline = netAccess is Microsoft.Maui.Networking.NetworkAccess.Internet
+                    or Microsoft.Maui.Networking.NetworkAccess.ConstrainedInternet;
+
         if (!forceReload && _isMenuLoaded && MenuItems.Count > 0)
-            return;
+        {
+            // If previous load only came from local/fallback, retry API whenever internet is available.
+            if (!isOnline || _menuSyncedFromApi)
+                return;
+        }
 
         try
         {
-            var netAccess = Microsoft.Maui.Networking.Connectivity.Current.NetworkAccess;
-            var isOnline = netAccess is Microsoft.Maui.Networking.NetworkAccess.Internet
-                        or Microsoft.Maui.Networking.NetworkAccess.ConstrainedInternet;
-
             if (isOnline)
             {
-                var url = $"{AppConfig.GetResolvedApiBaseUrl()}api/MenuItems?poiId={_poi.Id}&page=1&pageSize=50";
+                var url = AppConfig.BuildApiUrl($"api/MenuItems?poiId={_poi.Id}&page=1&pageSize=50");
                 var resp = await _httpClient.GetAsync(url);
                 if (resp.IsSuccessStatusCode)
                 {
@@ -416,9 +421,14 @@ public partial class POIDetailViewModel : ObservableObject
                             MenuItems.Clear();
                             foreach (var item in result.Data) MenuItems.Add(item);
                         });
+                        _menuSyncedFromApi = true;
                         _isMenuLoaded = true;
                         return;
                     }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[POIDetailVM] Menu API failed for POI {_poi.Id}: {(int)resp.StatusCode}");
                 }
             }
 
@@ -431,6 +441,7 @@ public partial class POIDetailViewModel : ObservableObject
                     MenuItems.Clear();
                     foreach (var item in local) MenuItems.Add(item);
                 });
+                _menuSyncedFromApi = false;
                 _isMenuLoaded = true;
                 return;
             }
@@ -442,6 +453,7 @@ public partial class POIDetailViewModel : ObservableObject
                 MenuItems.Clear();
                 foreach (var item in fallback) MenuItems.Add(item);
             });
+            _menuSyncedFromApi = false;
             _isMenuLoaded = true;
         }
         catch (Exception ex)

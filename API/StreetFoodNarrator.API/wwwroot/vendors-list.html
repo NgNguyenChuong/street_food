@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="api.js"></script>
-    <script src="sidebar.js"></script>
+    <script src="sidebar.js?v=20260406"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -646,102 +646,53 @@
     <header class="page-header">
         <h1 class="page-title">Quản lý Vendors</h1>
         <div class="header-actions">
-            <button class="btn btn-primary" onclick="openCreateModal()">
-                <i class="fas fa-plus"></i> Tạo Vendor
+            <button class="btn btn-outline" onclick="openCreateAccountModal()">
+                <i class="fas fa-user-shield"></i> Tạo tài khoản
             </button>
         </div>
     </header>
 
-    <!-- Stats -->
-    <div class="stats-bar">
-        <div class="stat-item" onclick="filterByStatus('')">
-            <div class="stat-icon primary"><i class="fas fa-store"></i></div>
-            <div class="stat-value" id="statTotal">—</div>
-            <div class="stat-label">Tổng Vendors</div>
+    <div class="table-container" style="margin-top:1.5rem;">
+        <div class="table-header">
+            <h2 class="table-title">Tài khoản vận hành (Admin & Vendor)</h2>
+            <span class="table-count" id="accountTableCount"></span>
         </div>
-        <div class="stat-item" onclick="filterByStatus('approved')">
-            <div class="stat-icon success"><i class="fas fa-check-circle"></i></div>
-            <div class="stat-value" id="statApproved">—</div>
-            <div class="stat-label">Đã duyệt</div>
-        </div>
-        <div class="stat-item" onclick="filterByStatus('pending')">
-            <div class="stat-icon warning"><i class="fas fa-clock"></i></div>
-            <div class="stat-value" id="statPending">—</div>
-            <div class="stat-label">Chờ duyệt</div>
-        </div>
-        <div class="stat-item" onclick="filterByStatus('rejected')">
-            <div class="stat-icon danger"><i class="fas fa-ban"></i></div>
-            <div class="stat-value" id="statRejected">—</div>
-            <div class="stat-label">Từ chối</div>
-        </div>
-    </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-        <button class="tab active" onclick="switchTab('')" id="tabAll">
-            <i class="fas fa-list"></i> Tất cả
-        </button>
-        <button class="tab" onclick="switchTab('pending')" id="tabPending">
-            <i class="fas fa-clock"></i> Chờ duyệt
-            <span class="tab-badge" id="pendingBadge">0</span>
-        </button>
-        <button class="tab" onclick="switchTab('approved')" id="tabApproved">
-            <i class="fas fa-check-circle"></i> Đã duyệt
-        </button>
-        <button class="tab" onclick="switchTab('rejected')" id="tabRejected">
-            <i class="fas fa-ban"></i> Từ chối
-        </button>
-    </div>
-
-    <!-- Filter -->
-    <div class="filter-section">
-        <div class="filter-row">
+        <div class="filter-row" style="margin-bottom:1rem;">
             <div class="search-wrapper">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" class="filter-input" id="searchInput" placeholder="Tìm theo tên quán, tên liên hệ, email, SĐT...">
+                <input type="text" class="filter-input" id="accountSearchInput" placeholder="Tìm theo tên, email, số điện thoại...">
             </div>
-            <select class="filter-select" id="sortSelect">
-                <option value="">Mới nhất</option>
-                <option value="oldest">Cũ nhất</option>
-                <option value="name-asc">Tên A-Z</option>
-                <option value="pois-desc">Nhiều POI nhất</option>
+            <select class="filter-select" id="accountRoleFilter">
+                <option value="">Tất cả role</option>
+                <option value="Admin">Admin</option>
+                <option value="Vendor">Vendor</option>
             </select>
-        </div>
-    </div>
-
-    <!-- Table -->
-    <div class="table-container">
-        <div class="table-header">
-            <h2 class="table-title">Danh sách Vendors</h2>
-            <span class="table-count" id="tableCount"></span>
+            <button class="btn btn-outline" onclick="loadAccounts()">
+                <i class="fas fa-rotate"></i> Tải lại
+            </button>
         </div>
 
-        <div class="loading" id="loading">
-            <i class="fas fa-spinner"></i>
-            <p>Đang tải...</p>
-        </div>
-
-        <table id="vendorTable" style="display:none;">
+        <table id="accountTable" style="display:none;">
             <thead>
                 <tr>
-                    <th>Vendor</th>
-                    <th>Liên hệ</th>
+                    <th>Tài khoản</th>
+                    <th>Role</th>
+                    <th>Vendor ID</th>
                     <th>Trạng thái</th>
-                    <th>POIs</th>
-                    <th>Lượt xem</th>
-                    <th>Ngày tạo</th>
+                    <th>Tạo lúc</th>
                     <th>Hành động</th>
                 </tr>
             </thead>
-            <tbody id="vendorBody"></tbody>
+            <tbody id="accountBody"></tbody>
         </table>
 
-        <div class="pagination" id="vendorPagination" style="display:none;"></div>
+        <div class="pagination" id="accountPagination" style="display:none;"></div>
 
-        <div class="empty-state" id="emptyState" style="display:none;">
-            <i class="fas fa-store-slash"></i>
-            <h3>Không có vendor nào</h3>
-            <p>Chưa có vendor nào khớp với bộ lọc hiện tại.</p>
+        <div class="empty-state" id="accountEmptyState" style="display:none;">
+            <i class="fas fa-users-slash"></i>
+            <h3>Không có tài khoản nào</h3>
+            <p>Chưa có tài khoản khớp với bộ lọc hiện tại.</p>
         </div>
     </div>
 </main>
@@ -800,65 +751,6 @@
     </div>
 </div>
 
-<!-- Modal: Create Vendor -->
-<div class="modal-overlay" id="createModal">
-    <div class="modal">
-        <div class="modal-header">
-            <h2><i class="fas fa-plus-circle" style="color:var(--primary)"></i> Tạo Vendor Mới</h2>
-            <p>Nhập thông tin để tạo tài khoản vendor</p>
-        </div>
-        <div class="modal-body">
-            <form id="createForm" onsubmit="return false;">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Tên quán <span class="required">*</span></label>
-                        <input type="text" id="cBusiness" placeholder="Phở Hà Nội" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Người đại diện</label>
-                        <input type="text" id="cName" placeholder="Nguyễn Văn A">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Email <span class="required">*</span></label>
-                        <input type="email" id="cEmail" placeholder="vendor@example.com" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Số điện thoại</label>
-                        <input type="tel" id="cPhone" placeholder="0901234567">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Mật khẩu (bỏ trống sẽ tự tạo)</label>
-                    <input type="text" id="cPassword" placeholder="Tối thiểu 8 ký tự, có chữ hoa, số, ký tự đặc biệt">
-                </div>
-                <div class="form-group">
-                    <label>Địa chỉ</label>
-                    <input type="text" id="cAddress" placeholder="123 Nguyễn Huệ, Q1, TP.HCM">
-                </div>
-                <div class="form-group">
-                    <label>Mô tả</label>
-                    <textarea id="cDesc" rows="2" placeholder="Mô tả ngắn về quán..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Trạng thái ban đầu</label>
-                    <select id="cStatus">
-                        <option value="pending">Chờ duyệt</option>
-                        <option value="approved">Duyệt ngay</option>
-                    </select>
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline btn-sm" onclick="closeModal('createModal')">Hủy</button>
-            <button class="btn btn-primary btn-sm" onclick="submitCreate()">
-                <i class="fas fa-check"></i> Tạo Vendor
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Modal: Edit Vendor -->
 <div class="modal-overlay" id="editModal">
     <div class="modal">
@@ -908,6 +800,63 @@
     </div>
 </div>
 
+<!-- Modal: Create Account -->
+<div class="modal-overlay" id="createAccountModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2><i class="fas fa-user-plus" style="color:var(--secondary)"></i> Tạo tài khoản vận hành</h2>
+            <p>Tạo nhanh tài khoản Admin hoặc Vendor ngay tại trang Vendors</p>
+        </div>
+        <div class="modal-body">
+            <form id="createAccountForm" onsubmit="return false;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Role <span class="required">*</span></label>
+                        <select id="caRole" onchange="toggleCreateAccountRoleFields()">
+                            <option value="Vendor">Vendor</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Họ tên / người đại diện <span class="required">*</span></label>
+                        <input type="text" id="caFullName" placeholder="Nguyễn Văn A" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email <span class="required">*</span></label>
+                        <input type="email" id="caEmail" placeholder="account@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Số điện thoại</label>
+                        <input type="tel" id="caPhone" placeholder="0901234567">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Mật khẩu <span class="required">*</span></label>
+                    <input type="text" id="caPassword" placeholder="Admin bắt buộc nhập; Vendor có thể bỏ trống để tự sinh">
+                </div>
+
+                <div id="vendorRoleFields">
+                    <div class="form-group">
+                        <label>Trạng thái vendor</label>
+                        <select id="caVendorStatus">
+                            <option value="pending">Chờ duyệt</option>
+                            <option value="approved">Duyệt ngay</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline btn-sm" onclick="closeModal('createAccountModal')">Hủy</button>
+            <button class="btn btn-primary btn-sm" onclick="submitCreateAccount()">
+                <i class="fas fa-check"></i> Tạo tài khoản
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     // ═══ State ═══
     let currentTab = '';
@@ -916,27 +865,31 @@
     let vendorsAll = [];
     let vendorPage = 1;
     const vendorPageSize = 5;
+    let accountsAll = [];
+    let accountPage = 1;
+    const accountPageSize = 6;
+    let accountSearchTimer = null;
 
     // ═══ Init ═══
     document.addEventListener('DOMContentLoaded', () => {
         if (!requireAuth()) return;
-        loadStats();
-        loadVendors();
+        loadAccounts();
 
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            clearTimeout(searchTimer);
-            vendorPage = 1;
-            searchTimer = setTimeout(() => loadVendors(), 400);
+        document.getElementById('accountSearchInput').addEventListener('input', () => {
+            clearTimeout(accountSearchTimer);
+            accountPage = 1;
+            accountSearchTimer = setTimeout(() => loadAccounts(), 350);
         });
 
-        document.getElementById('sortSelect').addEventListener('change', () => {
-            vendorPage = 1;
-            loadVendors();
+        document.getElementById('accountRoleFilter').addEventListener('change', () => {
+            accountPage = 1;
+            loadAccounts();
         });
     });
 
     // ═══ API Calls ═══
     async function loadStats() {
+        if (!document.getElementById('statTotal')) return;
         try {
             const stats = await VendorApi.stats();
             document.getElementById('statTotal').textContent = stats.total || 0;
@@ -950,6 +903,7 @@
     }
 
     async function loadVendors() {
+        if (!document.getElementById('vendorTable')) return;
         const search = document.getElementById('searchInput').value.trim();
         const sort = document.getElementById('sortSelect').value;
 
@@ -966,6 +920,39 @@
             showToast('Lỗi tải danh sách vendors', 'error');
         } finally {
             document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    async function loadAccounts() {
+        const search = document.getElementById('accountSearchInput').value.trim() || undefined;
+        const role = document.getElementById('accountRoleFilter').value || undefined;
+
+        const body = document.getElementById('accountBody');
+        if (body) {
+            body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#999">Đang tải tài khoản...</td></tr>';
+        }
+        document.getElementById('accountTable').style.display = 'table';
+        document.getElementById('accountEmptyState').style.display = 'none';
+
+        try {
+            const first = await UsersApi.list({ page: 1, pageSize: 100, search, role });
+            const all = [...(first.data || [])];
+            const totalPages = Number(first.totalPages || 1);
+
+            for (let p = 2; p <= Math.min(totalPages, 20); p++) {
+                const next = await UsersApi.list({ page: p, pageSize: 100, search, role });
+                all.push(...(next.data || []));
+            }
+
+            accountsAll = all;
+            renderAccountPage();
+        } catch (err) {
+            console.error('Load accounts error:', err);
+            if (body) {
+                body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--danger)">Lỗi tải tài khoản: ${escapeHtml(err.message || 'Unknown error')}</td></tr>`;
+            }
+            document.getElementById('accountPagination').style.display = 'none';
+            document.getElementById('accountTableCount').textContent = 'Lỗi dữ liệu';
         }
     }
 
@@ -1085,6 +1072,131 @@
 
         pagination.style.display = 'flex';
         renderVendorPagination(totalPages, vendorPage, total);
+    }
+
+    function accountRoleBadge(role) {
+        const normalized = (role || '').toLowerCase();
+        if (normalized === 'admin') {
+            return '<span class="status-badge rejected"><span class="status-dot rejected"></span>Admin</span>';
+        }
+        return '<span class="status-badge approved"><span class="status-dot approved"></span>Vendor</span>';
+    }
+
+    function accountStatusBadge(isLocked) {
+        return isLocked
+            ? '<span class="status-badge rejected"><span class="status-dot rejected"></span>Đã khóa</span>'
+            : '<span class="status-badge approved"><span class="status-dot approved"></span>Đang hoạt động</span>';
+    }
+
+    function renderAccounts(rows) {
+        const body = document.getElementById('accountBody');
+        const table = document.getElementById('accountTable');
+        const empty = document.getElementById('accountEmptyState');
+
+        if (!rows.length) {
+            table.style.display = 'none';
+            empty.style.display = 'block';
+            return;
+        }
+
+        table.style.display = 'table';
+        empty.style.display = 'none';
+
+        body.innerHTML = rows.map(u => {
+            const role = (u.roles || [])[0] || 'Vendor';
+            const created = u.createdAt ? new Date(u.createdAt).toLocaleString('vi-VN') : '—';
+            return `
+                <tr>
+                    <td>
+                        <div><strong>${escapeHtml(u.fullName || 'N/A')}</strong></div>
+                        <div style="font-size:0.82rem;color:#888">${escapeHtml(u.email || '—')}</div>
+                        <div style="font-size:0.75rem;color:#999">${escapeHtml(u.phoneNumber || '')}</div>
+                    </td>
+                    <td>${accountRoleBadge(role)}</td>
+                    <td>${u.vendorId ?? '—'}</td>
+                    <td>${accountStatusBadge(!!u.isLocked)}</td>
+                    <td>${created}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon" title="Sửa" onclick="quickEditAccount('${u.id}', '${escapeAttr(u.fullName || '')}', '${escapeAttr(u.phoneNumber || '')}', '${escapeAttr(role)}')">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button class="btn-icon" title="${u.isLocked ? 'Mở khóa' : 'Khóa'}" onclick="toggleLockAccount('${u.id}', ${u.isLocked ? 'true' : 'false'})">
+                                <i class="fas ${u.isLocked ? 'fa-lock-open' : 'fa-lock'}"></i>
+                            </button>
+                            <button class="btn-icon danger" title="Xóa" onclick="deleteAccount('${u.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function renderAccountPage() {
+        const total = accountsAll.length;
+        const totalPages = Math.max(1, Math.ceil(total / accountPageSize));
+        if (accountPage > totalPages) accountPage = totalPages;
+        if (accountPage < 1) accountPage = 1;
+
+        const start = (accountPage - 1) * accountPageSize;
+        const items = accountsAll.slice(start, start + accountPageSize);
+        renderAccounts(items);
+
+        document.getElementById('accountTableCount').textContent = `${total} tài khoản`;
+
+        const pagination = document.getElementById('accountPagination');
+        if (!total || totalPages <= 1) {
+            pagination.style.display = 'none';
+            pagination.innerHTML = '';
+            return;
+        }
+
+        pagination.style.display = 'flex';
+        renderAccountPagination(totalPages, accountPage, total);
+    }
+
+    function renderAccountPagination(totalPages, currentPageNum, totalItems) {
+        const pagination = document.getElementById('accountPagination');
+        if (!pagination) return;
+
+        let html = `
+            <button class="pagination-btn" onclick="changeAccountPage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+
+        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToAccountPage(${i})">${i}</button>`;
+        }
+
+        if (totalPages > 5) {
+            html += `<span class="pagination-info">... ${totalPages}</span>`;
+        }
+
+        html += `
+            <button class="pagination-btn" onclick="changeAccountPage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <span class="pagination-info">${totalItems} tài khoản</span>
+        `;
+
+        pagination.innerHTML = html;
+    }
+
+    function changeAccountPage(direction) {
+        if (direction === 'prev' && accountPage > 1) {
+            accountPage--;
+        } else if (direction === 'next') {
+            accountPage++;
+        }
+        renderAccountPage();
+    }
+
+    function goToAccountPage(page) {
+        accountPage = page;
+        renderAccountPage();
     }
 
     function renderVendorPagination(totalPages, currentPageNum, totalItems) {
@@ -1258,45 +1370,122 @@
         }
     }
 
-    // ═══ Create ═══
-    function openCreateModal() {
-        document.getElementById('createForm').reset();
-        openModal('createModal');
+    function openCreateAccountModal() {
+        document.getElementById('createAccountForm').reset();
+        document.getElementById('caRole').value = 'Vendor';
+        toggleCreateAccountRoleFields();
+        openModal('createAccountModal');
     }
 
-    async function submitCreate() {
-        const email = document.getElementById('cEmail').value.trim();
-        const business = document.getElementById('cBusiness').value.trim();
+    function toggleCreateAccountRoleFields() {
+        const role = document.getElementById('caRole').value;
+        const vendorFields = document.getElementById('vendorRoleFields');
+        const passwordInput = document.getElementById('caPassword');
 
-        if (!email || !business) {
-            showToast('Vui lòng điền Email và Tên quán', 'warning');
+        if (role === 'Vendor') {
+            vendorFields.style.display = 'block';
+            passwordInput.placeholder = 'Vendor có thể để trống để hệ thống tự sinh';
+        } else {
+            vendorFields.style.display = 'none';
+            passwordInput.placeholder = 'Admin bắt buộc nhập mật khẩu đủ mạnh';
+        }
+    }
+
+    async function submitCreateAccount() {
+        const role = document.getElementById('caRole').value;
+        const fullName = document.getElementById('caFullName').value.trim();
+        const email = document.getElementById('caEmail').value.trim();
+        const phone = document.getElementById('caPhone').value.trim();
+        const password = document.getElementById('caPassword').value.trim();
+
+        if (!fullName || !email) {
+            showToast('Vui lòng nhập họ tên và email', 'warning');
             return;
         }
 
-        const data = {
-            email,
-            businessName: business,
-            contactName: document.getElementById('cName').value.trim() || null,
-            contactPhone: document.getElementById('cPhone').value.trim() || null,
-            password: document.getElementById('cPassword').value.trim() || null,
-            address: document.getElementById('cAddress').value.trim() || null,
-            businessDescription: document.getElementById('cDesc').value.trim() || null,
-            status: document.getElementById('cStatus').value
-        };
-
         try {
-            const res = await VendorApi.create(data);
-            closeModal('createModal');
-            showToast('Tạo vendor thành công!', 'success');
+            if (role === 'Admin') {
+                if (!password || password.length < 8) {
+                    showToast('Admin cần mật khẩu tối thiểu 8 ký tự', 'warning');
+                    return;
+                }
 
-            if (res.temporaryPassword) {
-                alert(`Mật khẩu tạm thời: ${res.temporaryPassword}\n\nHãy gửi cho vendor để đăng nhập.`);
+                await UsersApi.create({
+                    email,
+                    password,
+                    fullName,
+                    phoneNumber: phone || null,
+                    role: 'Admin'
+                });
+
+                showToast('Đã tạo tài khoản Admin', 'success');
+            } else {
+                const vendorStatus = document.getElementById('caVendorStatus').value;
+                const createdVendor = await VendorApi.create({
+                    email,
+                    businessName: fullName,
+                    contactName: fullName,
+                    contactPhone: phone || null,
+                    password: password || null,
+                    status: vendorStatus
+                });
+
+                showToast('Đã tạo tài khoản Vendor', 'success');
+                if (createdVendor && createdVendor.temporaryPassword) {
+                    alert(`Mật khẩu tạm thời: ${createdVendor.temporaryPassword}\n\nHãy gửi cho vendor để đăng nhập.`);
+                }
             }
 
-            loadStats();
-            loadVendors();
+            closeModal('createAccountModal');
+            loadAccounts();
         } catch (err) {
-            showToast(err.message || 'Lỗi tạo vendor', 'error');
+            showToast(err.message || 'Lỗi tạo tài khoản', 'error');
+        }
+    }
+
+    async function toggleLockAccount(id, isLocked) {
+        const msg = isLocked ? 'Mở khóa tài khoản này?' : 'Khóa tài khoản này?';
+        if (!confirm(msg)) return;
+
+        try {
+            if (isLocked) await UsersApi.unlock(id);
+            else await UsersApi.lock(id);
+            showToast(isLocked ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản', 'success');
+            loadAccounts();
+        } catch (err) {
+            showToast(err.message || 'Lỗi cập nhật trạng thái khóa', 'error');
+        }
+    }
+
+    async function deleteAccount(id) {
+        if (!confirm('Xóa mềm tài khoản này?')) return;
+        try {
+            await UsersApi.delete(id);
+            showToast('Đã xóa tài khoản', 'success');
+            loadAccounts();
+        } catch (err) {
+            showToast(err.message || 'Lỗi xóa tài khoản', 'error');
+        }
+    }
+
+    async function quickEditAccount(id, fullName, phoneNumber, role) {
+        const newName = prompt('Họ tên mới:', fullName || '');
+        if (newName === null) return;
+        const newPhone = prompt('Số điện thoại mới:', phoneNumber || '');
+        if (newPhone === null) return;
+        const newRole = prompt('Role (Admin/Vendor):', role || 'Vendor');
+        if (newRole === null) return;
+
+        try {
+            await UsersApi.update(id, {
+                fullName: newName,
+                phoneNumber: newPhone,
+                role: newRole
+            });
+            showToast('Đã cập nhật tài khoản', 'success');
+            loadAccounts();
+        } catch (err) {
+            showToast(err.message || 'Lỗi cập nhật tài khoản', 'error');
         }
     }
 

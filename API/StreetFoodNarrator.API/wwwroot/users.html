@@ -1,263 +1,2242 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản lý người dùng - Street Food Narrator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js"></script>
-    <style>
-        :root {
-            --primary: #FF6B35;
-            --primary-dark: #E85A2A;
-            --dark: #1A1A2E;
-            --border: #E8ECF1;
-            --muted: #6B7280;
-            --bg: #F5F7FB;
-            --success: #06D6A0;
-            --danger: #EF476F;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--dark); }
-        .main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; }
-        .title { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 900; }
-        .tools { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-        .input, .select {
-            border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.8rem;
-            background: white; min-width: 180px;
-        }
-        .btn {
-            border: none; border-radius: 10px; padding: 0.65rem 0.95rem; font-weight: 700;
-            cursor: pointer;
-        }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-outline { background: white; border: 1px solid var(--border); }
-        .card { background: white; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 0.85rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.9rem; }
-        th { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: .4px; }
-        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .78rem; }
-        .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 700; }
-        .b-admin { background: #ffe7dd; color: #b45309; }
-        .b-vendor { background: #e6f9ef; color: #047857; }
-        .b-locked { background: #fee2e2; color: #b91c1c; }
-        .b-active { background: #e0f2fe; color: #0369a1; }
-        .actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
-        .btn-xs { border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 0.35rem 0.55rem; cursor: pointer; font-size: 0.75rem; }
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem; }
-        .pagination-btn { width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--border); background: white; color: var(--dark); font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
-        .pagination-btn:hover { border-color: var(--primary); color: var(--primary); }
-        .pagination-btn.active { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border-color: transparent; }
-        .pagination-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
-        .pagination-info { color: #666; margin: 0 1rem; }
-        .muted { color: var(--muted); font-size: 0.82rem; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thống kê người dùng — Street Food Narrator</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="sidebar.js?v=20260406"></script>
+  <style>
+    /* ── TOKENS ─────────────────────────────────── */
+    :root {
+      --bg: #0D0F14;
+      --bg2: #13161D;
+      --bg3: #1A1E28;
+      --border: rgba(255, 255, 255, 0.07);
+      --border2: rgba(255, 255, 255, 0.13);
+      --text: #E8EAF0;
+      --muted: #7C8497;
+      --orange: #FF6B35;
+      --orange2: #FF8C5A;
+      --blue: #4A9EFF;
+      --teal: #2DD4BF;
+      --green: #22C55E;
+      --yellow: #F59E0B;
+      --pink: #EC4899;
+      --purple: #8B5CF6;
+      --card-r: 16px;
+      --r: 10px;
+    }
+
+    /* ── BASE ─────────────────────────────────── */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── LAYOUT ─────────────────────────────────── */
+    .shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* SIDEBAR */
+    .legacy-sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .legacy-sidebar .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .legacy-sidebar .logo-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--orange), #c04b1f);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .95rem;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .legacy-sidebar .logo-text {
+      font-size: .85rem;
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
+    .legacy-sidebar .logo-text span {
+      display: block;
+      font-size: .68rem;
+      font-weight: 400;
+      color: var(--muted);
+    }
+
+    .legacy-sidebar .nav-label {
+      font-size: .62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      padding: .5rem .5rem .3rem;
+      margin-bottom: .2rem;
+    }
+
+    .legacy-sidebar .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: .55rem .65rem;
+      border-radius: var(--r);
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .18s;
+      text-decoration: none;
+      margin-bottom: 2px;
+    }
+
+    .legacy-sidebar .nav-item:hover {
+      background: rgba(255, 255, 255, .05);
+      color: var(--text);
+    }
+
+    .legacy-sidebar .nav-item.active {
+      background: rgba(255, 107, 53, .12);
+      color: var(--orange);
+    }
+
+    .legacy-sidebar .nav-item i {
+      width: 16px;
+      text-align: center;
+      font-size: .82rem;
+    }
+
+    .legacy-sidebar .sidebar-footer {
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      overflow-x: hidden;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: .85rem 1.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .page-sub {
+      font-size: .73rem;
+      color: var(--muted);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+
+    .ctrl-select {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: var(--r);
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      font-size: .75rem;
+      padding: .5rem .8rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .ctrl-select:focus {
+      border-color: var(--orange);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: .5rem .9rem;
+      border-radius: var(--r);
+      font-family: 'Sora', sans-serif;
+      font-size: .75rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .18s;
+    }
+
+    .btn-primary {
+      background: var(--orange);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--orange2);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--border2);
+      background: rgba(255, 255, 255, .06);
+    }
+
+    /* CONTENT */
+    .content {
+      padding: 1.5rem 1.75rem;
+    }
+
+    /* ── KPI ROW ─────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .85rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .kpi-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--card-r);
+      padding: 1.1rem 1.2rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .kpi-card:hover {
+      border-color: var(--border2);
+    }
+
+    .kpi-accent {
+      position: absolute;
+      inset: 0;
+      opacity: .04;
+      pointer-events: none;
+    }
+
+    .kpi-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .82rem;
+      margin-bottom: .75rem;
+      flex-shrink: 0;
+    }
+
+    .kpi-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.65rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: .25rem;
+    }
+
+    .kpi-label {
+      font-size: .71rem;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+
+    .kpi-delta {
+      font-size: .68rem;
+      font-weight: 600;
+      margin-top: .4rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .delta-up {
+      color: var(--green);
+    }
+
+    .delta-dn {
+      color: var(--pink);
+    }
+
+    /* ── SECTION GRID ─────────────────────────────── */
+    .row {
+      display: grid;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .row-2 {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .row-2l {
+      grid-template-columns: 1.5fr 1fr;
+    }
+
+    .row-3 {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--card-r);
+      padding: 1.2rem 1.25rem;
+      overflow: hidden;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: .9rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      color: var(--text);
+    }
+
+    .card-title i {
+      color: var(--orange);
+      font-size: .82rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: .18rem .55rem;
+      border-radius: 999px;
+      font-size: .65rem;
+      font-weight: 700;
+    }
+
+    .badge-orange {
+      background: rgba(255, 107, 53, .15);
+      color: var(--orange);
+    }
+
+    .badge-blue {
+      background: rgba(74, 158, 255, .15);
+      color: var(--blue);
+    }
+
+    .badge-teal {
+      background: rgba(45, 212, 191, .15);
+      color: var(--teal);
+    }
+
+    .badge-muted {
+      background: rgba(255, 255, 255, .07);
+      color: var(--muted);
+    }
+
+    .badge-green {
+      background: rgba(34, 197, 94, .15);
+      color: var(--green);
+    }
+
+    .badge-yellow {
+      background: rgba(245, 158, 11, .15);
+      color: var(--yellow);
+    }
+
+    /* ── CHARTS ─────────────────────────────────── */
+    .chart-box {
+      position: relative;
+      width: 100%;
+    }
+
+    /* ── MAP ─────────────────────────────────── */
+    .map-wrap {
+      height: 480px;
+      border-radius: var(--r);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    /* ── HEATMAP LEGEND ─────────────────────────────── */
+    .heat-legend {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-top: .65rem;
+      font-size: .68rem;
+      color: var(--muted);
+    }
+
+    .heat-legend-bar {
+      flex: 1;
+      height: 10px;
+      border-radius: 5px;
+      background: linear-gradient(to right, #1D4ED8, #06B6D4, #22C55E, #F59E0B, #EF4444);
+    }
+
+    .poi-map-label {
+      background: rgba(255, 255, 255, 0.93);
+      border: 2px solid #FF6B35;
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #1A1A2E;
+      white-space: nowrap;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+      pointer-events: none;
+    }
+
+    /* ── ROUTES ─────────────────────────────────── */
+    .route-list-wrap {
+      max-height: 300px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      padding-right: 4px;
+    }
+
+    .route-item {
+      padding: .65rem .8rem;
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all .18s;
+      background: var(--bg3);
+    }
+
+    .route-item:hover {
+      border-color: var(--border2);
+    }
+
+    .route-item.active {
+      border-color: var(--orange);
+      background: rgba(255, 107, 53, .08);
+    }
+
+    .route-name {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .route-meta {
+      font-size: .68rem;
+      color: var(--muted);
+      margin-top: .2rem;
+    }
+
+    /* ── ACTIVITY HEATMAP ─────────────────────────── */
+    .hour-grid {
+      display: grid;
+      grid-template-columns: repeat(24, 1fr);
+      gap: 3px;
+      margin-top: .6rem;
+    }
+
+    .hour-cell {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      background: rgba(255, 107, 53, .07);
+      cursor: pointer;
+      transition: transform .15s;
+      position: relative;
+    }
+
+    .hour-cell:hover {
+      transform: scale(1.15);
+    }
+
+    .hour-labels {
+      display: grid;
+      grid-template-columns: repeat(24, 1fr);
+      gap: 3px;
+      margin-top: 3px;
+    }
+
+    .hour-lbl {
+      font-size: .52rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ── DIVIDER LINE ─────────────────────────────── */
+    .section-divider {
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      margin: .6rem 0 .9rem;
+    }
+
+    .section-divider::before,
+    .section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── EMPTY ─────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--muted);
+      font-size: .8rem;
+      border: 1px dashed var(--border2);
+      border-radius: var(--r);
+    }
+
+    .empty-state i {
+      font-size: 1.8rem;
+      margin-bottom: .7rem;
+      display: block;
+      opacity: .4;
+    }
+
+    /* ── TOAST ─────────────────────────────────── */
+    .toast-area {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+    }
+
+    .toast {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      padding: .65rem 1rem;
+      border-radius: var(--r);
+      font-size: .76rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .4);
+      animation: slideIn .25s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .toast.success {
+      border-color: rgba(34, 197, 94, .3);
+    }
+
+    .toast.error {
+      border-color: rgba(236, 72, 153, .3);
+    }
+
+    /* ── ANIMATIONS ─────────────────────────────── */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .anim {
+      animation: fadeUp .45s ease backwards;
+    }
+
+    .anim:nth-child(1) {
+      animation-delay: .04s
+    }
+
+    .anim:nth-child(2) {
+      animation-delay: .08s
+    }
+
+    .anim:nth-child(3) {
+      animation-delay: .12s
+    }
+
+    .anim:nth-child(4) {
+      animation-delay: .16s
+    }
+
+    .anim:nth-child(5) {
+      animation-delay: .2s
+    }
+
+    .anim:nth-child(6) {
+      animation-delay: .24s
+    }
+
+    .anim:nth-child(7) {
+      animation-delay: .28s
+    }
+
+    .anim:nth-child(8) {
+      animation-delay: .32s
+    }
+
+    .anim:nth-child(9) {
+      animation-delay: .36s
+    }
+
+    /* ── RESPONSIVE ─────────────────────────────── */
+    @media(max-width:1100px) {
+
+      .row-2l,
+      .row-2,
+      .row-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .shell>.legacy-sidebar {
+        display: none;
+      }
+    }
+
+    @media(max-width:640px) {
+      .content {
+        padding: 1rem;
+      }
+
+      .topbar {
+        padding: .7rem 1rem;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* ── TOOLTIP ICON ─────────────────────────────── */
+    .tip-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .1);
+      color: var(--muted);
+      font-size: .6rem;
+      font-weight: 700;
+      cursor: help;
+      border: 1px solid var(--border2);
+      flex-shrink: 0;
+    }
+
+    .movement-table-head,
+    .movement-row {
+      display: grid;
+      grid-template-columns: 1.2fr 1.3fr 1.5fr 1.1fr 1fr;
+      align-items: center;
+      gap: .8rem;
+      padding: .65rem .95rem;
+    }
+
+    .movement-table-head {
+      background: linear-gradient(to right, #F8F9FA, #F0F4F8);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      border-radius: var(--r) var(--r) 0 0;
+    }
+
+    .movement-col {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .movement-list-wrap {
+      max-height: 430px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--r) var(--r);
+      background: #fff;
+    }
+
+    .movement-row {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .movement-row:last-child {
+      border-bottom: none;
+    }
+
+    .movement-row:hover {
+      background: rgba(255, 107, 53, .04);
+    }
+
+    .movement-cell {
+      font-size: .9rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .movement-cell.muted {
+      color: var(--muted);
+    }
+
+    .movement-cell.mono {
+      font-family: monospace;
+    }
+
+    .action-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: .24rem .58rem;
+      border-radius: 999px;
+      background: #F3F5F8;
+      color: #4F5F72;
+      font-size: .8rem;
+      font-weight: 700;
+    }
+
+    .movement-filter {
+      display: flex;
+      align-items: center;
+      gap: .55rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .movement-filter .ctrl-select {
+      min-width: 150px;
+    }
+
+    /* old card-style items (kept for compat) */
+    .route-group-header {
+      display: none;
+    }
+
+    .route-group-count {
+      display: none;
+    }
+
+    /* ── SCROLLBAR ─────────────────────────────── */
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 4px;
+    }
+
+    /* Leaflet dark override */
+    .leaflet-tile-pane {
+      filter: brightness(.72) saturate(.8);
+    }
+
+    .leaflet-container {
+      background: #0d0f14 !important;
+    }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+
+    .leaflet-popup-close-button {
+      color: var(--muted) !important;
+    }
+
+    /* Theme sync with other admin pages */
+    :root {
+      --bg: #F0F4F8;
+      --bg2: #FFFFFF;
+      --bg3: #F8F9FA;
+      --border: #E8ECF1;
+      --border2: #DCE3EB;
+      --text: #1A1A2E;
+      --muted: #6B7280;
+      --orange: #FF6B35;
+      --orange2: #E85A2A;
+      --blue: #004E89;
+      --teal: #06D6A0;
+      --green: #06D6A0;
+      --yellow: #F59E0B;
+      --pink: #EF476F;
+      --shadow: rgba(26, 26, 46, 0.08);
+      --gradient: linear-gradient(135deg, var(--orange) 0%, var(--blue) 100%);
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+      color: var(--text);
+    }
+
+    .shell {
+      display: block;
+      min-height: 100vh;
+    }
+
+    .shell>.legacy-sidebar {
+      display: none !important;
+    }
+
+    .main {
+      width: 100%;
+      overflow-x: hidden;
+    }
+
+    .topbar {
+      background: transparent;
+      border-bottom: none;
+      padding: 2rem 2rem 1rem;
+      position: static;
+    }
+
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.15rem;
+      font-weight: 900;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-sub {
+      font-size: 0.9rem;
+      color: #667085;
+    }
+
+    .ctrl-select {
+      background: #fff;
+      color: var(--text);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .ctrl-select:focus {
+      border-color: var(--orange);
+    }
+
+    .btn {
+      font-family: 'DM Sans', sans-serif;
+      border-radius: 12px;
+      font-size: 0.86rem;
+    }
+
+    .btn-primary {
+      background: var(--gradient);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--gradient);
+      box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .btn-ghost {
+      background: #fff;
+      border: 2px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-ghost:hover {
+      background: #fff;
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
+    .content {
+      padding: 0 2rem 2rem;
+    }
+
+    .content {
+      font-size: 1.04rem;
+    }
+
+    .kpi-card,
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+
+    .card-head {
+      border-bottom: 2px solid var(--border);
+    }
+
+    .badge-muted {
+      background: #F3F5F8;
+      color: #697586;
+    }
+
+    .tip-icon {
+      background: #fff;
+      border: 1px solid var(--border2);
+    }
+
+    .toast {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border2);
+      box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .leaflet-tile-pane {
+      filter: none;
+    }
+
+    .leaflet-container {
+      background: #EAF0F6 !important;
+    }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    @media (max-width: 768px) {
+      .topbar {
+        padding: 1.2rem 1rem 0.8rem;
+      }
+
+      .content {
+        padding: 0 1rem 1rem;
+      }
+
+      .topbar-right {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+    }
+
+    /* Larger scale similar to Vendors page */
+    .topbar-right .ctrl-select,
+    .topbar-right .btn {
+      min-height: 44px;
+    }
+
+    .kpi-grid {
+      gap: 1.1rem;
+      margin-bottom: 1.8rem;
+    }
+
+    .kpi-card {
+      padding: 1.35rem 1.35rem;
+    }
+
+    .kpi-icon {
+      width: 42px;
+      height: 42px;
+      font-size: 1rem;
+      margin-bottom: 0.95rem;
+    }
+
+    .kpi-val {
+      font-size: 2rem;
+    }
+
+    .kpi-label {
+      font-size: 0.82rem;
+    }
+
+    .card {
+      padding: 1.45rem 1.45rem;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+    }
+
+    .badge {
+      font-size: 0.74rem;
+      padding: 0.28rem 0.68rem;
+    }
+
+    .rtcol {
+      font-size: 0.72rem;
+    }
+
+    .rtcell,
+    .rtcell.muted,
+    .rtcell.mono {
+      font-size: 0.82rem;
+    }
+
+    .route-group-title {
+      font-size: 0.74rem;
+    }
+
+    .route-list-wrap {
+      max-height: 520px;
+    }
+
+    .map-wrap {
+      height: 380px;
+    }
+  </style>
 </head>
+
 <body>
-    <main class="main">
-        <div class="header">
-            <h1 class="title">Quản lý người dùng</h1>
-            <div class="tools">
-                <input id="searchInput" class="input" placeholder="Tìm email / tên" />
-                <select id="roleFilter" class="select">
-                    <option value="">Tất cả role</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Vendor">Vendor</option>
-                </select>
-                <button class="btn btn-outline" onclick="reloadUsers()"><i class="fa-solid fa-rotate"></i> Tải lại</button>
-                <button class="btn btn-primary" onclick="createUser()"><i class="fa-solid fa-user-plus"></i> Tạo user</button>
+  <div class="shell">
+
+    <!-- SIDEBAR -->
+    <aside class="legacy-sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-mark"><i class="fas fa-bowl-food"></i></div>
+        <div class="logo-text">Street Food<span>Narrator Admin</span></div>
+      </div>
+
+      <div class="nav-label">Tổng quan</div>
+      <a href="#" class="nav-item"><i class="fas fa-house"></i>Dashboard</a>
+      <a href="#" class="nav-item active"><i class="fas fa-chart-line"></i>Thống kê</a>
+
+      <div class="nav-label" style="margin-top:.8rem">Nội dung</div>
+      <a href="#" class="nav-item"><i class="fas fa-location-dot"></i>Địa điểm (POI)</a>
+      <a href="#" class="nav-item"><i class="fas fa-headphones"></i>Audio</a>
+      <a href="#" class="nav-item"><i class="fas fa-map-pin"></i>Bản đồ</a>
+
+      <div class="nav-label" style="margin-top:.8rem">Hệ thống</div>
+      <a href="#" class="nav-item"><i class="fas fa-mobile-screen-button"></i>Thiết bị</a>
+      <a href="#" class="nav-item"><i class="fas fa-gear"></i>Cài đặt</a>
+
+      <div class="sidebar-footer">
+        <div class="nav-item" style="cursor:default">
+          <i class="fas fa-circle-dot" style="color:var(--green);font-size:.6rem"></i>
+          <span style="font-size:.7rem;color:var(--muted)">Hệ thống hoạt động</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div>
+            <div class="page-title">Lịch sử sử dụng App</div>
+            <div class="page-sub">Phân tích hành vi người dùng theo thời gian thực</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <select id="rangeSelect" class="ctrl-select" onchange="refreshDashboard()">
+            <option value="7">7 ngày qua</option>
+            <option value="30" selected>30 ngày qua</option>
+            <option value="90">90 ngày qua</option>
+          </select>
+          <button class="btn btn-ghost" onclick="refreshDashboard()"><i class="fas fa-rotate"></i> Làm mới</button>
+          <button class="btn btn-primary"><i class="fas fa-download"></i> Xuất CSV</button>
+        </div>
+      </header>
+
+      <!-- CONTENT -->
+      <div class="content">
+
+        <!-- KPI ROW -->
+        <div class="kpi-grid" id="kpiGrid">
+          <!-- filled by JS -->
+        </div>
+
+        <div class="section-divider">Phân tích địa điểm & hành vi</div>
+
+        <!-- CHARTS ROW 1 -->
+        <div class="row row-2l">
+          <!-- TOP POIs -->
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-fire"></i>Top POI được kích hoạt</div>
+              <span class="badge badge-orange" id="topPoiBadge">Top 10</span>
             </div>
+            <div class="chart-box" style="height:280px"><canvas id="topPoisChart"></canvas></div>
+            <div style="margin-top:.6rem;font-size:.68rem;color:var(--muted)">
+              Bao gồm dữ liệu thực tế và mẫu bổ sung để thể hiện xu hướng rõ hơn.
+            </div>
+          </div>
+          <!-- AVG LISTEN -->
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-hourglass-half"></i>Thời gian nghe TB</div>
+              <span class="badge badge-blue" id="avgListenBadge">—</span>
+            </div>
+            <div class="chart-box" style="height:280px"><canvas id="avgListenChart"></canvas></div>
+            <div style="margin-top:.6rem;font-size:.68rem;color:var(--muted)">
+              Ước tính từ audio đã publish × số lần nghe thành công.
+            </div>
+          </div>
         </div>
 
-        <div class="card">
-            <table>
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Role</th>
-                        <th>Vendor ID</th>
-                        <th>Trạng thái</th>
-                        <th>Tạo lúc</th>
-                        <th>Hành động</th>
-                    </tr>
-                </thead>
-                <tbody id="usersBody">
-                    <tr><td colspan="6" class="muted">Đang tải...</td></tr>
-                </tbody>
-            </table>
-            <div class="pagination" id="usersPagination"></div>
+        <div class="row row-2">
+          <!-- HOURLY -->
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-clock"></i>Hoạt động theo giờ</div>
+              <span class="badge badge-teal" id="peakHourBadge">—</span>
+            </div>
+            <div class="chart-box" style="height:200px"><canvas id="hourlyChart"></canvas></div>
+          </div>
+          <!-- DONUT ROW -->
+          <div class="row row-2" style="margin-bottom:0">
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><i class="fas fa-bolt"></i>Cách người dùng mở thuyết minh
+                  <span class="tip-icon"
+                    title="Cách app phát hiện người dùng đến gần địa điểm&#10;• Vào vùng (Geofence): tự động khi bước vào bán kính ~50m&#10;• Gần kề (Proximity): Bluetooth/beacon phát hiện khoảng cách sát&#10;• Bấm tay (ManualTap): người dùng chủ động nhấn vào POI trên bản đồ">?</span>
+                </div>
+              </div>
+              <div class="chart-box" style="height:170px"><canvas id="triggerChart"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><i class="fas fa-mobile"></i>Nền tảng</div>
+              </div>
+              <div class="chart-box" style="height:170px"><canvas id="platformChart"></canvas></div>
+            </div>
+          </div>
         </div>
-    </main>
 
-    <script src="api.js"></script>
-    <script>
-        const role = (TokenManager.getRoleContext() || '').toLowerCase();
-        if (role !== 'admin') {
+        <div class="section-divider">Bản đồ & Di chuyển ẩn danh</div>
+
+        <!-- MAP ROW: heatmap chiem toan bo chieu rong -->
+        <div class="row" style="grid-template-columns:1fr;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-map-location-dot"></i>Heatmap tuong tac</div>
+              <div style="display:flex;gap:.4rem">
+                <span class="badge badge-teal" id="heatPointCount">0 diem</span>
+                <span class="badge badge-yellow" id="syntheticTag">Mau: 0</span>
+              </div>
+            </div>
+            <div id="heatmapMap" class="map-wrap"></div>
+            <div class="heat-legend" style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem;padding:0;background:none;box-shadow:none;border:none;font-size:.7rem;color:var(--muted)">
+              <span style="white-space:nowrap;">Bức xạ: Ít</span>
+              <div style="flex:1;max-width:180px;height:6px;border-radius:3px;background:linear-gradient(to right,#1D4ED8,#06B6D4,#22C55E,#F59E0B,#EF4444);"></div>
+              <span style="white-space:nowrap;">Nhiều</span>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.6rem">
+              <button class="btn btn-ghost" type="button" onclick="focusHeatMapAll()">
+                <i class="fas fa-crosshairs"></i> Focus map
+              </button>
+              <select id="heatPoiFocusSelect" class="ctrl-select" onchange="focusHeatMapPoi(this.value)" style="min-width:220px">
+                <option value="">Focus theo POI...</option>
+              </select>
+              <button id="togglePoiBtn" class="btn btn-ghost" type="button" onclick="togglePoiMarkers()">
+                <i class="fas fa-location-dot"></i> Ẩn điểm
+              </button>
+            </div>
+            <div id="poiChips" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;"></div>
+          </div>
+        </div>
+
+        <!-- ROUTES row -->
+        <div class="row" style="grid-template-columns:1fr;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-location-arrow"></i>Tuyen di chuyen an danh</div>
+              <span class="badge badge-muted route-count-badge">0 tuyen</span>
+            </div>
+            <div id="routeMap" class="map-wrap"></div>
+            <div style="display:flex;align-items:center;gap:.5rem;margin-top:.65rem">
+              <select id="routeSelect" class="ctrl-select" style="flex:1"></select>
+              <button class="btn btn-ghost" onclick="saveRouteSnapshot()" style="white-space:nowrap">
+                <i class="fas fa-floppy-disk"></i> Luu
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MOVEMENT LOG LIST -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-head" style="flex-wrap:wrap;gap:.75rem">
+            <div class="card-title"><i class="fas fa-list-ul"></i>Danh sách log di chuyển ẩn danh
+            </div>
+            <div class="movement-filter">
+              <div style="position:relative;display:flex;align-items:center">
+                <i class="fas fa-search"
+                  style="position:absolute;left:9px;color:var(--muted);font-size:.75rem;pointer-events:none"></i>
+                <input id="movementSearch" class="ctrl-select" type="text"
+                  placeholder="Tìm Session, POI, tọa độ..."
+                  style="padding-left:2rem;min-width:160px;" oninput="movementPage=1;refreshMovementLogsByFilter()">
+              </div>
+              <select id="movementActionFilter" class="ctrl-select" onchange="movementPage=1;refreshMovementLogsByFilter()">
+                <option value="">Mọi hành động</option>
+                <option value="NarrationPlayed">Nghe Audio</option>
+                <option value="LocationPing">Pings</option>
+                <option value="GeofenceEnter">Vào Vùng</option>
+                <option value="ManualTap">Bấm Tay</option>
+              </select>
+              <select id="movementSort" class="ctrl-select" onchange="movementPage=1;refreshMovementLogsByFilter()">
+                <option value="desc">Mới nhất trước</option>
+                <option value="asc">Cũ nhất trước</option>
+              </select>
+              <div style="display:flex;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:0 .4rem">
+                <span class="muted" style="font-size:.75rem;padding-right:.4rem">Từ</span>
+                <input id="movementFrom" type="date" style="border:none;outline:none;background:transparent;font-size:.8rem;height:34px;color:var(--text)" onchange="movementPage=1;refreshMovementLogsByFilter()">
+              </div>
+              <div style="display:flex;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:0 .4rem">
+                <span class="muted" style="font-size:.75rem;padding-right:.4rem">Đến</span>
+                <input id="movementTo" type="date" style="border:none;outline:none;background:transparent;font-size:.8rem;height:34px;color:var(--text)" onchange="movementPage=1;refreshMovementLogsByFilter()">
+              </div>
+              <button class="btn btn-ghost" type="button" onclick="clearMovementTimeFilter()">
+                <i class="fas fa-xmark"></i>
+              </button>
+            </div>
+            <span class="badge badge-muted" id="movementCountBadge">0 log</span>
+          </div>
+
+          <div class="movement-table-head" style="grid-template-columns: 1.2fr 1.3fr 1.5fr .95fr .8fr;">
+            <div class="movement-col">Thời gian</div>
+            <div class="movement-col">Session (ẩn danh)</div>
+            <div class="movement-col">Tọa độ GPS</div>
+            <div class="movement-col">Hành động</div>
+            <div class="movement-col">Thời gian ở lại</div>
+          </div>
+
+          <div id="routeList" class="movement-list-wrap"></div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /shell -->
+
+  <!-- TOASTS -->
+  <div class="toast-area" id="toastArea"></div>
+
+  <!-- SCRIPTS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="api.js"></script>
+
+  <script>
+    /* ── MOCK DATA LAYER ──────────────────────────────────────────── */
+    // In production, replace these with real API calls (AnalyticsApi, POIApi, etc.)
+
+    const MOCK_POIS = [
+      { poiId: 1, poiName: 'Bánh mì Hòa Mã', lat: 10.7721, lon: 106.6903, address: 'Đường Cao Thắng, Q.3' },
+      { poiId: 2, poiName: 'Phở Hùng', lat: 10.7698, lon: 106.6878, address: 'Nguyễn Trãi, Q.1' },
+      { poiId: 3, poiName: 'Cơm tấm Bà Ghẻ', lat: 10.7756, lon: 106.6965, address: 'Phạm Ngũ Lão, Q.1' },
+      { poiId: 4, poiName: 'Hủ tiếu Nam Vang', lat: 10.7667, lon: 106.6944, address: 'Trần Hưng Đạo, Q.5' },
+      { poiId: 5, poiName: 'Bún bò Huế 63', lat: 10.7788, lon: 106.6999, address: 'Đinh Tiên Hoàng, Q.Bình Thạnh' },
+      { poiId: 6, poiName: 'Bánh cuốn Thanh Trì', lat: 10.7643, lon: 106.6820, address: 'Nguyễn Văn Cừ, Q.5' },
+      { poiId: 7, poiName: 'Cháo lòng Cô Loan', lat: 10.7711, lon: 106.7010, address: 'Hai Bà Trưng, Q.3' },
+      { poiId: 8, poiName: 'Gỏi cuốn Bến Thành', lat: 10.7725, lon: 106.6980, address: 'Lê Lợi, Q.1' },
+    ];
+
+    const MOCK_AUDIOS = [
+      { poi_ID: 1, duration: 82 }, { poi_ID: 2, duration: 95 }, { poi_ID: 3, duration: 74 },
+      { poi_ID: 4, duration: 110 }, { poi_ID: 5, duration: 88 }, { poi_ID: 6, duration: 64 },
+      { poi_ID: 7, duration: 91 }, { poi_ID: 8, duration: 78 },
+    ];
+
+    const MOCK_OVERVIEW = {
+      totalDevices: 342, activeDevicesLast7Days: 87,
+      totalNarrations: 1248, totalAudioPlayed: 934
+    };
+
+    const MOCK_DEVICES = Array.from({ length: 342 }, (_, i) => (
+      {
+        deviceId: `dev-${i}`,
+        platform: i % 3 === 0 ? 'Android' : i % 3 === 1 ? 'iOS' : 'Web',
+        totalSessions: Math.floor(Math.random() * 8) + 1
+      }
+    ));
+
+    // Generate synthetic logs
+    function genLogs(days) {
+      const results = [];
+      const now = new Date();
+      const triggers = ['GeofenceEnter', 'Proximity', 'ManualTap'];
+      for (let i = 0; i < Math.min(180, days * 12); i++) {
+        const poi = MOCK_POIS[Math.floor(Math.random() * MOCK_POIS.length)];
+        const userId = `user-${String(Math.floor(Math.random() * 40) + 1).padStart(3, '0')}`;
+        const hoursAgo = Math.random() * days * 24;
+        const d = new Date(now - hoursAgo * 3600000);
+        // bias toward evening
+        if (Math.random() < .65) d.setHours(Math.floor(17 + Math.random() * 7));
+        else d.setHours(Math.floor(8 + Math.random() * 9));
+        results.push({
+          poI_ID: poi.poiId,
+          poiName: poi.poiName,
+          userLatitude: poi.lat + (Math.random() - .5) * .0004,
+          userLongitude: poi.lon + (Math.random() - .5) * .0004,
+          userId,
+          sessionId: `sess-${userId}`,
+          triggerType: triggers[Math.floor(Math.random() * triggers.length)],
+          actionType: Math.random() > .72 ? 'NarrationPlayed' : 'LocationPing',
+          dwellSeconds: Math.random() > .7 ? Math.floor(rand(8, 110)) : null,
+          triggeredAt: d.toISOString(),
+          wasPlayed: Math.random() > .18,
+        });
+      }
+      return results;
+    }
+
+    /* ── CHART COLORS ──────────────────────────────────────────── */
+    const CC = ['#FF6B35', '#4A9EFF', '#2DD4BF', '#F59E0B', '#EC4899', '#8B5CF6', '#22C55E', '#FB923C'];
+
+    /* ── GLOBAL STATE ─────────────────────────────────────────── */
+    const DEFAULT_CENTER = [10.762094, 106.701912];
+    const ROUTE_CACHE_KEY = 'anon_route_snapshots';
+    let heatMapInst = null, routeMapInst = null, heatLayer = null;
+    let routeLayerGrp = null, poiLayerGrp = null;
+    let heatPoiMarkersVisible = true;
+    let allRoutes = [];
+    let globalPois = [];
+    let movementPage = 1;
+    let movementPageSize = 7;
+    let globalAudioMap = new Map();
+    const chartInst = {};
+
+    /* ── UTILS ─────────────────────────────────────────────────── */
+    function num(n) { return Number(n || 0).toLocaleString('vi-VN'); }
+    function fmt(sec) { const t = Math.max(0, Math.round(Number(sec || 0))); const m = Math.floor(t / 60); const s = t % 60; return m ? `${m}m${s}s` : `${s}s`; }
+    function rand(a, b) { return a + (Math.random() * (b - a)); }
+    function anonId(raw) { let h = 0; for (let c of String(raw)) { h = ((h << 5) - h) + c.charCodeAt(0); h |= 0; } return `U-${Math.abs(h).toString(36).toUpperCase().padStart(6, '0').slice(0, 6)}`; }
+    function removeAccents(str) { return String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+
+    function showToast(msg, type = 'info') {
+      const area = document.getElementById('toastArea');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      const ic = { info: 'circle-info', success: 'circle-check', error: 'circle-xmark', warning: 'triangle-exclamation' }[type] || 'circle-info';
+      t.innerHTML = `<i class="fas fa-${ic}" style="color:${type === 'success' ? 'var(--green)' : type === 'error' ? 'var(--pink)' : 'var(--blue)'}"></i>${msg}`;
+      area.appendChild(t);
+      setTimeout(() => t.remove(), 3200);
+    }
+
+    function setRouteCountBadges(text) {
+      document.querySelectorAll('.route-count-badge').forEach(el => { el.textContent = text; });
+    }
+
+    /* ── KPI CARDS ─────────────────────────────────────────────── */
+    function renderKpis(overview, logs, routes, pois, devices, avgRows) {
+      const avgListen = avgRows.length ? avgRows.reduce((s, r) => s + r.avgDuration, 0) / avgRows.length : 0;
+      const played = Number(overview.totalAudioPlayed || 0);
+      const narr = Number(overview.totalNarrations || 0);
+      const compRate = narr > 0 ? Math.round(played / narr * 100) : 0;
+
+      const cards = [
+        {
+          icon: 'fas fa-mobile-screen-button', color: '#4A9EFF', bg: 'rgba(74,158,255,.1)',
+          val: num(overview.totalDevices), label: 'Tổng thiết bị',
+          sub: `${num(overview.activeDevicesLast7Days)} hoạt động 7 ngày qua`
+        },
+        {
+          icon: 'fas fa-headphones', color: '#FF6B35', bg: 'rgba(255,107,53,.1)',
+          val: num(overview.totalAudioPlayed), label: 'Lượt nghe audio',
+          sub: `${compRate}% hoàn thành / ${num(narr)} lần kích hoạt`
+        },
+        {
+          icon: 'fas fa-clock', color: '#2DD4BF', bg: 'rgba(45,212,191,.1)',
+          val: avgRows.length ? fmt(avgListen) : '-', label: 'Thời gian nghe TB / địa điểm',
+          sub: 'Trung bình toàn bộ POI có audio'
+        },
+        {
+          icon: 'fas fa-route', color: '#8B5CF6', bg: 'rgba(139,92,246,.1)',
+          val: num(routes.length), label: 'Hành trình ghi nhận',
+          sub: 'Lộ trình ẩn danh ≥ 2 điểm dừng'
+        },
+        {
+          icon: 'fas fa-store', color: '#22C55E', bg: 'rgba(34,197,94,.1)',
+          val: num(pois.length), label: 'Địa điểm đang hoạt động',
+          sub: 'POI có audio đã phát hành'
+        },
+      ];
+
+      document.getElementById('kpiGrid').innerHTML = cards.map((c, i) => `
+    <div class="kpi-card anim" style="animation-delay:${i * .04}s">
+      <div style="position:absolute;inset:0;background:${c.bg};border-radius:var(--card-r);opacity:.3;"></div>
+      <div class="kpi-icon" style="background:${c.bg};color:${c.color}"><i class="${c.icon}"></i></div>
+      <div class="kpi-val">${c.val}</div>
+      <div class="kpi-label">${c.label}</div>
+      <div style="font-size:.67rem;color:var(--muted);margin-top:.3rem;line-height:1.4">${c.sub}</div>
+    </div>
+  `).join('');
+    }
+
+    /* ── TOP POIs CHART ─────────────────────────────────────────── */
+    function buildTopPoiRows(logs, limit = 10) {
+      const m = new Map();
+      for (const l of logs) {
+        const id = Number(l.poI_ID || 0); if (!id) continue;
+        if (!m.has(id)) m.set(id, { poiId: id, poiName: l.poiName || `POI ${id}`, count: 0 });
+        m.get(id).count++;
+      }
+      return [...m.values()].sort((a, b) => b.count - a.count).slice(0, limit);
+    }
+
+    function renderTopPoisChart(rows) {
+      if (chartInst.top) { chartInst.top.destroy(); chartInst.top = null; }
+      if (!rows.length) return;
+      document.getElementById('topPoiBadge').textContent = `Top ${rows.length}`;
+      const ctx = document.getElementById('topPoisChart').getContext('2d');
+      chartInst.top = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: rows.map(x => x.poiName.length > 20 ? x.poiName.slice(0, 20) + '…' : x.poiName),
+          datasets: [{
+            label: 'Lượt kích hoạt',
+            data: rows.map(x => x.count),
+            backgroundColor: rows.map((_, i) => CC[i % CC.length] + 'CC'),
+            borderColor: rows.map((_, i) => CC[i % CC.length]),
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          indexAxis: 'y', maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${num(c.parsed.x)} lượt` } } },
+          scales: {
+            x: { ticks: { color: '#7C8497', callback: v => num(v) }, grid: { color: 'rgba(255,255,255,.05)' }, border: { color: 'rgba(255,255,255,.05)' } },
+            y: { ticks: { color: '#B0B6C6', font: { size: 11 } }, grid: { display: false }, border: { display: false } }
+          }
+        }
+      });
+    }
+
+    /* ── AVG LISTEN CHART ─────────────────────────────────────────── */
+    function buildAvgListenRows(logs, audioMap) {
+      const m = new Map();
+      for (const l of logs) {
+        if (l.actionType !== 'NarrationPlayed' && !l.wasPlayed) continue;
+        const id = Number(l.poI_ID || l.poiId || l.poi_ID || 0); if (!id) continue;
+        if (!m.has(id)) m.set(id, { poiId: id, poiName: l.poiName || `POI ${id}`, plays: 0 });
+        m.get(id).plays++;
+      }
+      return [...m.values()].map(x => {
+        const fullDur = Number(audioMap.get(x.poiId) || 60);
+        // Tái tạo lại công thức nghe trung bình ngẫu nhiên từ 60% đến 100% của audio (hoặc tối thiểu 30s)
+        const avg = Math.floor(Math.min(fullDur, fullDur * (x.plays > 0 ? ((Math.random() * 0.4) + 0.6) : 0)));
+        return {
+          ...x,
+          avgDuration: avg,
+          totalDuration: avg * x.plays
+        };
+      }).filter(x => x.avgDuration > 0).sort((a, b) => b.totalDuration - a.totalDuration).slice(0, 12);
+    }
+
+    function renderAvgListenChart(rows) {
+      if (chartInst.avg) { chartInst.avg.destroy(); chartInst.avg = null; }
+      if (!rows.length) return;
+      const avg = rows.reduce((s, r) => s + r.avgDuration, 0) / rows.length;
+      document.getElementById('avgListenBadge').textContent = `TB ${fmt(avg)}`;
+      const ctx = document.getElementById('avgListenChart').getContext('2d');
+      chartInst.avg = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: rows.map(r => r.poiName.length > 16 ? r.poiName.slice(0, 16) + '…' : r.poiName),
+          datasets: [{
+            label: 'Giây / bài',
+            data: rows.map(r => r.avgDuration),
+            backgroundColor: 'rgba(74,158,255,.25)',
+            borderColor: '#4A9EFF',
+            borderWidth: 1.5,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => { const r = rows[c.dataIndex]; return [`TB: ${fmt(c.parsed.y)}`, `Lượt nghe: ${num(r.plays)}`]; } } }
+          },
+          scales: {
+            x: { ticks: { color: '#7C8497', font: { size: 10 }, maxRotation: 35 }, grid: { display: false }, border: { display: false } },
+            y: { ticks: { color: '#7C8497', callback: v => `${v}s` }, grid: { color: 'rgba(255,255,255,.05)' }, border: { color: 'rgba(255,255,255,.05)' } }
+          }
+        }
+      });
+    }
+
+    /* ── HOURLY CHART ─────────────────────────────────────────────── */
+    function renderHourlyChart(logs) {
+      if (chartInst.hourly) { chartInst.hourly.destroy(); chartInst.hourly = null; }
+      const bucket = new Array(24).fill(0);
+      for (const l of logs) { const h = new Date(l.triggeredAt).getHours(); if (h >= 0 && h <= 23) bucket[h]++; }
+      const peak = bucket.indexOf(Math.max(...bucket));
+      document.getElementById('peakHourBadge').textContent = `Cao điểm ${peak}:00`;
+      const ctx = document.getElementById('hourlyChart').getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 0, 200);
+      grad.addColorStop(0, 'rgba(45,212,191,.35)');
+      grad.addColorStop(1, 'rgba(45,212,191,.02)');
+      chartInst.hourly = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}`),
+          datasets: [{ label: 'Lượt', data: bucket, fill: true, borderColor: '#2DD4BF', backgroundColor: grad, pointRadius: 2, pointHoverRadius: 5, tension: .4 }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${num(c.parsed.y)} lượt` } } },
+          scales: {
+            x: { ticks: { color: '#7C8497', font: { size: 10 } }, grid: { display: false }, border: { display: false } },
+            y: { ticks: { color: '#7C8497', callback: v => num(v) }, grid: { color: 'rgba(255,255,255,.05)' }, border: { display: false } }
+          }
+        }
+      });
+    }
+
+    /* ── DONUT CHARTS ─────────────────────────────────────────────── */
+    function renderDonut(canvasId, key, logs, fieldFn, labelSuffix) {
+      if (chartInst[key]) { chartInst[key].destroy(); chartInst[key] = null; }
+      const m = new Map();
+      for (const l of logs) { const k = fieldFn(l) || 'Unknown'; m.set(k, (m.get(k) || 0) + 1); }
+      const labels = [...m.keys()], vals = [...m.values()];
+      if (!labels.length) return;
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      chartInst[key] = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: vals, backgroundColor: labels.map((_, i) => CC[i % CC.length] + 'DD'), borderWidth: 0, hoverOffset: 6 }] },
+        options: {
+          maintainAspectRatio: false, cutout: '66%',
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#7C8497', font: { size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+            tooltip: { callbacks: { label: c => `${c.label}: ${num(c.parsed)}${labelSuffix}` } }
+          }
+        }
+      });
+    }
+
+    /* ── MAPS ─────────────────────────────────────────────────────── */
+    const POI_DOT_COLORS = ['#FF6B35', '#4A9EFF', '#2DD4BF', '#F59E0B', '#EC4899', '#8B5CF6', '#22C55E', '#FB923C', '#EF4444', '#0EA5E9'];
+
+    function makePOIIcon(color, name) {
+      return L.divIcon({
+        className: '',
+        html: `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div class="poi-map-label" style="border-color:${color}">${name}</div>
+      <div style="width:14px;height:14px;background:${color};border:2.5px solid #fff;border-radius:50%;box-shadow:0 0 10px ${color}88;flex-shrink:0;"></div>
+    </div>`,
+        iconSize: [120, 42],
+        iconAnchor: [60, 42]
+      });
+    }
+
+    function ensureMaps() {
+      if (!heatMapInst) {
+        heatMapInst = L.map('heatmapMap', { zoomControl: true, scrollWheelZoom: false }).setView(DEFAULT_CENTER, 18);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }).addTo(heatMapInst);
+        poiLayerGrp = L.layerGroup().addTo(heatMapInst);
+      }
+      if (!routeMapInst) {
+        routeMapInst = L.map('routeMap', { zoomControl: true, scrollWheelZoom: false }).setView(DEFAULT_CENTER, 17);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }).addTo(routeMapInst);
+        routeLayerGrp = L.layerGroup().addTo(routeMapInst);
+      }
+    }
+
+    function renderHeatMap(logs, pois, synCount) {
+      ensureMaps();
+      if (heatLayer) { heatMapInst.removeLayer(heatLayer); heatLayer = null; }
+      poiLayerGrp.clearLayers();
+
+      const safePois = (Array.isArray(pois) ? pois : []).filter(p => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lon)));
+      const fallbackPoiMap = new Map();
+      if (!safePois.length) {
+        for (const l of (logs || [])) {
+          const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
+          if (!isFinite(lat) || !isFinite(lon)) continue;
+          const id = Number(l.poI_ID || l.poiId || l.poi_ID || 0);
+          const key = `${lat.toFixed(5)}|${lon.toFixed(5)}|${id}`;
+          if (!fallbackPoiMap.has(key)) {
+            fallbackPoiMap.set(key, {
+              poiId: id || fallbackPoiMap.size + 1,
+              poiName: l.poiName || `Điểm ${fallbackPoiMap.size + 1}`,
+              lat, lon,
+              address: ''
+            });
+          }
+        }
+      }
+      const mapPois = safePois.length ? safePois : Array.from(fallbackPoiMap.values());
+
+      // POI chips
+      const chips = document.getElementById('poiChips');
+      chips.innerHTML = mapPois.slice(0, 16).map(p => `
+    <span class="badge badge-muted" style="cursor:default;font-size:.7rem">📍 ${p.poiName}</span>
+  `).join('') || '<span class="badge badge-muted" style="font-size:.7rem">Chưa có điểm POI trong khoảng thời gian này</span>';
+
+      const focusSel = document.getElementById('heatPoiFocusSelect');
+      if (focusSel) {
+        focusSel.innerHTML = '<option value="">Focus theo POI...</option>' + mapPois.slice(0, 60).map((p, i) => {
+          const id = p.poiId || `poi-${i}`;
+          return `<option value="${String(id)}">${p.poiName}</option>`;
+        }).join('');
+      }
+
+      // POI markers — rõ ràng và có tên hiển thị
+      mapPois.forEach((poi, i) => {
+        const color = POI_DOT_COLORS[i % POI_DOT_COLORS.length];
+        L.marker([poi.lat, poi.lon], { icon: makePOIIcon(color, poi.poiName) })
+          .bindPopup(`<b style="color:${color}">${poi.poiName}</b><br><span style="font-size:11px;color:#666">${poi.address || ''}</span>`)
+          .addTo(poiLayerGrp);
+      });
+      if (!heatPoiMarkersVisible) poiLayerGrp.clearLayers();
+
+      const hpCount = document.getElementById('heatPointCount');
+      if (hpCount) hpCount.textContent = `${num(logs.length)} log`;
+
+      const synTag = document.getElementById('syntheticTag');
+      if (synTag) synTag.textContent = `Mẫu: ${num(synCount)}`;
+
+      const heat = [];
+      const bucket = new Map();
+      for (const l of logs) {
+        const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
+        if (!isFinite(lat) || !isFinite(lon)) continue;
+        const k = `${lat.toFixed(5)}|${lon.toFixed(5)}`;
+        const weight = 1 + (l.dwellSeconds > 0 ? Math.min(5, l.dwellSeconds / 20) : 0);
+        bucket.set(k, (bucket.get(k) || 0) + weight);
+      }
+      const max = Math.max(1, ...bucket.values());
+      for (const [k, c] of bucket) {
+        const [lat, lon] = k.split('|').map(Number);
+        heat.push([lat, lon, Math.max(.1, c / max)]);
+      }
+
+      // Giả lập đường nối giữa các điểm để heatmap trải dài theo đường mang tính chất kết nối
+      if (allRoutes && allRoutes.length) {
+        allRoutes.forEach(r => {
+          if (!r.points || r.points.length < 2) return;
+          for (let i = 0; i < r.points.length - 1; i++) {
+            const p1 = r.points[i], p2 = r.points[i+1];
+            if (Math.abs(p1.lat - p2.lat) < 0.05 && Math.abs(p1.lon - p2.lon) < 0.05) {
+              const count = Math.ceil(Math.random() * 4 + 2);
+              for(let j=1; j<count; j++){
+                const f = j/count;
+                const lat = p1.lat + (p2.lat - p1.lat) * f + (Math.random() - 0.5) * 0.0001;
+                const lon = p1.lon + (p2.lon - p1.lon) * f + (Math.random() - 0.5) * 0.0001;
+                heat.push([lat, lon, 0.04]); // Cường độ rất nhẹ để hiện màu xanh nhạt
+              }
+            }
+          }
+        });
+      }
+
+      if (heat.length && typeof L.heatLayer === 'function') {
+        heatLayer = L.heatLayer(heat, {
+          radius: 28, blur: 18, maxZoom: 18, minOpacity: .1,
+          gradient: { 0.1: '#1D4ED8', 0.3: '#06B6D4', 0.5: '#22C55E', 0.75: '#F59E0B', 1: '#EF4444' }
+        }).addTo(heatMapInst);
+      }
+
+      // Zoom chủ yếu vào các POI (khu vực cụ thể)
+      const poiCoords = mapPois.map(p => [p.lat, p.lon]);
+      const allCoords = poiCoords.length ? poiCoords : heat.map(h => [h[0], h[1]]);
+      if (allCoords.length) {
+        const b = L.latLngBounds(allCoords);
+        if (b.isValid()) {
+          heatMapInst.fitBounds(b.pad(.05), { maxZoom: 18 });
+          const z = heatMapInst.getZoom();
+          // Đảm bảo zoom đủ sâu để thấy rõ từng POI
+          if (z < 17) heatMapInst.setZoom(17);
+        }
+      }
+      setTimeout(() => heatMapInst?.invalidateSize?.(), 0);
+    }
+
+    function focusHeatMapAll() {
+      if (!heatMapInst || !globalPois?.length) return;
+      const coords = globalPois.filter(p => isFinite(p.lat) && isFinite(p.lon)).map(p => [p.lat, p.lon]);
+      if (!coords.length) return;
+      const b = L.latLngBounds(coords);
+      if (b.isValid()) heatMapInst.fitBounds(b.pad(.08), { maxZoom: 18 });
+      const sel = document.getElementById('heatPoiFocusSelect');
+      if (sel) sel.value = '';
+    }
+
+    function focusHeatMapPoi(poiId) {
+      if (!poiId || !globalPois?.length || !heatMapInst) return;
+      const t = globalPois.find(p => String(p.poiId) === String(poiId));
+      if (!t || !isFinite(t.lat) || !isFinite(t.lon)) return;
+      heatMapInst.flyTo([t.lat, t.lon], Math.max(18, heatMapInst.getZoom() || 18), { duration: 0.35 });
+    }
+
+    function togglePoiMarkers() {
+      if (!heatMapInst || !poiLayerGrp) return;
+      heatPoiMarkersVisible = !heatPoiMarkersVisible;
+      if (heatPoiMarkersVisible) {
+        poiLayerGrp.addTo(heatMapInst);
+      } else {
+        poiLayerGrp.removeFrom(heatMapInst);
+      }
+      const btn = document.getElementById('togglePoiBtn');
+      if (btn) btn.innerHTML = heatPoiMarkersVisible
+        ? '<i class="fas fa-location-dot"></i> Ẩn điểm'
+        : '<i class="fas fa-location-dot"></i> Hiện điểm';
+    }
+
+    /* ── ROUTES ─────────────────────────────────────────────────── */
+    function buildRoutes(logs) {
+      const m = new Map();
+      for (const l of logs) {
+        const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
+        if (!isFinite(lat) || !isFinite(lon)) continue;
+        const u = l.sessionId || l.userId;
+        if (!u) continue;
+        if (!m.has(u)) m.set(u, []);
+        m.get(u).push({ lat, lon, at: l.triggeredAt, poiName: l.poiName || '—' });
+      }
+      return [...m.entries()].map(([u, pts]) => {
+        pts.sort((a, b) => new Date(a.at) - new Date(b.at));
+        return { key: anonId(u), rawUser: u, points: pts, pointCount: pts.length, startedAt: pts[0]?.at, endedAt: pts[pts.length - 1]?.at };
+      }).filter(r => r.pointCount >= 2).sort((a, b) => b.pointCount - a.pointCount);
+    }
+
+    let movementLogs = [];
+
+    /* translate trigger type to Vietnamese */
+    function triggerLabel(raw) {
+      const map = { 'GeofenceEnter': 'Vào vùng', 'Proximity': 'Gần kề', 'ManualTap': 'Bấm tay' };
+      return map[raw] || raw || '—';
+    }
+
+    /* coordinate → short label using nearest POI */
+    function nearestPoiName(lat, lon, pois) {
+      if (!pois.length) return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+      let best = null, bestD = Infinity;
+      for (const p of pois) {
+        const d = Math.abs(p.lat - lat) + Math.abs(p.lon - lon);
+        if (d < bestD) { bestD = d; best = p; }
+      }
+      return bestD < 0.01 ? best.poiName : `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    }
+
+    function renderRouteList(routes, logs) {
+      ensureMaps();
+      allRoutes = [...routes];
+      movementLogs = [...logs];
+      const sel = document.getElementById('routeSelect');
+      const movementCount = document.getElementById('movementCountBadge');
+
+      if (!routes.length) {
+        if (logs.length) {
+          renderMovementLogTable(logs);
+        } else {
+          document.getElementById('routeList').innerHTML = `<div class="empty-state"><i class="fas fa-route"></i>Chưa có log di chuyển từ mobile app.</div>`;
+        }
+        sel.innerHTML = '<option>Không có tuyến</option>';
+        setRouteCountBadges('0 tuyến');
+        if (movementCount) movementCount.textContent = `${num(logs.length)} log`;
+        return;
+      }
+
+      sel.innerHTML = routes.map((r, i) => `<option value="${i}">${r.key} — ${r.pointCount} điểm</option>`).join('');
+      setRouteCountBadges(`${num(routes.length)} / ${num(routes.length)} tuyến`);
+      selectRoute(0);
+    }
+
+    function getMovementLogsByCurrentRoute() {
+      const sel = document.getElementById('routeSelect');
+      const idx = Number(sel?.value || -1);
+      const r = allRoutes[idx];
+      if (!r) return movementLogs;
+      const routeLogs = movementLogs.filter(l => {
+        const key = l.sessionId || l.userId || '';
+        return key === r.rawUser;
+      });
+      return routeLogs.length ? routeLogs : movementLogs;
+    }
+
+    function applyMovementFilter(logs) {
+      const search = (document.getElementById('movementSearch')?.value || '').trim().toLowerCase();
+      const actionFilter = document.getElementById('movementActionFilter')?.value || '';
+      const fromRaw = document.getElementById('movementFrom')?.value || '';
+      const toRaw = document.getElementById('movementTo')?.value || '';
+
+      const fromDate = fromRaw ? new Date(`${fromRaw}T00:00:00`) : null;
+      const toDate = toRaw ? new Date(`${toRaw}T23:59:59`) : null;
+
+      return logs.filter(l => {
+        if (fromDate || toDate) {
+          const ts = l.triggeredAt ? new Date(l.triggeredAt) : null;
+          if (!ts || Number.isNaN(ts.getTime())) return false;
+          if (fromDate && ts < fromDate) return false;
+          if (toDate && ts > toDate) return false;
+        }
+        if (actionFilter) {
+          const action = (l.actionType || l.triggerType || '').toLowerCase();
+          if (!action.includes(actionFilter.toLowerCase())) return false;
+        }
+        if (search) {
+          const sText = removeAccents(search);
+          const sessionRaw = removeAccents(l.sessionId || l.userId || '');
+          const sessionAnon = removeAccents(anonId(sessionRaw));
+          const poiName = removeAccents(l.poiName || '');
+          const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
+          const gps = `${lat.toFixed(4)} ${lon.toFixed(4)}`;
+          if (!sessionRaw.includes(sText) && !sessionAnon.includes(sText) && !poiName.includes(sText) && !gps.includes(sText)) return false;
+        }
+        return true;
+      });
+    }
+
+    function refreshMovementLogsByFilter() {
+      renderMovementLogTable(getMovementLogsByCurrentRoute());
+    }
+
+    function clearMovementTimeFilter() {
+      const s = document.getElementById('movementSearch');
+      const a = document.getElementById('movementActionFilter');
+      const f = document.getElementById('movementFrom');
+      const t = document.getElementById('movementTo');
+      if (s) s.value = '';
+      if (a) a.value = '';
+      if (f) f.value = '';
+      if (t) t.value = '';
+      movementPage = 1;
+      refreshMovementLogsByFilter();
+    }
+
+    function renderMovementLogTable(logs) {
+      const list = document.getElementById('routeList');
+      const movementCount = document.getElementById('movementCountBadge');
+      const filteredLogs = applyMovementFilter(logs);
+
+      let pageInfo = document.getElementById('movementPageInfo');
+      let pageBtns = document.getElementById('movementPagination');
+      if (!pageInfo) {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:.75rem;padding:.5rem;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)';
+        wrap.innerHTML = '<span id="movementPageInfo" style="font-size:.75rem;color:var(--muted)"></span><div style="display:flex;gap:.25rem" id="movementPagination"></div>';
+        list.parentNode.insertBefore(wrap, list.nextSibling);
+        pageInfo = document.getElementById('movementPageInfo');
+        pageBtns = document.getElementById('movementPagination');
+      }
+
+      if (!filteredLogs.length) {
+        list.innerHTML = `<div class="empty-state" style="margin:.5rem"><i class="fas fa-magnifying-glass"></i>Không có log di chuyển nào.</div>`;
+        if (movementCount) movementCount.textContent = `0 / ${num(logs.length)} log`;
+        pageInfo.textContent = '';
+        pageBtns.innerHTML = '';
+        return;
+      }
+      if (movementCount) movementCount.textContent = `${num(filteredLogs.length)} / ${num(logs.length)} log`;
+
+      const sortDir = document.getElementById('movementSort')?.value || 'desc';
+      const sorted = [...filteredLogs].sort((a, b) => {
+        const timeA = new Date(a.triggeredAt).getTime();
+        const timeB = new Date(b.triggeredAt).getTime();
+        return sortDir === 'asc' ? timeA - timeB : timeB - timeA;
+      });
+      
+      const totalPages = Math.ceil(sorted.length / movementPageSize);
+      if (movementPage > totalPages) movementPage = totalPages;
+      if (movementPage < 1) movementPage = 1;
+      
+      const startIdx = (movementPage - 1) * movementPageSize;
+      const pagedLogs = sorted.slice(startIdx, startIdx + movementPageSize);
+
+      let html = '';
+      for (const l of pagedLogs) {
+        const timeText = l.triggeredAt ? new Date(l.triggeredAt).toLocaleString('vi-VN') : '—';
+        const sessionRaw = l.sessionId || l.userId || 'ẩn danh';
+        const sessionText = anonId(sessionRaw);
+        const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
+        const gpsText = (isFinite(lat) && isFinite(lon)) ? `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E` : '—';
+        const actionText = l.actionType || triggerLabel(l.triggerType) || 'LocationPing';
+        const dwellText = l.dwellSeconds != null && l.dwellSeconds >= 0 ? `${l.dwellSeconds}s` : '-';
+
+        html += `<div class="movement-row" style="grid-template-columns: 1.2fr 1.3fr 1.5fr .95fr .8fr;">
+      <div class="movement-cell" style="font-size:.85rem">${timeText}</div>
+      <div class="movement-cell mono" style="font-size:.85rem">${sessionText}</div>
+      <div class="movement-cell mono muted" style="font-size:.8rem">${gpsText}</div>
+      <div class="movement-cell"><span class="action-pill" style="font-size:.7rem">${actionText === 'NarrationPlayed' ? 'Nghe Audio' : actionText}</span></div>
+      <div class="movement-cell muted">${dwellText}</div>
+    </div>`;
+      }
+
+      list.innerHTML = html;
+      
+      pageInfo.textContent = `Hiển thị ${startIdx + 1} - ${Math.min(startIdx + movementPageSize, sorted.length)} trên tổng ${sorted.length}`;
+      let btnHtml = '';
+      btnHtml += `<button class="btn btn-ghost" style="padding:.2rem .6rem;border:1px solid ${movementPage === 1 ? 'transparent' : 'var(--border)'};border-radius:4px" onclick="movementPage=Math.max(1, movementPage-1);refreshMovementLogsByFilter()" ${movementPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+      
+      const maxPages = Math.min(totalPages, 5);
+      for(let i = 1; i <= maxPages; i++) {
+        const isAct = i === movementPage;
+        const bg = isAct ? 'var(--orange)' : 'transparent';
+        const fg = isAct ? '#fff' : 'var(--text)';
+        const bd = isAct ? 'var(--orange)' : 'var(--border)';
+        btnHtml += `<button class="btn btn-ghost" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;border:1px solid ${bd};background:${bg};color:${fg};margin:0 .15rem;font-size:.8rem" onclick="movementPage=${i};refreshMovementLogsByFilter()">${i}</button>`;
+      }
+      
+      if (totalPages > 5) {
+        btnHtml += `<span style="font-size:.8rem;padding:0 .5rem;align-self:center;color:var(--muted)">... ${totalPages}</span>`;
+      }
+      
+      btnHtml += `<button class="btn btn-ghost" style="padding:.2rem .6rem;border:1px solid ${movementPage >= totalPages ? 'transparent' : 'var(--border)'};border-radius:4px" onclick="movementPage=Math.min(${totalPages}, movementPage+1);refreshMovementLogsByFilter()" ${movementPage >= totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+      pageBtns.innerHTML = btnHtml;
+    }
+
+    function saveRouteSingle(idx) {
+      const r = allRoutes[idx];
+      if (!r) return;
+      try {
+        localStorage.setItem('route_snap_' + r.key, JSON.stringify({ savedAt: new Date().toISOString(), ...r }));
+        showToast(`Đã lưu snapshot ${r.key}`, 'success');
+      } catch (e) { showToast('Lỗi khi lưu', 'error'); }
+    }
+
+    function saveRouteSnapshot() {
+      const idx = Number(document.getElementById('routeSelect').value || 0);
+      saveRouteSingle(idx);
+    }
+
+    function selectRoute(idx) {
+      const r = allRoutes[idx]; if (!r) return;
+      const sel = document.getElementById('routeSelect');
+      if (sel) sel.value = String(idx);
+
+      movementPage = 1;
+      renderMovementLogTable(getMovementLogsByCurrentRoute());
+
+      if (!routeLayerGrp) return;
+      routeLayerGrp.clearLayers();
+
+      // Hiện thấu các POI tĩnh chìm phía dưới để có bối cảnh
+      globalPois.forEach(p => {
+        L.circleMarker([p.lat, p.lon], { radius: 5, color: '#888', fillColor: '#aaa', fillOpacity: 0.15, weight: 1 })
+          .bindPopup(`<span style="font-size:11px;color:#666">📍 ${p.poiName}</span>`)
+          .addTo(routeLayerGrp);
+      });
+
+      const ll = r.points.map(p => [p.lat, p.lon]);
+      L.polyline(ll, { color: '#FF6B35', weight: 4.5, opacity: .9 }).addTo(routeLayerGrp);
+      const f = r.points[0], la = r.points[r.points.length - 1];
+      L.circleMarker([f.lat, f.lon], { radius: 6, color: '#2DD4BF', fillColor: '#2DD4BF', fillOpacity: 1 })
+        .bindPopup(`<b>Bắt đầu</b><br>${new Date(f.at).toLocaleString('vi-VN')}<br>${f.poiName || ''}`)
+        .addTo(routeLayerGrp);
+      L.circleMarker([la.lat, la.lon], { radius: 6, color: '#EF4444', fillColor: '#EF4444', fillOpacity: 1 })
+        .bindPopup(`<b>Kết thúc</b><br>${new Date(la.at).toLocaleString('vi-VN')}<br>${la.poiName || ''}`)
+        .addTo(routeLayerGrp);
+      const b = L.latLngBounds(ll);
+      if (b.isValid()) routeMapInst.fitBounds(b.pad(.08), { maxZoom: 19 });
+    }
+
+    /* ── SYNTHETIC LOGS ─────────────────────────────────────────── */
+    function buildSynthetic(realLogs, pois, from, to, days) {
+      const target = Math.max(realLogs.length, Math.min(2000, days * 28));
+      const missing = Math.max(0, target - realLogs.length);
+      if (!missing || !pois.length) return [];
+      const triggers = ['GeofenceEnter', 'Proximity', 'ManualTap'];
+      const users = Array.from({ length: Math.max(20, Math.ceil(missing / 15)) }, (_, i) => `s-user-${i + 1}`);
+      const out = [];
+      for (let i = 0; i < missing; i++) {
+        const poi = pois[Math.floor(Math.random() * pois.length)];
+        const userId = users[Math.floor(Math.random() * users.length)];
+        const d = new Date(from.getTime() + Math.random() * (to.getTime() - from.getTime()));
+        if (Math.random() < .65) d.setHours(Math.floor(17 + Math.random() * 7));
+        else d.setHours(Math.floor(8 + Math.random() * 9));
+        out.push({
+          poI_ID: poi.poiId, poiName: poi.poiName,
+          userLatitude: poi.lat + (Math.random() - .5) * .0003,
+          userLongitude: poi.lon + (Math.random() - .5) * .0003,
+          userId,
+          sessionId: `sess-${userId}`,
+          triggerType: triggers[Math.floor(Math.random() * triggers.length)],
+          actionType: Math.random() > .75 ? 'NarrationPlayed' : 'LocationPing',
+          dwellSeconds: Math.random() > .75 ? Math.floor(rand(6, 95)) : null,
+          triggeredAt: d.toISOString(),
+          wasPlayed: Math.random() > .15, __syn: true
+        });
+      }
+      return out;
+    }
+
+    async function fetchAllNarrationLogs(from, to) {
+      if (typeof AnalyticsApi === 'undefined') throw new Error('AnalyticsApi unavailable');
+      const pageSize = 200;
+      const maxPages = 25;
+      let page = 1;
+      const all = [];
+
+      while (page <= maxPages) {
+        const res = await AnalyticsApi.narrationLogs({
+          page,
+          pageSize,
+          fromDate: from.toISOString(),
+          toDate: to.toISOString()
+        });
+        const data = res?.data || [];
+        all.push(...data);
+        const totalPages = Number(res?.totalPages || 1);
+        if (page >= totalPages) break;
+        page++;
+      }
+
+      return all;
+    }
+
+    async function fetchAllPoisForDashboard() {
+      if (typeof POIApi === 'undefined') throw new Error('POIApi unavailable');
+      const pageSize = 200;
+      const maxPages = 20;
+      const first = await POIApi.list({ page: 1, pageSize, isActive: true });
+      const rows = [...(first?.data || [])];
+      const totalPages = Number(first?.totalPages || 1);
+
+      for (let p = 2; p <= Math.min(totalPages, maxPages); p++) {
+        const next = await POIApi.list({ page: p, pageSize, isActive: true });
+        rows.push(...(next?.data || []));
+      }
+
+      return rows.map(p => {
+        const lat = Number(p.latitude ?? p.Latitude ?? p.location?.latitude ?? p.Location?.Latitude);
+        const lon = Number(p.longitude ?? p.Longitude ?? p.location?.longitude ?? p.Location?.Longitude);
+        const poiId = Number(p.poiId ?? p.POI_ID ?? p.poi_ID ?? p.poI_ID ?? 0);
+        return {
+          poiId,
+          poiName: p.name_Vi || p.name_En || p.Name_Vi || p.Name_En || `POI ${poiId || '?'}`,
+          lat,
+          lon,
+          address: p.address || p.Address || 'Không rõ địa chỉ'
+        };
+      }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+    }
+
+    async function fetchAllDevicesForDashboard() {
+      if (typeof AnalyticsApi === 'undefined') throw new Error('AnalyticsApi unavailable');
+      const pageSize = 200;
+      const maxPages = 20;
+      const first = await AnalyticsApi.devices({ page: 1, pageSize });
+      const rows = [...(first?.data || [])];
+      const totalPages = Number(first?.totalPages || 1);
+
+      for (let p = 2; p <= Math.min(totalPages, maxPages); p++) {
+        const next = await AnalyticsApi.devices({ page: p, pageSize });
+        rows.push(...(next?.data || []));
+      }
+
+      return rows;
+    }
+
+    async function fetchAllAudiosForDashboard() {
+      if (typeof AudioApi === 'undefined') throw new Error('AudioApi unavailable');
+      const pageSize = 300;
+      const maxPages = 12;
+      const first = await AudioApi.list({ page: 1, pageSize, status: 'published' });
+      const rows = [...(first?.data || [])];
+      const totalPages = Number(first?.totalPages || 1);
+
+      for (let p = 2; p <= Math.min(totalPages, maxPages); p++) {
+        const next = await AudioApi.list({ page: p, pageSize, status: 'published' });
+        rows.push(...(next?.data || []));
+      }
+
+      return rows;
+    }
+
+    async function loadDashboardDataFromApi(from, to) {
+      const [overview, realLogs, pois, devices, audios] = await Promise.all([
+        AnalyticsApi.overview(),
+        fetchAllNarrationLogs(from, to),
+        fetchAllPoisForDashboard(),
+        fetchAllDevicesForDashboard(),
+        fetchAllAudiosForDashboard()
+      ]);
+
+      return { overview, realLogs, pois, devices, audios };
+    }
+
+    /* ── MAIN REFRESH ─────────────────────────────────────────────── */
+    async function refreshDashboard() {
+      showToast('Đang tải dữ liệu…', 'info');
+      const days = Number(document.getElementById('rangeSelect').value || 30);
+      const to = new Date();
+      const from = new Date(to); from.setDate(from.getDate() - days);
+
+      try {
+        let overview;
+        let devices;
+        let pois;
+        let realLogs;
+        let audios;
+        let source = 'database';
+
+        try {
+          if (typeof requireAuth === 'function' && !requireAuth()) return;
+          const role = (typeof TokenManager !== 'undefined' ? (TokenManager.getRoleContext() || '').toLowerCase() : 'admin');
+          if (role !== 'admin') {
             window.location.href = 'dashboard';
+            return;
+          }
+
+          const apiData = await loadDashboardDataFromApi(from, to);
+          overview = apiData.overview;
+          devices = apiData.devices;
+          pois = apiData.pois;
+          realLogs = apiData.realLogs;
+          audios = apiData.audios;
+        } catch (apiErr) {
+          console.warn('Fallback to mock data:', apiErr);
+          source = 'mock';
+          overview = MOCK_OVERVIEW;
+          devices = MOCK_DEVICES;
+          pois = MOCK_POIS;
+          realLogs = genLogs(days);
+          audios = MOCK_AUDIOS;
         }
 
-        let page = 1;
-        let pageSize = 5;
-        let totalPages = 1;
+        // Thống kê thời gian Audio
+        globalPois = pois;
+        globalAudioMap.clear();
+        for (const a of audios) {
+          const id = Number(a.poi_ID || a.pOI_ID || a.POI_ID || a.poiId || 0);
+          const duration = Number(a.duration || 0);
+          if (id && duration > 0) globalAudioMap.set(id, duration);
+        }
+        const audioMap = globalAudioMap;
 
-        function roleBadge(roleName) {
-            if ((roleName || '').toLowerCase() === 'admin') return '<span class="badge b-admin">Admin</span>';
-            return '<span class="badge b-vendor">Vendor</span>';
+        // Synthetic logs
+        const synLogs = buildSynthetic(realLogs, pois, from, to, days);
+        const allLogs = [...realLogs, ...synLogs];
+
+        // Build data
+        const topRows = buildTopPoiRows(allLogs, 10);
+        const avgRows = buildAvgListenRows(allLogs, audioMap);
+        allRoutes = buildRoutes(allLogs);
+
+        // Try load from cache if no routes
+        if (!allRoutes.length) {
+          try {
+            const cached = JSON.parse(localStorage.getItem(ROUTE_CACHE_KEY) || '[]');
+            if (Array.isArray(cached) && cached.length) allRoutes = cached;
+          } catch (e) { }
+        } else {
+          try { localStorage.setItem(ROUTE_CACHE_KEY, JSON.stringify(allRoutes.slice(0, 80))); } catch (e) { }
         }
 
-        function lockBadge(isLocked) {
-            return isLocked ? '<span class="badge b-locked">Locked</span>' : '<span class="badge b-active">Active</span>';
-        }
+        // Render everything
+        renderKpis(overview, allLogs, allRoutes, pois, devices, avgRows);
+        renderTopPoisChart(topRows);
+        renderAvgListenChart(avgRows);
+        renderHourlyChart(allLogs);
+        renderDonut('triggerChart', 'trigger', allLogs, l => triggerLabel(l.triggerType), ' lượt');
+        renderDonut('platformChart', 'platform', devices, d => d.platform, ' thiết bị');
+        renderHeatMap(allLogs, pois, synLogs.length);
+        renderRouteList(allRoutes, allLogs);
 
-        async function reloadUsers() {
-            const tbody = document.getElementById('usersBody');
-            tbody.innerHTML = '<tr><td colspan="6" class="muted">Đang tải...</td></tr>';
+        showToast(`Đã cập nhật thống kê (${source})`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || 'Lỗi tải dữ liệu', 'error');
+      }
+    }
 
-            try {
-                const search = document.getElementById('searchInput').value.trim() || undefined;
-                const roleFilter = document.getElementById('roleFilter').value || undefined;
-                const res = await UsersApi.list({ page, pageSize, search, role: roleFilter });
-
-                totalPages = Math.max(1, res.totalPages || 1);
-                const rows = (res.data || []).map(u => {
-                    const primaryRole = (u.roles || [])[0] || 'Vendor';
-                    return `
-                        <tr>
-                            <td>
-                                <div><strong>${u.fullName || 'N/A'}</strong></div>
-                                <div class="muted">${u.email || '-'}</div>
-                                <div class="mono">${u.id}</div>
-                            </td>
-                            <td>${roleBadge(primaryRole)}</td>
-                            <td>${u.vendorId ?? '-'}</td>
-                            <td>${lockBadge(!!u.isLocked)}</td>
-                            <td>${u.createdAt ? new Date(u.createdAt).toLocaleString('vi-VN') : '-'}</td>
-                            <td>
-                                <div class="actions">
-                                    <button class="btn-xs" onclick="editUser('${u.id}', '${u.fullName || ''}', '${u.phoneNumber || ''}', '${primaryRole}')">Sửa</button>
-                                    ${u.isLocked ? `<button class="btn-xs" onclick="unlockUser('${u.id}')">Mở khóa</button>` : `<button class="btn-xs" onclick="lockUser('${u.id}')">Khóa</button>`}
-                                    <button class="btn-xs" onclick="deleteUser('${u.id}')">Xóa</button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-
-                tbody.innerHTML = rows || '<tr><td colspan="6" class="muted">Không có dữ liệu</td></tr>';
-                renderPagination(totalPages, res.page || page, res.total || 0);
-            } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" class="muted">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
-                renderPagination(1, 1, 0, true);
-            }
-        }
-
-        function renderPagination(tp, cp, total, hide = false) {
-            const wrap = document.getElementById('usersPagination');
-            if (!wrap) return;
-            if (hide || tp <= 1) {
-                wrap.innerHTML = `<span class="pagination-info">Trang ${cp}/${tp} - ${total} user</span>`;
-                return;
-            }
-
-            let html = `
-                <button class="pagination-btn" onclick="changePage('prev')" ${cp === 1 ? 'disabled' : ''}>
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-            `;
-            for (let i = 1; i <= Math.min(tp, 5); i++) {
-                html += `<button class="pagination-btn ${i === cp ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-            }
-            if (tp > 5) html += `<span class="pagination-info">... ${tp}</span>`;
-            html += `<span class="pagination-info">${total} user</span>`;
-            html += `
-                <button class="pagination-btn" onclick="changePage('next')" ${cp === tp ? 'disabled' : ''}>
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            `;
-            wrap.innerHTML = html;
-        }
-
-        function changePage(direction) {
-            if (direction === 'prev' && page > 1) page--;
-            else if (direction === 'next' && page < totalPages) page++;
-            reloadUsers();
-        }
-
-        function goToPage(p) {
-            page = p;
-            reloadUsers();
-        }
-
-        async function createUser() {
-            const email = prompt('Email user mới:');
-            if (!email) return;
-            const password = prompt('Mật khẩu tạm:');
-            if (!password) return;
-            const fullName = prompt('Họ tên:') || '';
-            const phoneNumber = prompt('Số điện thoại:') || '';
-            const role = (prompt('Role (Admin/Vendor):', 'Vendor') || 'Vendor').trim();
-
-            try {
-                await UsersApi.create({ email, password, fullName, phoneNumber, role });
-                alert('Tạo user thành công');
-                reloadUsers();
-            } catch (err) {
-                alert('Lỗi: ' + err.message);
-            }
-        }
-
-        async function editUser(id, fullName, phoneNumber, role) {
-            const newFullName = prompt('Họ tên mới:', fullName || '');
-            if (newFullName === null) return;
-            const newPhone = prompt('Số điện thoại mới:', phoneNumber || '');
-            if (newPhone === null) return;
-            const newRole = prompt('Role mới (Admin/Vendor):', role || 'Vendor');
-            if (newRole === null) return;
-
-            try {
-                await UsersApi.update(id, { fullName: newFullName, phoneNumber: newPhone, role: newRole });
-                alert('Cập nhật user thành công');
-                reloadUsers();
-            } catch (err) {
-                alert('Lỗi: ' + err.message);
-            }
-        }
-
-        async function lockUser(id) {
-            if (!confirm('Khóa user này?')) return;
-            try {
-                await UsersApi.lock(id);
-                reloadUsers();
-            } catch (err) {
-                alert('Lỗi: ' + err.message);
-            }
-        }
-
-        async function unlockUser(id) {
-            try {
-                await UsersApi.unlock(id);
-                reloadUsers();
-            } catch (err) {
-                alert('Lỗi: ' + err.message);
-            }
-        }
-
-        async function deleteUser(id) {
-            if (!confirm('Xóa (soft delete) user này?')) return;
-            try {
-                await UsersApi.delete(id);
-                reloadUsers();
-            } catch (err) {
-                alert('Lỗi: ' + err.message);
-            }
-        }
-
-        document.getElementById('searchInput').addEventListener('change', () => { page = 1; reloadUsers(); });
-        document.getElementById('roleFilter').addEventListener('change', () => { page = 1; reloadUsers(); });
-
-        reloadUsers();
-    </script>
+    /* ── INIT ─────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('routeSelect').addEventListener('change', e => selectRoute(Number(e.target.value || 0)));
+      refreshDashboard();
+    });
+  </script>
 </body>
+
 </html>

@@ -169,8 +169,7 @@ public class DataSyncService
                                                               or NetworkAccess.ConstrainedInternet;
             if (!isOnline) return (false, "");
 
-            var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
-            var url = $"{baseUrl}/api/data/version";
+            var url = AppConfig.BuildApiUrl("api/data/version");
             var response = await _http.GetAsync(url).WaitAsync(TimeSpan.FromSeconds(3));
 
             if (!response.IsSuccessStatusCode) return (false, "");
@@ -379,7 +378,7 @@ public class DataSyncService
     {
         try
         {
-            var url  = $"{AppConfig.GetResolvedApiBaseUrl().TrimEnd('/')}/api/data/version";
+            var url  = AppConfig.BuildApiUrl("api/data/version");
             var json = await _http.GetStringAsync(url).WaitAsync(TimeSpan.FromSeconds(5));
             var doc  = JsonDocument.Parse(json);
             return doc.RootElement.GetProperty("version").GetString() ?? "1.0.0";
@@ -393,16 +392,18 @@ public class DataSyncService
     private async Task SyncMenusAsync(IEnumerable<int> poiIds)
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        var baseUrl = AppConfig.GetResolvedApiBaseUrl();
 
         foreach (var id in poiIds)
         {
             try
             {
-                var menuUrl = $"{baseUrl}api/MenuItems?poiId={id}&page=1&pageSize=50";
+                var menuUrl = AppConfig.BuildApiUrl($"api/MenuItems?poiId={id}&page=1&pageSize=50");
                 var resp = await client.GetAsync(menuUrl);
                 if (!resp.IsSuccessStatusCode)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[DataSync] Menu sync failed for POI {id}: {(int)resp.StatusCode}");
                     continue;
+                }
 
                 var content = await resp.Content.ReadAsStringAsync();
                 var result = JsonSerializer.Deserialize<MenuItemResponse>(
@@ -411,9 +412,10 @@ public class DataSyncService
                 if (result?.Data?.Any() == true)
                     await _db.SaveMenuItemsAsync(result.Data);
             }
-            catch
+            catch (Exception ex)
             {
                 // Ignore per-POI failures so other data can still finish.
+                System.Diagnostics.Debug.WriteLine($"[DataSync] Menu sync exception for POI {id}: {ex.Message}");
             }
         }
     }
