@@ -1101,10 +1101,10 @@ public class AudioController : ControllerBase
         var outputPath = GetUploadAudioPath(fileName);
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
-        var pythonPath = "D:\\project\\street_food\\.venv\\Scripts\\python.exe";
-        var scriptPath = "D:\\project\\street_food\\tts_wrapper.py";
+        var pythonPath = ResolvePythonPath();
+        var scriptPath = ResolveTtsWrapperPath();
 
-        if (!System.IO.File.Exists(pythonPath) || !System.IO.File.Exists(scriptPath))
+        if (string.IsNullOrWhiteSpace(pythonPath) || string.IsNullOrWhiteSpace(scriptPath))
         {
             return (false, "Python or TTS wrapper not found", 500, null, null);
         }
@@ -1168,6 +1168,65 @@ public class AudioController : ControllerBase
     private string GetUploadAudioPath(string fileName)
     {
         return Path.Combine(_env.ContentRootPath, "Uploads", "audio", fileName);
+    }
+
+    private string GetWorkspaceRootPath()
+    {
+        var parent = Directory.GetParent(_env.ContentRootPath);
+        var grandParent = parent != null ? Directory.GetParent(parent.FullName) : null;
+        if (grandParent != null) return grandParent.FullName;
+        if (parent != null) return parent.FullName;
+        return _env.ContentRootPath;
+    }
+
+    private static bool IsCommandName(string candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate)) return false;
+        if (Path.IsPathRooted(candidate)) return false;
+        return !candidate.Contains(Path.DirectorySeparatorChar) && !candidate.Contains(Path.AltDirectorySeparatorChar);
+    }
+
+    private List<string> GetPythonCandidates()
+    {
+        var workspace = GetWorkspaceRootPath();
+        return new List<string>
+        {
+            Environment.GetEnvironmentVariable("TTS_PYTHON_PATH") ?? string.Empty,
+            Path.Combine(workspace, ".venv", "Scripts", "python.exe"),
+            Path.Combine(_env.ContentRootPath, ".venv", "Scripts", "python.exe"),
+            "python",
+            "py"
+        }.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private List<string> GetTtsWrapperCandidates()
+    {
+        var workspace = GetWorkspaceRootPath();
+        return new List<string>
+        {
+            Environment.GetEnvironmentVariable("TTS_WRAPPER_PATH") ?? string.Empty,
+            Path.Combine(workspace, "tts_wrapper.py"),
+            Path.Combine(_env.ContentRootPath, "tts_wrapper.py")
+        }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private string? ResolvePythonPath()
+    {
+        foreach (var candidate in GetPythonCandidates())
+        {
+            if (IsCommandName(candidate)) return candidate;
+            if (System.IO.File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private string? ResolveTtsWrapperPath()
+    {
+        foreach (var candidate in GetTtsWrapperCandidates())
+        {
+            if (System.IO.File.Exists(candidate)) return candidate;
+        }
+        return null;
     }
 
     private bool TryGetAudioPhysicalPath(string audioUrl, out string physicalPath)

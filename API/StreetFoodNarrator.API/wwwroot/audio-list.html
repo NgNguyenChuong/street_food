@@ -954,8 +954,7 @@
     let currentPoiQuery = '';
     let currentStatus   = '';
     let allGroups       = [];  // All POI groups fetched (used for frontend pagination)
-    let totalBackendPages = 1;
-    let backendFetchPage  = 1;
+    const backendPageSize = 200;
 
     async function loadAudios() {
         const grid = document.getElementById('audioGrid');
@@ -966,20 +965,30 @@
             const poiId    = poiInput && /^\d+$/.test(poiInput) ? parseInt(poiInput, 10) : null;
             const poiName  = poiInput && !poiId ? poiInput : null;
 
-            // Fetch a large batch so we can group by POI and paginate groups on frontend.
-            // Use up to groupsPerPage * 4 records (each POI may have ≤3 languages + buffer).
-            const fetchSize = groupsPerPage * 4;
-            const data = await api.getAudioList(
-                backendFetchPage,
-                fetchSize,
+            const firstPage = await api.getAudioList(
+                1,
+                backendPageSize,
                 currentLanguage || null,
                 poiId,
                 currentStatus || null,
                 poiName
             );
-            const audios = data.data || [];
+            let audios = firstPage.data || [];
+            const totalPages = Number(firstPage.totalPages || 1);
 
-            await updateStats(audios, data.total || audios.length);
+            for (let p = 2; p <= totalPages; p++) {
+                const next = await api.getAudioList(
+                    p,
+                    backendPageSize,
+                    currentLanguage || null,
+                    poiId,
+                    currentStatus || null,
+                    poiName
+                );
+                audios = audios.concat(next.data || []);
+            }
+
+            await updateStats(audios, firstPage.total || audios.length);
 
             if (audios.length === 0) {
                 allGroups = [];
@@ -1024,18 +1033,8 @@
     }
 
     async function updateStats(audios, total) {
-        let statsAudios = audios;
-        const totalValue = total ?? audios.length;
-        if (totalValue > audios.length && totalValue <= 5000) {
-            try {
-                const statsResp = await api.getAudioList(1, totalValue, currentLanguage || null, currentPoiId || null);
-                statsAudios = statsResp.data || audios;
-            } catch (error) {
-                statsAudios = audios;
-            }
-        }
-
-        const totalCount = totalValue;
+        const statsAudios = audios || [];
+        const totalCount = total ?? statsAudios.length;
         const poiSet = new Set(statsAudios.map(a => a.poi_ID));
         const langSet = new Set(statsAudios.map(a => a.language || '').filter(Boolean));
         const totalSize = statsAudios.reduce((sum, a) => sum + (a.fileSize || 0), 0);
@@ -1052,7 +1051,6 @@
         groupsPerPage   = parseInt(document.getElementById('pageSizeFilter').value, 10) || 5;
         currentStatus   = document.getElementById('statusFilter').value;
         currentPage     = 1;
-        backendFetchPage = 1;
         loadAudios();
     }
 
@@ -1671,9 +1669,10 @@
             const poiInput = currentPoiQuery.trim();
             const poiId = poiInput && /^\d+$/.test(poiInput) ? parseInt(poiInput, 10) : null;
             const poiName = poiInput && !poiId ? poiInput : null;
+            const fetchSize = Math.max(groupsPerPage * 4, 200);
             const first = await api.getAudioList(
                 1,
-                pageSize,
+                fetchSize,
                 currentLanguage || null,
                 poiId,
                 currentStatus || null,

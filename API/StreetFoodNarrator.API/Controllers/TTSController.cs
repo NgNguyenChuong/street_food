@@ -29,16 +29,10 @@ public class TTSController : ControllerBase
     {
         try
         {
-            // Check multiple possible paths
-            var paths = new List<string>
-            {
-                Path.Combine(Directory.GetParent(_env.ContentRootPath)!.Parent!.FullName, ".venv", "Scripts", "edge-tts.exe"),
-                "D:\\project\\street_food\\.venv\\Scripts\\edge-tts.exe",
-                "edge-tts"
-            };
+            var paths = GetEdgeTtsCandidates();
 
             var existingPaths = paths.Where(p => {
-                try { return System.IO.File.Exists(p); } catch { return false; }
+                try { return IsCommandName(p) || System.IO.File.Exists(p); } catch { return false; }
             }).ToList();
 
             return Ok(new
@@ -94,23 +88,22 @@ public class TTSController : ControllerBase
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
             // Use Python script wrapper for edge-tts
-            var pythonPath = "D:\\project\\street_food\\.venv\\Scripts\\python.exe";
-            var scriptPath = "D:\\project\\street_food\\tts_wrapper.py";
-            
-            if (!System.IO.File.Exists(pythonPath))
+            var pythonPath = ResolvePythonPath();
+            var scriptPath = ResolveTtsWrapperPath();
+
+            if (string.IsNullOrWhiteSpace(pythonPath))
             {
                 return StatusCode(500, new { 
                     message = "Python executable not found", 
-                    path = pythonPath,
-                    suggestion = "Make sure Python virtual environment is set up at D:\\project\\street_food\\.venv"
+                    suggestion = "Set TTS_PYTHON_PATH or create .venv in the project root"
                 });
             }
             
-            if (!System.IO.File.Exists(scriptPath))
+            if (string.IsNullOrWhiteSpace(scriptPath))
             {
                 return StatusCode(500, new { 
                     message = "TTS wrapper script not found", 
-                    path = scriptPath 
+                    suggestion = "Set TTS_WRAPPER_PATH or keep tts_wrapper.py in project root" 
                 });
             }
             
@@ -275,10 +268,10 @@ public class TTSController : ControllerBase
             
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
-            var pythonPath = "D:\\project\\street_food\\.venv\\Scripts\\python.exe";
-            var scriptPath = "D:\\project\\street_food\\tts_wrapper.py";
+            var pythonPath = ResolvePythonPath();
+            var scriptPath = ResolveTtsWrapperPath();
             
-            if (!System.IO.File.Exists(pythonPath) || !System.IO.File.Exists(scriptPath))
+            if (string.IsNullOrWhiteSpace(pythonPath) || string.IsNullOrWhiteSpace(scriptPath))
             {
                 return StatusCode(500, new { message = "Python or TTS wrapper not found" });
             }
@@ -397,6 +390,81 @@ public class TTSController : ControllerBase
     {
         var dir = string.IsNullOrWhiteSpace(subDir) ? "audio" : subDir;
         return Path.Combine(_env.ContentRootPath, "Uploads", dir, fileName);
+    }
+
+    private string GetWorkspaceRootPath()
+    {
+        var parent = Directory.GetParent(_env.ContentRootPath);
+        var grandParent = parent != null ? Directory.GetParent(parent.FullName) : null;
+        if (grandParent != null) return grandParent.FullName;
+        if (parent != null) return parent.FullName;
+        return _env.ContentRootPath;
+    }
+
+    private static bool IsCommandName(string candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate)) return false;
+        if (Path.IsPathRooted(candidate)) return false;
+        return !candidate.Contains(Path.DirectorySeparatorChar) && !candidate.Contains(Path.AltDirectorySeparatorChar);
+    }
+
+    private List<string> GetPythonCandidates()
+    {
+        var workspace = GetWorkspaceRootPath();
+        return new List<string>
+        {
+            Environment.GetEnvironmentVariable("TTS_PYTHON_PATH") ?? string.Empty,
+            Path.Combine(workspace, ".venv", "Scripts", "python.exe"),
+            Path.Combine(_env.ContentRootPath, ".venv", "Scripts", "python.exe"),
+            "python",
+            "py"
+        }.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private List<string> GetTtsWrapperCandidates()
+    {
+        var workspace = GetWorkspaceRootPath();
+        return new List<string>
+        {
+            Environment.GetEnvironmentVariable("TTS_WRAPPER_PATH") ?? string.Empty,
+            Path.Combine(workspace, "tts_wrapper.py"),
+            Path.Combine(_env.ContentRootPath, "tts_wrapper.py")
+        }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private List<string> GetEdgeTtsCandidates()
+    {
+        var workspace = GetWorkspaceRootPath();
+        return new List<string>
+        {
+            Environment.GetEnvironmentVariable("EDGE_TTS_EXE_PATH") ?? string.Empty,
+            Path.Combine(workspace, ".venv", "Scripts", "edge-tts.exe"),
+            Path.Combine(_env.ContentRootPath, ".venv", "Scripts", "edge-tts.exe"),
+            "edge-tts"
+        }.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private string? ResolvePythonPath()
+    {
+        foreach (var candidate in GetPythonCandidates())
+        {
+            if (IsCommandName(candidate)) return candidate;
+            if (System.IO.File.Exists(candidate)) return candidate;
+        }
+
+        _logger.LogError("Python executable not found. Candidates: {Candidates}", string.Join("; ", GetPythonCandidates()));
+        return null;
+    }
+
+    private string? ResolveTtsWrapperPath()
+    {
+        foreach (var candidate in GetTtsWrapperCandidates())
+        {
+            if (System.IO.File.Exists(candidate)) return candidate;
+        }
+
+        _logger.LogError("tts_wrapper.py not found. Candidates: {Candidates}", string.Join("; ", GetTtsWrapperCandidates()));
+        return null;
     }
 
     private static (string Text, double EstimatedSeconds, bool Truncated) ClampToMaxDuration(string input, int maxSeconds)
