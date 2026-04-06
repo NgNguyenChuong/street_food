@@ -652,6 +652,103 @@
         </div>
     </header>
 
+    <section class="stats-bar">
+        <article class="stat-item" onclick="filterByStatus('')">
+            <div class="stat-icon primary"><i class="fas fa-store"></i></div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">Tổng Vendor</div>
+        </article>
+        <article class="stat-item" onclick="filterByStatus('approved')">
+            <div class="stat-icon success"><i class="fas fa-circle-check"></i></div>
+            <div class="stat-value" id="statApproved">0</div>
+            <div class="stat-label">Đã duyệt</div>
+        </article>
+        <article class="stat-item" onclick="filterByStatus('pending')">
+            <div class="stat-icon warning"><i class="fas fa-hourglass-half"></i></div>
+            <div class="stat-value" id="statPending">0</div>
+            <div class="stat-label">Chờ duyệt</div>
+        </article>
+        <article class="stat-item" onclick="filterByStatus('rejected')">
+            <div class="stat-icon danger"><i class="fas fa-ban"></i></div>
+            <div class="stat-value" id="statRejected">0</div>
+            <div class="stat-label">Từ chối</div>
+        </article>
+    </section>
+
+    <section class="tabs">
+        <button id="tabAll" class="tab active" onclick="switchTab('')">
+            <i class="fas fa-list"></i> Tất cả
+        </button>
+        <button id="tabPending" class="tab" onclick="switchTab('pending')">
+            <i class="fas fa-hourglass-half"></i> Chờ duyệt
+            <span class="tab-badge" id="pendingBadge">0</span>
+        </button>
+        <button id="tabApproved" class="tab" onclick="switchTab('approved')">
+            <i class="fas fa-circle-check"></i> Đã duyệt
+        </button>
+        <button id="tabRejected" class="tab" onclick="switchTab('rejected')">
+            <i class="fas fa-circle-xmark"></i> Từ chối
+        </button>
+    </section>
+
+    <section class="filter-section">
+        <div class="filter-row">
+            <div class="search-wrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input
+                    type="text"
+                    class="filter-input"
+                    id="searchInput"
+                    placeholder="Tìm theo tên quán, email, người liên hệ..."
+                >
+            </div>
+            <select class="filter-select" id="sortSelect">
+                <option value="">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+                <option value="name-asc">Tên A-Z</option>
+                <option value="pois-desc">Nhiều POI nhất</option>
+            </select>
+            <button class="btn btn-outline" onclick="loadVendors()">
+                <i class="fas fa-rotate"></i> Tải lại
+            </button>
+        </div>
+    </section>
+
+    <section class="table-container">
+        <div class="table-header">
+            <h2 class="table-title">Danh sách Vendor</h2>
+            <span class="table-count" id="tableCount">0 vendor</span>
+        </div>
+
+        <div id="loading" class="loading" style="display:none;">
+            <i class="fas fa-spinner"></i>
+            <p style="margin-top:0.75rem;color:#777;">Đang tải danh sách vendor...</p>
+        </div>
+
+        <table id="vendorTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Liên hệ</th>
+                    <th>Trạng thái</th>
+                    <th>POI</th>
+                    <th>Lượt xem</th>
+                    <th>Ngày tạo</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="vendorBody"></tbody>
+        </table>
+
+        <div class="pagination" id="vendorPagination" style="display:none;"></div>
+
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <i class="fas fa-store-slash"></i>
+            <h3>Không có vendor phù hợp</h3>
+            <p>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
+        </div>
+    </section>
+
     <div class="table-container" style="margin-top:1.5rem;">
         <div class="table-header">
             <h2 class="table-title">Tài khoản vận hành (Admin & Vendor)</h2>
@@ -873,7 +970,26 @@
     // ═══ Init ═══
     document.addEventListener('DOMContentLoaded', () => {
         if (!requireAuth()) return;
+        const role = (TokenManager.getRoleContext() || '').toLowerCase();
+        if (role !== 'admin') {
+            window.location.href = 'dashboard';
+            return;
+        }
+
+        loadStats();
+        switchTab('');
         loadAccounts();
+
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            vendorPage = 1;
+            searchTimer = setTimeout(() => loadVendors(), 350);
+        });
+
+        document.getElementById('sortSelect').addEventListener('change', () => {
+            vendorPage = 1;
+            loadVendors();
+        });
 
         document.getElementById('accountSearchInput').addEventListener('input', () => {
             clearTimeout(accountSearchTimer);

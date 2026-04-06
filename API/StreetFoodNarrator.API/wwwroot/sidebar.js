@@ -109,6 +109,15 @@
                         </ul>
                     </li>
 
+                    ${isVendor ? `
+                    <li class="nav-item">
+                        <a href="vendor-profile" class="nav-link">
+                            <i class="nav-icon fas fa-id-card"></i>
+                            <span>Thông tin tài khoản</span>
+                        </a>
+                    </li>
+                    ` : ''}
+
                     ${isAdmin ? `
                     <li class="nav-item">
                         <a href="translation" class="nav-link">

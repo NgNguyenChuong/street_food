@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông tin tài khoản Vendor - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js?v=20260406"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --success: #06D6A0;
+            --warning: #FFD23F;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+            overflow-x: hidden;
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            transition: margin-left 0.3s;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            gap: 1rem;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.3rem;
+            font-weight: 900;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+        }
+
+        .header-subtitle {
+            color: #637084;
+            margin-top: 0.35rem;
+            font-size: 0.92rem;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 11px;
+            padding: 0.72rem 1.15rem;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            color: white;
+            background: var(--gradient);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(255, 107, 53, 0.28);
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 1.6rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px var(--shadow);
+            padding: 1.15rem 1.2rem;
+        }
+
+        .stat-label {
+            color: #6B7280;
+            font-size: 0.82rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .stat-value {
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.3rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px var(--shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .card-body {
+            padding: 1.2rem 1.25rem;
+        }
+
+        .profile-row {
+            display: grid;
+            grid-template-columns: 165px 1fr;
+            gap: 0.75rem;
+            align-items: baseline;
+            padding: 0.55rem 0;
+            border-bottom: 1px dashed #EDF0F3;
+        }
+
+        .profile-row:last-child { border-bottom: none; }
+
+        .profile-label {
+            color: #6B7280;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .profile-value {
+            color: #182335;
+            font-size: 0.93rem;
+            word-break: break-word;
+        }
+
+        .status-pill {
+            padding: 0.22rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .status-approved { background: rgba(6, 214, 160, 0.15); color: #028a65; }
+        .status-pending { background: rgba(255, 210, 63, 0.18); color: #946400; }
+        .status-rejected { background: rgba(239, 71, 111, 0.15); color: #B21943; }
+        .status-unknown { background: #eef2f7; color: #64748b; }
+
+        .alert {
+            border-radius: 12px;
+            padding: 0.8rem 0.95rem;
+            font-size: 0.86rem;
+            margin-bottom: 1rem;
+            display: none;
+            line-height: 1.45;
+        }
+
+        .alert.show { display: block; }
+        .alert-info { background: rgba(0, 78, 137, 0.1); color: #0A4A79; }
+        .alert-danger { background: rgba(239, 71, 111, 0.11); color: #9D1842; }
+
+        .skeleton {
+            position: relative;
+            overflow: hidden;
+            background: #f2f4f8;
+            border-radius: 8px;
+            height: 15px;
+        }
+
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            height: 100%;
+            width: 120%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+            animation: shimmer 1.3s infinite;
+        }
+
+        @keyframes shimmer {
+            100% { left: 140%; }
+        }
+
+        @media (max-width: 1080px) {
+            .overview-grid { grid-template-columns: 1fr; }
+            .layout { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 700px) {
+            .main-content { padding: 1rem; }
+            .header { align-items: flex-start; flex-direction: column; }
+            .profile-row { grid-template-columns: 1fr; gap: 0.3rem; }
+            .page-title { font-size: 1.85rem; }
+        }
+    </style>
+</head>
+<body>
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <div>
+            <h1 class="page-title">Thông tin tài khoản Vendor</h1>
+            <p class="header-subtitle">Xem hồ sơ đăng nhập và trạng thái xác minh cửa hàng của bạn.</p>
+        </div>
+        <button class="btn btn-primary" onclick="loadProfile()">
+            <i class="fas fa-rotate"></i>
+            Làm mới
+        </button>
+    </header>
+
+    <div id="notice" class="alert alert-info"></div>
+    <div id="errorBox" class="alert alert-danger"></div>
+
+    <section class="overview-grid">
+        <article class="stat-card">
+            <div class="stat-label">Trạng thái xác minh</div>
+            <div class="stat-value" id="stat-status"><span class="skeleton" style="width: 130px; display:inline-block;"></span></div>
+        </article>
+        <article class="stat-card">
+            <div class="stat-label">Mã Vendor</div>
+            <div class="stat-value" id="stat-vendor-id"><span class="skeleton" style="width: 90px; display:inline-block;"></span></div>
+        </article>
+        <article class="stat-card">
+            <div class="stat-label">Cập nhật gần nhất</div>
+            <div class="stat-value" id="stat-updated-at" style="font-size: 1.15rem;"><span class="skeleton" style="width: 150px; display:inline-block;"></span></div>
+        </article>
+    </section>
+
+    <section class="layout">
+        <article class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-user"></i> Tài khoản đăng nhập</h2>
+            </div>
+            <div class="card-body" id="accountDetails">
+                <div class="profile-row"><div class="profile-label">Họ và tên</div><div class="profile-value"><span class="skeleton" style="width: 180px; display:inline-block;"></span></div></div>
+                <div class="profile-row"><div class="profile-label">Email</div><div class="profile-value"><span class="skeleton" style="width: 210px; display:inline-block;"></span></div></div>
+                <div class="profile-row"><div class="profile-label">Số điện thoại</div><div class="profile-value"><span class="skeleton" style="width: 140px; display:inline-block;"></span></div></div>
+                <div class="profile-row"><div class="profile-label">Vai trò</div><div class="profile-value"><span class="skeleton" style="width: 120px; display:inline-block;"></span></div></div>
+            </div>
+        </article>
+
+        <article class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-store"></i> Hồ sơ Vendor</h2>
+            </div>
+            <div class="card-body" id="vendorDetails">
+                <div class="profile-row"><div class="profile-label">Tên cửa hàng</div><div class="profile-value"><span class="skeleton" style="width: 190px; display:inline-block;"></span></div></div>
+                <div class="profile-row"><div class="profile-label">Người liên hệ</div><div class="profile-value"><span class="skeleton" style="width: 160px; display:inline-block;"></span></div></div>
+                <div class="profile-row"><div class="profile-label">Email liên hệ</div><div class="profile-value"><span class="skeleton" style="width: 220px; display:inline-block;"></span></div></div>
+                <div class="profile-row"><div class="profile-label">Điện thoại liên hệ</div><div class="profile-value"><span class="skeleton" style="width: 140px; display:inline-block;"></span></div></div>
+                <div class="profile-row"><div class="profile-label">Địa chỉ</div><div class="profile-value"><span class="skeleton" style="width: 210px; display:inline-block;"></span></div></div>
+                <div class="profile-row"><div class="profile-label">Mô tả</div><div class="profile-value"><span class="skeleton" style="width: 230px; display:inline-block;"></span></div></div>
+            </div>
+        </article>
+    </section>
+</main>
+
+<script src="api.js"></script>
+<script>
+    function toText(value, fallback) {
+        if (value === null || value === undefined) return fallback;
+        const s = String(value).trim();
+        return s ? s : fallback;
+    }
+
+    function readCaseInsensitive(obj, names) {
+        if (!obj) return null;
+        for (const name of names) {
+            if (Object.prototype.hasOwnProperty.call(obj, name)) return obj[name];
+        }
+        return null;
+    }
+
+    function formatDateTime(value) {
+        if (!value) return 'Chưa có';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return 'Chưa có';
+        return new Intl.DateTimeFormat('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(d);
+    }
+
+    function statusInfo(status) {
+        const raw = (status || '').toString().trim().toLowerCase();
+        if (raw === 'approved') return { cls: 'status-approved', text: 'Đã duyệt', icon: 'fa-circle-check' };
+        if (raw === 'pending') return { cls: 'status-pending', text: 'Chờ duyệt', icon: 'fa-hourglass-half' };
+        if (raw === 'rejected') return { cls: 'status-rejected', text: 'Từ chối', icon: 'fa-circle-xmark' };
+        return { cls: 'status-unknown', text: 'Không xác định', icon: 'fa-circle-question' };
+    }
+
+    function profileRow(label, value) {
+        return '<div class="profile-row"><div class="profile-label">' + label + '</div><div class="profile-value">' + value + '</div></div>';
+    }
+
+    function showError(message) {
+        const box = document.getElementById('errorBox');
+        box.textContent = message;
+        box.classList.add('show');
+    }
+
+    function clearError() {
+        const box = document.getElementById('errorBox');
+        box.textContent = '';
+        box.classList.remove('show');
+    }
+
+    function showNotice(message) {
+        const box = document.getElementById('notice');
+        box.textContent = message;
+        box.classList.add('show');
+    }
+
+    function clearNotice() {
+        const box = document.getElementById('notice');
+        box.textContent = '';
+        box.classList.remove('show');
+    }
+
+    function renderAccount(account) {
+        const roles = readCaseInsensitive(account, ['roles', 'Roles']) || [];
+        const roleText = Array.isArray(roles) && roles.length ? roles.join(', ') : 'Vendor';
+
+        const html = [
+            profileRow('Họ và tên', toText(readCaseInsensitive(account, ['fullName', 'FullName']), 'Chưa cập nhật')),
+            profileRow('Email', toText(readCaseInsensitive(account, ['email', 'Email']), 'Chưa có')),
+            profileRow('Số điện thoại', toText(readCaseInsensitive(account, ['phoneNumber', 'PhoneNumber']), 'Chưa cập nhật')),
+            profileRow('Vai trò', toText(roleText, 'Vendor'))
+        ].join('');
+
+        document.getElementById('accountDetails').innerHTML = html;
+    }
+
+    function renderVendor(vendor) {
+        const status = statusInfo(readCaseInsensitive(vendor, ['verificationStatus', 'VerificationStatus']));
+        const vendorId = readCaseInsensitive(vendor, ['vendorId', 'VendorId']);
+        const updatedAt = readCaseInsensitive(vendor, ['updatedAt', 'UpdatedAt']);
+
+        document.getElementById('stat-status').innerHTML = '<span class="status-pill ' + status.cls + '"><i class="fas ' + status.icon + '"></i> ' + status.text + '</span>';
+        document.getElementById('stat-vendor-id').textContent = toText(vendorId, 'Chưa có');
+        document.getElementById('stat-updated-at').textContent = formatDateTime(updatedAt);
+
+        const html = [
+            profileRow('Tên cửa hàng', toText(readCaseInsensitive(vendor, ['businessName', 'BusinessName']), 'Chưa cập nhật')),
+            profileRow('Người liên hệ', toText(readCaseInsensitive(vendor, ['contactName', 'ContactName']), 'Chưa cập nhật')),
+            profileRow('Email liên hệ', toText(readCaseInsensitive(vendor, ['contactEmail', 'ContactEmail']), 'Chưa cập nhật')),
+            profileRow('Điện thoại liên hệ', toText(readCaseInsensitive(vendor, ['contactPhone', 'ContactPhone']), 'Chưa cập nhật')),
+            profileRow('Địa chỉ', toText(readCaseInsensitive(vendor, ['address', 'Address']), 'Chưa cập nhật')),
+            profileRow('Mô tả', toText(readCaseInsensitive(vendor, ['businessDescription', 'BusinessDescription']), 'Chưa cập nhật'))
+        ].join('');
+
+        document.getElementById('vendorDetails').innerHTML = html;
+    }
+
+    async function loadProfile() {
+        clearError();
+        clearNotice();
+
+        try {
+            const [account, vendor] = await Promise.all([
+                AuthAPI.me(),
+                VendorApi.me()
+            ]);
+
+            renderAccount(account || {});
+
+            if (vendor) {
+                renderVendor(vendor);
+            } else {
+                renderVendor({});
+                showNotice('Hồ sơ vendor chưa có dữ liệu đầy đủ. Vui lòng liên hệ quản trị viên để cập nhật.');
+            }
+        } catch (err) {
+            console.error(err);
+            showError('Không thể tải thông tin tài khoản. Vui lòng thử lại sau.');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!requireAuth()) return;
+
+        const role = (TokenManager.getRoleContext() || '').toLowerCase();
+        if (role !== 'vendor') {
+            window.location.href = 'dashboard';
+            return;
+        }
+
+        loadProfile();
+    });
+</script>
+</body>
+</html>
