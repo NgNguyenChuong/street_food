@@ -186,11 +186,12 @@
         th:nth-child(2) { min-width: 160px; }
         th:nth-child(3) { min-width: 180px; }
         th:nth-child(4) { min-width: 110px; }
-        th:nth-child(5) { min-width: 130px; }
-        th:nth-child(6) { min-width: 90px; }
+        th:nth-child(5) { min-width: 160px; }
+        th:nth-child(6) { min-width: 130px; }
         th:nth-child(7) { min-width: 90px; }
-        th:nth-child(8) { min-width: 130px; }
+        th:nth-child(8) { min-width: 90px; }
         th:nth-child(9) { min-width: 130px; }
+        th:nth-child(10) { min-width: 130px; }
 
         td {
             padding: 0.875rem 1rem;
@@ -231,17 +232,6 @@
             font-weight: 600;
             font-size: 0.9rem;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 220px;
-        }
-
-        .cell-text {
-            display: inline-block;
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            vertical-align: bottom;
         }
 
         .poi-details p { font-size: 0.8rem; color: #999; }
@@ -423,6 +413,7 @@
                     <th>POI</th>
                     <th>ĐỊA CHỈ</th>
                     <th>DANH MỤC</th>
+                    <th>GIỜ MỞ CỬA</th>
                     <th>SĐT</th>
                     <th>ĐÁNH GIÁ</th>
                     <th>QR POI</th>
@@ -432,7 +423,7 @@
             </thead>
             <tbody id="poiTableBody">
                 <tr>
-                    <td colspan="9" style="text-align:center;padding:2rem;color:#999;">
+                    <td colspan="10" style="text-align:center;padding:2rem;color:#999;">
                         Kết nối API để tải dữ liệu...
                     </td>
                 </tr>
@@ -449,7 +440,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="api.js"></script>
-<script src="sidebar.js?v=20260406"></script>
+<script src="sidebar.js"></script>
 <script>
     let currentPage = 1, currentPageSize = 5;
     let currentSearch = '', currentStatus = null, currentSort = 'newest';
@@ -470,36 +461,7 @@
     function formatCategory(cat) {
         if (!cat) return '-';
         const k = String(cat).trim().toLowerCase();
-        const m = {
-            'oc':'Ốc',
-            'pho':'Phở',
-            'bun':'Bún',
-            'banh-mi':'Bánh mì',
-            'com':'Cơm',
-            'com-tam':'Cơm tấm',
-            'lau':'Lẩu',
-            'hotpot':'Lẩu',
-            'nuong':'Nướng',
-            'hai-san':'Hải sản',
-            'seafood':'Hải sản',
-            'do-uong':'Đồ uống',
-            'trang-mieng':'Tráng miệng',
-            'snack':'Đồ ăn vặt',
-            'breakfast':'Ăn sáng',
-            'che':'Chè',
-            'khac':'Khác',
-            'other':'Khác',
-            'street entrance':'Cổng vào phố ẩm thực',
-            'snails restaurant':'Quán ốc',
-            'hot pot restaurant':'Quán lẩu',
-            'bbq & hot pot':'Nướng & lẩu',
-            'vietnamese traditional food':'Ẩm thực truyền thống Việt',
-            'vietnamese beef steak':'Bò né',
-            'late night dining':'Ăn khuya',
-            'late night seafood':'Hải sản đêm',
-            'vietnamese rice & noodles':'Cơm & bún Việt',
-            'vietnamese-chinese bbq':'Nướng Trung - Việt'
-        };
+        const m = { 'oc':'Ốc','pho':'Phở','bun':'Bún','banh-mi':'Bánh mì','com':'Cơm','com-tam':'Cơm tấm','lau':'Lẩu','hotpot':'Lẩu','nuong':'Nướng','hai-san':'Hải sản','seafood':'Hải sản','do-uong':'Đồ uống','trang-mieng':'Tráng miệng','snack':'Đồ ăn vặt','breakfast':'Ăn sáng','che':'Chè','khac':'Khác','other':'Khác','street entrance':'Cổng vào phố ẩm thực','snails restaurant':'Quán ốc','hot pot restaurant':'Quán lẩu','bbq & hot pot':'Nướng & lẩu','vietnamese traditional food':'Ẩm thực truyền thống Việt','vietnamese beef steak':'Bò né','late night dining':'Ăn khuya','late night seafood':'Hải sản đêm','vietnamese rice & noodles':'Cơm & bún Việt','vietnamese-chinese bbq':'Nướng Trung - Việt' };
         return m[k] || (/[^\x00-\x7F]/.test(cat) ? cat : 'Khác');
     }
 
@@ -512,7 +474,7 @@
         })();
         if (!parts.length) return '-';
         const entries = parts.map(p => {
-            const cleaned = p.replace(/^Th?\s*(\d+)\s*:\s*/i, (m, d) => `T${d}: `).replace(/^Ch?\s*nh?t\s*:\s*/i, 'CN: ').replace(/^CN\s*:\s*/i, 'CN: ');
+            const cleaned = p.replace(/^Thứ\s*(\d+)\s*:\s*/i, (m, d) => `T${d}: `).replace(/^Chủ\s*nhật\s*:\s*/i, 'CN: ').replace(/^CN\s*:\s*/i, 'CN: ');
             const [day, time] = cleaned.split(':').map(s => s.trim());
             return { day, time: time || '' };
         }).filter(e => e.day && e.time);
@@ -521,9 +483,9 @@
         const allSame = wd.length === 6 && wd.every(t => t === wd[0]);
         const cn = gt('CN');
         if (allSame) {
-            if (cn && cn === wd[0]) return `T2-CN: ${wd[0]}`;
-            if (cn) return `T2-T7: ${wd[0]}; CN: ${cn}`;
-            return `T2-T7: ${wd[0]}`;
+            if (cn && cn === wd[0]) return `T2–CN: ${wd[0]}`;
+            if (cn) return `T2–T7: ${wd[0]}; CN: ${cn}`;
+            return `T2–T7: ${wd[0]}`;
         }
         return parts.join('; ');
     }
@@ -531,22 +493,6 @@
     function formatPriceRating(poi) {
         const r = (poi.rating !== undefined && poi.rating !== null) ? `⭐ ${Number(poi.rating).toFixed(1)}` : '';
         return r || '-';
-    }
-
-    function escapeHtml(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    function truncateDisplay(value, maxLen = 32) {
-        const text = String(value ?? '').trim();
-        if (!text) return '-';
-        if (text.length <= maxLen) return text;
-        return `${text.slice(0, Math.max(1, maxLen - 3)).trim()}...`;
     }
 
     function formatReviewBadge(poi) {
@@ -583,7 +529,7 @@
     function renderTable(pois) {
         const tbody = document.getElementById('poiTableBody');
         if (!pois || !pois.length) {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:#999;">Chưa có POI nào. <a href="poi-create" style="color:var(--primary);">Tạo POI đầu tiên</a></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#999;">Chưa có POI nào. <a href="poi-create" style="color:var(--primary);">Tạo POI đầu tiên</a></td></tr>`;
             return;
         }
         tbody.innerHTML = pois.map(poi => `
@@ -591,13 +537,14 @@
                 <td><input type="checkbox" class="checkbox poi-checkbox" data-id="${poi.poI_ID}" onchange="toggleSelect(${poi.poI_ID})"></td>
                 <td>
                     <div class="poi-info">
-                        <div class="poi-icon">${poi.imageUrl ? `<img src="${poi.imageUrl}" alt="${escapeHtml(poi.name_Vi||'POI')}">` : '🍜'}</div>
-                        <div class="poi-details"><h4 title="${escapeHtml(poi.name_Vi||'N/A')}">${escapeHtml(truncateDisplay(poi.name_Vi||'N/A', 26))}</h4></div>
+                        <div class="poi-icon">${poi.imageUrl ? `<img src="${poi.imageUrl}" alt="${poi.name_Vi||'POI'}">` : '📍'}</div>
+                        <div class="poi-details"><h4 title="${poi.name_Vi||'N/A'}">${poi.name_Vi||'N/A'}</h4></div>
                     </div>
                 </td>
-                <td title="${escapeHtml(poi.address||'')}"><span class="cell-text">${escapeHtml(truncateDisplay(poi.address||'-', 34))}</span></td>
-                <td title="${escapeHtml(formatCategory(poi.category))}"><span class="cell-text">${escapeHtml(truncateDisplay(formatCategory(poi.category), 18))}</span></td>
-                <td title="${escapeHtml(poi.phoneNumber||'-')}"><span class="cell-text">${escapeHtml(truncateDisplay(poi.phoneNumber||'-', 18))}</span></td>
+                <td title="${poi.address||''}">${poi.address||'-'}</td>
+                <td>${formatCategory(poi.category)}</td>
+                <td>${formatOpeningHours(poi.openingHoursText, poi.openingHours)}</td>
+                <td>${poi.phoneNumber||'-'}</td>
                 <td>${formatPriceRating(poi)}</td>
                 <td>
                     <div class="poi-qr-wrap">
@@ -646,7 +593,7 @@
     async function loadPOIs() {
         if (typeof api === 'undefined') return;
         try {
-            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i><p style="margin-top:1rem;color:#999;">Đang tải...</p></td></tr>`;
+            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i><p style="margin-top:1rem;color:#999;">Đang tải...</p></td></tr>`;
             const raw = await api.getPOIs(1, 5000, currentSearch, currentStatus, currentCategory, currentReviewStatus);
             const sorted = sortPois(raw.data || [], currentSort);
             const total = sorted.length;
@@ -659,7 +606,7 @@
             renderPagination(totalPages, currentPage);
             await loadPOIStats(sorted);
         } catch (err) {
-            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--danger);"><i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i><p style="margin-top:1rem;">Lỗi: ${err.message}</p><button class="btn btn-primary" onclick="loadPOIs()" style="margin-top:1rem;"><i class="fas fa-redo"></i> Thử lại</button></td></tr>`;
+            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--danger);"><i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i><p style="margin-top:1rem;">Lỗi: ${err.message}</p><button class="btn btn-primary" onclick="loadPOIs()" style="margin-top:1rem;"><i class="fas fa-redo"></i> Thử lại</button></td></tr>`;
         }
     }
 
