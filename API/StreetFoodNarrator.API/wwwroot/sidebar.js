@@ -148,7 +148,6 @@
                         <ul class="submenu">
                             <li><a href="audio-list" class="nav-sublink">Danh sách âm thanh</a></li>
                             ${isVendor ? '<li><a href="audio-bulk-generate" class="nav-sublink">TTS hàng loạt</a></li>' : ''}
-                            ${isVendor ? '<li><a href="audio-list#upload" class="nav-sublink">Upload audio</a></li>' : ''}
                         </ul>
                     </li>
                     ${isAdmin ? `
