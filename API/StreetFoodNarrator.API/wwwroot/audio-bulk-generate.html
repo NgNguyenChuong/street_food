@@ -1088,6 +1088,7 @@
         async function generatePair(poiId, lang) {
             const poi = poisWithoutAudio.find(p => String(getPoiId(p)) === String(poiId));
             if (!poi) return;
+            const poiName = poi.name_Vi || poi.name_En || `POI ${poiId}`;
             const key = `${poiId}-${lang}`;
             const container = document.querySelector(`[data-gen-key="${key}"]`);
             if (container) container.innerHTML = '<div style="color:var(--muted);">Đang tạo audio...</div>';
