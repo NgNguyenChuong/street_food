@@ -85,14 +85,14 @@
                     <li class="nav-item">
                         <a href="dashboard" class="nav-link">
                             <i class="nav-icon fas fa-home"></i>
-                            <span>Bảng điều khiển</span>
+                            <span>Trang chủ</span>
                         </a>
                     </li>
                     ` : `
                     <li class="nav-item">
                         <a href="dashboard" class="nav-link">
                             <i class="nav-icon fas fa-home"></i>
-                            <span>Bảng điều khiển</span>
+                            <span>Trang chủ</span>
                         </a>
                     </li>
                     `}
@@ -172,6 +172,16 @@
 
     const sidebarCSS = `
         <style id="sidebar-styles">
+            @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Serif:wght@700;900&display=swap');
+
+            html, body, button, input, select, textarea {
+                font-family: 'Be Vietnam Pro', 'DM Sans', 'Segoe UI', Tahoma, sans-serif;
+            }
+
+            .page-title, .card-title, .logo {
+                font-family: 'Noto Serif', 'Playfair Display', serif;
+            }
+
             .sidebar {
                 position: fixed;
                 left: 0;

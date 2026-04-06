@@ -283,6 +283,9 @@
 
         .checkbox { width: 18px; height: 18px; cursor: pointer; }
 
+        /* Vendor table simplification */
+        body.is-vendor .vendor-hide { display: none !important; }
+
         .pagination {
             display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem;
         }
@@ -361,9 +364,9 @@
                 <label class="filter-label">Duyệt</label>
                 <select class="filter-select" id="reviewFilter">
                     <option value="">Tất cả</option>
-                    <option value="pending">⏳ Chờ duyệt</option>
-                    <option value="approved">✅ Đã duyệt</option>
-                    <option value="rejected">❌ Từ chối</option>
+                    <option value="pending">Chờ duyệt</option>
+                    <option value="approved">Đã duyệt</option>
+                    <option value="rejected">Từ chối</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -411,12 +414,12 @@
                 <tr>
                     <th><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                     <th>POI</th>
-                    <th>ĐỊA CHỈ</th>
+                    <th class="vendor-hide">ĐỊA CHỈ</th>
                     <th>DANH MỤC</th>
-                    <th>GIỜ MỞ CỬA</th>
+                    <th class="vendor-hide">GIỜ MỞ CỬA</th>
                     <th>SĐT</th>
                     <th>ĐÁNH GIÁ</th>
-                    <th>QR POI</th>
+                    <th class="vendor-hide">QR POI</th>
                     <th>TRẠNG THÁI</th>
                     <th>HÀNH ĐỘNG</th>
                 </tr>
@@ -455,6 +458,8 @@
     const roleContext = (typeof TokenManager !== 'undefined' && TokenManager.getRoleContext) ? TokenManager.getRoleContext() : null;
     const isAdmin = roleContext ? roleContext === 'Admin' : roles.includes('Admin');
     const isVendor = roleContext ? roleContext === 'Vendor' : roles.includes('Vendor');
+
+    if (isVendor) document.body.classList.add('is-vendor');
 
     function getPoiQrLink(id) { return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}`; }
 
@@ -498,9 +503,9 @@
     function formatReviewBadge(poi) {
         const review = (poi.reviewStatus || poi.ReviewStatus || 'approved').toLowerCase();
         const isActive = !!(poi.isActive ?? poi.IsActive);
-        if (review === 'pending') return `<span class="status-badge" style="background:rgba(249,115,22,0.12);color:#C2410C;border:1px solid rgba(249,115,22,0.4);"><span class="status-dot" style="background:#F97316;animation:none;"></span>⏳ Chờ duyệt</span>`;
-        if (review === 'rejected') return `<span class="status-badge inactive"><span class="status-dot inactive"></span>❌ Từ chối</span>`;
-        return `<span class="status-badge ${isActive ? 'active' : 'inactive'}"><span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>${isActive ? '✅ Hoạt động' : '⏸ Tạm dừng'}</span>`;
+        if (review === 'pending') return `<span class="status-badge" style="background:rgba(249,115,22,0.12);color:#C2410C;border:1px solid rgba(249,115,22,0.4);"><span class="status-dot" style="background:#F97316;animation:none;"></span>Chờ duyệt</span>`;
+        if (review === 'rejected') return `<span class="status-badge inactive"><span class="status-dot inactive"></span>Từ chối</span>`;
+        return `<span class="status-badge ${isActive ? 'active' : 'inactive'}"><span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>${isActive ? 'Hoạt động' : '⏸ Tạm dừng'}</span>`;
     }
 
     function sortPois(list, key) {
@@ -541,12 +546,12 @@
                         <div class="poi-details"><h4 title="${poi.name_Vi||'N/A'}">${poi.name_Vi||'N/A'}</h4></div>
                     </div>
                 </td>
-                <td title="${poi.address||''}">${poi.address||'-'}</td>
+                <td class="vendor-hide" title="${poi.address||''}">${poi.address||'-'}</td>
                 <td>${formatCategory(poi.category)}</td>
-                <td>${formatOpeningHours(poi.openingHoursText, poi.openingHours)}</td>
+                <td class="vendor-hide">${formatOpeningHours(poi.openingHoursText, poi.openingHours)}</td>
                 <td>${poi.phoneNumber||'-'}</td>
                 <td>${formatPriceRating(poi)}</td>
-                <td>
+                <td class="vendor-hide">
                     <div class="poi-qr-wrap">
                         <div class="poi-qr-box" id="poiQr_${poi.poI_ID}"></div>
                         <a class="poi-qr-link" href="${getPoiQrLink(poi.poI_ID)}" target="_blank" rel="noopener noreferrer">Mở link</a>

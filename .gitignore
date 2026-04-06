@@ -64,8 +64,8 @@ AudioCache/
 *.m4a
 
 # Uploads
-wwwroot/uploads/
-
+wwwroot/uploads
+API\StreetFoodNarrator.API\wwwroot\uploads\
 # NuGet
 *.nupkg
 *.snupkg
@@ -91,3 +91,5 @@ MobileApp/StreetFoodNarrator.App/crash_log.txt
 
 CLAUDE.md
 .claude/
+
+

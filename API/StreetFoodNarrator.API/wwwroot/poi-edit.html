@@ -1236,7 +1236,7 @@
                         Trạng thái
                     </h2>
 
-                    <div class="form-group admin-only">
+                    <div class="form-group">
                         <label class="form-label">Trạng thái POI</label>
                         <div class="status-toggle">
                             <div class="status-option active" onclick="setStatus('active')">
@@ -1251,7 +1251,7 @@
                     </div>
 
                     <div class="form-group vendor-only" id="vendorStatusReadonly">
-                        <label class="form-label">Trạng thái POI</label>
+                        <label class="form-label">Trạng thái duyệt</label>
                         <div class="vendor-status-box">
                             <div id="vendorStatusChip" class="vendor-status-chip pending">
                                 <i class="fas fa-clock"></i>
@@ -1983,6 +1983,8 @@
                         data.latitude = lat;
                         data.longitude = lng;
                     }
+
+                    data.isActive = currentStatus;
 
                     const myVendorId = parseInt((currentVendorProfile?.vendorId ?? currentVendorProfile?.VendorId ?? ''), 10);
                     if (!Number.isNaN(myVendorId)) {
