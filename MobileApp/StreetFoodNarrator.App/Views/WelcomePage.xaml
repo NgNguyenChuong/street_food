@@ -32,8 +32,22 @@
             <!-- Top Bar: Settings Button -->
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
 
+                <Button x:Name="HeaderLanguageButton"
+                    Grid.Column="2"
+                    Text="VI"
+                    FontSize="12"
+                    FontAttributes="Bold"
+                    BackgroundColor="#0E1E17"
+                    TextColor="#22C55E"
+                    BorderColor="#1C3024"
+                    BorderWidth="1.5"
+                    WidthRequest="50"
+                    HeightRequest="50"
+                    CornerRadius="25"
+                    Clicked="OnHeaderLanguageClicked" />
+
                 <Button x:Name="SettingsButton"
-                        Grid.Column="2"
+                    Grid.Column="1"
                         Text="&#xF0493;"
                         FontFamily="MDI"
                         FontSize="22"

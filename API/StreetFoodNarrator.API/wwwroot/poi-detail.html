@@ -6,7 +6,7 @@
     <title>Chi tiết POI - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js"></script>
+    <script src="sidebar.js?v=20260406"></script>
     <style>
         :root {
             --primary: #FF6B35; --primary-dark: #E85A2A;
@@ -438,8 +438,12 @@
                 <i class="fas fa-check-circle" style="color:#059669;"></i>
                 <span>POI này đã tạo đủ audio cho cả 3 ngôn ngữ (VI / EN / ZH).</span>
             </div>
+            <div style="font-size:.9rem;color:#64748B;">
+                Bạn vẫn có thể chọn tạo lại audio nếu muốn cập nhật nội dung hoặc giọng đọc.
+            </div>
         </div>
         <div class="modal-footer" style="justify-content:flex-end;">
+            <button class="btn btn-primary" onclick="createAudioAgainFromModal()"><i class="fas fa-rotate-right"></i> Tạo lại audio</button>
             <button class="btn btn-outline" onclick="closeAudioDoneModal()">Đóng</button>
         </div>
     </div>
@@ -591,17 +595,12 @@ function renderInfo() {
     const cAt  = p.createdAt || p.CreatedAt;
 
     const poiIdVal = p.poI_ID || p.poi_ID || p.POI_ID || p.id || p.Id;
-    const addressText = p.address || p.Address || '';
-    const qAddr = addressText ? encodeURIComponent(addressText) : '';
-    const mapLinkHtml = qAddr
-        ? ` <a style="font-size:.8rem;color:var(--primary)" href="https://maps.google.com/?q=${qAddr}" target="_blank">🗺 Xem bản đồ</a>`
-        : '';
 
     // Basic
     document.getElementById('basicInfo').innerHTML = `
         ${row('POI ID',   poiIdVal ? `#${poiIdVal}` : '—')}
         ${row('Địa chỉ',  p.address || p.Address)}
-        ${row('Tọa độ',   lat ? `${lat}, ${lon}${mapLinkHtml}` : '—')}
+        ${row('Tọa độ',   lat ? `${lat}, ${lon}` : '—')}
         ${row('Danh mục', p.category || p.Category)}
         ${row('Giờ mở cửa', hrs)}
         ${row('Điện thoại', p.phoneNumber || p.PhoneNumber)}
@@ -678,6 +677,15 @@ function handleCreateAudio() {
         openAudioDoneModal();
         return;
     }
+    goToAudioGeneratePage();
+}
+
+function createAudioAgainFromModal() {
+    closeAudioDoneModal();
+    goToAudioGeneratePage();
+}
+
+function goToAudioGeneratePage() {
     window.location.href = `audio-bulk-generate?poiId=${POI_ID}`;
 }
 

@@ -6,7 +6,7 @@
     <title>Dashboard - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js"></script>
+    <script src="sidebar.js?v=20260406"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -152,25 +152,6 @@
         </div>
     </div>
 
-    <!-- Quick links -->
-    <div class="quick-links">
-        <a class="quick-card" href='translation">
-            <div class="quick-icon" style="background:rgba(0,78,137,0.1);color:var(--secondary)"><i class="fas fa-language"></i></div>
-            <div><div class="quick-name">Bản dịch</div><div class="quick-desc">Quản lý nội dung đa ngôn ngữ</div></div>
-        </a>
-        <a class="quick-card" href='tour">
-            <div class="quick-icon" style="background:rgba(255,210,63,0.15);color:#D69E00"><i class="fas fa-route"></i></div>
-            <div><div class="quick-name">Quản lý Tour</div><div class="quick-desc">Lộ trình tham quan ẩm thực</div></div>
-        </a>
-        <a class="quick-card" href='history">
-            <div class="quick-icon" style="background:rgba(6,214,160,0.12);color:var(--success)"><i class="fas fa-history"></i></div>
-            <div><div class="quick-name">Lịch sử</div><div class="quick-desc">Theo dõi hành vi người dùng</div></div>
-        </a>
-        <a class="quick-card" href='users">
-            <div class="quick-icon" style="background:rgba(255,107,53,0.1);color:var(--primary)"><i class="fas fa-mobile-alt"></i></div>
-            <div><div class="quick-name">Thiết bị</div><div class="quick-desc">Quản lý thiết bị ẩn danh</div></div>
-        </a>
-    </div>
 </main>
 
 <script src="api.js"></script>
@@ -239,15 +220,23 @@
                 const cta = isVendor ? '<a href=\'poi-create\' style="color:var(--primary)">Tạo mới</a>' : 'Chờ vendor gửi POI để duyệt';
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#999">Chưa có POI nào. ${cta}</td></tr>`;
             } else {
-                tbody.innerHTML = pois.slice(0, 5).map(p => `
+                tbody.innerHTML = pois.slice(0, 5).map(p => {
+                    const active = p.isActive;
+                    const review = (p.reviewStatus || '').toLowerCase();
+                    const activeLabel = active ? 'Ho\u1ea1t \u0111\u1ed9ng' : 'T\u1ea1m t\u1eaft';
+                    const activeCls   = active ? 'active' : 'inactive';
+                    let reviewBadge = '';
+                    if (review === 'pending')  reviewBadge = `<span style="display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .6rem;border-radius:50px;font-size:.75rem;font-weight:600;background:rgba(255,193,7,.15);color:#d69e00;margin-left:.4rem"><i class="fas fa-clock"></i>Ch\u1edd duy\u1ec7t</span>`;
+                    if (review === 'rejected') reviewBadge = `<span style="display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .6rem;border-radius:50px;font-size:.75rem;font-weight:600;background:rgba(239,71,111,.15);color:#EF476F;margin-left:.4rem"><i class="fas fa-times-circle"></i>T\u1eeb ch\u1ed1i</span>`;
+                    return `
                     <tr>
-                        <td style="font-weight:600;color:var(--dark)">${p.name_Vi || p.name || '—'}</td>
-                        <td>${p.address || '—'}</td>
-                        <td><span class="status-badge ${p.isActive ? 'active' : 'inactive'}"><span class="status-dot ${p.isActive ? 'active' : 'inactive'}"></span>${p.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td style="font-weight:600;color:var(--dark)">${p.name_Vi || p.name || '\u2014'}</td>
+                        <td>${p.address || '\u2014'}</td>
+                        <td style="white-space:nowrap"><span class="status-badge ${activeCls}"><span class="status-dot ${activeCls}"></span>${activeLabel}</span>${reviewBadge}</td>
                         <td>${p.audioCount || 0}</td>
                         <td><a href='poi-edit?id=${p.poI_ID || p.id}' class="btn btn-outline" style="padding:0.4rem 0.75rem;font-size:0.8rem"><i class="fas fa-edit"></i></a></td>
-                    </tr>
-                `).join('');
+                    </tr>`;
+                }).join('');
             }
             // Load translations count (admin only) - based on POI translated fields
             if (!isVendor) {

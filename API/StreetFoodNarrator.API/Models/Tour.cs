@@ -15,9 +15,21 @@ public class Tour
     
     [Required, MaxLength(200)]
     public string TourName { get; set; } = string.Empty;
+
+    [MaxLength(200)]
+    public string? TourName_En { get; set; }
+
+    [MaxLength(200)]
+    public string? TourName_Zh { get; set; }
     
     [MaxLength(1000)]
     public string? Description { get; set; }
+
+    [MaxLength(1000)]
+    public string? Description_En { get; set; }
+
+    [MaxLength(1000)]
+    public string? Description_Zh { get; set; }
 
     [MaxLength(1000)]
     public string? ImageUrl { get; set; }

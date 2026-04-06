@@ -54,7 +54,10 @@
                                 
                                 <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                                     <Label Text="🕒" FontSize="16" />
-                                    <Label Text="MỞ CỬA" FontSize="12" FontAttributes="Bold" TextColor="#4BE277" />
+                                    <Label Text="{Binding PrimaryZone.DisplayOpenStatusText, TargetNullValue='Giờ cập nhật'}"
+                                           FontSize="12"
+                                           FontAttributes="Bold"
+                                           TextColor="{Binding PrimaryZone.DisplayOpenStatusTextColor, TargetNullValue='#FBBF24'}" />
                                 </HorizontalStackLayout>
                                 
                                 <BoxView WidthRequest="4" HeightRequest="4" CornerRadius="2" BackgroundColor="#3D4A3D" VerticalOptions="Center" />

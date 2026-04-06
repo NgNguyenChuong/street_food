@@ -9,7 +9,7 @@
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js"></script>
+    <script src="sidebar.js?v=20260406"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -782,6 +782,23 @@
             }
         }
 
+        /* Admin diff highlights */
+        .changed-field {
+            border: 2px solid #f59e0b !important;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
+            background-color: rgba(245, 158, 11, 0.02) !important;
+        }
+        .old-value-hint {
+            display: block;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 0.4rem;
+            padding: 0.4rem 0.6rem;
+            background: #f3f4f6;
+            border-left: 3px solid #9ca3af;
+            border-radius: 4px;
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .form-layout {
@@ -1017,38 +1034,6 @@
                             <input type="text" class="form-input" id="funFact" placeholder="Mẹo nhỏ thú vị (tùy chọn)">
                         </div>
                     </div>
-
-                    <div class="audio-grid admin-only">
-                        <div class="form-group">
-                            <label class="form-label">Liên kết Audio (VI)</label>
-                            <input type="text" class="form-input" id="audioUrlVi" placeholder="https://...">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Liên kết Audio (EN)</label>
-                            <input type="text" class="form-input" id="audioUrlEn" placeholder="https://...">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Liên kết Audio (ZH)</label>
-                            <input type="text" class="form-input" id="audioUrlZh" placeholder="https://...">
-                        </div>
-                    </div>
-
-                    <div class="audio-grid mt-3 admin-only" style="margin-top: 1rem;">
-                        <div class="form-group">
-                            <label class="form-label">Kịch bản Audio (VI)</label>
-                            <textarea class="form-textarea" id="scriptVi"
-                                placeholder="Nội dung thuyết minh tiếng Việt..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Kịch bản Audio (EN)</label>
-                            <textarea class="form-textarea" id="scriptEn"
-                                placeholder="Kịch bản thuyết minh tiếng Anh..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Kịch bản Audio (ZH)</label>
-                            <textarea class="form-textarea" id="scriptZh" placeholder="中文解说词..."></textarea>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Additional Info -->
@@ -1277,6 +1262,14 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Admin: Review Status row -->
+                    <div class="form-group admin-only" id="adminReviewStatusRow" style="margin-top:1rem">
+                        <label class="form-label">Trạng thái duyệt</label>
+                        <div id="adminReviewBadge" style="display:inline-flex;align-items:center;gap:.5rem;padding:.4rem 1rem;border-radius:50px;font-size:.85rem;font-weight:600;background:rgba(255,193,7,.15);color:#d69e00">
+                            <i class="fas fa-clock"></i> <span id="adminReviewText">Chờ duyệt</span>
+                        </div>
+                        <div class="form-help" id="adminReviewNote" style="margin-top:.5rem;"></div>
+                    </div>
 
                 </div>
 
@@ -1316,6 +1309,22 @@
                             <strong>Người tạo:</strong>
                             <span id="createdByInfo">-</span>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Admin Review Actions - shown below system info when pending -->
+                <div id="adminReviewActions" class="admin-only" style="display:none;margin-top:1.5rem">
+                    <h2 class="section-title" style="color:var(--primary)">
+                        <i class="fas fa-tasks"></i> Duyệt chỉnh sửa
+                    </h2>
+                    <p style="font-size:.85rem;color:#666;margin-bottom:1rem">Vendor đã gửi yêu cầu chỉnh sửa. Hãy kiểm tra nội dung và quyết định.</p>
+                    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+                        <button type="button" id="btnApprovePOI" onclick="approvePOIQuick()" style="flex:1;background:#06d6a0;color:white;border:none;border-radius:10px;padding:.65rem 1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem">
+                            <i class="fas fa-check"></i> Duyệt chỉnh sửa
+                        </button>
+                        <button type="button" id="btnRejectPOI" onclick="rejectPOIQuick()" style="flex:1;background:#EF476F;color:white;border:none;border-radius:10px;padding:.65rem 1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem">
+                            <i class="fas fa-times"></i> Từ chối
+                        </button>
                     </div>
                 </div>
 
@@ -1388,6 +1397,31 @@
                 options[0].classList.add('active');
             } else {
                 options[1].classList.add('inactive');
+            }
+        }
+
+        async function approvePOIQuick() {
+            if (!currentPoiId) return;
+            if (!confirm('Bạn có chắc muốn duyệt POI này cho phép hiển thị?')) return;
+            try {
+                await api.reviewPOI(currentPoiId, { status: 'approved', note: '' });
+                showToast('Đã duyệt POI thành công!', 'success');
+                await loadPoi();
+            } catch (error) {
+                showToast('Lỗi: ' + error.message, 'error');
+            }
+        }
+
+        async function rejectPOIQuick() {
+            if (!currentPoiId) return;
+            const note = prompt('Nhập lý do từ chối (tùy chọn):');
+            if (note === null) return;
+            try {
+                await api.reviewPOI(currentPoiId, { status: 'rejected', note: note });
+                showToast('Đã từ chối POI.', 'success');
+                await loadPoi();
+            } catch (error) {
+                showToast('Lỗi: ' + error.message, 'error');
             }
         }
 
@@ -1719,13 +1753,6 @@
                 document.getElementById('maxPlaysPerSession').value = poi.maxPlaysPerSession ?? 1;
                 document.getElementById('parentZoneId').value = poi.parentZoneId ?? '';
                 document.getElementById('funFact').value = poi.funFact || '';
-                document.getElementById('audioUrlVi').value = poi.audioUrl_Vi || '';
-                document.getElementById('audioUrlEn').value = poi.audioUrl_En || '';
-                document.getElementById('audioUrlZh').value = poi.audioUrl_Zh || '';
-
-                document.getElementById('scriptVi').value = poi.script_Vi || '';
-                document.getElementById('scriptEn').value = poi.script_En || '';
-                document.getElementById('scriptZh').value = poi.script_Zh || '';
 
                 const categoryEl = document.getElementById('poiCategory');
                 const categoryOtherEl = document.getElementById('poiCategoryOther');
@@ -1778,6 +1805,37 @@
 
                 setStatus(poi.isActive ? 'active' : 'inactive');
                 renderVendorStatus(poi);
+
+                // Admin: update review badge and show/hide review action panel
+                if (isAdmin) {
+                    const reviewStatus = (poi.reviewStatus || '').toLowerCase();
+                    const badge = document.getElementById('adminReviewBadge');
+                    const badgeText = document.getElementById('adminReviewText');
+                    const noteEl = document.getElementById('adminReviewNote');
+                    const panel = document.getElementById('adminReviewActions');
+
+                    const statusMap = {
+                        pending:  { icon: 'fa-clock',        text: 'Ch\u1edd duy\u1ec7t ch\u1ec9nh s\u1eeda', bg: 'rgba(255,193,7,.15)', color: '#d69e00' },
+                        approved: { icon: 'fa-check-circle', text: '\u0110\u00e3 duy\u1ec7t',            bg: 'rgba(6,214,160,.15)', color: '#06d6a0' },
+                        rejected: { icon: 'fa-times-circle', text: 'T\u1eeb ch\u1ed1i',              bg: 'rgba(239,71,111,.15)', color: '#EF476F' }
+                    };
+                    const s = statusMap[reviewStatus] || statusMap.pending;
+                    if (badge) {
+                        badge.style.background = s.bg;
+                        badge.style.color = s.color;
+                        badge.innerHTML = `<i class="fas ${s.icon}"></i>`;
+                    }
+                    if (badgeText) badgeText.textContent = s.text;
+                    if (noteEl) noteEl.textContent = reviewStatus === 'rejected' && poi.reviewNote ? `L\u00fd do: ${poi.reviewNote}` : '';
+                    if (panel)  panel.style.display = reviewStatus === 'pending' ? '' : 'none';
+
+                    // Apply highlights if any
+                    if (reviewStatus === 'pending' && poi.pendingChanges) {
+                        applyPendingChangesHighlight(poi.pendingChanges);
+                    } else {
+                        clearPendingChangesHighlight();
+                    }
+                }
 
                 document.getElementById('poiIdInfo').textContent = poi.poI_ID || '-';
                 document.getElementById('createdAtInfo').textContent = poi.createdAt ? new Date(poi.createdAt).toLocaleString('vi-VN') : '-';
@@ -1910,20 +1968,6 @@
                 const funFactValue = document.getElementById('funFact').value.trim();
                 if (funFactValue) data.funFact = funFactValue;
 
-                const audioUrlVi = document.getElementById('audioUrlVi').value.trim();
-                if (audioUrlVi) data.audioUrl_Vi = audioUrlVi;
-                const audioUrlEn = document.getElementById('audioUrlEn').value.trim();
-                if (audioUrlEn) data.audioUrl_En = audioUrlEn;
-                const audioUrlZh = document.getElementById('audioUrlZh').value.trim();
-                if (audioUrlZh) data.audioUrl_Zh = audioUrlZh;
-
-                const scriptVi = document.getElementById('scriptVi').value.trim();
-                if (scriptVi) data.script_Vi = scriptVi;
-                const scriptEn = document.getElementById('scriptEn').value.trim();
-                if (scriptEn) data.script_En = scriptEn;
-                const scriptZh = document.getElementById('scriptZh').value.trim();
-                if (scriptZh) data.script_Zh = scriptZh;
-
                 if (isAdmin) {
                     const selectedVendorId = parseInt(document.getElementById('vendorSelect').value || '', 10);
                     data.latitude = parseFloat(document.getElementById('latitude').value);
@@ -1947,7 +1991,7 @@
                 }
 
                 await api.updatePOI(currentPoiId, data);
-                showToast('POI da duoc cap nhat thanh cong!', 'success');
+                showToast('POI đã được cập nhật thành công!', 'success');
                 window.setTimeout(() => {
                     window.location.href = 'poi-list';
                 }, 450);
@@ -2093,6 +2137,42 @@
                 }
             }
         });
+
+        // --- Admin Diff Highlight Logic ---
+        function applyPendingChangesHighlight(changes) {
+            clearPendingChangesHighlight();
+            if (!changes) return;
+
+            // Mapping from server dict key string -> HTML Element ID or logical block
+            const fieldMap = {
+                'T\u00ean qu\u00e1n': 'poiName',
+                '\u0110\u1ecba ch\u1ec9': 'poiAddress',
+                'V\u1ecb tr\u00ed GPS': 'map' // We can highlight the map container
+            };
+
+            for (const [key, change] of Object.entries(changes)) {
+                const elementId = fieldMap[key];
+                if (!elementId) continue;
+
+                const el = document.getElementById(elementId);
+                if (el) {
+                    el.classList.add('changed-field');
+                    
+                    // Add hint below the element
+                    const hintMap = document.createElement('div');
+                    hintMap.className = 'old-value-hint pending-change-hint';
+                    hintMap.innerHTML = `<strong>Th\u00f4ng tin c\u0169:</strong> ${change.old || '(Tr\u1ed1ng)'}`;
+                    
+                    // Insert hint after the input (or after its container)
+                    el.parentNode.insertBefore(hintMap, el.nextSibling);
+                }
+            }
+        }
+
+        function clearPendingChangesHighlight() {
+            document.querySelectorAll('.changed-field').forEach(el => el.classList.remove('changed-field'));
+            document.querySelectorAll('.pending-change-hint').forEach(el => el.remove());
+        }
 
         initOpeningHoursEditor();
         applyRoleUi();

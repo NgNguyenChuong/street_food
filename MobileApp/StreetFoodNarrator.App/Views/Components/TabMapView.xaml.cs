@@ -4,8 +4,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using Microsoft.Maui.Controls;
+using Microsoft.Extensions.DependencyInjection;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 
@@ -55,10 +57,12 @@ private const string IconPause = "\U000F03E4";
     private bool _isPreviewAudioPlaying;
     private bool _isPreviewAudioPaused;
     private MainViewModel? _observedVm;
+    private readonly LanguageService _lang;
 
     public TabMapView()
     {
         InitializeComponent();
+        _lang = MauiProgram.Services.GetRequiredService<LanguageService>();
         SetPoiCardCollapsed(false);
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -95,6 +99,7 @@ private const string IconPause = "\U000F03E4";
     private void ApplyLocalizedTexts()
     {
         MapHeaderTitleLabel.Text = AppStrings.Get("Map_Header_Title");
+        MapHeaderLanguageLabel.Text = LanguageSwitcher.GetHeaderLabel(_lang.CurrentLanguage);
         SearchEntry.Placeholder = AppStrings.Get("Map_SearchPlaceholder");
         MapLegendUnseenLabel.Text = AppStrings.Get("Map_Legend_Unseen");
         MapLegendSeenLabel.Text = AppStrings.Get("Map_Legend_Seen");
@@ -236,6 +241,11 @@ private const string IconPause = "\U000F03E4";
     {
         FilterRequested?.Invoke(this, e);
         SettingsRequested?.Invoke(this, e);
+    }
+
+    private void OnLanguageTapped(object sender, EventArgs e)
+    {
+        LanguageSwitcher.CycleLanguage(_lang);
     }
 
     private void OnCenterMapTapped(object sender, EventArgs e)

@@ -1,5 +1,6 @@
 using SQLite;
 using System.Text.RegularExpressions;
+using System.Globalization;
 using Microsoft.Maui.Networking;
 using Microsoft.Maui.Storage;
 using StreetFoodNarrator.App.Core.Services.Implementations;
@@ -235,6 +236,75 @@ public class POI
         }
     }
 
+    [Ignore]
+    public bool? IsOpenNow
+    {
+        get
+        {
+            if (!TryGetOpeningHoursSource(out var raw))
+                return null;
+
+            if (TryResolveOpenStatus(raw, DateTime.Now, out var isOpen))
+                return isOpen;
+
+            return null;
+        }
+    }
+
+    [Ignore]
+    public string DisplayOpenStatusText
+    {
+        get
+        {
+            var lang = Preferences.Get("app_language", "vi");
+            return IsOpenNow switch
+            {
+                true => lang switch
+                {
+                    "en" => "Open now",
+                    "zh" => "营业中",
+                    _ => "Đang mở cửa"
+                },
+                false => lang switch
+                {
+                    "en" => "Closed now",
+                    "zh" => "已打烊",
+                    _ => "Đang đóng cửa"
+                },
+                _ => lang switch
+                {
+                    "en" => "Hours updating",
+                    "zh" => "营业时间更新中",
+                    _ => "Giờ mở cửa cập nhật"
+                }
+            };
+        }
+    }
+
+    [Ignore]
+    public string DisplayOpenStatusTextColor => IsOpenNow switch
+    {
+        true => "#4BE277",
+        false => "#F87171",
+        _ => "#FBBF24"
+    };
+
+    [Ignore]
+    public string DisplayOpenStatusBackgroundColor => IsOpenNow switch
+    {
+        true => "#224BE277",
+        false => "#22F87171",
+        _ => "#22FBBF24"
+    };
+
+    [Ignore]
+    public string DisplayOpenStatusStrokeColor => IsOpenNow switch
+    {
+        true => "#404BE277",
+        false => "#40F87171",
+        _ => "#40FBBF24"
+    };
+
     private static string CompactOpeningHours(string input)
     {
         var text = input.Trim();
@@ -264,6 +334,101 @@ public class POI
 
         // Fallback with max length to avoid layout break
         return text.Length > 48 ? text.Substring(0, 45) + "..." : text;
+    }
+
+    private bool TryGetOpeningHoursSource(out string raw)
+    {
+        raw = !string.IsNullOrWhiteSpace(OpeningHoursText)
+            ? OpeningHoursText!.Trim()
+            : (EstimatedHours?.Trim() ?? string.Empty);
+
+        return !string.IsNullOrWhiteSpace(raw);
+    }
+
+    private static bool TryResolveOpenStatus(string raw, DateTime nowLocal, out bool isOpen)
+    {
+        isOpen = false;
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        var text = raw.Trim().Replace("–", "-").Replace("—", "-");
+        var lower = text.ToLowerInvariant();
+
+        if (lower.Contains("24/7") || lower.Contains("24h") || lower.Contains("24 giờ") || lower.Contains("00:00-00:00"))
+        {
+            isOpen = true;
+            return true;
+        }
+
+        if (TryExtractDaySpecificRange(text, nowLocal.DayOfWeek, out var start, out var end) ||
+            TryExtractFirstRange(text, out start, out end))
+        {
+            isOpen = IsWithinRange(nowLocal.TimeOfDay, start, end);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryExtractDaySpecificRange(string text, DayOfWeek dayOfWeek, out TimeSpan start, out TimeSpan end)
+    {
+        start = default;
+        end = default;
+
+        var aliases = dayOfWeek switch
+        {
+            DayOfWeek.Monday => new[] { "thứ 2", "thu 2", "t2", "monday", "mon" },
+            DayOfWeek.Tuesday => new[] { "thứ 3", "thu 3", "t3", "tuesday", "tue" },
+            DayOfWeek.Wednesday => new[] { "thứ 4", "thu 4", "t4", "wednesday", "wed" },
+            DayOfWeek.Thursday => new[] { "thứ 5", "thu 5", "t5", "thứ năm", "thu nam", "thursday" },
+            DayOfWeek.Friday => new[] { "thứ 6", "thu 6", "t6", "friday", "fri" },
+            DayOfWeek.Saturday => new[] { "thứ 7", "thu 7", "t7", "saturday", "sat" },
+            _ => new[] { "chủ nhật", "chu nhat", "cn", "sunday", "sun" }
+        };
+
+        foreach (var alias in aliases)
+        {
+            var pattern = $@"(?i){Regex.Escape(alias)}[^0-9]*(\d{{1,2}}:\d{{2}})\s*-\s*(\d{{1,2}}:\d{{2}})";
+            var match = Regex.Match(text, pattern);
+            if (!match.Success)
+                continue;
+
+            if (TryParseTime(match.Groups[1].Value, out start) && TryParseTime(match.Groups[2].Value, out end))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryExtractFirstRange(string text, out TimeSpan start, out TimeSpan end)
+    {
+        start = default;
+        end = default;
+
+        var match = Regex.Match(text, @"(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})");
+        if (!match.Success)
+            return false;
+
+        return TryParseTime(match.Groups[1].Value, out start) && TryParseTime(match.Groups[2].Value, out end);
+    }
+
+    private static bool TryParseTime(string value, out TimeSpan time)
+    {
+        return TimeSpan.TryParseExact(value, @"h\:mm", CultureInfo.InvariantCulture, out time)
+            || TimeSpan.TryParseExact(value, @"hh\:mm", CultureInfo.InvariantCulture, out time)
+            || TimeSpan.TryParse(value, out time);
+    }
+
+    private static bool IsWithinRange(TimeSpan now, TimeSpan start, TimeSpan end)
+    {
+        if (start == end)
+            return true;
+
+        if (end > start)
+            return now >= start && now <= end;
+
+        // Overnight range, e.g. 17:00-02:00
+        return now >= start || now <= end;
     }
 
     /// <summary>

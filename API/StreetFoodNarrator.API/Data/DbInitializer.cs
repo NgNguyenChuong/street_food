@@ -486,25 +486,20 @@ public static class DbInitializer
             return;
         }
 
-        var devices = await SeedDevicesIfEmpty(db, sequence, now, rng);
-        await SeedNarrationLogsIfEmpty(db, sequence, userManager, pois, devices, now, rng);
+        var devices = await EnsureMinimumDevices(db, sequence, now, rng, minimumDevices: 40);
+        await EnsureMinimumNarrationLogs(db, sequence, userManager, pois, devices, now, rng, minimumLogs: 900);
     }
 
-    private static async Task<List<DeviceInfo>> SeedDevicesIfEmpty(
+    private static async Task<List<DeviceInfo>> EnsureMinimumDevices(
         MongoDbContext db,
         MongoSequenceService sequence,
         DateTime now,
-        Random rng)
+        Random rng,
+        int minimumDevices)
     {
-        var existingDevices = await db.Devices.CountDocumentsAsync(Builders<DeviceInfo>.Filter.Empty);
-        if (existingDevices > 0)
-        {
-            return await db.Devices
-                .Find(Builders<DeviceInfo>.Filter.Empty)
-                .SortByDescending(d => d.LastSeen)
-                .Limit(50)
-                .ToListAsync();
-        }
+        var existingDevices = await db.Devices
+            .Find(Builders<DeviceInfo>.Filter.Empty)
+            .ToListAsync();
 
         var templates = new List<(string platform, string model, string osVersion, string appVersion, string lang)>
         {
@@ -520,10 +515,11 @@ public static class DbInitializer
             ("Android", "Samsung Galaxy A54", "Android 13", "1.1.4", "vi")
         };
 
+        var toCreate = Math.Max(0, minimumDevices - existingDevices.Count);
         var devicesToInsert = new List<DeviceInfo>();
-        for (var i = 0; i < templates.Count; i++)
+        for (var i = 0; i < toCreate; i++)
         {
-            var t = templates[i];
+            var t = templates[i % templates.Count];
             var firstSeen = now.AddDays(-rng.Next(15, 120)).AddHours(-rng.Next(0, 23));
             var lastSeen = now.AddHours(-rng.Next(0, 200));
             if (lastSeen < firstSeen)
@@ -550,28 +546,50 @@ public static class DbInitializer
             devicesToInsert.Add(device);
         }
 
-        await db.Devices.InsertManyAsync(devicesToInsert);
-        Console.WriteLine($"✅ Seeded {devicesToInsert.Count} devices for analytics.");
-        return devicesToInsert;
+        if (devicesToInsert.Count > 0)
+        {
+            await db.Devices.InsertManyAsync(devicesToInsert);
+            existingDevices.AddRange(devicesToInsert);
+            Console.WriteLine($"✅ Seeded {devicesToInsert.Count} devices for analytics (minimum {minimumDevices}).");
+        }
+
+        return existingDevices
+            .OrderByDescending(d => d.LastSeen)
+            .Take(200)
+            .ToList();
     }
 
-    private static async Task SeedNarrationLogsIfEmpty(
+    private static async Task EnsureMinimumNarrationLogs(
         MongoDbContext db,
         MongoSequenceService sequence,
         UserManager<ApplicationUser> userManager,
         List<POI> pois,
         List<DeviceInfo> devices,
         DateTime now,
-        Random rng)
+        Random rng,
+        int minimumLogs)
     {
         var existingLogs = await db.NarrationLogs.CountDocumentsAsync(Builders<NarrationLog>.Filter.Empty);
-        if (existingLogs > 0) return;
+        var logsFromDeviceScale = Math.Max(minimumLogs, devices.Count * 20);
+        var targetLogs = Math.Min(2600, logsFromDeviceScale);
+        if (existingLogs >= targetLogs)
+        {
+            return;
+        }
 
         var logs = new List<NarrationLog>();
-        var triggerTypes = new[] { "Auto", "Manual", "Proximity" };
+        var triggerTypes = new[] { "GeofenceEnter", "Proximity", "ManualTap" };
         var userIds = userManager.Users.Select(u => u.Id.ToString()).Take(20).ToList();
+        if (userIds.Count == 0)
+        {
+            userIds = devices
+                .Select(d => $"anon-{d.DeviceId[..Math.Min(12, d.DeviceId.Length)]}")
+                .Distinct()
+                .Take(40)
+                .ToList();
+        }
 
-        var totalLogs = Math.Clamp((devices.Count > 0 ? devices.Count * 18 : 120), 120, 300);
+        var totalLogs = (int)Math.Max(0, targetLogs - existingLogs);
         for (var i = 0; i < totalLogs; i++)
         {
             var poi = pois[rng.Next(pois.Count)];
@@ -603,7 +621,7 @@ public static class DbInitializer
         if (logs.Count > 0)
         {
             await db.NarrationLogs.InsertManyAsync(logs.OrderByDescending(l => l.TriggeredAt));
-            Console.WriteLine($"✅ Seeded {logs.Count} narration logs for analytics history.");
+            Console.WriteLine($"✅ Seeded {logs.Count} narration logs for analytics history (target {targetLogs}).");
         }
     }
 }

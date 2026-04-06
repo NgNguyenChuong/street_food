@@ -7,6 +7,7 @@ using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 using System.Collections.ObjectModel;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace StreetFoodNarrator.App.Views;
@@ -25,6 +26,7 @@ public partial class SettingsPage : ContentPage
     private bool _isLoadingPlaybackMode;
     private bool _isLoadingLanguagePicker;
     private bool _isLoadingLocationSourcePicker;
+    private bool _isLoadingGpsTestModeSwitch;
     private bool _isApplyingControls;
     private bool _hasPendingChanges;
     private string _pendingLanguageCode = "vi";
@@ -136,8 +138,27 @@ public partial class SettingsPage : ContentPage
         SetupLocationSourcePicker();
         ApplySettingsToControls();
         ApplyUserPreferencesToControls();
+        SetupGpsTestModeControls();
         _hasPendingChanges = false;
         _isApplyingControls = false;
+    }
+
+    private void SetupGpsTestModeControls()
+    {
+        _isLoadingGpsTestModeSwitch = true;
+        GpsTestModeSwitch.IsToggled = Preferences.Get(AppConfig.GpsTestModeEnabledPrefKey, false);
+        _isLoadingGpsTestModeSwitch = false;
+        UpdateGpsTestModeActionButtonText();
+    }
+
+    private void UpdateGpsTestModeActionButtonText()
+    {
+        if (GpsTestModeActionButton == null)
+            return;
+
+        GpsTestModeActionButton.Text = GpsTestModeSwitch?.IsToggled == true
+            ? Localize("Tao/Cap nhat POI test + dong bo", "Create/update test POI + sync", "chuang jian huo geng xin ce shi dian + tong bu")
+            : Localize("Bat GPS test mode", "Enable GPS test mode", "kai qi GPS ce shi mo shi");
     }
 
     private UserSettings LoadSettingsFromPreferences()
@@ -378,7 +399,11 @@ public partial class SettingsPage : ContentPage
         if (sourceIndex >= 0 && sourceIndex < _locationSourceOptions.Count)
             _pendingLocationSourceMode = _locationSourceOptions[sourceIndex].Mode;
 
+        if (GpsTestModeSwitch.IsToggled)
+            _pendingLocationSourceMode = AppConfig.LocationSourceReal;
+
         Preferences.Set(AppConfig.LocationSourceModePrefKey, _pendingLocationSourceMode);
+        Preferences.Set(AppConfig.GpsTestModeEnabledPrefKey, GpsTestModeSwitch.IsToggled);
         Preferences.Set(PrefHapticFeedback, HapticFeedbackSwitch.IsToggled);
         Preferences.Set(PrefKeepScreenOn, KeepScreenOnSwitch.IsToggled);
         Preferences.Set(PrefLargeText, LargeTextSwitch.IsToggled);
@@ -415,6 +440,19 @@ public partial class SettingsPage : ContentPage
         SetupLocationSourcePicker();
     }
 
+    private void OnHeaderLanguageClicked(object sender, EventArgs e)
+    {
+        var next = LanguageSwitcher.GetNextLanguageCode(_pendingLanguageCode);
+        var idx = next switch
+        {
+            "en" => 1,
+            "zh" => 2,
+            _ => 0
+        };
+
+        LanguagePicker.SelectedIndex = idx;
+    }
+
     private void OnLocationSourceChanged(object sender, EventArgs e)
     {
         if (_isApplyingControls || _isLoadingLocationSourcePicker || LocationSourcePicker.SelectedIndex < 0)
@@ -426,6 +464,130 @@ public partial class SettingsPage : ContentPage
             _pendingLocationSourceMode = _locationSourceOptions[idx].Mode;
             _hasPendingChanges = true;
         }
+    }
+
+    private void OnGpsTestModeToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isApplyingControls || _isLoadingGpsTestModeSwitch)
+            return;
+
+        _hasPendingChanges = true;
+        UpdateGpsTestModeActionButtonText();
+    }
+
+    private async void OnGpsTestModeActionClicked(object sender, EventArgs e)
+    {
+        GpsTestModeActionButton.IsEnabled = false;
+        GpsTestModeActionButton.Text = "...";
+
+        try
+        {
+            await MovementFileLogger.LogEventAsync(
+                "gps-test",
+                "activate-clicked");
+
+            if (!GpsTestModeSwitch.IsToggled)
+            {
+                _isLoadingGpsTestModeSwitch = true;
+                GpsTestModeSwitch.IsToggled = true;
+                _isLoadingGpsTestModeSwitch = false;
+            }
+
+            var realIndex = _locationSourceOptions.FindIndex(x =>
+                string.Equals(x.Mode, AppConfig.LocationSourceReal, StringComparison.OrdinalIgnoreCase));
+            if (realIndex >= 0)
+            {
+                _isLoadingLocationSourcePicker = true;
+                LocationSourcePicker.SelectedIndex = realIndex;
+                _isLoadingLocationSourcePicker = false;
+            }
+
+            _pendingLocationSourceMode = AppConfig.LocationSourceReal;
+            _hasPendingChanges = true;
+
+            await SaveAllPreferencesFromControlsAsync();
+            await MovementFileLogger.LogEventAsync("gps-test", "saved-settings;source=real");
+
+            var poiId = await EnsureGpsTestPoiAsync();
+            await MovementFileLogger.LogEventAsync(
+                "gps-test",
+                $"ensure-poi-success;poiId={(poiId?.ToString() ?? "na")}");
+
+            if (_mainViewModel != null)
+            {
+                await _mainViewModel.LoadAllPoisAsync(forceSyncNow: true);
+                _mainViewModel.RefreshExploreState();
+            }
+
+            await MovementFileLogger.LogEventAsync(
+                "gps-test",
+                $"sync-finished;lat={AppConfig.GpsTestLatitude:F7};lon={AppConfig.GpsTestLongitude:F7}");
+
+            await CustomAlert.ShowAsync(
+                Localize("GPS test mode da san sang", "GPS test mode is ready", "GPS ce shi mo shi yi jiu xu"),
+                Localize(
+                    $"Da tao/cap nhat POI test #{poiId?.ToString() ?? "N/A"} gan toa do that. Hay ra vi tri test de kiem tra geofence.",
+                    $"Test POI #{poiId?.ToString() ?? "N/A"} is ready near your real coordinate. Move to that location to verify geofence.",
+                    $"ce shi dian #{poiId?.ToString() ?? "N/A"} yi jiu xu, qing yi dong dao gai wei zhi yan zheng geofence."),
+                "OK",
+                AlertType.Success);
+        }
+        catch (Exception ex)
+        {
+            await MovementFileLogger.LogEventAsync("gps-test-error", ex.Message);
+            await CustomAlert.ShowAsync(
+                Localize("Loi GPS test mode", "GPS test mode error", "GPS ce shi mo shi cuo wu"),
+                ex.Message,
+                "OK",
+                AlertType.Error);
+        }
+        finally
+        {
+            UpdateGpsTestModeActionButtonText();
+            GpsTestModeActionButton.IsEnabled = true;
+        }
+    }
+
+    private async Task<int?> EnsureGpsTestPoiAsync()
+    {
+        var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+        var url = $"{baseUrl}/{AppConfig.GpsTestEnsurePoiApiPath}";
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds) };
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = JsonContent.Create(new EnsureGpsTestPoiMobileRequest
+            {
+                Latitude = AppConfig.GpsTestLatitude,
+                Longitude = AppConfig.GpsTestLongitude,
+                Address = AppConfig.GpsTestAddress
+            })
+        };
+        request.Headers.Add("X-Gps-Test-Key", AppConfig.GpsTestApiKey);
+
+        using var response = await http.SendAsync(request);
+        var payload = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Cannot ensure GPS test POI ({(int)response.StatusCode}): {payload}");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(payload);
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                if (!string.Equals(prop.Name, "POI_ID", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetInt32(out var parsed))
+                    return parsed;
+            }
+        }
+        catch
+        {
+            // Ignore parse errors; endpoint succeeded and sync will still pull data.
+        }
+
+        return null;
     }
 
     private void SwitchVoiceForLanguage(string lang)
@@ -617,6 +779,7 @@ public partial class SettingsPage : ContentPage
             _pendingLocationSourceMode = AppConfig.LocationSourceReal;
 
             Preferences.Set(AppConfig.LocationSourceModePrefKey, AppConfig.LocationSourceReal);
+            Preferences.Set(AppConfig.GpsTestModeEnabledPrefKey, false);
             Preferences.Set(PrefHapticFeedback, true);
             Preferences.Set(PrefKeepScreenOn, false);
             Preferences.Set(PrefLargeText, false);
@@ -632,6 +795,7 @@ public partial class SettingsPage : ContentPage
             SetupLocationSourcePicker();
             ApplySettingsToControls();
             ApplyUserPreferencesToControls();
+            SetupGpsTestModeControls();
 
             foreach (var voice in _allVoices)
                 voice.IsSelected = voice.Voice == _settings.TTS.Voice;
@@ -690,6 +854,7 @@ public partial class SettingsPage : ContentPage
     private void ReloadUIStrings()
     {
         TitleLabel.Text = AppStrings.Settings_Title;
+        HeaderLanguageButton.Text = LanguageSwitcher.GetHeaderLabel(_pendingLanguageCode);
         GeneralSectionLabel.Text = AppStrings.Settings_General;
         TourSectionLabel.Text = AppStrings.Settings_TourExperience;
         LanguageTitleLabel.Text = Localize("Ngôn ngữ", "Language", "语言");
@@ -718,6 +883,16 @@ public partial class SettingsPage : ContentPage
             "Chọn GPS thật hoặc GPS giả lập khi test",
             "Choose real GPS or simulated GPS for testing",
             "测试时可选择真实 GPS 或模拟 GPS");
+        GpsTestModeTitleLabel.Text = Localize("GPS test mode", "GPS test mode", "GPS ce shi mo shi");
+        GpsTestModeSubtitleLabel.Text = Localize(
+            "Bat mode rieng de test GPS that ngoai hien truong",
+            "Use dedicated mode for real-world GPS testing",
+            "shi yong zhuan yong mo shi jin xing shi di GPS ce shi");
+        GpsTestCoordinateLabel.Text = Localize(
+            "Toa do test: 10.842598, 106.608742",
+            "Test coordinate: 10.842598, 106.608742",
+            "ce shi zuo biao: 10.842598, 106.608742");
+        UpdateGpsTestModeActionButtonText();
         LanguagePicker.Title = Localize("Chọn ngôn ngữ", "Choose language", "选择语言");
         LocationSourcePicker.Title = Localize("Chọn nguồn vị trí", "Choose location source", "选择定位来源");
         AudioPlaybackModePicker.Title = Localize("Chọn chế độ", "Choose mode", "选择模式");
@@ -1016,4 +1191,11 @@ public class LocationSourceOption
         Mode = mode;
         Label = label;
     }
+}
+
+public sealed class EnsureGpsTestPoiMobileRequest
+{
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public string Address { get; set; } = string.Empty;
 }

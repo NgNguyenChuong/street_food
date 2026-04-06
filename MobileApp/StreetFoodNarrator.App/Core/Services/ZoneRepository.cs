@@ -2,6 +2,7 @@ namespace StreetFoodNarrator.App.Core.Services;
 
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using Microsoft.Maui.Networking;
@@ -95,7 +96,11 @@ public class ZoneRepository : IZoneRepository
         try
         {
             var netAccess = Connectivity.Current.NetworkAccess;
-            if (netAccess != NetworkAccess.Internet && netAccess != NetworkAccess.ConstrainedInternet)
+            var hasNetworkForApi = netAccess is NetworkAccess.Internet or NetworkAccess.ConstrainedInternet;
+            if (!hasNetworkForApi && netAccess == NetworkAccess.Local)
+                hasNetworkForApi = IsLikelyLocalApiHost(AppConfig.GetResolvedApiBaseUrl());
+
+            if (!hasNetworkForApi)
             {
                 // Offline: fall back to SQLite cache or bundled JSON so the app always works
                 if (!_isLoaded) await LoadLocalAsync();
@@ -210,6 +215,38 @@ public class ZoneRepository : IZoneRepository
             if (_zones.Count == 0) await SeedFromBundledJsonAsync();
             else if (CurrentDataSource == DataSourceKind.Unknown) CurrentDataSource = DataSourceKind.SqliteCache;
         }
+    }
+
+    private static bool IsLikelyLocalApiHost(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return false;
+
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri))
+            return false;
+
+        var host = uri.Host;
+        if (string.IsNullOrWhiteSpace(host))
+            return false;
+
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("10.0.2.2", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!IPAddress.TryParse(host, out var ip))
+            return false;
+
+        var bytes = ip.GetAddressBytes();
+        if (bytes.Length == 4)
+        {
+            if (bytes[0] == 10) return true;
+            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
+            if (bytes[0] == 192 && bytes[1] == 168) return true;
+            if (bytes[0] == 127) return true;
+        }
+
+        return IPAddress.IsLoopback(ip);
     }
 
 

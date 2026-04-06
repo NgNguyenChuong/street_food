@@ -47,7 +47,7 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="16,12" ColumnSpacing="8">
+        <Grid Grid.Row="0" ColumnDefinitions="*,*,Auto" Margin="16,12" ColumnSpacing="8">
             <Border Grid.Column="0" StrokeShape="RoundRectangle 12"
                     BackgroundColor="#1C3024" Padding="0,10">
                 <Border.GestureRecognizers>
@@ -64,6 +64,20 @@
                 <Label x:Name="LabelSaved" Text="Đã lưu" FontSize="12" FontAttributes="Bold"
                        TextColor="White" HorizontalOptions="Center"/>
             </Border>
+
+            <Button Grid.Column="2"
+                    x:Name="HeaderLanguageButton"
+                    Text="VI"
+                    WidthRequest="50"
+                    HeightRequest="42"
+                    CornerRadius="12"
+                    FontSize="12"
+                    FontAttributes="Bold"
+                    BackgroundColor="#1C3024"
+                    BorderColor="#2B4B40"
+                    BorderWidth="1"
+                    TextColor="#4BE277"
+                    Clicked="OnHeaderLanguageClicked"/>
         </Grid>
 
         <Grid Grid.Row="1">

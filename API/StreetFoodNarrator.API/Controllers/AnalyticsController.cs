@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace StreetFoodNarrator.API.Controllers;
 
@@ -76,10 +77,16 @@ public class AnalyticsController : ControllerBase
             Id = l.Id.ToString(),
             Log_ID = l.Log_ID,
             POI_ID = l.POI_ID,
-            POIName = poiDict.ContainsKey(l.POI_ID) ? poiDict[l.POI_ID] : "Unknown",
+            POIName = (poiDict.TryGetValue(l.POI_ID, out var poiName) ? poiName : null) ?? "Unknown",
             UserId = l.UserId,
+            SessionId = l.SessionId,
+            DeviceId = l.DeviceId,
             TriggeredAt = l.TriggeredAt,
             TriggerType = l.TriggerType,
+            ActionType = l.ActionType,
+            DwellSeconds = l.DwellSeconds,
+            UserLatitude = l.UserLatitude,
+            UserLongitude = l.UserLongitude,
             WasPlayed = l.WasPlayed
         }).ToList();
 
@@ -273,6 +280,85 @@ public class AnalyticsController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Receive anonymous movement/narration logs from mobile app.
+    /// </summary>
+    [HttpPost("narration-logs/mobile")]
+    [AllowAnonymous]
+    public async Task<ActionResult> CreateMobileNarrationLog([FromBody] MobileNarrationLogRequest request)
+    {
+        if (request.POI_ID <= 0)
+            return BadRequest(new { message = "POI_ID must be greater than 0." });
+
+        var triggeredAt = request.TriggeredAt?.ToUniversalTime() ?? DateTime.UtcNow;
+        var safeTriggerType = string.IsNullOrWhiteSpace(request.TriggerType)
+            ? "LocationPing"
+            : request.TriggerType.Trim();
+        var safeActionType = string.IsNullOrWhiteSpace(request.ActionType)
+            ? "LocationPing"
+            : request.ActionType.Trim();
+
+        var log = new NarrationLog
+        {
+            Log_ID = await _sequence.GetNextAsync("Log_ID"),
+            POI_ID = request.POI_ID,
+            UserId = string.IsNullOrWhiteSpace(request.UserId) ? request.SessionId : request.UserId,
+            SessionId = request.SessionId,
+            DeviceId = request.DeviceId,
+            TriggeredAt = triggeredAt,
+            TriggerType = safeTriggerType,
+            ActionType = safeActionType,
+            DwellSeconds = request.DwellSeconds,
+            UserLatitude = request.UserLatitude,
+            UserLongitude = request.UserLongitude,
+            WasPlayed = request.WasPlayed
+        };
+
+        await _db.NarrationLogs.InsertOneAsync(log);
+
+        if (!string.IsNullOrWhiteSpace(request.DeviceId))
+        {
+            var existing = await _db.Devices.Find(d => d.DeviceId == request.DeviceId).FirstOrDefaultAsync();
+            if (existing == null)
+            {
+                var device = new DeviceInfo
+                {
+                    Device_ID = await _sequence.GetNextAsync("Device_ID"),
+                    DeviceId = request.DeviceId,
+                    Platform = string.IsNullOrWhiteSpace(request.Platform) ? "Unknown" : request.Platform,
+                    Model = request.Model,
+                    OsVersion = request.OsVersion,
+                    AppVersion = request.AppVersion,
+                    PreferredLanguage = request.Language,
+                    FirstSeen = DateTime.UtcNow,
+                    LastSeen = DateTime.UtcNow,
+                    TotalSessions = 1,
+                    TotalPOIsViewed = 1,
+                    TotalAudioPlayed = request.WasPlayed ? 1 : 0
+                };
+                await _db.Devices.InsertOneAsync(device);
+            }
+            else
+            {
+                var update = Builders<DeviceInfo>.Update
+                    .Set(d => d.LastSeen, DateTime.UtcNow)
+                    .Set(d => d.Platform, string.IsNullOrWhiteSpace(request.Platform) ? existing.Platform : request.Platform)
+                    .Set(d => d.Model, request.Model ?? existing.Model)
+                    .Set(d => d.OsVersion, request.OsVersion ?? existing.OsVersion)
+                    .Set(d => d.AppVersion, request.AppVersion ?? existing.AppVersion)
+                    .Set(d => d.PreferredLanguage, request.Language ?? existing.PreferredLanguage)
+                    .Inc(d => d.TotalPOIsViewed, 1);
+
+                if (request.WasPlayed)
+                    update = update.Inc(d => d.TotalAudioPlayed, 1);
+
+                await _db.Devices.UpdateOneAsync(d => d.DeviceId == request.DeviceId, update);
+            }
+        }
+
+        return Ok(new { success = true, logId = log.Log_ID });
+    }
 }
 
 // DTOs
@@ -283,8 +369,56 @@ public class NarrationLogDto
     public int POI_ID { get; set; }
     public string POIName { get; set; } = string.Empty;
     public string? UserId { get; set; }
+    public string? SessionId { get; set; }
+    public string? DeviceId { get; set; }
     public DateTime TriggeredAt { get; set; }
     public string TriggerType { get; set; } = string.Empty;
+    public string? ActionType { get; set; }
+    public int? DwellSeconds { get; set; }
+    public decimal? UserLatitude { get; set; }
+    public decimal? UserLongitude { get; set; }
+    public bool WasPlayed { get; set; }
+}
+
+public class MobileNarrationLogRequest
+{
+    [Required]
+    public int POI_ID { get; set; }
+
+    [MaxLength(100)]
+    public string? UserId { get; set; }
+
+    [MaxLength(80)]
+    public string? SessionId { get; set; }
+
+    [MaxLength(120)]
+    public string? DeviceId { get; set; }
+
+    [MaxLength(30)]
+    public string? Platform { get; set; }
+
+    [MaxLength(100)]
+    public string? Model { get; set; }
+
+    [MaxLength(40)]
+    public string? OsVersion { get; set; }
+
+    [MaxLength(30)]
+    public string? AppVersion { get; set; }
+
+    [MaxLength(10)]
+    public string? Language { get; set; }
+
+    [MaxLength(40)]
+    public string? TriggerType { get; set; }
+
+    [MaxLength(40)]
+    public string? ActionType { get; set; }
+
+    public DateTime? TriggeredAt { get; set; }
+    public decimal? UserLatitude { get; set; }
+    public decimal? UserLongitude { get; set; }
+    public int? DwellSeconds { get; set; }
     public bool WasPlayed { get; set; }
 }
 

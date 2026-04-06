@@ -6,7 +6,7 @@
     <title>Tạo audio tự động (TTS) - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js"></script>
+    <script src="sidebar.js?v=20260406"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -239,9 +239,9 @@
         <div class="stepper">
             <div class="step active">1. Chọn phương thức tạo audio</div>
             <div class="step">2. Chọn template & POI</div>
-            <div class="step">3. Chinh sua text POI</div>
-            <div class="step">4. Ngon ngu & giong doc</div>
-            <div class="step">5. Xem truoc & tao</div>
+            <div class="step">3. Chỉnh sửa text POI</div>
+            <div class="step">4. Ngôn ngữ & giọng đọc</div>
+            <div class="step">5. Xem trước & tạo</div>
         </div>
 
         <!-- STEP 1 -->
@@ -318,35 +318,35 @@
 
                 <!-- STEP 3 -->
         <div class="card hidden" id="step3">
-            <h2>BUOC 3: CHINH SUA TEXT TTS CHO TUNG POI</h2>
+            <h2>BƯỚC 3: CHỈNH SỬA TEXT TTS CHO TỪNG POI</h2>
             <div style="color:var(--muted);margin-bottom:0.75rem;">
-                Chon POI xong ban cap nhat noi dung tung diem. Noi dung nay se dung de tao audio va dich.
+                Chọn POI xong bạn cập nhật nội dung từng điểm. Nội dung này sẽ dùng để tạo audio và dịch.
             </div>
             <div id="editPoiList" class="result-list"></div>
 
             <div class="actions" style="margin-top: 1rem;">
-                <button class="btn btn-outline" onclick="goStep(2)">Quay lai</button>
-                <button class="btn btn-primary" onclick="validateAndGoStep(4)">Tiep tuc</button>
+                <button class="btn btn-outline" onclick="goStep(2)">Quay lại</button>
+                <button class="btn btn-primary" onclick="validateAndGoStep(4)">Tiếp tục</button>
             </div>
         </div>
 
         <!-- STEP 4 -->
         <div class="card hidden" id="step4">
-            <h2>BUOC 4: CHON NGON NGU & GIONG DOC</h2>
+            <h2>BƯỚC 4: CHỌN NGÔN NGỮ & GIỌNG ĐỌC</h2>
             <div class="lang-grid" id="langGrid"></div>
 
             <div class="controls" style="margin-top:1rem;">
                 <div class="control">
-                    <h4>Giong doc</h4>
+                    <h4>Giọng đọc</h4>
                     <div id="voiceOptions"></div>
                 </div>
                 <div class="control">
-                    <h4>Toc do & am luong</h4>
-                    <label>Toc do doc: <span id="rateVal">1.0</span>x
+                    <h4>Tốc độ & âm lượng</h4>
+                    <label>Tốc độ đọc: <span id="rateVal">1.0</span>x
                         <input type="range" min="0.8" max="1.2" step="0.05" value="1" id="rate" oninput="document.getElementById('rateVal').textContent=parseFloat(this.value).toFixed(2)">
                     </label>
                     <br>
-                    <label>Am luong: <span id="volVal">1.0</span>x
+                    <label>Âm lượng: <span id="volVal">1.0</span>x
                         <input type="range" min="0.8" max="1.2" step="0.05" value="1" id="volume" oninput="document.getElementById('volVal').textContent=parseFloat(this.value).toFixed(2)">
                     </label>
                     <br>
@@ -354,17 +354,17 @@
             </div>
 
             <div class="actions" style="margin-top: 1rem; justify-content: space-between;">
-                <button class="btn btn-outline" onclick="goStep(3)">Quay lai</button>
+                <button class="btn btn-outline" onclick="goStep(3)">Quay lại</button>
                 <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
-                    <button class="btn btn-outline" onclick="autoTranslateAll()">Tu dong dich</button>
-                    <button class="btn btn-primary" onclick="validateAndGoStep(5)">Tiep tuc</button>
+                    <button class="btn btn-outline" id="btnAutoTranslate" onclick="autoTranslateAll()">Tự động dịch</button>
+                    <button class="btn btn-primary" onclick="validateAndGoStep(5)">Tiếp tục</button>
                 </div>
             </div>
         </div>
 
         <!-- STEP 5 -->
         <div class="card hidden" id="step5">
-            <h2>BUOC 5: XEM TRUOC & XAC NHAN</h2>
+            <h2>BƯỚC 5: XEM TRƯỚC & XÁC NHẬN</h2>
             <div class="summary" style="margin-bottom:1rem;">
                 <div class="summary-item"><div class="value" id="sumPois">0</div><div>Số POI</div></div>
                 <div class="summary-item"><div class="value" id="sumLangs">0</div><div>Ngôn ngữ</div></div>
@@ -372,14 +372,14 @@
                 <div class="summary-item"><div class="value" id="sumEst">~</div><div>Ước tính</div></div>
             </div>
 
-            <div style="font-weight:700;margin-bottom:0.5rem;" id="scriptPreviewLabel">Xem truoc script theo ngon ngu</div>
+            <div style="font-weight:700;margin-bottom:0.5rem;" id="scriptPreviewLabel">Xem trước script theo ngôn ngữ</div>
             <div class="preview-tabs" id="scriptPreviewTabs"></div>
             <div class="preview-box" id="scriptPreview"></div>
 
             <div class="actions" style="margin-top: 1rem;">
-                <button class="btn btn-outline" onclick="goBackFromStep5()">Quay lai</button>
-                <button class="btn btn-outline" onclick="saveDraft()">Luu nhap</button>
-                <button class="btn btn-primary" onclick="generateAudio()">Tao ngay</button>
+                <button class="btn btn-outline" onclick="goBackFromStep5()">Quay lại</button>
+                <button class="btn btn-outline" onclick="saveDraft()">Lưu nháp</button>
+                <button class="btn btn-primary" onclick="generateAudio()">Tạo ngay</button>
             </div>
         </div>
 <!-- PROGRESS (popup) -->
@@ -406,9 +406,24 @@
     <script src="api.js"></script>
     <script>
         const user = TokenManager.getUser();
-        if (!user) window.location.href = TokenManager.getLoginUrl();
-        const roleContext = (TokenManager.getRoleContext() || '').toLowerCase();
-        if (roleContext !== 'vendor') {
+        const token = TokenManager.getToken();
+        if (!user && !token) window.location.href = TokenManager.getLoginUrl();
+
+        const roleContext = String(TokenManager.getRoleContext() || '').toLowerCase();
+        const userRoles = Array.isArray(user?.roles) ? user.roles.map(r => String(r).toLowerCase()) : [];
+        const tokenRoles = Array.isArray(parseJwtRoles(token)) ? parseJwtRoles(token).map(r => String(r).toLowerCase()) : [];
+        const canUseBulkAudio = roleContext === 'admin'
+            || roleContext === 'vendor'
+            || userRoles.includes('admin')
+            || userRoles.includes('vendor')
+            || tokenRoles.includes('admin')
+            || tokenRoles.includes('vendor');
+
+        if (tokenRoles.includes('admin') && roleContext !== 'admin') {
+            TokenManager.setRoleContext('admin');
+        }
+
+        if (!canUseBulkAudio) {
             window.location.href = 'audio-list';
         }
 
@@ -719,7 +734,7 @@
             if (!list) return;
             const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
             if (!selected.length) {
-                list.innerHTML = '<div style="color:var(--muted);padding:0.75rem;">Chua chon POI nao.</div>';
+                list.innerHTML = '<div style="color:var(--muted);padding:0.75rem;">Chưa chọn POI nào.</div>';
                 return;
             }
             list.innerHTML = selected.map(p => {
@@ -764,29 +779,33 @@
             return Array.from(new Set(targets));
         }
 
-        async function autoTranslateAll() {
+        async function autoTranslateAll(options = {}) {
+            const notify = options.notify !== false;
+            const button = document.getElementById('btnAutoTranslate');
             const targets = getTranslateTargets();
             if (!targets.length) {
-                alert('Khong co ngon ngu can dich (chi chon Tieng Viet).');
+                if (notify) alert('Không có ngôn ngữ cần dịch (chỉ chọn tiếng Việt).');
                 return;
             }
             const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
             if (!selected.length) {
-                alert('Vui long chon POI truoc.');
+                if (notify) alert('Vui lòng chọn POI trước.');
                 return;
             }
             for (const poi of selected) {
                 const id = getPoiId(poi);
                 const baseText = getBaseScriptForPoi(poi);
                 if (!baseText) {
-                    alert('Noi dung trong cho mot so POI. Vui long nhap text truoc khi dich.');
+                    if (notify) alert('Nội dung trống cho một số POI. Vui lòng nhập text trước khi dịch.');
                     return;
                 }
             }
 
             try {
-                const btns = document.querySelectorAll('button.btn.btn-outline[onclick=\"autoTranslateAll()\"]');
-                btns.forEach(b => { b.disabled = true; b.textContent = 'Dang dich...'; });
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = 'Đang dịch...';
+                }
                 for (const poi of selected) {
                     const id = getPoiId(poi);
                     const baseText = getBaseScriptForPoi(poi);
@@ -800,12 +819,14 @@
                         });
                     }
                 }
-                alert('Da tu dong dich xong.');
+                if (notify) alert('Đã tự động dịch xong.');
             } catch (err) {
-                alert(err?.message || 'Khong the tu dong dich.');
+                if (notify) alert(err?.message || 'Không thể tự động dịch.');
             } finally {
-                const btns = document.querySelectorAll('button.btn.btn-outline[onclick=\"autoTranslateAll()\"]');
-                btns.forEach(b => { b.disabled = false; b.textContent = 'Tu dong dich'; });
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Tự động dịch';
+                }
             }
         }
 
@@ -969,8 +990,8 @@
             const isOnePoi = validSelected.length === 1;
             if (label) {
                 label.textContent = isOnePoi
-                    ? `Xem truoc script cua "${firstPoi.name_Vi || firstPoi.name_En || 'POI'}"`
-                    : 'Xem truoc template (script mau)';
+                    ? `Xem trước script của "${firstPoi.name_Vi || firstPoi.name_En || 'POI'}"`
+                    : 'Xem trước template (script mẫu)';
             }
 
             let displayText;
@@ -978,11 +999,10 @@
                 // Show actual filled script for this POI
                 const script  = getScriptForPoiLang(firstPoi, previewLangScript);
                 const clamped = clampScript(script, previewLangScript);
-                const truncNote = clamped.truncated ? ` [Da cat bot con ~${MAX_TTS_SECONDS}s]` : '';
-                displayText = `${clamped.text}${truncNote}`;
+                displayText = clamped.text;
             } else {
                 // Show template with unresolved placeholders
-                displayText = getActiveTemplateText(previewLangScript) || 'Chua co template.';
+                displayText = getActiveTemplateText(previewLangScript) || 'Chưa có template.';
             }
             preview.textContent = displayText;
         }
@@ -1150,20 +1170,20 @@
         }
 
         // ─── VALIDATION ───────────────────────────────────────────────────────────────
-        function validateAndGoStep(step) {
+        async function validateAndGoStep(step) {
             if (step === 2) { goStep(2); return; }
             if (step === 3) {
-                if (selectedPOIs.size === 0) { showValidationError('step2', 'Vui long chon it nhat 1 POI.'); return; }
+                if (selectedPOIs.size === 0) { showValidationError('step2', 'Vui lòng chọn ít nhất 1 POI.'); return; }
                 goStep(3); return;
             }
             if (step === 4) {
                 const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
                 const hasEmpty = selected.some(p => !getBaseScriptForPoi(p));
-                if (hasEmpty) { showValidationError('step3', 'Vui long nhap noi dung cho tat ca POI.'); return; }
+                if (hasEmpty) { showValidationError('step3', 'Vui lòng nhập nội dung cho tất cả POI.'); return; }
                 goStep(4); return;
             }
             if (step === 5) {
-                if (selectedLangs.size === 0) { showValidationError('step4', 'Vui long chon it nhat 1 ngon ngu.'); return; }
+                if (selectedLangs.size === 0) { showValidationError('step4', 'Vui lòng chọn ít nhất 1 ngôn ngữ.'); return; }
                 const needsTranslation = Array.from(selectedLangs).some(l => normalizeLangId(l) !== 'vi-VN');
                 if (needsTranslation) {
                     const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
@@ -1175,7 +1195,25 @@
                             return !translatedScripts.has(`${id}-${norm}`);
                         });
                     });
-                    if (missing) { showValidationError('step4', 'Hay bam "Tu dong dich" truoc khi tao audio.'); return; }
+                    if (missing) {
+                        try {
+                            await autoTranslateAll({ notify: false });
+                        } catch {
+                            // ignore and let validation below decide
+                        }
+                        const stillMissing = selected.some(p => {
+                            const id = getPoiId(p);
+                            return Array.from(selectedLangs).some(l => {
+                                const norm = normalizeLangId(l);
+                                if (norm === 'vi-VN') return false;
+                                return !translatedScripts.has(`${id}-${norm}`);
+                            });
+                        });
+                        if (stillMissing) {
+                            showValidationError('step4', 'Không thể tự động dịch đầy đủ. Vui lòng thử lại.');
+                            return;
+                        }
+                    }
                 }
                 goStep(5); return;
             }
@@ -1233,7 +1271,7 @@ function showValidationError(stepId, message) {
             const validPOIs = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
 
             if (validPOIs.length === 0 || selectedLangs.size === 0) {
-                alert('Khong co POI hop le hoac chua chon ngon ngu.');
+                alert('Không có POI hợp lệ hoặc chưa chọn ngôn ngữ.');
                 return;
             }
 
@@ -1248,8 +1286,19 @@ function showValidationError(stepId, message) {
                     });
                 });
                 if (missing) {
-                    alert('Hay bam "Tu dong dich" truoc khi tao audio.');
-                    return;
+                    await autoTranslateAll({ notify: false });
+                    const stillMissing = validPOIs.some(p => {
+                        const id = getPoiId(p);
+                        return Array.from(selectedLangs).some(l => {
+                            const norm = normalizeLangId(l);
+                            if (norm === 'vi-VN') return false;
+                            return !translatedScripts.has(`${id}-${norm}`);
+                        });
+                    });
+                    if (stillMissing) {
+                        alert('Không thể tự động dịch đầy đủ. Vui lòng thử lại.');
+                        return;
+                    }
                 }
             }
 
@@ -1697,7 +1746,6 @@ function showValidationError(stepId, message) {
                 // Hide results until user triggers generation
                 document.getElementById('resultsCard').classList.add('hidden');
             }
-            sessionStorage.setItem('tts_current_step', String(step));
         }
 
         // "Quay lại" from step 5: warn user if there are pending generated items
@@ -1753,10 +1801,8 @@ function showValidationError(stepId, message) {
         loadVoices();
         loadPOIs();
         updateSummary();
-
-        // Restore last step after refresh
-        const savedStep = parseInt(sessionStorage.getItem('tts_current_step') || '1', 10);
-        if (savedStep >= 2 && savedStep <= 5) goStep(savedStep);
+        try { sessionStorage.removeItem('tts_current_step'); } catch {}
+        goStep(1);
     </script>
 </body>
 </html>

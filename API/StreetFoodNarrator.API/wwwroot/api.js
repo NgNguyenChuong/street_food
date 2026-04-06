@@ -1,4 +1,4 @@
-﻿// API Base URL (auto-detect; allow override)
+// API Base URL (auto-detect; allow override)
 function resolveApiBaseUrl() {
     const override = window.__API_BASE_URL || localStorage.getItem('API_BASE_URL');
     if (override) return override;
@@ -469,7 +469,7 @@ class API {
 
     // POI APIs
 
-    async getPOIs(page = 1, pageSize = 10, search = '', isActive = null, category = null) {
+    async getPOIs(page = 1, pageSize = 10, search = '', isActive = null, category = null, reviewStatus = null) {
 
         let query = `page=${page}&pageSize=${pageSize}`;
 
@@ -477,6 +477,7 @@ class API {
 
         if (isActive !== null) query += `&isActive=${isActive}`;
         if (category) query += `&category=${encodeURIComponent(category)}`;
+        if (reviewStatus) query += `&reviewStatus=${encodeURIComponent(reviewStatus)}`;
         return this.request(`/POIs?${query}`);
 
     }
@@ -523,10 +524,10 @@ class API {
 
     }
 
-    async reviewPOI(id, status, note = null) {
+    async reviewPOI(id, body) {
         return this.request(`/POIs/${id}/review`, {
             method: 'POST',
-            body: JSON.stringify({ status, note })
+            body: JSON.stringify(body)
         });
     }
 

@@ -60,6 +60,25 @@
 
             <div id="vendorApprovalNotice" class="vendor-approval-notice" style="display:none"></div>
 
+            <div class="sidebar-notification">
+                <button type="button" class="notif-btn" id="sidebarNotifBtn" aria-label="Thông báo">
+                    <i class="fas fa-bell"></i>
+                    <span>Thông báo</span>
+                    <span class="notif-badge hidden" id="sidebarNotifBadge">0</span>
+                </button>
+                <div class="notif-panel" id="sidebarNotifPanel">
+                    <div class="notif-panel-head">
+                        <strong>Thông báo</strong>
+                        <button type="button" class="notif-refresh" id="sidebarNotifRefresh" title="Làm mới">
+                            <i class="fas fa-rotate"></i>
+                        </button>
+                    </div>
+                    <div class="notif-list" id="sidebarNotifList">
+                        <div class="notif-empty">Đang tải thông báo...</div>
+                    </div>
+                </div>
+            </div>
+
             <nav>
                 <ul class="nav-menu">
                     ${isAdmin ? `
@@ -127,7 +146,7 @@
                     <li class="nav-item">
                         <a href="users" class="nav-link">
                             <i class="nav-icon fas fa-users"></i>
-                            <span>Người dùng</span>
+                            <span>Lịch sử sử dụng</span>
                         </a>
                     </li>
                     ` : ''}
@@ -252,6 +271,155 @@
                 border-color: rgba(248, 113, 113, 0.35);
                 background: rgba(248, 113, 113, 0.12);
                 color: #fecaca;
+            }
+
+            .sidebar-notification {
+                position: relative;
+                margin: 0 1rem 1rem;
+            }
+
+            .notif-btn {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                padding: 0.75rem 0.9rem;
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: rgba(255, 255, 255, 0.06);
+                color: #fff;
+                cursor: pointer;
+                font-weight: 600;
+                transition: all 0.2s ease;
+                position: relative;
+            }
+
+            .notif-btn:hover {
+                background: rgba(34, 197, 94, 0.16);
+                border-color: rgba(34, 197, 94, 0.35);
+            }
+
+            .notif-badge {
+                min-width: 20px;
+                height: 20px;
+                border-radius: 999px;
+                background: #EF4444;
+                color: white;
+                font-size: 0.7rem;
+                font-weight: 700;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0 0.35rem;
+                line-height: 1;
+            }
+
+            .notif-badge.hidden {
+                display: none;
+            }
+
+            .notif-panel {
+                display: none;
+                position: absolute;
+                left: 0;
+                right: 0;
+                top: calc(100% + 0.5rem);
+                background: #FFFFFF;
+                border-radius: 12px;
+                border: 1px solid #E8ECF1;
+                box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+                z-index: 1200;
+                overflow: hidden;
+            }
+
+            .notif-panel.show {
+                display: block;
+            }
+
+            .notif-panel-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.75rem 0.85rem;
+                border-bottom: 1px solid #EEF2F7;
+                color: #111827;
+                font-size: 0.86rem;
+            }
+
+            .notif-refresh {
+                width: 28px;
+                height: 28px;
+                border-radius: 8px;
+                border: 1px solid #E5E7EB;
+                background: #fff;
+                color: #374151;
+                cursor: pointer;
+            }
+
+            .notif-list {
+                max-height: 320px;
+                overflow-y: auto;
+            }
+
+            .notif-empty {
+                padding: 0.9rem;
+                color: #6B7280;
+                font-size: 0.82rem;
+            }
+
+            .notif-item {
+                display: flex;
+                gap: 0.65rem;
+                text-decoration: none;
+                padding: 0.75rem 0.85rem;
+                border-bottom: 1px solid #F3F4F6;
+                color: #111827;
+                transition: background 0.15s ease;
+            }
+
+            .notif-item:last-child {
+                border-bottom: none;
+            }
+
+            .notif-item:hover {
+                background: #F9FAFB;
+            }
+
+            .notif-item-icon {
+                width: 28px;
+                height: 28px;
+                border-radius: 8px;
+                background: #EEF2FF;
+                color: #3730A3;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .notif-item.warn .notif-item-icon {
+                background: #FEF2F2;
+                color: #B91C1C;
+            }
+
+            .notif-item-content {
+                min-width: 0;
+            }
+
+            .notif-item-title {
+                display: block;
+                font-size: 0.82rem;
+                font-weight: 700;
+                color: #111827;
+            }
+
+            .notif-item-message {
+                display: block;
+                margin-top: 0.15rem;
+                font-size: 0.76rem;
+                color: #6B7280;
+                line-height: 1.35;
             }
 
             .logo {
@@ -425,6 +593,195 @@
         }
     }
 
+    function extractTotalCount(payload) {
+        if (!payload) return 0;
+        if (typeof payload.total === 'number') return payload.total;
+        if (typeof payload.totalItems === 'number') return payload.totalItems;
+        if (typeof payload.count === 'number') return payload.count;
+        if (Array.isArray(payload.data)) return payload.data.length;
+        if (Array.isArray(payload)) return payload.length;
+        return 0;
+    }
+
+    function buildNotificationItem({
+        icon = 'fa-circle-info',
+        title,
+        message,
+        href,
+        count = 0,
+        kind = 'info'
+    }) {
+        return { icon, title, message, href, count, kind };
+    }
+
+    async function fetchAdminNotifications() {
+        if (!window.api) return [];
+
+        const [poiRes, audioRes] = await Promise.allSettled([
+            api.getPOIs(1, 1, '', null, null, 'pending'),
+            api.getAudioList(1, 1, null, null, 'pending')
+        ]);
+
+        const pendingPois = poiRes.status === 'fulfilled' ? extractTotalCount(poiRes.value) : 0;
+        const pendingAudios = audioRes.status === 'fulfilled' ? extractTotalCount(audioRes.value) : 0;
+
+        const items = [];
+        if (pendingPois > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-map-location-dot',
+                title: 'POI chờ duyệt',
+                message: `${pendingPois} POI đang chờ Admin duyệt.`,
+                href: 'poi-list?reviewStatus=pending',
+                count: pendingPois
+            }));
+        }
+        if (pendingAudios > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-microphone-lines',
+                title: 'Audio chờ duyệt',
+                message: `${pendingAudios} audio đang chờ Admin duyệt.`,
+                href: 'audio-list?status=pending',
+                count: pendingAudios
+            }));
+        }
+
+        return items;
+    }
+
+    async function fetchVendorNotifications() {
+        if (!window.api) return [];
+
+        const [poiRes, audioPendingRes, audioRejectedRes] = await Promise.allSettled([
+            api.getPOIs(1, 5000),
+            api.getAudioList(1, 1, null, null, 'pending'),
+            api.getAudioList(1, 1, null, null, 'rejected')
+        ]);
+
+        const poiRows = poiRes.status === 'fulfilled'
+            ? (Array.isArray(poiRes.value?.data) ? poiRes.value.data : [])
+            : [];
+
+        const pendingPois = poiRows.filter(p => String(p.reviewStatus || p.ReviewStatus || '').toLowerCase() === 'pending').length;
+        const rejectedPois = poiRows.filter(p => String(p.reviewStatus || p.ReviewStatus || '').toLowerCase() === 'rejected').length;
+        const pendingAudios = audioPendingRes.status === 'fulfilled' ? extractTotalCount(audioPendingRes.value) : 0;
+        const rejectedAudios = audioRejectedRes.status === 'fulfilled' ? extractTotalCount(audioRejectedRes.value) : 0;
+
+        const items = [];
+        if (pendingPois > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-hourglass-half',
+                title: 'POI đang chờ duyệt',
+                message: `${pendingPois} POI của bạn đang chờ Admin duyệt.`,
+                href: 'poi-list?reviewStatus=pending',
+                count: pendingPois
+            }));
+        }
+        if (rejectedPois > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-circle-xmark',
+                title: 'POI bị từ chối',
+                message: `${rejectedPois} POI bị từ chối, vui lòng cập nhật lại nội dung.`,
+                href: 'poi-list?reviewStatus=rejected',
+                count: rejectedPois,
+                kind: 'warn'
+            }));
+        }
+        if (pendingAudios > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-microphone',
+                title: 'Audio đang chờ duyệt',
+                message: `${pendingAudios} audio của bạn đang chờ Admin duyệt.`,
+                href: 'audio-list?status=pending',
+                count: pendingAudios
+            }));
+        }
+        if (rejectedAudios > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-volume-xmark',
+                title: 'Audio bị từ chối',
+                message: `${rejectedAudios} audio bị từ chối, hãy chỉnh sửa và gửi lại.`,
+                href: 'audio-list?status=rejected',
+                count: rejectedAudios,
+                kind: 'warn'
+            }));
+        }
+
+        return items;
+    }
+
+    function renderSidebarNotifications(items) {
+        const list = document.getElementById('sidebarNotifList');
+        const badge = document.getElementById('sidebarNotifBadge');
+        if (!list || !badge) return;
+
+        if (!items.length) {
+            list.innerHTML = '<div class="notif-empty">Không có thông báo mới.</div>';
+            badge.classList.add('hidden');
+            return;
+        }
+
+        const total = items.reduce((sum, item) => sum + Math.max(0, Number(item.count || 0)), 0);
+        if (total > 0) {
+            badge.textContent = total > 99 ? '99+' : String(total);
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+
+        list.innerHTML = items.map(item => `
+            <a href="${item.href || '#'}" class="notif-item ${item.kind === 'warn' ? 'warn' : ''}">
+                <span class="notif-item-icon"><i class="fas ${item.icon || 'fa-circle-info'}"></i></span>
+                <span class="notif-item-content">
+                    <span class="notif-item-title">${item.title || ''}</span>
+                    <span class="notif-item-message">${item.message || ''}</span>
+                </span>
+            </a>
+        `).join('');
+    }
+
+    async function loadSidebarNotifications() {
+        const list = document.getElementById('sidebarNotifList');
+        if (list) list.innerHTML = '<div class="notif-empty">Đang tải thông báo...</div>';
+
+        try {
+            const items = isAdmin
+                ? await fetchAdminNotifications()
+                : await fetchVendorNotifications();
+            renderSidebarNotifications(items);
+        } catch {
+            if (list) list.innerHTML = '<div class="notif-empty">Không tải được thông báo.</div>';
+        }
+    }
+
+    function setupNotificationBell() {
+        const btn = document.getElementById('sidebarNotifBtn');
+        const panel = document.getElementById('sidebarNotifPanel');
+        const refresh = document.getElementById('sidebarNotifRefresh');
+        if (!btn || !panel) return;
+
+        btn.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            panel.classList.toggle('show');
+            if (panel.classList.contains('show')) {
+                await loadSidebarNotifications();
+            }
+        });
+
+        panel.addEventListener('click', (event) => event.stopPropagation());
+        document.addEventListener('click', () => panel.classList.remove('show'));
+
+        if (refresh) {
+            refresh.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await loadSidebarNotifications();
+            });
+        }
+
+        loadSidebarNotifications();
+        setInterval(loadSidebarNotifications, 60000);
+    }
+
     function init() {
         const currentPage = window.location.pathname.split('/').pop()?.replace('.html', '') || 'index';
         if (currentPage === 'index' || currentPage === 'login' || currentPage === 'register') {
@@ -468,6 +825,8 @@
                 if (parent) parent.classList.toggle('open');
             });
         });
+
+        setupNotificationBell();
 
         hydrateAppSettings();
         applyVendorApprovalGate();
