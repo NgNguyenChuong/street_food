@@ -323,6 +323,79 @@
             margin-bottom: 1.25rem;
         }
 
+        .audio-script {
+            margin-bottom: 1rem;
+            padding: 0.75rem 0.9rem;
+            background: #F7F8FA;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .audio-script-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .audio-script-text {
+            font-size: 0.88rem;
+            line-height: 1.5;
+            color: #1F2937;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .audio-script-input {
+            width: 100%;
+            min-height: 96px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.65rem 0.75rem;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            resize: vertical;
+            background: #fff;
+            color: #1F2937;
+        }
+
+        .audio-script-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.12);
+        }
+
+        .audio-script-actions {
+            margin-top: 0.6rem;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-script {
+            border: none;
+            border-radius: 9px;
+            padding: 0.45rem 0.7rem;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .btn-script-save {
+            background: #E8F2FF;
+            color: #0B4A8A;
+        }
+
+        .btn-script-generate {
+            background: #FFF0E9;
+            color: #B45309;
+        }
+
         /* Audio Bar */
         .audio-bar {
             width: 100%;
@@ -776,10 +849,6 @@
                     <i class="fas fa-magic"></i>
                     <span>TTS Hàng loạt</span>
                 </button>
-                <button class="btn btn-primary" onclick="openUploadModal()">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <span>Upload Audio</span>
-                </button>
             </div>
         </div>
         <div class="bulk-actions">
@@ -861,82 +930,6 @@
 
         <div class="pagination" id="pagination"></div>
     </div>
-
-<div class="modal-backdrop" id="uploadModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
-        <div class="modal-header">
-            <div class="modal-title" id="uploadModalTitle">Upload audio</div>
-            <button class="modal-close" type="button" onclick="closeUploadModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form id="uploadForm">
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="uploadPoiId">POI ID</label>
-                    <input id="uploadPoiId" type="number" min="1" placeholder="VD: 12" required>
-                </div>
-                <div class="form-group">
-                    <label for="uploadTitle">Tiêu đề</label>
-                    <input id="uploadTitle" type="text" placeholder="Tên audio" required>
-                </div>
-                <div class="form-group">
-                    <label for="uploadLanguage">Ngôn ngữ</label>
-                    <select id="uploadLanguage" required>
-                        <option value="vi-VN">Tiếng Việt</option>
-                        <option value="en-US">English</option>
-                        <option value="zh-CN">中文</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="uploadDescription">Mô tả (tuỳ chọn)</label>
-                    <textarea id="uploadDescription" rows="3" placeholder="Mô tả ngắn"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="uploadFile">Chọn file audio</label>
-                    <input id="uploadFile" type="file" accept="audio/*" required>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-outline" type="button" onclick="closeUploadModal()">Huỷ</button>
-                <button class="btn btn-primary" id="uploadSubmitBtn" type="submit">Tải lên</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal-backdrop" id="replaceModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="replaceModalTitle">
-        <div class="modal-header">
-            <div class="modal-title" id="replaceModalTitle">Đổi file audio</div>
-            <button class="modal-close" type="button" onclick="closeReplaceModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form id="replaceForm">
-            <div class="modal-body">
-                <input id="replaceAudioId" type="hidden">
-                <div class="form-group">
-                    <label>Audio đang chọn</label>
-                    <div id="replaceAudioInfo" style="padding:0.75rem 1rem;border-radius:12px;background:#F6F7F9;border:1px solid var(--border);font-weight:600;color:#334155;">
-                        --
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="replaceFile">Chọn file audio mới</label>
-                    <input id="replaceFile" type="file" accept="audio/*" required>
-                </div>
-                <div style="font-size:0.85rem;color:#64748B;">
-                    File mới sẽ thay thế trực tiếp file cũ của audio này.
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-outline" type="button" onclick="closeReplaceModal()">Huỷ</button>
-                <button class="btn btn-primary" id="replaceSubmitBtn" type="submit">Cập nhật</button>
-            </div>
-        </form>
-    </div>
-</div>
 
 <script src="api.js"></script>
 <script>
@@ -1105,54 +1098,6 @@
         window.location.href = `audio-bulk-generate?v=${Date.now()}`;
     }
 
-    function openUploadModal() {
-        const modal = document.getElementById('uploadModal');
-        if (!modal) return;
-        modal.classList.add('show');
-        modal.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeUploadModal() {
-        const modal = document.getElementById('uploadModal');
-        if (!modal) return;
-        modal.classList.remove('show');
-        modal.setAttribute('aria-hidden', 'true');
-        if (window.location.hash === '#upload') {
-            history.replaceState(null, '', window.location.pathname);
-        }
-    }
-
-    function handleUploadHash() {
-        if (window.location.hash === '#upload') {
-            openUploadModal();
-        }
-    }
-
-    function openReplaceModal(audioId) {
-        const modal = document.getElementById('replaceModal');
-        if (!modal) return;
-        const audio = findAudioById(audioId);
-        if (!audio) {
-            alert('Không tìm thấy audio để cập nhật.');
-            return;
-        }
-        const info = document.getElementById('replaceAudioInfo');
-        const poiLabel = audio.poiName ? `POI: ${audio.poiName}` : `POI #${getPoiIdLabel(audio)}`;
-        info.textContent = `${poiLabel} • ${audio.language || 'N/A'} • ID ${audio.audioContent_ID}`;
-        document.getElementById('replaceAudioId').value = audio.audioContent_ID;
-        const fileInput = document.getElementById('replaceFile');
-        if (fileInput) fileInput.value = '';
-        modal.classList.add('show');
-        modal.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeReplaceModal() {
-        const modal = document.getElementById('replaceModal');
-        if (!modal) return;
-        modal.classList.remove('show');
-        modal.setAttribute('aria-hidden', 'true');
-    }
-
     function renderStatusBadge(status) {
         const labelMap = {
             draft: 'Draft',
@@ -1212,6 +1157,19 @@
         return withoutLang || (poiName || 'Audio');
     }
 
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getAudioScriptText(audio) {
+        return (audio?.ttsText || audio?.TTSText || '').trim();
+    }
+
     function groupAudiosByPoi(audios) {
         const map = new Map();
         audios.forEach(a => {
@@ -1245,10 +1203,12 @@
     }
 
     function pickDefaultAudio(items) {
-        const vi = items.find(a => (a.language || '').toLowerCase() === 'vi-vn');
+        const vi = items.find(a => normalizeLanguageKey(a.language) === 'vi');
         if (vi) return vi;
-        const en = items.find(a => (a.language || '').toLowerCase() === 'en-us');
+        const en = items.find(a => normalizeLanguageKey(a.language) === 'en');
         if (en) return en;
+        const zh = items.find(a => normalizeLanguageKey(a.language) === 'zh');
+        if (zh) return zh;
         return items[0];
     }
 
@@ -1260,6 +1220,7 @@
         const duration = selected.duration ? `${Math.floor(selected.duration / 60)}:${String(selected.duration % 60).padStart(2, '0')}` : 'N/A';
         const fileSize = formatFileSize(selected.fileSize);
         const uniqueItems = getUniqueLanguageItems(group.items);
+        const scriptText = getAudioScriptText(selected);
 
         return `
             <div class="audio-card" data-group-key="${group.key}" data-poi-id="${group.poiId}" data-selected-id="${selected.audioContent_ID}">
@@ -1299,6 +1260,27 @@
                     ${renderAudioPlayer(audioUrl, selected.audioContent_ID)}
                 </div>
 
+                ${(isVendor || isAdmin) ? `
+                    <div class="audio-script">
+                        <div class="audio-script-title">Nội dung audio (text)</div>
+                        ${isVendor ? `
+                            <textarea class="audio-script-input" data-audio-id="${selected.audioContent_ID}" placeholder="Nhập script audio...">${escapeHtml(scriptText || '')}</textarea>
+                            <div class="audio-script-actions">
+                                <button class="btn-script btn-script-save" data-action="save-script" data-id="${selected.audioContent_ID}">
+                                    <i class="fas fa-floppy-disk"></i>
+                                    <span>Lưu script</span>
+                                </button>
+                                <button class="btn-script btn-script-generate" data-action="regenerate" data-id="${selected.audioContent_ID}">
+                                    <i class="fas fa-rotate"></i>
+                                    <span>Tạo lại audio</span>
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="audio-script-text">${escapeHtml(scriptText || 'Chưa có nội dung text cho audio này.')}</div>
+                        `}
+                    </div>
+                ` : ''}
+
                 <div class="audio-actions">
                     ${renderActionButtons(selected, audioUrl, group.key)}
                 </div>
@@ -1311,18 +1293,14 @@
         const canSubmit = isVendor && (status === 'draft' || status === 'rejected');
         const canApprove = isAdmin && status === 'pending';
         const canReject = isAdmin && status === 'pending';
-        const canDelete = isAdmin || (isVendor && status !== 'approved' && status !== 'published');
-        const canReplace = isAdmin || isVendor;
+        const canDelete = isVendor && status !== 'approved' && status !== 'published';
+        const canDownload = !isVendor && !isAdmin;
 
         return `
-            <button class="btn-icon btn-download" data-action="download" data-url="${audioUrl}">
-                <i class="fas fa-download"></i>
-                <span>Tải về</span>
-            </button>
-            ${canReplace ? `
-                <button class="btn-icon btn-generate" data-action="replace" data-id="${audio.audioContent_ID}">
-                    <i class="fas fa-pen-to-square"></i>
-                    <span>Đổi file</span>
+            ${canDownload ? `
+                <button class="btn-icon btn-download" data-action="download" data-url="${audioUrl}">
+                    <i class="fas fa-download"></i>
+                    <span>Tải về</span>
                 </button>
             ` : ''}
             ${canDelete ? `
@@ -1334,19 +1312,19 @@
             ${canSubmit ? `
                 <button class="btn-icon btn-submit" data-action="submit" data-id="${audio.audioContent_ID}">
                     <i class="fas fa-paper-plane"></i>
-                    <span>Gửi duyệt</span>
+                    <span>Gửi duyệt bộ 3 ngôn ngữ</span>
                 </button>
             ` : ''}
             ${canApprove ? `
                 <button class="btn-icon btn-approve" data-action="approve" data-id="${audio.audioContent_ID}">
                     <i class="fas fa-check"></i>
-                    <span>Duyệt</span>
+                    <span>Duyệt bộ 3 ngôn ngữ</span>
                 </button>
             ` : ''}
             ${canReject ? `
                 <button class="btn-icon btn-reject" data-action="reject" data-id="${audio.audioContent_ID}">
                     <i class="fas fa-times"></i>
-                    <span>Từ chối</span>
+                    <span>Từ chối cả bộ</span>
                 </button>
             ` : ''}
             ${canDelete ? `
@@ -1402,7 +1380,6 @@
                 const id = parseInt(btn.getAttribute('data-id'), 10);
                 const url = btn.getAttribute('data-url');
                 if (action === 'download') return downloadAudio(url);
-                if (action === 'replace') return openReplaceModal(id);
                 if (action === 'submit') return submitAudio(id);
                 if (action === 'approve') return approveAudio(id);
                 if (action === 'reject') return rejectAudio(id);
@@ -1411,6 +1388,20 @@
                     const key = btn.getAttribute('data-group-key');
                     return deletePoiAudios(key);
                 }
+            };
+        });
+
+        document.querySelectorAll('.audio-script-actions button').forEach(btn => {
+            const action = btn.getAttribute('data-action');
+            if (!action) return;
+            btn.onclick = () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                if (Number.isNaN(id)) return;
+                const card = btn.closest('.audio-card');
+                const input = card?.querySelector('.audio-script-input');
+                const script = input?.value?.trim() || '';
+                if (action === 'save-script') return saveAudioScript(id, script);
+                if (action === 'regenerate') return regenerateAudioFromScript(id, script, btn);
             };
         });
     }
@@ -1434,6 +1425,14 @@
         card.querySelector('.audio-duration').textContent = duration;
         card.querySelector('.audio-size').textContent = fileSize;
         card.querySelector('.audio-lang').textContent = audio.language || 'N/A';
+        const scriptInput = card.querySelector('.audio-script-input');
+        if (scriptInput) {
+            scriptInput.value = getAudioScriptText(audio) || '';
+            scriptInput.setAttribute('data-audio-id', String(audio.audioContent_ID));
+            card.querySelectorAll('.audio-script-actions button').forEach(btn => {
+                btn.setAttribute('data-id', String(audio.audioContent_ID));
+            });
+        }
 
         const player = card.querySelector('.audio-player');
         player.innerHTML = renderAudioPlayer(audioUrl, audio.audioContent_ID);
@@ -1482,119 +1481,6 @@
         `;
     }
 
-    function bindUploadModal() {
-        const modal = document.getElementById('uploadModal');
-        const form = document.getElementById('uploadForm');
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeUploadModal();
-                }
-            });
-        }
-
-        if (form) {
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const fileInput = document.getElementById('uploadFile');
-                const titleInput = document.getElementById('uploadTitle');
-                const languageSelect = document.getElementById('uploadLanguage');
-                const poiInput = document.getElementById('uploadPoiId');
-                const descInput = document.getElementById('uploadDescription');
-                const submitBtn = document.getElementById('uploadSubmitBtn');
-
-                const file = fileInput?.files?.[0];
-                const title = titleInput?.value?.trim();
-                const language = languageSelect?.value || 'vi-VN';
-                const poiId = parseInt(poiInput?.value || '', 10);
-                const description = descInput?.value?.trim();
-
-                if (!file || !title || Number.isNaN(poiId)) {
-                    alert('Vui lòng nhập đủ POI ID, tiêu đề và chọn file audio.');
-                    return;
-                }
-
-                const formData = new FormData();
-                formData.append('AudioFile', file);
-                formData.append('Title', title);
-                formData.append('Language', language);
-                formData.append('POI_ID', poiId.toString());
-                if (description) {
-                    formData.append('Description', description);
-                }
-
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.textContent = 'Đang upload...';
-                }
-
-                try {
-                    await api.uploadAudio(formData);
-                    closeUploadModal();
-                    if (form) form.reset();
-                    loadAudios();
-                } catch (error) {
-                    alert('Upload thất bại: ' + (error.message || 'Vui lòng thử lại.'));
-                } finally {
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = 'Upload';
-                    }
-                }
-            });
-        }
-    }
-
-    function bindReplaceModal() {
-        const modal = document.getElementById('replaceModal');
-        const form = document.getElementById('replaceForm');
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeReplaceModal();
-                }
-            });
-        }
-
-        if (form) {
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const idRaw = document.getElementById('replaceAudioId')?.value || '';
-                const id = parseInt(idRaw, 10);
-                const fileInput = document.getElementById('replaceFile');
-                const file = fileInput?.files?.[0];
-                const submitBtn = document.getElementById('replaceSubmitBtn');
-
-                if (!file || Number.isNaN(id)) {
-                    alert('Vui lòng chọn file audio mới.');
-                    return;
-                }
-
-                const formData = new FormData();
-                formData.append('AudioFile', file);
-
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.textContent = 'Đang cập nhật...';
-                }
-
-                try {
-                    await api.replaceAudioFile(id, formData);
-                    closeReplaceModal();
-                    if (form) form.reset();
-                    loadAudios();
-                } catch (error) {
-                    alert('Cập nhật thất bại: ' + (error.message || 'Vui lòng thử lại.'));
-                } finally {
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = 'Cập nhật';
-                    }
-                }
-            });
-        }
-    }
-
     function resolveAudioUrl(rawUrl) {
         if (!rawUrl) return '';
         if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
@@ -1636,6 +1522,67 @@
             loadAudios();
         } catch (error) {
             alert('Không thể từ chối audio: ' + error.message);
+        }
+    }
+
+    async function saveAudioScript(id, script) {
+        if (!isVendor) {
+            alert('Admin không được phép chỉnh sửa script.');
+            return;
+        }
+        try {
+            await api.updateAudio(id, { ttsText: script || '' });
+            await loadAudios();
+        } catch (error) {
+            alert('Không thể lưu script: ' + error.message);
+        }
+    }
+
+    async function regenerateAudioFromScript(id, script, triggerBtn) {
+        if (!isVendor) {
+            alert('Admin không được phép tạo lại audio.');
+            return;
+        }
+        if (!script) {
+            alert('Vui lòng nhập nội dung script trước khi tạo lại audio.');
+            return;
+        }
+
+        const originalHtml = triggerBtn ? triggerBtn.innerHTML : '';
+        if (triggerBtn) {
+            triggerBtn.disabled = true;
+            triggerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Đang tạo...</span>';
+        }
+
+        try {
+            const audio = findAudioById(id);
+            const currentScript = getAudioScriptText(audio) || '';
+            const newScript = (script || '').trim();
+            const hasChangedScript = newScript !== currentScript.trim();
+
+            if (hasChangedScript) {
+                try {
+                    await api.updateAudio(id, { ttsText: newScript });
+                } catch (error) {
+                    const message = (error?.message || '').toLowerCase();
+                    const isApprovedEditBlocked = message.includes('approved audio cannot be edited by vendor');
+                    if (isApprovedEditBlocked) {
+                        alert('Audio đã duyệt nên Vendor không thể sửa script. Hệ thống sẽ tạo lại bằng script hiện tại.');
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+
+            await api.request(`/Audio/${id}/generate-file`, { method: 'POST' });
+            await loadAudios();
+        } catch (error) {
+            alert('Không thể tạo lại audio: ' + error.message);
+        } finally {
+            if (triggerBtn) {
+                triggerBtn.disabled = false;
+                triggerBtn.innerHTML = originalHtml;
+            }
         }
     }
 
@@ -1835,13 +1782,8 @@
     }
 
     window.addEventListener('load', function() {
-        bindUploadModal();
-        bindReplaceModal();
         applyFilters();
-        handleUploadHash();
     });
-
-    window.addEventListener('hashchange', handleUploadHash);
 </script>
 </body>
 </html>

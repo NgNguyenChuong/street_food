@@ -384,7 +384,7 @@ class API {
 
                         errorMsg = data.message;
                         // Append underlying detail (e.g. edge-tts stderr) when available
-                        if (data.error) errorMsg += '\n\nChi tiáº¿t: ' + data.error;
+                        if (data.error) errorMsg += '\n\nChi tiết: ' + data.error;
 
                     } else if (data.title) {
 
