@@ -47,6 +47,24 @@ function parseJwtRoles(token) {
     return list.flatMap(r => String(r).split(',')).map(r => r.trim()).filter(Boolean);
 }
 
+function getCookieValue(name) {
+    if (!name || !document.cookie) return null;
+    const pairs = document.cookie.split(';');
+    for (const pair of pairs) {
+        const idx = pair.indexOf('=');
+        if (idx < 0) continue;
+        const key = pair.slice(0, idx).trim();
+        if (key !== name) continue;
+        const value = pair.slice(idx + 1).trim();
+        try {
+            return decodeURIComponent(value);
+        } catch {
+            return value;
+        }
+    }
+    return null;
+}
+
 
 
 
@@ -129,6 +147,20 @@ const TokenManager = {
         if (adminToken && !vendorToken) return this.setRoleContext('Admin');
         if (vendorToken && !adminToken) return this.setRoleContext('Vendor');
 
+        // Infer role from current auth cookie to avoid stale/mixed localStorage contexts.
+        const cookieToken = getCookieValue('auth_token');
+        if (cookieToken) {
+            const inferredRole = this.pickRoleForUser(null, cookieToken);
+            if (inferredRole) {
+                this.setRoleContext(inferredRole);
+                const key = this.roleKeys[inferredRole].token;
+                if (!localStorage.getItem(key)) {
+                    localStorage.setItem(key, cookieToken);
+                }
+                return inferredRole;
+            }
+        }
+
         const legacyUserRaw = localStorage.getItem('user');
         if (legacyUserRaw) {
             try {
@@ -166,6 +198,17 @@ const TokenManager = {
             if (legacy) {
                 localStorage.setItem(key, legacy);
                 token = legacy;
+            }
+        }
+
+        if (!token) {
+            const cookieToken = getCookieValue('auth_token');
+            if (cookieToken) {
+                const cookieRole = this.pickRoleForUser(null, cookieToken);
+                if (!cookieRole || cookieRole === normalized) {
+                    token = cookieToken;
+                    localStorage.setItem(key, token);
+                }
             }
         }
         return token;
