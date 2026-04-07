@@ -725,6 +725,7 @@ public class POIsController : ControllerBase
             // 2-Level Approval:
             // Minor changes (mô tả, audio, menu, giờ, giá…) → auto approve, giữ nguyên trạng thái live
             // Major changes (tên, địa chỉ, vị trí)          → pending, chờ admin duyệt
+            var targetIsActive = model.IsActive ?? poi.IsActive;
             bool isMajorChange = IsMajorChange(poi, model);
 
             if (isMajorChange)
@@ -770,7 +771,7 @@ public class POIsController : ControllerBase
                     .Set(p => p.ReviewNote, null)
                     .Set(p => p.ReviewedAt, DateTime.UtcNow)
                     .Set(p => p.ReviewedBy, "auto")
-                    .Set(p => p.IsActive, wasApproved);
+                    .Set(p => p.IsActive, wasApproved ? targetIsActive : false);
             }
         }
 
