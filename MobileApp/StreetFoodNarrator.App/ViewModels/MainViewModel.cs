@@ -1025,7 +1025,7 @@ public partial class MainViewModel : ObservableObject
 
         // Queue: show all remaining POIs in order (wrap-around)
         var queueItems = new List<POI>();
-        var queueCount = Math.Min(MaxVirtualQueueItems, Math.Max(0, spots.Count - 1));
+        var queueCount = Math.Max(0, spots.Count - 1);
         for (var i = 1; i <= queueCount; i++)
         {
             var idx = (currentIdx + i) % spots.Count;
@@ -1057,7 +1057,7 @@ public partial class MainViewModel : ObservableObject
             if (found >= 0) currentIdx = found;
         }
 
-        var queueCount = Math.Min(MaxVirtualQueueItems, Math.Max(0, spots.Count - 1));
+        var queueCount = Math.Max(0, spots.Count - 1);
         for (var i = 1; i <= queueCount; i++)
         {
             var idx = (currentIdx + i) % spots.Count;

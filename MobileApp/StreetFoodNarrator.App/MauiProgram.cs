@@ -33,7 +33,9 @@ public static class MauiProgram
         builder.Services.AddSingleton<IReviewService, ReviewService>();
         
         // HttpClient for API calls – keep generous timeout to avoid false negatives on emulator/mobile networks
-        builder.Services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds) });
+        var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds) };
+        httpClient.DefaultRequestHeaders.Add("ngrok-skip-browser-warning", "true");
+        builder.Services.AddSingleton(httpClient);
 
         // Audio cache: tải trước file MP3 offline cho từng POI
         builder.Services.AddSingleton<IAudioCacheService, AudioCacheService>();

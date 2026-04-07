@@ -243,9 +243,30 @@ private const string IconPause = "\U000F03E4";
         SettingsRequested?.Invoke(this, e);
     }
 
-    private void OnLanguageTapped(object sender, EventArgs e)
+    private async void OnLanguageTapped(object sender, EventArgs e)
     {
-        LanguageSwitcher.CycleLanguage(_lang);
+        var hostPage = ResolveHostPage();
+        if (hostPage == null)
+        {
+            LanguageSwitcher.CycleLanguage(_lang);
+            return;
+        }
+
+        await LanguageSwitcher.ShowLanguagePickerAsync(hostPage, _lang);
+    }
+
+    private Page? ResolveHostPage()
+    {
+        Element? current = this;
+        while (current != null)
+        {
+            if (current is Page page)
+                return page;
+
+            current = current.Parent;
+        }
+
+        return Shell.Current?.CurrentPage;
     }
 
     private void OnCenterMapTapped(object sender, EventArgs e)

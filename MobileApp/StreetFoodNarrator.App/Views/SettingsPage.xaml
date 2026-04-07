@@ -519,7 +519,7 @@
 
                 <VerticalStackLayout Spacing="8" Margin="0,16,0,0" HorizontalOptions="Center">
                     <Label x:Name="FooterPolicyLabel"
-                           Text="Quyền riêng tư • Điều khoản"
+                           Text="Nguon du lieu: ..."
                            FontSize="12"
                            TextColor="#64748B"
                            HorizontalTextAlignment="Center" />

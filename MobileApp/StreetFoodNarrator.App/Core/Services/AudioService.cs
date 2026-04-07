@@ -12,6 +12,8 @@ using System.Diagnostics;
 public class AudioService : IAudioService
 {
     private readonly IAudioManager _audioManager;
+    private readonly IAudioCacheService _audioCache;
+    private readonly ITTSService _tts;
     private readonly Dictionary<int, IAudioPlayer> _players  = new();
     private readonly Dictionary<int, double>       _positions = new();
     private readonly Dictionary<int, double>       _volumes   = new();
@@ -19,26 +21,54 @@ public class AudioService : IAudioService
     public event Action<int>?         OnPlaybackCompleted;
     public event Action<int, double>? OnPositionChanged;
 
-    public AudioService()
+    public AudioService(IAudioCacheService audioCache, ITTSService tts)
     {
         _audioManager = AudioManager.Current;
+        _audioCache = audioCache;
+        _tts = tts;
     }
 
     // ── Public API ───────────────────────────────────────────────────────────
 
-    public async Task PlayAsync(int zoneId, string audioSource, int durationSeconds)
+    public async Task PlayAsync(int zoneId, string audioSource, int durationSeconds, string fallbackText = "")
     {
         await StopAsync(zoneId);
 
-        var fileName = string.IsNullOrWhiteSpace(audioSource)
-            ? null
-            : Path.GetFileName(audioSource);
+        Stream? stream = null;
 
-        if (fileName != null)
+        // 1. Try to load from AudioCacheService (downloads via HttpClient with ngrok bypass)
+        try
+        {
+            // Defaulting to "vi" as the user uses Vietnamese audio mostly, 
+            // or we can just pass audioSource mapping if needed in the future.
+            stream = await _audioCache.GetOrDownloadCachedStreamAsync(zoneId, "vi");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Audio] Cache error for zone {zoneId}: {ex.Message}");
+        }
+
+        // 2. Fallback to local bundle
+        if (stream == null)
+        {
+            var fileName = string.IsNullOrWhiteSpace(audioSource)
+                ? null
+                : Path.GetFileName(audioSource);
+
+            if (fileName != null)
+            {
+                try
+                {
+                    stream = await FileSystem.OpenAppPackageFileAsync(fileName);
+                }
+                catch { }
+            }
+        }
+
+        if (stream != null)
         {
             try
             {
-                var stream = await FileSystem.OpenAppPackageFileAsync(fileName);
                 var player = _audioManager.CreatePlayer(stream);
 
                 _players[zoneId]   = player;
@@ -54,24 +84,36 @@ public class AudioService : IAudioService
                 };
 
                 player.Play();
-                Debug.WriteLine($"[Audio] ▶ Playing local: {fileName} (zone {zoneId})");
+                Debug.WriteLine($"[Audio] ▶ Playing stream for zone {zoneId}");
                 return;
             }
             catch (Exception ex)
             {
-                // File not bundled yet — fall through to silent mock
-                Debug.WriteLine($"[Audio] Local file not found ({fileName}): {ex.Message}");
+                Debug.WriteLine($"[Audio] Player error for stream: {ex.Message}");
             }
         }
 
-        // Silent mock fallback
-        Debug.WriteLine($"[Audio] 🔇 Mock zone {zoneId} — '{fileName}' not yet bundled");
-        _positions[zoneId] = 0;
-        _ = Task.Run(async () =>
+        // Silent mock fallback or TTS fallback
+        if (!string.IsNullOrWhiteSpace(fallbackText))
         {
-            await Task.Delay(TimeSpan.FromSeconds(durationSeconds));
-            OnPlaybackCompleted?.Invoke(zoneId);
-        });
+            Debug.WriteLine($"[Audio] 🔇 Falling back to TTS for zone {zoneId}");
+            _positions[zoneId] = 0;
+            _ = Task.Run(async () =>
+            {
+                await _tts.SpeakAsync(fallbackText, "vi", poiId: zoneId);
+                OnPlaybackCompleted?.Invoke(zoneId);
+            });
+        }
+        else
+        {
+            Debug.WriteLine($"[Audio] 🔇 Mock zone {zoneId} — stream not available and no text");
+            _positions[zoneId] = 0;
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(durationSeconds));
+                OnPlaybackCompleted?.Invoke(zoneId);
+            });
+        }
     }
 
     public async Task PauseAsync(int zoneId)
