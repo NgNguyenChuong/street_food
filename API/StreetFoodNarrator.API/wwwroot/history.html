@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ngu?i d�ng & L?ch s? - Street Food Narrator</title>
+    <title>Người dùng & Lịch sử - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js?v=20260406"></script>
+    <script src="sidebar.js?v=20260407-utf8fix"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -90,7 +90,7 @@
 <body>
 <main class="main-content" id="mainContent">
     <header class="header">
-        <h1 class="page-title">Ngu?i d�ng & L?ch s?</h1>
+        <h1 class="page-title">Người dùng & Lịch sử</h1>
     </header>
 
     <!-- ===== OVERVIEW STATS ===== -->
@@ -98,37 +98,37 @@
         <div class="stat-card">
             <div class="stat-icon primary"><i class="fas fa-walking"></i></div>
             <div class="stat-value" id="stat-narrations">&#8212;</div>
-            <div class="stat-label">T?ng Narrations</div>
+            <div class="stat-label">Tổng Narrations</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon success"><i class="fas fa-volume-up"></i></div>
             <div class="stat-value" id="stat-audio">&#8212;</div>
-            <div class="stat-label">Audio du?c ph�t</div>
+            <div class="stat-label">Audio được phát</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon secondary"><i class="fas fa-mobile-alt"></i></div>
             <div class="stat-value" id="stat-devices">&#8212;</div>
-            <div class="stat-label">T?ng thi?t b?</div>
+            <div class="stat-label">Tổng thiết bị</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon accent"><i class="fas fa-chart-line"></i></div>
             <div class="stat-value" id="stat-active7d">&#8212;</div>
-            <div class="stat-label">Thi?t b? H� 7 ng�y</div>
+            <div class="stat-label">Thiết bị HĐ 7 ngày</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon secondary"><i class="fab fa-apple"></i></div>
             <div class="stat-value" id="stat-ios">&#8212;</div>
-            <div class="stat-label">Thi?t b? iOS</div>
+            <div class="stat-label">Thiết bị iOS</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon success"><i class="fab fa-android"></i></div>
             <div class="stat-value" id="stat-android">&#8212;</div>
-            <div class="stat-label">Thi?t b? Android</div>
+            <div class="stat-label">Thiết bị Android</div>
         </div>
     </div>
 
     <!-- ===== TOP POIs ===== -->
-    <h2 class="section-title"><i class="fas fa-fire"></i> POI ph? bi?n nh?t</h2>
+    <h2 class="section-title"><i class="fas fa-fire"></i> POI phổ biến nhất</h2>
     <div class="card">
         <div id="top-pois">
             <div style="text-align:center;padding:2rem;color:#999"><i class="fas fa-spinner fa-spin"></i></div>
@@ -136,15 +136,15 @@
     </div>
 
     <!-- ===== DEVICE TABLE ===== -->
-    <h2 class="section-title"><i class="fas fa-mobile-alt"></i> Danh s�ch thi?t b?</h2>
+    <h2 class="section-title"><i class="fas fa-mobile-alt"></i> Danh sách thiết bị</h2>
     <div class="card">
         <div class="toolbar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
-                <input type="text" id="devSearchInput" placeholder="T�m ki?m theo Device ID, Model..." oninput="filterDevices()">
+                <input type="text" id="devSearchInput" placeholder="Tìm kiếm theo Device ID, Model..." oninput="filterDevices()">
             </div>
             <select id="osFilter" class="filter-select" onchange="filterDevices()">
-                <option value="">T?t c? H? di?u h�nh</option>
+                <option value="">Tất cả Hệ điều hành</option>
                 <option value="iOS">iOS</option>
                 <option value="Android">Android</option>
             </select>
@@ -153,16 +153,16 @@
         <table id="devTable">
             <thead>
                 <tr>
-                    <th>H? di?u h�nh</th>
+                    <th>Hệ điều hành</th>
                     <th>Model</th>
-                    <th>Phi�n b?n OS</th>
-                    <th>Phi�n b?n App</th>
+                    <th>Phiên bản OS</th>
+                    <th>Phiên bản App</th>
                     <th>Sessions</th>
-                    <th>L?n dang nh?p cu?i</th>
+                    <th>Lần đăng nhập cuối</th>
                 </tr>
             </thead>
             <tbody id="devBody">
-                <tr><td colspan="6" style="text-align:center;padding:3rem;color:#999"><i class="fas fa-spinner fa-spin"></i> �ang t?i...</td></tr>
+                <tr><td colspan="6" style="text-align:center;padding:3rem;color:#999"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
             </tbody>
         </table>
         <div class="pagination" id="devPagination"></div>
@@ -206,20 +206,20 @@
             renderDevTable(filteredDevices);
         } catch(err) {
             console.error(err);
-            document.getElementById('devBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:3rem;color:var(--danger)"><i class="fas fa-exclamation-triangle"></i> L?i khi t?i d? li?u</td></tr>';
+            document.getElementById('devBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:3rem;color:var(--danger)"><i class="fas fa-exclamation-triangle"></i> Lỗi khi tải dữ liệu</td></tr>';
         }
     }
 
     function renderTopPois(pois) {
         const container = document.getElementById('top-pois');
-        if (!pois.length) { container.innerHTML = '<div style="color:#999;font-style:italic">Chua c� d? li?u</div>'; return; }
+        if (!pois.length) { container.innerHTML = '<div style="color:#999;font-style:italic">Chưa có dữ liệu</div>'; return; }
         container.innerHTML = '<ul style="list-style:none;padding:0;margin:0">' + pois.map(function(p, i) {
             return '<li style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid var(--border)">' +
                 '<div style="display:flex;align-items:center;gap:1rem">' +
                     '<div style="width:28px;height:28px;border-radius:50%;background:var(--gradient);color:white;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.85rem">' + (i+1) + '</div>' +
                     '<span style="font-weight:600;color:var(--dark)">' + (p.poiName || '\u2014') + '</span>' +
                 '</div>' +
-                '<div style="font-weight:bold;color:var(--primary)">' + (p.viewCount || 0) + ' lu?t</div>' +
+                '<div style="font-weight:bold;color:var(--primary)">' + (p.viewCount || 0) + ' lượt</div>' +
             '</li>';
         }).join('') + '</ul>';
     }
@@ -228,19 +228,19 @@
     function timeSince(dateStr) {
         if (!dateStr) return '\u2014';
         var seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);
-        if(seconds < 60) return seconds + 's tru?c';
+        if(seconds < 60) return seconds + 's trước';
         var minutes = Math.floor(seconds / 60);
-        if(minutes < 60) return minutes + ' ph�t tru?c';
+        if(minutes < 60) return minutes + ' phút trước';
         var hours = Math.floor(minutes / 60);
-        if(hours < 24) return hours + ' gi? tru?c';
+        if(hours < 24) return hours + ' giờ trước';
         var days = Math.floor(hours / 24);
-        return days + ' ng�y tru?c';
+        return days + ' ngày trước';
     }
 
     function renderDevTable(data) {
         var tbody = document.getElementById('devBody');
         if (!data.length) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999">Kh�ng t�m th?y thi?t b? n�o.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999">Không tìm thấy thiết bị nào.</td></tr>';
             renderDevPagination(1);
             return;
         }
