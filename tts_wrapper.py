@@ -6,6 +6,8 @@ Su dung edge-tts de generate audio tu text voi voice chi dinh
 import sys
 import asyncio
 import io
+import edge_tts
+from pathlib import Path
 
 # Bao ve stderr/stdout truoc ky tu Unicode de tranh UnicodeEncodeError tren Windows
 if hasattr(sys.stderr, 'buffer'):
@@ -13,7 +15,6 @@ if hasattr(sys.stderr, 'buffer'):
 if hasattr(sys.stdout, 'buffer'):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-import edge_tts
 
 def err(msg):
     """In loi ra stderr (an toan, khong raise)."""
@@ -27,11 +28,11 @@ async def main():
         err("Usage: python tts_wrapper.py <voice> <text_or_@file> <output_path> [rate] [volume]")
         sys.exit(1)
 
-    voice       = sys.argv[1]
+    voice       = sys.argv[1].strip()
     text_input  = sys.argv[2]
     output_path = sys.argv[3]
-    rate        = sys.argv[4] if len(sys.argv) > 4 else "+0%"
-    volume      = sys.argv[5] if len(sys.argv) > 5 else "+0%"
+    rate        = (sys.argv[4].strip() if len(sys.argv) > 4 else "+0%")
+    volume      = (sys.argv[5].strip() if len(sys.argv) > 5 else "+0%")
 
     # Neu text bat dau bang @, doc tu file
     if text_input.startswith("@"):
@@ -49,14 +50,35 @@ async def main():
         err("Error: text is empty after reading")
         sys.exit(1)
 
-    # Generate audio
-    try:
-        communicate = edge_tts.Communicate(text, voice, rate=rate, volume=volume)
-        await communicate.save(output_path)
-        print(f"OK: audio saved to {output_path}", flush=True)
-    except Exception as e:
-        err(f"Error generating audio (voice={voice}): {e}")
-        sys.exit(1)
+    # Generate audio (retry for intermittent Edge-TTS empty-audio responses)
+    attempts = 3
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            communicate = edge_tts.Communicate(text, voice, rate=rate, volume=volume)
+            await communicate.save(output_path)
+
+            out_file = Path(output_path)
+            if not out_file.exists() or out_file.stat().st_size <= 0:
+                raise RuntimeError("Output file is empty")
+
+            print(f"OK: audio saved to {output_path}", flush=True)
+            return
+        except Exception as e:
+            last_error = e
+            # Best-effort cleanup before retry
+            try:
+                out_file = Path(output_path)
+                if out_file.exists() and out_file.stat().st_size == 0:
+                    out_file.unlink()
+            except Exception:
+                pass
+
+            if attempt < attempts:
+                await asyncio.sleep(0.8 * attempt)
+
+    err(f"Error generating audio (voice={voice}, rate={rate}, volume={volume}): {last_error}")
+    sys.exit(1)
 
 if __name__ == "__main__":
     asyncio.run(main())

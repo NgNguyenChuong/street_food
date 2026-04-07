@@ -1275,6 +1275,8 @@
                                     <span>Tạo lại audio</span>
                                 </button>
                             </div>
+                        ` : isAdmin ? `
+                            <textarea class="audio-script-input" data-audio-id="${selected.audioContent_ID}" readonly>${escapeHtml(scriptText || 'Chưa có nội dung text cho audio này.')}</textarea>
                         ` : `
                             <div class="audio-script-text">${escapeHtml(scriptText || 'Chưa có nội dung text cho audio này.')}</div>
                         `}

@@ -722,24 +722,21 @@ public class POIsController : ControllerBase
         }
         else
         {
-            // 2-Level Approval:
-            // Minor changes (mô tả, audio, menu, giờ, giá…) → auto approve, giữ nguyên trạng thái live
-            // Major changes (tên, địa chỉ, vị trí)          → pending, chờ admin duyệt
             var targetIsActive = model.IsActive ?? poi.IsActive;
             bool isMajorChange = IsMajorChange(poi, model);
 
             if (isMajorChange)
             {
-                // Build a diff of what the vendor changed, for admin to see at a glance
+                // Vendor can edit content, but approval must be performed by Admin.
                 var diff = new Dictionary<string, PendingFieldChange>();
 
                 if (model.Name_Vi != null &&
                     !string.Equals(model.Name_Vi.Trim(), poi.Name_Vi?.Trim(), StringComparison.OrdinalIgnoreCase))
-                    diff["T\u00ean qu\u00e1n"] = new PendingFieldChange { Old = poi.Name_Vi, New = model.Name_Vi };
+                    diff["Tên quán"] = new PendingFieldChange { Old = poi.Name_Vi, New = model.Name_Vi };
 
                 if (model.Address != null &&
                     !string.Equals(model.Address.Trim(), poi.Address?.Trim(), StringComparison.OrdinalIgnoreCase))
-                    diff["\u0110\u1ecba ch\u1ec9"] = new PendingFieldChange { Old = poi.Address, New = model.Address };
+                    diff["Địa chỉ"] = new PendingFieldChange { Old = poi.Address, New = model.Address };
 
                 if (model.Latitude.HasValue || model.Longitude.HasValue)
                 {
@@ -747,7 +744,7 @@ public class POIsController : ControllerBase
                     var newLon = model.Longitude.HasValue ? (double)model.Longitude.Value : poi.Location.Longitude;
                     var dist = CalculateDistanceMeters(poi.Location.Latitude, poi.Location.Longitude, newLat, newLon);
                     if (dist > 10)
-                        diff["V\u1ecb tr\u00ed GPS"] = new PendingFieldChange
+                        diff["Vị trí GPS"] = new PendingFieldChange
                         {
                             Old = $"{poi.Location.Latitude:F6}, {poi.Location.Longitude:F6}",
                             New = $"{newLat:F6}, {newLon:F6}"
@@ -764,14 +761,17 @@ public class POIsController : ControllerBase
             }
             else
             {
-                // Minor change: auto-approve, POI stays live on app
-                var wasApproved = string.Equals(poi.ReviewStatus, "approved", StringComparison.OrdinalIgnoreCase);
-                update = update
-                    .Set(p => p.ReviewStatus, "approved")
-                    .Set(p => p.ReviewNote, null)
-                    .Set(p => p.ReviewedAt, DateTime.UtcNow)
-                    .Set(p => p.ReviewedBy, "auto")
-                    .Set(p => p.IsActive, wasApproved ? targetIsActive : false);
+                // Minor updates by vendor are allowed without changing review decision.
+                // Vendor cannot self-approve by turning on POI when it is not approved yet.
+                var isApproved = string.Equals(poi.ReviewStatus, "approved", StringComparison.OrdinalIgnoreCase);
+                if (!isApproved && targetIsActive)
+                {
+                    update = update.Set(p => p.IsActive, false);
+                }
+                else
+                {
+                    update = update.Set(p => p.IsActive, targetIsActive);
+                }
             }
         }
 
@@ -909,7 +909,7 @@ public class POIsController : ControllerBase
     }
 
     /// <summary>
-    /// Delete POI (soft delete) - Admin or owning Vendor only
+    /// Deactivate POI - Admin or owning Vendor only
     /// </summary>
     [Authorize(Roles = "Admin,Vendor")]
     [HttpDelete("{id}")]
@@ -937,50 +937,16 @@ public class POIsController : ControllerBase
             }
             if (vendor == null || poi.VendorId != vendor.VendorId)
             {
-                return StatusCode(403, new { message = "Bạn không có quyền xóa POI này." });
+                return StatusCode(403, new { message = "Bạn không có quyền ngưng hoạt động POI này." });
             }
         }
 
-        var blockingTours = new List<Tour>();
-        var poiObjectId = poi.Id.ToString();
-
-        var toursByList = await _db.Tours.Find(t =>
-                t.DeletedAt == null &&
-                t.PoiIds.Contains(poiObjectId))
-            .ToListAsync();
-        if (toursByList.Count > 0) blockingTours.AddRange(toursByList);
-
-        var links = await _db.POITours.Find(pt => pt.POI_ID == id).ToListAsync();
-        if (links.Count > 0)
-        {
-            var tourIds = links.Select(l => l.Tour_ID).Distinct().ToList();
-            var toursByJoin = await _db.Tours.Find(t => tourIds.Contains(t.Tour_ID) && t.DeletedAt == null).ToListAsync();
-            if (toursByJoin.Count > 0) blockingTours.AddRange(toursByJoin);
-        }
-
-        if (blockingTours.Count > 0)
-        {
-            var names = blockingTours
-                .Select(t => t.TourName)
-                .Where(n => !string.IsNullOrWhiteSpace(n))
-                .Distinct()
-                .Take(3)
-                .ToList();
-
-            var msg = names.Count > 0
-                ? $"POI đang được dùng trong tour: {string.Join(", ", names)}. Vui lòng gỡ khỏi tour trước khi xóa."
-                : "POI đang được dùng trong tour. Vui lòng gỡ khỏi tour trước khi xóa.";
-
-            return BadRequest(new { message = msg, tours = names });
-        }
-
         var update = Builders<POI>.Update
-            .Set(p => p.IsDeleted, true)
-            .Set(p => p.DeletedAt, DateTime.UtcNow)
-            .Set(p => p.IsActive, false);
+            .Set(p => p.IsActive, false)
+            .Set(p => p.UpdatedAt, DateTime.UtcNow);
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
 
-        return Ok(new { message = "POI deleted successfully" });
+        return Ok(new { message = "POI deactivated successfully" });
     }
 
     /// <summary>
