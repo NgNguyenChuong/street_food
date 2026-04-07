@@ -1395,6 +1395,14 @@
         }
 
         function setStatus(status) {
+            if (isVendor && currentPoi) {
+                const review = String(currentPoi.reviewStatus || currentPoi.ReviewStatus || '').toLowerCase();
+                if (status === 'active' && review !== 'approved') {
+                    showToast('POI chưa được duyệt. Chỉ Admin mới có thể duyệt và bật hoạt động.', 'warning');
+                    return;
+                }
+            }
+
             currentStatus = status === 'active';
             const options = document.querySelectorAll('.status-option');
             options.forEach(opt => opt.classList.remove('active', 'inactive'));
