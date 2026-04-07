@@ -33,4 +33,31 @@ public static class LanguageSwitcher
         languageService.ApplyLanguage(next);
         return next;
     }
+
+    public static async Task<string> ShowLanguagePickerAsync(Page page, LanguageService languageService)
+    {
+        var current = (languageService.CurrentLanguage ?? "vi").Trim().ToLowerInvariant();
+        var items = LanguageService.SupportedLanguages
+            .Select(lang => new
+            {
+                lang.Code,
+                Option = $"{(lang.Code == current ? "* " : string.Empty)}{GetHeaderLabel(lang.Code)} - {lang.DisplayName}"
+            })
+            .ToList();
+
+        var selected = await page.DisplayActionSheet(
+            "Chon ngon ngu",
+            "Huy",
+            null,
+            items.Select(i => i.Option).ToArray());
+
+        if (string.IsNullOrWhiteSpace(selected) || selected == "Huy")
+            return current;
+
+        var chosen = items.FirstOrDefault(i => i.Option == selected)?.Code ?? current;
+        if (!string.Equals(chosen, current, StringComparison.OrdinalIgnoreCase))
+            languageService.ApplyLanguage(chosen);
+
+        return chosen;
+    }
 }

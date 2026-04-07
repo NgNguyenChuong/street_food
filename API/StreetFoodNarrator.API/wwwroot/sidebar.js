@@ -1,4 +1,4 @@
-// Sidebar injection script
+﻿// Sidebar injection script
 (function() {
     let user = null;
     try {
@@ -23,12 +23,42 @@
     } catch {
         user = null;
     }
-    const roles = user?.roles || [];
+    const normalizeRoleName = (role) => {
+        const r = String(role || '').trim().toLowerCase();
+        if (r === 'admin') return 'Admin';
+        if (r === 'vendor') return 'Vendor';
+        return null;
+    };
+
+    const userRoles = (Array.isArray(user?.roles) ? user.roles : [])
+        .map(normalizeRoleName)
+        .filter(Boolean);
+    const tokenRoles = (() => {
+        try {
+            const token = window.TokenManager?.getToken?.();
+            if (!token) return [];
+            const payloadRaw = token.split('.')[1];
+            if (!payloadRaw) return [];
+            const payload = JSON.parse(atob(payloadRaw.replace(/-/g, '+').replace(/_/g, '/')));
+            const roleClaim = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || payload.role || payload.roles || payload.Role;
+            if (!roleClaim) return [];
+            return (Array.isArray(roleClaim) ? roleClaim : [roleClaim])
+                .flatMap(r => String(r).split(','))
+                .map(normalizeRoleName)
+                .filter(Boolean);
+        } catch {
+            return [];
+        }
+    })();
+
+    const roles = [...new Set([...userRoles, ...tokenRoles])];
     const roleContext = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
     const hasAdmin = roles.includes('Admin');
     const hasVendor = roles.includes('Vendor');
-    const isAdmin = roleContext ? roleContext === 'admin' : hasAdmin;
-    const isVendor = roleContext ? roleContext === 'vendor' : hasVendor;
+
+    // Respect explicit context only when that role actually exists in token/profile.
+    const isAdmin = roleContext === 'admin' ? hasAdmin : (roleContext === 'vendor' ? false : hasAdmin);
+    const isVendor = roleContext === 'vendor' ? hasVendor : (roleContext === 'admin' ? false : hasVendor);
     const poiListHref = isAdmin ? 'poi-list' : 'poi-list?scope=mine';
     const poiListLabel = isAdmin ? 'Danh sách POI' : 'POI của tôi';
 
@@ -37,6 +67,10 @@
     const roleLabel = isAdmin ? 'Quản trị viên' : (isVendor ? 'Vendor' : 'Người dùng');
     const roleBadgeClass = isAdmin ? 'role-badge-admin' : 'role-badge-vendor';
     const avatarLetters = displayName.split(' ').map(w => w[0]).slice(-2).join('').toUpperCase();
+    const notifSeenStorageKey = isAdmin ? 'sidebar_notif_seen_admin' : 'sidebar_notif_seen_vendor';
+    const signalRClientUrl = 'https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js';
+    let liveNotificationItems = [];
+    let notifHubConnection = null;
 
         const sidebarHTML = `
         <aside class="sidebar" id="sidebar">
@@ -81,33 +115,33 @@
 
             <nav>
                 <ul class="nav-menu">
-                    ${isAdmin ? `
                     <li class="nav-item">
                         <a href="dashboard" class="nav-link">
                             <i class="nav-icon fas fa-home"></i>
                             <span>Trang chủ</span>
+                        </a>
+                    </li>
+
+                    ${isAdmin ? `
+                    <li class="nav-item" data-nav-group="poi">
+                        <a href="${poiListHref}" class="nav-link">
+                            <i class="nav-icon fas fa-map-marker-alt"></i>
+                            <span>Quản lý POI</span>
                         </a>
                     </li>
                     ` : `
-                    <li class="nav-item">
-                        <a href="dashboard" class="nav-link">
-                            <i class="nav-icon fas fa-home"></i>
-                            <span>Trang chủ</span>
-                        </a>
-                    </li>
-                    `}
-
-                    <li class="nav-item has-submenu">
+                    <li class="nav-item has-submenu" data-nav-group="poi">
                         <button type="button" class="nav-link nav-toggle">
                             <i class="nav-icon fas fa-map-marker-alt"></i>
-                            <span>${isAdmin ? 'Quản lý POI' : 'POI của tôi'}</span>
+                            <span>POI của tôi</span>
                             <i class="nav-caret fas fa-chevron-down"></i>
                         </button>
                         <ul class="submenu">
                             <li><a href="${poiListHref}" class="nav-sublink">${poiListLabel}</a></li>
-                            ${isVendor ? '<li><a href="poi-create" class="nav-sublink">Tạo POI</a></li>' : ''}
+                            <li><a href="poi-create" class="nav-sublink">Tạo POI</a></li>
                         </ul>
                     </li>
+                    `}
 
                     ${isVendor ? `
                     <li class="nav-item">
@@ -139,7 +173,15 @@
                     </li>
                     ` : ''}
 
-                    <li class="nav-item has-submenu">
+                    ${isAdmin ? `
+                    <li class="nav-item" data-nav-group="audio">
+                        <a href="audio-list" class="nav-link">
+                            <i class="nav-icon fas fa-microphone"></i>
+                            <span>Âm thanh</span>
+                        </a>
+                    </li>
+                    ` : `
+                    <li class="nav-item has-submenu" data-nav-group="audio">
                         <button type="button" class="nav-link nav-toggle">
                             <i class="nav-icon fas fa-microphone"></i>
                             <span>Âm thanh</span>
@@ -147,9 +189,10 @@
                         </button>
                         <ul class="submenu">
                             <li><a href="audio-list" class="nav-sublink">Danh sách âm thanh</a></li>
-                            ${isVendor ? '<li><a href="audio-bulk-generate" class="nav-sublink">TTS hàng loạt</a></li>' : ''}
+                            <li><a href="audio-bulk-generate" class="nav-sublink">TTS hàng loạt</a></li>
                         </ul>
                     </li>
+                    `}
                     ${isAdmin ? `
                     <li class="nav-item">
                         <a href="users" class="nav-link">
@@ -421,6 +464,11 @@
                 color: #B91C1C;
             }
 
+            .notif-item.success .notif-item-icon {
+                background: #ECFDF3;
+                color: #047857;
+            }
+
             .notif-item-content {
                 min-width: 0;
             }
@@ -438,6 +486,13 @@
                 font-size: 0.76rem;
                 color: #6B7280;
                 line-height: 1.35;
+            }
+
+            .notif-item-time {
+                display: block;
+                margin-top: 0.2rem;
+                font-size: 0.7rem;
+                color: #9CA3AF;
             }
 
             .logo {
@@ -611,120 +666,79 @@
         }
     }
 
-    function extractTotalCount(payload) {
-        if (!payload) return 0;
-        if (typeof payload.total === 'number') return payload.total;
-        if (typeof payload.totalItems === 'number') return payload.totalItems;
-        if (typeof payload.count === 'number') return payload.count;
-        if (Array.isArray(payload.data)) return payload.data.length;
-        if (Array.isArray(payload)) return payload.length;
-        return 0;
-    }
-
     function buildNotificationItem({
+        notificationId = null,
         icon = 'fa-circle-info',
         title,
         message,
         href,
-        count = 0,
-        kind = 'info'
+        kind = 'info',
+        createdAt = null
     }) {
-        return { icon, title, message, href, count, kind };
+        return { notificationId, icon, title, message, href, kind, createdAt };
     }
 
-    async function fetchAdminNotifications() {
-        if (!window.api) return [];
-
-        const [poiRes, audioRes] = await Promise.allSettled([
-            api.getPOIs(1, 1, '', null, null, 'pending'),
-            api.getAudioList(1, 1, null, null, 'pending')
-        ]);
-
-        const pendingPois = poiRes.status === 'fulfilled' ? extractTotalCount(poiRes.value) : 0;
-        const pendingAudios = audioRes.status === 'fulfilled' ? extractTotalCount(audioRes.value) : 0;
-
-        const items = [];
-        if (pendingPois > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-map-location-dot',
-                title: 'POI chờ duyệt',
-                message: `${pendingPois} POI đang chờ Admin duyệt.`,
-                href: 'poi-list?reviewStatus=pending',
-                count: pendingPois
-            }));
-        }
-        if (pendingAudios > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-microphone-lines',
-                title: 'Audio chờ duyệt',
-                message: `${pendingAudios} audio đang chờ Admin duyệt.`,
-                href: 'audio-list?status=pending',
-                count: pendingAudios
-            }));
-        }
-
-        return items;
+    function toMillis(input) {
+        if (!input) return 0;
+        const d = new Date(input);
+        const t = d.getTime();
+        return Number.isFinite(t) ? t : 0;
     }
 
-    async function fetchVendorNotifications() {
-        if (!window.api) return [];
+    function getSeenMillis() {
+        const raw = localStorage.getItem(notifSeenStorageKey);
+        if (!raw) return 0;
+        const parsed = Number(raw);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
 
-        const [poiRes, audioPendingRes, audioRejectedRes] = await Promise.allSettled([
-            api.getPOIs(1, 5000),
-            api.getAudioList(1, 1, null, null, 'pending'),
-            api.getAudioList(1, 1, null, null, 'rejected')
-        ]);
+    function setSeenMillis(value) {
+        if (!Number.isFinite(value) || value <= 0) return;
+        localStorage.setItem(notifSeenStorageKey, String(Math.floor(value)));
+    }
 
-        const poiRows = poiRes.status === 'fulfilled'
-            ? (Array.isArray(poiRes.value?.data) ? poiRes.value.data : [])
-            : [];
+    function markSeenByItems(items) {
+        const maxCreatedAt = items.reduce((max, item) => Math.max(max, toMillis(item.createdAt)), 0);
+        if (maxCreatedAt > 0) setSeenMillis(maxCreatedAt);
+    }
 
-        const pendingPois = poiRows.filter(p => String(p.reviewStatus || p.ReviewStatus || '').toLowerCase() === 'pending').length;
-        const rejectedPois = poiRows.filter(p => String(p.reviewStatus || p.ReviewStatus || '').toLowerCase() === 'rejected').length;
-        const pendingAudios = audioPendingRes.status === 'fulfilled' ? extractTotalCount(audioPendingRes.value) : 0;
-        const rejectedAudios = audioRejectedRes.status === 'fulfilled' ? extractTotalCount(audioRejectedRes.value) : 0;
+    function formatNotificationTime(createdAt) {
+        const millis = toMillis(createdAt);
+        if (!millis) return '';
+        const diffSec = Math.max(0, Math.floor((Date.now() - millis) / 1000));
+        if (diffSec < 60) return 'Vừa xong';
+        const diffMin = Math.floor(diffSec / 60);
+        if (diffMin < 60) return `${diffMin} phút trước`;
+        const diffHour = Math.floor(diffMin / 60);
+        if (diffHour < 24) return `${diffHour} giờ trước`;
+        const diffDay = Math.floor(diffHour / 24);
+        if (diffDay <= 7) return `${diffDay} ngày trước`;
+        return new Date(millis).toLocaleString('vi-VN');
+    }
 
-        const items = [];
-        if (pendingPois > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-hourglass-half',
-                title: 'POI đang chờ duyệt',
-                message: `${pendingPois} POI của bạn đang chờ Admin duyệt.`,
-                href: 'poi-list?reviewStatus=pending',
-                count: pendingPois
-            }));
-        }
-        if (rejectedPois > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-circle-xmark',
-                title: 'POI bị từ chối',
-                message: `${rejectedPois} POI bị từ chối, vui lòng cập nhật lại nội dung.`,
-                href: 'poi-list?reviewStatus=rejected',
-                count: rejectedPois,
-                kind: 'warn'
-            }));
-        }
-        if (pendingAudios > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-microphone',
-                title: 'Audio đang chờ duyệt',
-                message: `${pendingAudios} audio của bạn đang chờ Admin duyệt.`,
-                href: 'audio-list?status=pending',
-                count: pendingAudios
-            }));
-        }
-        if (rejectedAudios > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-volume-xmark',
-                title: 'Audio bị từ chối',
-                message: `${rejectedAudios} audio bị từ chối, hãy chỉnh sửa và gửi lại.`,
-                href: 'audio-list?status=rejected',
-                count: rejectedAudios,
-                kind: 'warn'
-            }));
-        }
+    function mapServerNotificationToItem(raw) {
+        if (!raw) return null;
+        return buildNotificationItem({
+            notificationId: raw.notificationId ?? raw.NotificationId ?? null,
+            icon: raw.icon ?? raw.Icon ?? 'fa-circle-info',
+            title: raw.title ?? raw.Title ?? 'Thông báo',
+            message: raw.message ?? raw.Message ?? '',
+            href: raw.href ?? raw.Href ?? '#',
+            kind: String(raw.kind ?? raw.Kind ?? 'info').toLowerCase(),
+            createdAt: raw.createdAt ?? raw.CreatedAt ?? null
+        });
+    }
 
-        return items;
+    function mergeRealtimeNotification(item) {
+        if (!item) return;
+        const next = [item, ...liveNotificationItems.filter(x => String(x.notificationId ?? '') !== String(item.notificationId ?? ''))];
+        liveNotificationItems = next.slice(0, 80);
+    }
+
+    function getUnreadCount(items) {
+        const seen = getSeenMillis();
+        if (!seen) return items.length;
+        return items.filter(item => toMillis(item.createdAt) > seen).length;
     }
 
     function renderSidebarNotifications(items) {
@@ -738,36 +752,194 @@
             return;
         }
 
-        const total = items.reduce((sum, item) => sum + Math.max(0, Number(item.count || 0)), 0);
-        if (total > 0) {
-            badge.textContent = total > 99 ? '99+' : String(total);
+        const unread = getUnreadCount(items);
+        if (unread > 0) {
+            badge.textContent = unread > 99 ? '99+' : String(unread);
             badge.classList.remove('hidden');
         } else {
             badge.classList.add('hidden');
         }
 
         list.innerHTML = items.map(item => `
-            <a href="${item.href || '#'}" class="notif-item ${item.kind === 'warn' ? 'warn' : ''}">
+            <a href="${item.href || '#'}" class="notif-item ${item.kind === 'warn' ? 'warn' : ''} ${item.kind === 'success' ? 'success' : ''}">
                 <span class="notif-item-icon"><i class="fas ${item.icon || 'fa-circle-info'}"></i></span>
                 <span class="notif-item-content">
                     <span class="notif-item-title">${item.title || ''}</span>
                     <span class="notif-item-message">${item.message || ''}</span>
+                    <span class="notif-item-time">${formatNotificationTime(item.createdAt)}</span>
                 </span>
             </a>
         `).join('');
     }
 
-    async function loadSidebarNotifications() {
+    async function loadFallbackNotificationsFromPois() {
+        if (!window.api || typeof api.getPOIs !== 'function') return [];
+
+        try {
+            const reviewFilter = isAdmin ? 'pending' : null;
+            const res = await api.getPOIs(1, 40, '', null, null, reviewFilter);
+            const rows = Array.isArray(res?.data) ? res.data : [];
+            if (!rows.length) return [];
+
+            const items = rows
+                .map((poi) => {
+                    const review = String(poi.reviewStatus || '').toLowerCase();
+                    const hasPending = !!(poi.pendingChanges && Object.keys(poi.pendingChanges).length);
+                    const id = poi.poI_ID ?? poi.poi_ID ?? poi.id;
+                    const name = poi.name_Vi || poi.name || `POI #${id ?? ''}`;
+                    const createdAt = poi.updatedAt || poi.createdAt || null;
+
+                    if (isAdmin) {
+                        if (!(hasPending || review === 'pending')) return null;
+                        return buildNotificationItem({
+                            notificationId: `fallback-admin-poi-${id}-${createdAt || ''}`,
+                            icon: 'fa-pen-to-square',
+                            title: 'POI chờ duyệt',
+                            message: `POI "${name}" đang chờ Admin duyệt chỉnh sửa.`,
+                            href: id ? `poi-edit?id=${id}` : 'poi-list?reviewStatus=pending',
+                            kind: 'info',
+                            createdAt
+                        });
+                    }
+
+                    if (hasPending || review === 'pending') {
+                        return buildNotificationItem({
+                            notificationId: `fallback-vendor-poi-pending-${id}-${createdAt || ''}`,
+                            icon: 'fa-hourglass-half',
+                            title: 'POI đang chờ duyệt',
+                            message: `POI "${name}" đang chờ Admin duyệt.`,
+                            href: id ? `poi-edit?id=${id}` : 'poi-list?reviewStatus=pending',
+                            kind: 'info',
+                            createdAt
+                        });
+                    }
+                    if (review === 'rejected') {
+                        return buildNotificationItem({
+                            notificationId: `fallback-vendor-poi-rejected-${id}-${createdAt || ''}`,
+                            icon: 'fa-circle-xmark',
+                            title: 'POI bị từ chối',
+                            message: `Yêu cầu chỉnh sửa của POI "${name}" đã bị từ chối.`,
+                            href: id ? `poi-edit?id=${id}` : 'poi-list?reviewStatus=rejected',
+                            kind: 'warn',
+                            createdAt
+                        });
+                    }
+                    return null;
+                })
+                .filter(Boolean)
+                .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+
+            return items.slice(0, 40);
+        } catch {
+            return [];
+        }
+    }
+    async function loadSidebarNotifications({ markSeen = false } = {}) {
         const list = document.getElementById('sidebarNotifList');
         if (list) list.innerHTML = '<div class="notif-empty">Đang tải thông báo...</div>';
 
         try {
-            const items = isAdmin
-                ? await fetchAdminNotifications()
-                : await fetchVendorNotifications();
-            renderSidebarNotifications(items);
+            if (!window.api || typeof api.getNotifications !== 'function') {
+                throw new Error('Notifications API is unavailable');
+            }
+
+            const role = isAdmin ? 'admin' : 'vendor';
+            let res = await api.getNotifications(40, role);
+            let rows = Array.isArray(res?.data) ? res.data : [];
+
+            // Fallback for stale/misaligned role context in browser storage.
+            if (rows.length === 0) {
+                res = await api.getNotifications(40, null);
+                rows = Array.isArray(res?.data) ? res.data : [];
+            }
+            if (rows.length > 0) {
+                liveNotificationItems = rows
+                    .map(mapServerNotificationToItem)
+                    .filter(Boolean)
+                    .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+            } else {
+                liveNotificationItems = await loadFallbackNotificationsFromPois();
+            }
+
+            if (markSeen) {
+                markSeenByItems(liveNotificationItems);
+            }
+
+            renderSidebarNotifications(liveNotificationItems);
         } catch {
-            if (list) list.innerHTML = '<div class="notif-empty">Không tải được thông báo.</div>';
+            liveNotificationItems = await loadFallbackNotificationsFromPois();
+            if (markSeen) {
+                markSeenByItems(liveNotificationItems);
+            }
+            renderSidebarNotifications(liveNotificationItems);
+        }
+    }
+
+    async function ensureSignalRLoaded() {
+        if (window.signalR) return;
+        const existing = document.getElementById('signalr-client-script');
+        if (existing) {
+            await new Promise((resolve, reject) => {
+                existing.addEventListener('load', resolve, { once: true });
+                existing.addEventListener('error', reject, { once: true });
+            });
+            return;
+        }
+
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.id = 'signalr-client-script';
+            script.src = signalRClientUrl;
+            script.async = true;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    async function startRealtimeNotifications(panel) {
+        if (!window.TokenManager || typeof TokenManager.getToken !== 'function') return;
+        const token = TokenManager.getToken();
+        if (!token) return;
+
+        try {
+            await ensureSignalRLoaded();
+            if (!window.signalR) return;
+
+            if (notifHubConnection) {
+                try {
+                    await notifHubConnection.stop();
+                } catch {
+                    // ignore reconnect cleanup
+                }
+            }
+
+            let hubUrl = '/hubs/notifications';
+            if (window.api && typeof api.baseURL === 'string' && api.baseURL.length > 0) {
+                hubUrl = api.baseURL.replace(/\/api\/?$/i, '') + '/hubs/notifications';
+            }
+
+            notifHubConnection = new signalR.HubConnectionBuilder()
+                .withUrl(hubUrl, {
+                    accessTokenFactory: () => TokenManager.getToken() || ''
+                })
+                .withAutomaticReconnect()
+                .build();
+
+            notifHubConnection.on('notification', (payload) => {
+                const item = mapServerNotificationToItem(payload);
+                if (!item) return;
+
+                mergeRealtimeNotification(item);
+                if (panel?.classList.contains('show')) {
+                    markSeenByItems([item]);
+                }
+                renderSidebarNotifications(liveNotificationItems);
+            });
+
+            await notifHubConnection.start();
+        } catch {
+            // keep polling fallback if realtime hub fails
         }
     }
 
@@ -781,7 +953,7 @@
             event.stopPropagation();
             panel.classList.toggle('show');
             if (panel.classList.contains('show')) {
-                await loadSidebarNotifications();
+                await loadSidebarNotifications({ markSeen: true });
             }
         });
 
@@ -792,12 +964,13 @@
             refresh.addEventListener('click', async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                await loadSidebarNotifications();
+                await loadSidebarNotifications({ markSeen: panel.classList.contains('show') });
             });
         }
 
-        loadSidebarNotifications();
-        setInterval(loadSidebarNotifications, 60000);
+        loadSidebarNotifications({ markSeen: false });
+        // Reliability-first: polling only, no hard dependency on realtime transport.
+        setInterval(() => loadSidebarNotifications({ markSeen: panel.classList.contains('show') }), 15000);
     }
 
     function init() {
@@ -832,7 +1005,9 @@
         });
 
         if (currentPage === 'poi-edit') {
-            const poiGroup = document.querySelector('.nav-item.has-submenu');
+            const poiLink = document.querySelector('.nav-item[data-nav-group="poi"] > .nav-link');
+            if (poiLink) poiLink.classList.add('active');
+            const poiGroup = document.querySelector('.nav-item.has-submenu[data-nav-group="poi"]');
             if (poiGroup) poiGroup.classList.add('open');
         }
 
@@ -956,4 +1131,5 @@
         });
     };
 })();
+
 

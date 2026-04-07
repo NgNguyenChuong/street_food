@@ -434,6 +434,7 @@ public partial class ExploreMapPage : ContentPage
             UpdateNearRouteActionVisibility();
             UpdateExploreFarStateAdvanceButton();
             UpdateNearFocusOverlayState();
+            UpdateZonePins();
             UpdatePreviewAudioUiState();
         });
     }
@@ -514,9 +515,9 @@ public partial class ExploreMapPage : ContentPage
             ExploreOfflineBannerTextLabel.Text = AppStrings.Get("Offline_Banner_Full");
     }
 
-    private void OnNearFocusLanguageTapped(object? sender, EventArgs e)
+    private async void OnNearFocusLanguageTapped(object? sender, EventArgs e)
     {
-        LanguageSwitcher.CycleLanguage(_lang);
+        await LanguageSwitcher.ShowLanguagePickerAsync(this, _lang);
     }
 
     private void PrewarmPoiDetailForNearFocus(POI? poi)

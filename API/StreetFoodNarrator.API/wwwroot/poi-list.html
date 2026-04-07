@@ -183,15 +183,12 @@
         }
 
         th:nth-child(1) { width: 40px; }
-        th:nth-child(2) { min-width: 160px; }
-        th:nth-child(3) { min-width: 180px; }
-        th:nth-child(4) { min-width: 110px; }
-        th:nth-child(5) { min-width: 160px; }
-        th:nth-child(6) { min-width: 130px; }
-        th:nth-child(7) { min-width: 90px; }
-        th:nth-child(8) { min-width: 90px; }
-        th:nth-child(9) { min-width: 130px; }
-        th:nth-child(10) { min-width: 130px; }
+        th:nth-child(2) { min-width: 170px; }
+        th:nth-child(3) { min-width: 220px; }
+        th:nth-child(4) { min-width: 180px; }
+        th:nth-child(5) { min-width: 130px; }
+        th:nth-child(6) { min-width: 170px; }
+        th:nth-child(7) { min-width: 140px; }
 
         td {
             padding: 0.875rem 1rem;
@@ -235,16 +232,6 @@
         }
 
         .poi-details p { font-size: 0.8rem; color: #999; }
-
-        .poi-qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
-        .poi-qr-box {
-            width: 62px; height: 62px;
-            border-radius: 8px; border: 1px solid var(--border);
-            background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;
-        }
-        .poi-qr-box img, .poi-qr-box canvas { width: 58px; height: 58px; display: block; }
-        .poi-qr-link { font-size: 0.7rem; color: var(--secondary); text-decoration: none; }
-        .poi-qr-link:hover { text-decoration: underline; }
 
         .status-badge {
             display: inline-flex;
@@ -411,18 +398,15 @@
                     <th><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                     <th>POI</th>
                     <th class="vendor-hide">ĐỊA CHỈ</th>
-                    <th>DANH MỤC</th>
                     <th class="vendor-hide">GIỜ MỞ CỬA</th>
                     <th>SĐT</th>
-                    <th>ĐÁNH GIÁ</th>
-                    <th class="vendor-hide">QR POI</th>
                     <th>TRẠNG THÁI</th>
                     <th>HÀNH ĐỘNG</th>
                 </tr>
             </thead>
             <tbody id="poiTableBody">
                 <tr>
-                    <td colspan="10" style="text-align:center;padding:2rem;color:#999;">
+                    <td colspan="7" style="text-align:center;padding:2rem;color:#999;">
                         Kết nối API để tải dữ liệu...
                     </td>
                 </tr>
@@ -437,9 +421,8 @@
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="api.js"></script>
-<script src="sidebar.js"></script>
+<script src="sidebar.js?v=20260407-utf8fix"></script>
 <script>
     let currentPage = 1, currentPageSize = 5;
     let currentSearch = '', currentStatus = null, currentSort = 'newest';
@@ -457,8 +440,6 @@
 
     if (isVendor) document.body.classList.add('is-vendor');
 
-    function getPoiQrLink(id) { return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}`; }
-
     function formatCategory(cat) {
         if (!cat) return '-';
         const k = String(cat).trim().toLowerCase();
@@ -467,41 +448,94 @@
     }
 
     function formatOpeningHours(text, list) {
-        const parts = (() => {
-            const t = (text || '').trim();
-            if (t) return t.split(';').map(p => p.trim()).filter(Boolean);
-            if (Array.isArray(list) && list.length) return list;
+        const source = (() => {
+            const rawText = (text || '').trim();
+            if (rawText) return rawText.split(';').map(p => p.trim()).filter(Boolean);
+            if (Array.isArray(list) && list.length) return list.map(x => String(x || '').trim()).filter(Boolean);
             return [];
         })();
-        if (!parts.length) return '-';
-        const entries = parts.map(p => {
-            const cleaned = p.replace(/^Thứ\s*(\d+)\s*:\s*/i, (m, d) => `T${d}: `).replace(/^Chủ\s*nhật\s*:\s*/i, 'CN: ').replace(/^CN\s*:\s*/i, 'CN: ');
-            const [day, time] = cleaned.split(':').map(s => s.trim());
-            return { day, time: time || '' };
-        }).filter(e => e.day && e.time);
-        const gt = d => entries.find(e => e.day === d)?.time || '';
-        const wd = [gt('T2'),gt('T3'),gt('T4'),gt('T5'),gt('T6'),gt('T7')].filter(Boolean);
-        const allSame = wd.length === 6 && wd.every(t => t === wd[0]);
-        const cn = gt('CN');
-        if (allSame) {
-            if (cn && cn === wd[0]) return `T2–CN: ${wd[0]}`;
-            if (cn) return `T2–T7: ${wd[0]}; CN: ${cn}`;
-            return `T2–T7: ${wd[0]}`;
+        if (!source.length) return '-';
+
+        const dayOrder = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+        const dayLabel = { T2: 'Thứ 2', T3: 'Thứ 3', T4: 'Thứ 4', T5: 'Thứ 5', T6: 'Thứ 6', T7: 'Thứ 7', CN: 'Chủ nhật' };
+        const map = {};
+
+        function normalizeDay(raw) {
+            const d = String(raw || '').trim().toLowerCase();
+            if (/^(cn|chủ\s*nhật|chu\s*nhat|sunday)$/.test(d)) return 'CN';
+            const m = d.match(/(?:thứ|thu|t)?\s*([2-7])/i);
+            return m ? `T${m[1]}` : null;
         }
-        return parts.join('; ');
+
+        function normalizeTime(raw) {
+            const t = String(raw || '').replace(/\s+/g, ' ').trim();
+            if (!t) return '';
+            if (/^(đóng cửa|dong cua|nghỉ|nghi|off|closed)$/i.test(t)) return 'Nghỉ';
+            return t.replace(/\s*[-–]\s*/g, ' - ');
+        }
+
+        source.forEach(part => {
+            const m = part.match(/^(.+?)\s*:\s*(.+)$/);
+            if (!m) return;
+            const key = normalizeDay(m[1]);
+            const time = normalizeTime(m[2]);
+            if (key && time) map[key] = time;
+        });
+
+        const availableDays = dayOrder.filter(d => map[d]);
+        if (!availableDays.length) return source.join('; ');
+
+        const allDaysSame = dayOrder.every(d => map[d]) && dayOrder.every(d => map[d] === map.T2);
+        if (allDaysSame) return `Hằng ngày: ${map.T2}`;
+
+        const weekDays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        const monToSatSame = weekDays.every(d => map[d]) && weekDays.every(d => map[d] === map.T2);
+        if (monToSatSame) {
+            if (!map.CN) return `Thứ 2 - Thứ 7: ${map.T2}`;
+            if (map.CN === map.T2) return `Hằng ngày: ${map.T2}`;
+            return `Thứ 2 - Thứ 7: ${map.T2}; Chủ nhật: ${map.CN}`;
+        }
+
+        const groups = [];
+        let i = 0;
+        while (i < dayOrder.length) {
+            const day = dayOrder[i];
+            const time = map[day];
+            if (!time) {
+                i++;
+                continue;
+            }
+            let j = i;
+            while (j + 1 < dayOrder.length && map[dayOrder[j + 1]] === time) j++;
+            const start = dayOrder[i];
+            const end = dayOrder[j];
+            const dayText = start === end ? dayLabel[start] : `${dayLabel[start]} - ${dayLabel[end]}`;
+            groups.push(`${dayText}: ${time}`);
+            i = j + 1;
+        }
+
+        return groups.length ? groups.join('; ') : source.join('; ');
     }
 
-    function formatPriceRating(poi) {
-        const r = (poi.rating !== undefined && poi.rating !== null) ? `⭐ ${Number(poi.rating).toFixed(1)}` : '';
-        return r || '-';
+    function isPoiPendingReview(poi) {
+        const review = (poi?.reviewStatus || poi?.ReviewStatus || '').toLowerCase();
+        const hasPendingChanges = !!(poi?.pendingChanges && Object.keys(poi.pendingChanges).length);
+        return review === 'pending' || hasPendingChanges;
     }
 
     function formatReviewBadge(poi) {
         const review = (poi.reviewStatus || poi.ReviewStatus || 'approved').toLowerCase();
         const isActive = !!(poi.isActive ?? poi.IsActive);
-        if (review === 'pending') return `<span class="status-badge" style="background:rgba(249,115,22,0.12);color:#C2410C;border:1px solid rgba(249,115,22,0.4);"><span class="status-dot" style="background:#F97316;animation:none;"></span>Chờ duyệt</span>`;
+        const pending = isPoiPendingReview(poi);
+
+        const activeBadge = `<span class="status-badge ${isActive ? 'active' : 'inactive'}"><span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>${isActive ? 'Hoạt động' : '⏸ Tạm dừng'}</span>`;
+        if (pending) {
+            const pendingBadge = `<span class="status-badge" style="background:rgba(249,115,22,0.12);color:#C2410C;border:1px solid rgba(249,115,22,0.4);margin-left:6px;"><span class="status-dot" style="background:#F97316;animation:none;"></span>Chờ duyệt</span>`;
+            return `${activeBadge}${pendingBadge}`;
+        }
+
         if (review === 'rejected') return `<span class="status-badge inactive"><span class="status-dot inactive"></span>Từ chối</span>`;
-        return `<span class="status-badge ${isActive ? 'active' : 'inactive'}"><span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>${isActive ? 'Hoạt động' : '⏸ Tạm dừng'}</span>`;
+        return activeBadge;
     }
 
     function sortPois(list, key) {
@@ -530,7 +564,7 @@
     function renderTable(pois) {
         const tbody = document.getElementById('poiTableBody');
         if (!pois || !pois.length) {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#999;">Chưa có POI nào. <a href="poi-create" style="color:var(--primary);">Tạo POI đầu tiên</a></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#999;">Chưa có POI nào. <a href="poi-create" style="color:var(--primary);">Tạo POI đầu tiên</a></td></tr>`;
             return;
         }
         tbody.innerHTML = pois.map(poi => `
@@ -538,25 +572,17 @@
                 <td><input type="checkbox" class="checkbox poi-checkbox" data-id="${poi.poI_ID}" onchange="toggleSelect(${poi.poI_ID})"></td>
                 <td>
                     <div class="poi-info">
-                        <div class="poi-icon">${poi.imageUrl ? `<img src="${poi.imageUrl}" alt="${poi.name_Vi||'POI'}">` : '📍'}</div>
+                        <div class="poi-icon">${poi.imageUrl ? `<img src="${poi.imageUrl}" alt="${poi.name_Vi||'POI'}">` : '<i class="fas fa-map-marker-alt"></i>'}</div>
                         <div class="poi-details"><h4 title="${poi.name_Vi||'N/A'}">${poi.name_Vi||'N/A'}</h4></div>
                     </div>
                 </td>
                 <td class="vendor-hide" title="${poi.address||''}">${poi.address||'-'}</td>
-                <td>${formatCategory(poi.category)}</td>
                 <td class="vendor-hide">${formatOpeningHours(poi.openingHoursText, poi.openingHours)}</td>
                 <td>${poi.phoneNumber||'-'}</td>
-                <td>${formatPriceRating(poi)}</td>
-                <td class="vendor-hide">
-                    <div class="poi-qr-wrap">
-                        <div class="poi-qr-box" id="poiQr_${poi.poI_ID}"></div>
-                        <a class="poi-qr-link" href="${getPoiQrLink(poi.poI_ID)}" target="_blank" rel="noopener noreferrer">Mở link</a>
-                    </div>
-                </td>
                 <td>${formatReviewBadge(poi)}</td>
                 <td>
                     <div class="action-buttons">
-                        ${(isAdmin && (poi.reviewStatus||'').toLowerCase() === 'pending') ? `
+                        ${(isAdmin && isPoiPendingReview(poi)) ? `
                         <button class="btn-icon approve" onclick="approvePOI(${poi.poI_ID})" title="Duyệt"><i class="fas fa-check"></i></button>
                         <button class="btn-icon reject" onclick="rejectPOI(${poi.poI_ID})" title="Từ chối"><i class="fas fa-times"></i></button>
                         <div style="width:1px;background:var(--border);margin:0 2px;height:20px;"></div>
@@ -567,17 +593,6 @@
                 </td>
             </tr>
         `).join('');
-        renderPoiQrCodes(pois);
-    }
-
-    function renderPoiQrCodes(pois) {
-        if (!Array.isArray(pois) || !pois.length || typeof QRCode === 'undefined') return;
-        pois.forEach(poi => {
-            const box = document.getElementById(`poiQr_${poi.poI_ID}`);
-            if (!box) return;
-            box.innerHTML = '';
-            new QRCode(box, { text: getPoiQrLink(poi.poI_ID), width: 58, height: 58, colorDark: '#111', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
-        });
     }
 
     function renderPagination(totalPages, curPage) {
@@ -593,7 +608,7 @@
     async function loadPOIs() {
         if (typeof api === 'undefined') return;
         try {
-            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i><p style="margin-top:1rem;color:#999;">Đang tải...</p></td></tr>`;
+            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i><p style="margin-top:1rem;color:#999;">Đang tải...</p></td></tr>`;
             const raw = await api.getPOIs(1, 5000, currentSearch, currentStatus, currentCategory, currentReviewStatus);
             const sorted = sortPois(raw.data || [], currentSort);
             const total = sorted.length;
@@ -606,7 +621,7 @@
             renderPagination(totalPages, currentPage);
             await loadPOIStats(sorted);
         } catch (err) {
-            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--danger);"><i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i><p style="margin-top:1rem;">Lỗi: ${err.message}</p><button class="btn btn-primary" onclick="loadPOIs()" style="margin-top:1rem;"><i class="fas fa-redo"></i> Thử lại</button></td></tr>`;
+            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--danger);"><i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i><p style="margin-top:1rem;">Lỗi: ${err.message}</p><button class="btn btn-primary" onclick="loadPOIs()" style="margin-top:1rem;"><i class="fas fa-redo"></i> Thử lại</button></td></tr>`;
         }
     }
 
@@ -617,7 +632,7 @@
                 document.getElementById('activePOIsStat').textContent = allData.filter(p => p.isActive).length;
                 document.getElementById('inactivePOIsStat').textContent = allData.filter(p => !p.isActive).length;
                 const pendingEl = document.getElementById('pendingPOIsStat');
-                if (pendingEl) pendingEl.textContent = allData.filter(p => (p.reviewStatus||'').toLowerCase() === 'pending').length;
+                if (pendingEl) pendingEl.textContent = allData.filter(p => isPoiPendingReview(p)).length;
                 return;
             }
             if (typeof api === 'undefined') return;
@@ -682,7 +697,7 @@
         if (selectedPOIs.size > 0) {
             ba.classList.add('active');
             sc.textContent = selectedPOIs.size;
-            if (bb) { const hp = allPOIs.some(p => selectedPOIs.has(p.poI_ID) && (p.reviewStatus||'').toLowerCase() === 'pending'); bb.style.display = (isAdmin && hp) ? '' : 'none'; }
+            if (bb) { const hp = allPOIs.some(p => selectedPOIs.has(p.poI_ID) && isPoiPendingReview(p)); bb.style.display = (isAdmin && hp) ? '' : 'none'; }
         } else {
             ba.classList.remove('active');
             if (bb) bb.style.display = 'none';
@@ -703,7 +718,7 @@
         try { await api.reviewPOI(id, { status: 'rejected', note }); showAlert('Đã từ chối.'); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
     }
     async function batchApprove() {
-        const ids = allPOIs.filter(p => selectedPOIs.has(p.poI_ID) && (p.reviewStatus||'').toLowerCase() === 'pending').map(p => p.poI_ID);
+        const ids = allPOIs.filter(p => selectedPOIs.has(p.poI_ID) && isPoiPendingReview(p)).map(p => p.poI_ID);
         if (!ids.length) return;
         showConfirm(`Duyệt ${ids.length} POI?`, async () => {
             let ok = 0, fail = 0;
@@ -744,3 +759,4 @@
 </script>
 </body>
 </html>
+

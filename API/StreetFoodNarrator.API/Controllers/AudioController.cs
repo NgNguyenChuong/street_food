@@ -17,17 +17,23 @@ public class AudioController : ControllerBase
     private readonly MongoDbContext _db;
     private readonly MongoSequenceService _sequence;
     private readonly IWebHostEnvironment _env;
+    private readonly NotificationService _notifications;
     private static readonly HashSet<string> AllowedAudioExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".mp3", ".wav", ".m4a"
     };
     private const long MaxAudioBytes = 25L * 1024 * 1024; // 25 MB
 
-    public AudioController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env)
+    public AudioController(
+        MongoDbContext db,
+        MongoSequenceService sequence,
+        IWebHostEnvironment env,
+        NotificationService notifications)
     {
         _db = db;
         _sequence = sequence;
         _env = env;
+        _notifications = notifications;
     }
 
     /// <summary>
@@ -903,6 +909,34 @@ public class AudioController : ControllerBase
             .Set(a => a.UpdatedAt, DateTime.UtcNow);
 
         await _db.AudioContents.UpdateManyAsync(BuildPoiModerationFilter(audio.POI_ID), update);
+
+        var poi = await _db.POIs
+            .Find(p => p.POI_ID == audio.POI_ID && p.DeletedAt == null)
+            .Project(p => new { p.POI_ID, p.Name_Vi })
+            .FirstOrDefaultAsync();
+
+        var poiName = poi?.Name_Vi ?? $"POI #{audio.POI_ID}";
+        var vendorLabel = vendor.BusinessName
+            ?? vendor.ContactName
+            ?? $"Vendor #{vendor.VendorId}";
+
+        await _notifications.PublishToAdminsAsync(
+            title: "Audio chờ duyệt",
+            message: $"{vendorLabel} vừa gửi bộ audio của \"{poiName}\" để duyệt.",
+            href: "audio-list?status=pending",
+            kind: "info",
+            icon: "fa-microphone-lines",
+            category: "audio");
+
+        await _notifications.PublishToVendorAsync(
+            vendorId: vendor.VendorId,
+            title: "Đã gửi audio chờ duyệt",
+            message: $"Bộ audio của \"{poiName}\" đã được gửi và đang chờ Admin duyệt.",
+            href: "audio-list?status=pending",
+            kind: "info",
+            icon: "fa-hourglass-half",
+            category: "audio");
+
         return Ok(new { message = "Đã gửi duyệt bộ audio 3 ngôn ngữ cho POI." });
     }
 
@@ -934,6 +968,25 @@ public class AudioController : ControllerBase
             .Set(a => a.UpdatedAt, DateTime.UtcNow);
 
         await _db.AudioContents.UpdateManyAsync(BuildPoiModerationFilter(audio.POI_ID), update);
+
+        var poi = await _db.POIs
+            .Find(p => p.POI_ID == audio.POI_ID && p.DeletedAt == null)
+            .Project(p => new { p.Name_Vi, p.VendorId })
+            .FirstOrDefaultAsync();
+
+        if (poi?.VendorId is int vendorId)
+        {
+            var poiName = poi.Name_Vi ?? $"POI #{audio.POI_ID}";
+            await _notifications.PublishToVendorAsync(
+                vendorId: vendorId,
+                title: "Audio đã được duyệt",
+                message: $"Bộ audio của \"{poiName}\" đã được Admin duyệt.",
+                href: "audio-list?status=approved",
+                kind: "success",
+                icon: "fa-circle-check",
+                category: "audio");
+        }
+
         return Ok(new { message = "Đã duyệt bộ audio 3 ngôn ngữ cho POI." });
     }
 
@@ -966,6 +1019,26 @@ public class AudioController : ControllerBase
             .Set(a => a.UpdatedAt, DateTime.UtcNow);
 
         await _db.AudioContents.UpdateManyAsync(BuildPoiModerationFilter(audio.POI_ID), update);
+
+        var poi = await _db.POIs
+            .Find(p => p.POI_ID == audio.POI_ID && p.DeletedAt == null)
+            .Project(p => new { p.Name_Vi, p.VendorId })
+            .FirstOrDefaultAsync();
+
+        if (poi?.VendorId is int vendorId)
+        {
+            var poiName = poi.Name_Vi ?? $"POI #{audio.POI_ID}";
+            var detail = string.IsNullOrWhiteSpace(reason) ? string.Empty : $" Lý do: {reason}";
+            await _notifications.PublishToVendorAsync(
+                vendorId: vendorId,
+                title: "Audio bị từ chối",
+                message: $"Bộ audio của \"{poiName}\" đã bị từ chối.{detail}",
+                href: "audio-list?status=rejected",
+                kind: "warn",
+                icon: "fa-circle-xmark",
+                category: "audio");
+        }
+
         return Ok(new { message = "Đã từ chối bộ audio 3 ngôn ngữ của POI." });
     }
 

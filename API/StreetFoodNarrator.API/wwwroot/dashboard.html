@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -6,7 +6,7 @@
     <title>Dashboard - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js"></script>
+    <script src="sidebar.js?v=20260407-utf8fix"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -95,22 +95,22 @@
     <div class="stats-grid">
         <div class="stat-card" onclick="location.href='poi-list'">
             <div class="stat-icon primary"><i class="fas fa-map-marker-alt"></i></div>
-            <div class="stat-value" id="totalPOIs">—</div>
+            <div class="stat-value" id="totalPOIs">â€”</div>
             <div class="stat-label">Tổng số POI</div>
         </div>
         <div class="stat-card" onclick="location.href='poi-list'">
             <div class="stat-icon success"><i class="fas fa-check-circle"></i></div>
-            <div class="stat-value" id="activePOIs">—</div>
+            <div class="stat-value" id="activePOIs">â€”</div>
             <div class="stat-label">POI Đang hoạt động</div>
         </div>
         <div class="stat-card" onclick="location.href='audio-list'">
             <div class="stat-icon secondary"><i class="fas fa-music"></i></div>
-            <div class="stat-value" id="totalAudios">—</div>
+            <div class="stat-value" id="totalAudios">â€”</div>
             <div class="stat-label">Tổng Audio Files</div>
         </div>
         <div class="stat-card" onclick="location.href='translation'">
             <div class="stat-icon accent"><i class="fas fa-globe"></i></div>
-            <div class="stat-value" id="totalTranslations">—</div>
+            <div class="stat-value" id="totalTranslations">â€”</div>
             <div class="stat-label">Bản dịch</div>
         </div>
     </div>
@@ -208,7 +208,7 @@
     }
 
     function formatDate(d) {
-        if (!d) return '—';
+        if (!d) return 'â€”';
         const dt = new Date(d);
         const diff = (Date.now() - dt.getTime()) / 60000;
         if (diff < 1) return 'Vừa xong';
@@ -242,10 +242,11 @@
                 tbody.innerHTML = pois.slice(0, 5).map(p => {
                     const active = p.isActive;
                     const review = (p.reviewStatus || '').toLowerCase();
+                    const hasPendingChanges = !!(p.pendingChanges && Object.keys(p.pendingChanges).length);
                     const activeLabel = active ? 'Ho\u1ea1t \u0111\u1ed9ng' : 'T\u1ea1m t\u1eaft';
                     const activeCls   = active ? 'active' : 'inactive';
                     let reviewBadge = '';
-                    if (review === 'pending')  reviewBadge = `<span style="display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .6rem;border-radius:50px;font-size:.75rem;font-weight:600;background:rgba(255,193,7,.15);color:#d69e00;margin-left:.4rem"><i class="fas fa-clock"></i>Ch\u1edd duy\u1ec7t</span>`;
+                    if (review === 'pending' || hasPendingChanges)  reviewBadge = `<span style="display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .6rem;border-radius:50px;font-size:.75rem;font-weight:600;background:rgba(255,193,7,.15);color:#d69e00;margin-left:.4rem"><i class="fas fa-clock"></i>Ch\u1edd duy\u1ec7t</span>`;
                     if (review === 'rejected') reviewBadge = `<span style="display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .6rem;border-radius:50px;font-size:.75rem;font-weight:600;background:rgba(239,71,111,.15);color:#EF476F;margin-left:.4rem"><i class="fas fa-times-circle"></i>T\u1eeb ch\u1ed1i</span>`;
                     return `
                     <tr>
@@ -282,7 +283,7 @@
                 <div class="activity-item">
                     <div class="activity-icon ${item.theme}"><i class="fas ${item.icon}"></i></div>
                     <div class="activity-content">
-                        <div class="activity-title">${item.title || '—'}</div>
+                        <div class="activity-title">${item.title || 'â€”'}</div>
                         <div class="activity-desc">${item.desc || ''}</div>
                     </div>
                     <div class="activity-time">${formatDate(item.time)}</div>
@@ -298,3 +299,4 @@
 </script>
 </body>
 </html>
+

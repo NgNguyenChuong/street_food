@@ -106,6 +106,19 @@ public partial class SettingsPage : ContentPage
             _ => vi
         };
 
+    private string BuildDataSourceFooterText()
+    {
+        var resolvedBaseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+        var locationSourceLabel = string.Equals(_pendingLocationSourceMode, AppConfig.LocationSourceSimulated, StringComparison.OrdinalIgnoreCase)
+            ? Localize("GPS gia lap", "Simulated GPS", "mo ni GPS")
+            : Localize("GPS that", "Real GPS", "zhen shi GPS");
+
+        return Localize(
+            $"Nguon du lieu: API ({resolvedBaseUrl}) | {locationSourceLabel}",
+            $"Data source: API ({resolvedBaseUrl}) | {locationSourceLabel}",
+            $"shu ju lai yuan: API ({resolvedBaseUrl}) | {locationSourceLabel}");
+    }
+
     private void RefreshPlaybackModeOptions()
     {
         var selectedMode = _settings?.TTS.AudioPlaybackMode?.Trim().ToLowerInvariant() ?? AudioPlaybackModes.Auto;
@@ -463,6 +476,7 @@ public partial class SettingsPage : ContentPage
         {
             _pendingLocationSourceMode = _locationSourceOptions[idx].Mode;
             _hasPendingChanges = true;
+            FooterPolicyLabel.Text = BuildDataSourceFooterText();
         }
     }
 
@@ -876,7 +890,7 @@ public partial class SettingsPage : ContentPage
         LogoutTitleLabel.Text = Localize("Đăng xuất", "Log out", "退出登录");
         LogoutSubtitleLabel.Text = Localize("Thoát khỏi phiên hiện tại và đóng ứng dụng", "Exit current session and close app", "退出当前会话并关闭应用");
         LogoutButton.Text = Localize("Đăng xuất", "Log out", "退出登录");
-        FooterPolicyLabel.Text = AppStrings.Settings_PrivacyTerms;
+        FooterPolicyLabel.Text = BuildDataSourceFooterText();
         FooterVersionLabel.Text = $"{Localize("Phiên bản", "Version", "版本")} 1.0.0";
         LocationSourceTitleLabel.Text = Localize("Nguồn vị trí", "Location source", "位置来源");
         LocationSourceSubtitleLabel.Text = Localize(

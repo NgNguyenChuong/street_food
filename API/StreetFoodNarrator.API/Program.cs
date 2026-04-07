@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
+using StreetFoodNarrator.API.Hubs;
 using StreetFoodNarrator.API.Models;
+using StreetFoodNarrator.API.Services;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 
@@ -33,6 +36,8 @@ builder.Services.AddSingleton(mongoDbSettings);
 builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(mongoDbSettings.ConnectionString));
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<MongoSequenceService>();
+builder.Services.AddSingleton<NotificationService>();
+builder.Services.AddSignalR();
 
 // Identity Configuration
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
@@ -69,6 +74,23 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrWhiteSpace(accessToken) &&
+                path.StartsWithSegments("/hubs/notifications"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -155,7 +177,7 @@ if (!app.Environment.IsDevelopment())
 // URL Rewriting - Remove .html extension from URLs
 // MUST be BEFORE authentication check and UseStaticFiles
 var rewriteOptions = new RewriteOptions()
-    .AddRewrite(@"^(?!api|swagger|uploads)([a-zA-Z0-9\-_/]+)(?<!\.(js|css|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|html))(\?.*)?$", "$1.html$2", skipRemainingRules: true);
+    .AddRewrite(@"^(?!api|swagger|uploads|hubs)([a-zA-Z0-9\-_/]+)(?<!\.(js|css|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|html))(\?.*)?$", "$1.html$2", skipRemainingRules: true);
 
 app.UseRewriter(rewriteOptions);
 
@@ -239,5 +261,6 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationsHub>("/hubs/notifications");
 
 app.Run();
