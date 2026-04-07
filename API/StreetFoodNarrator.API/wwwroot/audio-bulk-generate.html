@@ -472,6 +472,8 @@
         let selectedLangs      = new Set(['vi-VN', 'en-US', 'zh-CN']);
         let editedScripts      = new Map(); // poiId -> vi script
         let translatedScripts  = new Map(); // key = "poiId-lang" -> translated text
+        let translateTimers    = new Map(); // poiId -> timeout id
+        let translatingPoi     = new Set(); // poiId currently translating
         let ttsVoices          = [];
         let previewLangTemplate = 'vi-VN';
         let previewLangScript   = 'vi-VN';
@@ -729,6 +731,74 @@
                 .forEach(k => translatedScripts.delete(k));
         }
 
+        function setTranslateHint(poiId, message, isError = false) {
+            const row = document.querySelector(`[data-edit-id="${poiId}"]`);
+            if (!row) return;
+            const hint = row.querySelector('[data-translate-hint]');
+            if (!hint) return;
+            hint.textContent = message || '';
+            hint.style.color = isError ? '#991B1B' : 'var(--muted)';
+        }
+
+        function handleEditScriptInput(poiId, text) {
+            setEditedScript(poiId, text);
+            scheduleTranslatePoi(poiId);
+        }
+
+        function scheduleTranslatePoi(poiId) {
+            const id = String(poiId);
+            if (translateTimers.has(id)) {
+                clearTimeout(translateTimers.get(id));
+            }
+            setTranslateHint(id, 'Đang chờ dịch...');
+            const timer = setTimeout(() => {
+                translateTimers.delete(id);
+                translatePoi(id, { notifyOnError: false });
+            }, 700);
+            translateTimers.set(id, timer);
+        }
+
+        async function translatePoi(poiId, options = {}) {
+            const notifyOnError = options.notifyOnError === true;
+            const id = String(poiId);
+            const targets = getTranslateTargets();
+            if (!targets.length) {
+                setTranslateHint(id, 'Không cần dịch (chỉ chọn tiếng Việt).');
+                return;
+            }
+            if (translatingPoi.has(id)) return;
+
+            const poi = poisWithoutAudio.find(p => String(getPoiId(p)) === id);
+            if (!poi) return;
+            const baseText = getBaseScriptForPoi(poi);
+            if (!baseText) {
+                setTranslateHint(id, 'Nội dung trống, chưa thể dịch.', true);
+                return;
+            }
+
+            try {
+                translatingPoi.add(id);
+                setTranslateHint(id, 'Đang dịch...');
+                const res = await api.autoTranslate(baseText, targets);
+                if (res && typeof res === 'object') {
+                    Object.keys(res).forEach(k => {
+                        const langId = (k === 'en') ? 'en-US' : (k === 'zh-CN' ? 'zh-CN' : k);
+                        const key = `${id}-${langId}`;
+                        const value = (res[k] || '').trim();
+                        if (value) translatedScripts.set(key, value);
+                    });
+                    setTranslateHint(id, 'Đã cập nhật bản dịch EN/ZH.');
+                } else {
+                    setTranslateHint(id, 'Không nhận được kết quả dịch.', true);
+                }
+            } catch (err) {
+                setTranslateHint(id, 'Dịch thất bại, vui lòng thử lại.', true);
+                if (notifyOnError) alert(err?.message || 'Không thể tự động dịch.');
+            } finally {
+                translatingPoi.delete(id);
+            }
+        }
+
         function renderEditScripts() {
             const list = document.getElementById('editPoiList');
             if (!list) return;
@@ -748,10 +818,11 @@
                             <div>
                                 <div class="edit-item-title">${name}</div>
                                 <div class="edit-item-sub">${address}</div>
+                                <div data-translate-hint style="font-size:0.82rem;color:var(--muted);margin-top:0.25rem;">Sửa tiếng Việt, hệ thống sẽ tự dịch EN/ZH.</div>
                             </div>
                             <button class="btn btn-outline" onclick="resetEditText('${id}')">Reset</button>
                         </div>
-                        <textarea class="edit-textarea" oninput="setEditedScript('${id}', this.value)">${text}</textarea>
+                        <textarea class="edit-textarea" oninput="handleEditScriptInput('${id}', this.value)">${text}</textarea>
                     </div>
                 `;
             }).join('');
@@ -767,6 +838,7 @@
             const row = document.querySelector(`[data-edit-id="${poiId}"]`);
             const textarea = row?.querySelector('textarea');
             if (textarea) textarea.value = buildScript(poi, 'vi-VN');
+            setTranslateHint(String(poiId), 'Đã reset nội dung. Hãy sửa để tự dịch lại.');
         }
 
         function getTranslateTargets() {
@@ -808,16 +880,7 @@
                 }
                 for (const poi of selected) {
                     const id = getPoiId(poi);
-                    const baseText = getBaseScriptForPoi(poi);
-                    const res = await api.autoTranslate(baseText, targets);
-                    if (res && typeof res === 'object') {
-                        Object.keys(res).forEach(k => {
-                            const langId = (k === 'en') ? 'en-US' : (k === 'zh-CN' ? 'zh-CN' : k);
-                            const key = `${id}-${langId}`;
-                            const value = (res[k] || '').trim();
-                            if (value) translatedScripts.set(key, value);
-                        });
-                    }
+                    await translatePoi(id, { notifyOnError: true });
                 }
                 if (notify) alert('Đã tự động dịch xong.');
             } catch (err) {

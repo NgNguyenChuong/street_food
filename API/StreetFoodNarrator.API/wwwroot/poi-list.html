@@ -276,7 +276,6 @@
 
         .btn-icon:hover { transform: scale(1.1); }
         .btn-icon.edit:hover { background: rgba(0, 78, 137, 0.1); color: var(--secondary); }
-        .btn-icon.delete:hover { background: rgba(239, 71, 111, 0.1); color: var(--danger); }
         .btn-icon.view:hover { background: rgba(255, 107, 53, 0.1); color: var(--primary); }
         .btn-icon.approve:hover { background: rgba(6, 214, 160, 0.15); color: #059669; }
         .btn-icon.reject:hover { background: rgba(239, 71, 111, 0.1); color: var(--danger); }
@@ -402,9 +401,6 @@
                 <span style="color:#666;font-weight:600;"><span id="selectedCount">0</span> đã chọn</span>
                 <button class="btn btn-outline" id="batchApproveBtn" onclick="batchApprove()" style="display:none;background:rgba(6,214,160,0.1);color:#059669;border-color:#06D6A0;">
                     <i class="fas fa-check-double"></i> Duyệt tất cả
-                </button>
-                <button class="btn btn-outline" onclick="bulkDelete()">
-                    <i class="fas fa-trash"></i> Xóa
                 </button>
             </div>
         </div>
@@ -567,7 +563,6 @@
                         ` : ''}
                         <button class="btn-icon view" onclick="viewPOI(${poi.poI_ID})" title="Xem"><i class="fas fa-eye"></i></button>
                         <button class="btn-icon edit" onclick="editPOI(${poi.poI_ID})" title="Sửa"><i class="fas fa-edit"></i></button>
-                        <button class="btn-icon delete" onclick="deletePOI(${poi.poI_ID})" title="Xóa"><i class="fas fa-trash"></i></button>
                     </div>
                 </td>
             </tr>
@@ -706,16 +701,6 @@
         const note = prompt('Lý do từ chối (tùy chọn):');
         if (note === null) return;
         try { await api.reviewPOI(id, { status: 'rejected', note }); showAlert('Đã từ chối.'); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
-    }
-    async function deletePOI(id) {
-        showConfirm('Xóa POI này?', async () => {
-            try { await api.deletePOI(id); showAlert('Đã xóa!'); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
-        });
-    }
-    async function bulkDelete() {
-        showConfirm(`Xóa ${selectedPOIs.size} POI đã chọn?`, async () => {
-            try { for (const id of selectedPOIs) await api.deletePOI(id); showAlert(`Đã xóa ${selectedPOIs.size} POI!`); selectedPOIs.clear(); updateBulkActions(); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
-        });
     }
     async function batchApprove() {
         const ids = allPOIs.filter(p => selectedPOIs.has(p.poI_ID) && (p.reviewStatus||'').toLowerCase() === 'pending').map(p => p.poI_ID);
