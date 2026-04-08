@@ -39,7 +39,7 @@
     const avatarLetters = displayName.split(' ').map(w => w[0]).slice(-2).join('').toUpperCase();
 
         const sidebarHTML = `
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar ${isVendor ? 'sidebar-vendor' : ''}" id="sidebar">
             <div class="logo-section">
             <div class="logo">
                 <div class="logo-icon">
@@ -97,17 +97,26 @@
                     </li>
                     `}
 
-                    <li class="nav-item has-submenu">
+                    ${isAdmin ? `
+                    <li class="nav-item">
+                        <a href="poi-list" class="nav-link">
+                            <i class="nav-icon fas fa-map-marker-alt"></i>
+                            <span>Quản lý POI</span>
+                        </a>
+                    </li>
+                    ` : `
+                    <li class="nav-item has-submenu" id="poiNavGroup">
                         <button type="button" class="nav-link nav-toggle">
                             <i class="nav-icon fas fa-map-marker-alt"></i>
-                            <span>${isAdmin ? 'Quản lý POI' : 'POI của tôi'}</span>
+                            <span>POI của tôi</span>
                             <i class="nav-caret fas fa-chevron-down"></i>
                         </button>
                         <ul class="submenu">
                             <li><a href="${poiListHref}" class="nav-sublink">${poiListLabel}</a></li>
-                            ${isVendor ? '<li><a href="poi-create" class="nav-sublink">Tạo POI</a></li>' : ''}
+                            <li><a href="poi-create" class="nav-sublink">Tạo POI</a></li>
                         </ul>
                     </li>
+                    `}
 
                     ${isVendor ? `
                     <li class="nav-item">
@@ -139,7 +148,15 @@
                     </li>
                     ` : ''}
 
-                    <li class="nav-item has-submenu">
+                    ${isAdmin ? `
+                    <li class="nav-item">
+                        <a href="audio-list" class="nav-link">
+                            <i class="nav-icon fas fa-microphone"></i>
+                            <span>Quản lý âm thanh</span>
+                        </a>
+                    </li>
+                    ` : `
+                    <li class="nav-item has-submenu" id="audioNavGroup">
                         <button type="button" class="nav-link nav-toggle">
                             <i class="nav-icon fas fa-microphone"></i>
                             <span>Âm thanh</span>
@@ -147,9 +164,10 @@
                         </button>
                         <ul class="submenu">
                             <li><a href="audio-list" class="nav-sublink">Danh sách âm thanh</a></li>
-                            ${isVendor ? '<li><a href="audio-bulk-generate" class="nav-sublink">TTS hàng loạt</a></li>' : ''}
+                            <li><a href="audio-bulk-generate" class="nav-sublink">TTS hàng loạt</a></li>
                         </ul>
                     </li>
+                    `}
                     ${isAdmin ? `
                     <li class="nav-item">
                         <a href="users" class="nav-link">
@@ -488,6 +506,10 @@
                 cursor: pointer;
             }
 
+            .sidebar-vendor .nav-link {
+                font-size: 0.96rem;
+            }
+
             .nav-link::before {
                 content: '';
                 position: absolute;
@@ -545,6 +567,11 @@
                 text-decoration: none;
                 border-radius: 10px;
                 transition: all 0.2s ease;
+            }
+
+            .sidebar-vendor .nav-sublink {
+                font-size: 0.95rem;
+                font-weight: 500;
             }
 
             .nav-sublink:hover,
@@ -832,7 +859,7 @@
         });
 
         if (currentPage === 'poi-edit') {
-            const poiGroup = document.querySelector('.nav-item.has-submenu');
+            const poiGroup = document.getElementById('poiNavGroup');
             if (poiGroup) poiGroup.classList.add('open');
         }
 
