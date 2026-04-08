@@ -67,6 +67,12 @@ public interface ITTSService
     /// <summary>Kiểm tra audio có đang phát không.</summary>
     bool IsPlaying();
 
+    /// <summary>
+    /// True khi backend/file audio có thể pause/resume thực sự.
+    /// Native TTS fallback thường không hỗ trợ resume chuẩn.
+    /// </summary>
+    bool CanPauseResume();
+
     /// <summary>Ẩn khi audio phát xong. Không fire khi gọi StopAsync.</summary>
     event Action? OnPlaybackEnded;
 }

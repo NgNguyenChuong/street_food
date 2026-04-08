@@ -1579,7 +1579,7 @@ public partial class ExploreMapPage : ContentPage
 
         CenterMapOnPoi(poi, InZoneFocusZoomLevel);
 
-        if (switchingToDifferentPoi && (_tts.IsPlaying() || _vm.IsAudioPaused))
+        if (switchingToDifferentPoi)
             await StopPreviewAudioAsync();
 
         var isSamePlaying = _vm.PlayingPoiId == poi.Id && (_tts.IsPlaying() || _vm.IsAudioPaused);
@@ -1622,7 +1622,7 @@ public partial class ExploreMapPage : ContentPage
 
             if (!_isNearFocusMode || _vm.CurrentExploreState != MainViewModel.ExploreState.InZone)
             {
-                if (_activeSpotZonePoiId.HasValue && (_tts.IsPlaying() || _vm.IsAudioPaused))
+                if (_activeSpotZonePoiId.HasValue)
                     await StopPreviewAudioAsync();
                 _activeSpotZonePoiId = null;
                 _candidateSpotZonePoiId = null;
@@ -1671,7 +1671,7 @@ public partial class ExploreMapPage : ContentPage
 
             if (candidate == null)
             {
-                if (_activeSpotZonePoiId.HasValue && (_tts.IsPlaying() || _vm.IsAudioPaused))
+                if (_activeSpotZonePoiId.HasValue)
                     await StopPreviewAudioAsync();
                 _activeSpotZonePoiId = null;
                 _candidateSpotZonePoiId = null;
@@ -3773,7 +3773,7 @@ public partial class ExploreMapPage : ContentPage
         try
         {
             var switchingToDifferentPoi = _vm.PlayingPoiId.HasValue && _vm.PlayingPoiId.Value != poi.Id;
-            if (switchingToDifferentPoi && (_tts.IsPlaying() || _vm.IsAudioPaused))
+            if (switchingToDifferentPoi)
                 await StopPreviewAudioAsync();
 
             if (_vm.PlayingPoiId == poi.Id)
@@ -3782,8 +3782,17 @@ public partial class ExploreMapPage : ContentPage
                 {
                     if (allowToggleCurrent)
                     {
-                        _tts.Pause();
-                        _vm.IsAudioPaused = true;
+                        if (_tts.CanPauseResume())
+                        {
+                            _tts.Pause();
+                            _vm.IsAudioPaused = true;
+                        }
+                        else
+                        {
+                            // Native fallback: pause behaves as stop for predictable UX.
+                            await StopPreviewAudioAsync();
+                            return true;
+                        }
                     }
                     else
                     {
@@ -3794,7 +3803,7 @@ public partial class ExploreMapPage : ContentPage
                     return true;
                 }
 
-                if (_vm.IsAudioPaused)
+                if (_vm.IsAudioPaused && _tts.CanPauseResume())
                 {
                     _tts.Resume();
                     if (_tts.IsPlaying())

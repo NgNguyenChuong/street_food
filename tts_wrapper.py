@@ -6,6 +6,8 @@ Su dung edge-tts de generate audio tu text voi voice chi dinh
 import sys
 import asyncio
 import io
+import random
+import tempfile
 import edge_tts
 from pathlib import Path
 
@@ -34,6 +36,18 @@ async def main():
     rate        = (sys.argv[4].strip() if len(sys.argv) > 4 else "+0%")
     volume      = (sys.argv[5].strip() if len(sys.argv) > 5 else "+0%")
 
+    # Voice fallback chain for intermittent provider-side failures.
+    fallback_voices = {
+        "vi-VN-HoaiMyNeural": ["vi-VN-NamMinhNeural"],
+        "en-US-JennyNeural": ["en-US-GuyNeural"],
+        "zh-CN-XiaoxiaoNeural": ["zh-CN-YunxiNeural"],
+    }
+
+    voice_candidates = [voice]
+    for candidate in fallback_voices.get(voice, []):
+        if candidate not in voice_candidates:
+            voice_candidates.append(candidate)
+
     # Neu text bat dau bang @, doc tu file
     if text_input.startswith("@"):
         file_path = text_input[1:]
@@ -53,31 +67,46 @@ async def main():
     # Generate audio (retry for intermittent Edge-TTS empty-audio responses)
     attempts = 3
     last_error = None
-    for attempt in range(1, attempts + 1):
-        try:
-            communicate = edge_tts.Communicate(text, voice, rate=rate, volume=volume)
-            await communicate.save(output_path)
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
 
-            out_file = Path(output_path)
-            if not out_file.exists() or out_file.stat().st_size <= 0:
-                raise RuntimeError("Output file is empty")
-
-            print(f"OK: audio saved to {output_path}", flush=True)
-            return
-        except Exception as e:
-            last_error = e
-            # Best-effort cleanup before retry
+    for current_voice in voice_candidates:
+        for attempt in range(1, attempts + 1):
+            tmp_file = None
             try:
-                out_file = Path(output_path)
-                if out_file.exists() and out_file.stat().st_size == 0:
-                    out_file.unlink()
-            except Exception:
-                pass
+                with tempfile.NamedTemporaryFile(
+                    prefix="tts_tmp_",
+                    suffix=".mp3",
+                    dir=str(output_file.parent),
+                    delete=False,
+                ) as tmp:
+                    tmp_file = Path(tmp.name)
 
-            if attempt < attempts:
-                await asyncio.sleep(0.8 * attempt)
+                communicate = edge_tts.Communicate(text, current_voice, rate=rate, volume=volume)
+                await communicate.save(str(tmp_file))
 
-    err(f"Error generating audio (voice={voice}, rate={rate}, volume={volume}): {last_error}")
+                if not tmp_file.exists() or tmp_file.stat().st_size <= 0:
+                    raise RuntimeError("Output file is empty")
+
+                tmp_file.replace(output_file)
+                print(f"OK: audio saved to {output_path} (voice={current_voice})", flush=True)
+                return
+            except Exception as e:
+                last_error = e
+                try:
+                    if tmp_file is not None and tmp_file.exists():
+                        tmp_file.unlink()
+                except Exception:
+                    pass
+
+                if attempt < attempts:
+                    base_sleep = 0.7 * attempt
+                    await asyncio.sleep(base_sleep + random.uniform(0.05, 0.25))
+
+    err(
+        f"Error generating audio (voice={voice}, tried={','.join(voice_candidates)}, "
+        f"rate={rate}, volume={volume}): {last_error}"
+    )
     sys.exit(1)
 
 if __name__ == "__main__":

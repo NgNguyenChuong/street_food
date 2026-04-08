@@ -41,7 +41,8 @@ public static class AppConfig
     // ── Backend API ───────────────────────────────────────────────
         // ── Emulator (Android AVD): http://10.0.2.2:5004/
         //    (10.0.2.2 là địa chỉ host PC khi chạy trên máy ảo Android)
-        public static string EmulatorApiBaseUrl { get; set; } = "http://10.0.2.2:5004/";
+      //  public static string EmulatorApiBaseUrl { get; set; } = "http://10.0.2.2:5004/";
+      public static string EmulatorApiBaseUrl { get; set; } = "https://vexed-unsaturated-jovanni.ngrok-free.dev/";
 
         // ── Máy thật (Real Device): dùng IP LAN của PC chạy API
         public static string DefaultRealDeviceApiUrl { get; set; } = "http://192.168.100.9:5004/";

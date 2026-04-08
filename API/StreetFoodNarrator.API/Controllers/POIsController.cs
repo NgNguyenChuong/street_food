@@ -596,8 +596,8 @@ public class POIsController : ControllerBase
             ?? $"Vendor #{vendorId.Value}";
 
         await _notifications.PublishToAdminsAsync(
-            title: "POI má»›i chá» duyá»‡t",
-            message: $"{vendorLabel} vá»«a gá»­i POI \"{poi.Name_Vi}\" Ä‘á»ƒ duyá»‡t.",
+            title: "POI mới chờ duyệt",
+            message: $"{vendorLabel} vừa gửi POI \"{poi.Name_Vi}\" để duyệt.",
             href: "poi-list?reviewStatus=pending",
             kind: "info",
             icon: "fa-map-location-dot",
@@ -605,8 +605,8 @@ public class POIsController : ControllerBase
 
         await _notifications.PublishToVendorAsync(
             vendorId: vendorId.Value,
-            title: "ÄÃ£ gá»­i POI chá» duyá»‡t",
-            message: $"POI \"{poi.Name_Vi}\" Ä‘Ã£ Ä‘Æ°á»£c gá»­i thÃ nh cÃ´ng vÃ  Ä‘ang chá» Admin duyá»‡t.",
+            title: "Đã gửi POI chờ duyệt",
+            message: $"POI \"{poi.Name_Vi}\" đã được gửi thành công và đang chờ Admin duyệt.",
             href: "poi-list?reviewStatus=pending",
             kind: "info",
             icon: "fa-hourglass-half",
@@ -757,42 +757,12 @@ public class POIsController : ControllerBase
         }
         else
         {
-            var targetIsActive = model.IsActive ?? poi.IsActive;
-            bool isMajorChange = IsMajorChange(poi, model);
+            var pendingUpdate = BuildVendorPendingUpdate(poi, model);
+            var diff = BuildPendingChangesDiff(poi, pendingUpdate);
 
-            if (isMajorChange)
+            if (diff.Count == 0)
             {
-                // Vendor can edit content, but approval must be performed by Admin.
-                var diff = new Dictionary<string, PendingFieldChange>();
-
-                if (model.Name_Vi != null &&
-                    !string.Equals(model.Name_Vi.Trim(), poi.Name_Vi?.Trim(), StringComparison.OrdinalIgnoreCase))
-                    diff["Tên quán"] = new PendingFieldChange { Old = poi.Name_Vi, New = model.Name_Vi };
-
-                if (model.Address != null &&
-                    !string.Equals(model.Address.Trim(), poi.Address?.Trim(), StringComparison.OrdinalIgnoreCase))
-                    diff["Địa chỉ"] = new PendingFieldChange { Old = poi.Address, New = model.Address };
-
-                if (model.Latitude.HasValue || model.Longitude.HasValue)
-                {
-                    var newLat = model.Latitude.HasValue ? (double)model.Latitude.Value : poi.Location.Latitude;
-                    var newLon = model.Longitude.HasValue ? (double)model.Longitude.Value : poi.Location.Longitude;
-                    var dist = CalculateDistanceMeters(poi.Location.Latitude, poi.Location.Longitude, newLat, newLon);
-                    if (dist > 10)
-                        diff["Vị trí GPS"] = new PendingFieldChange
-                        {
-                            Old = $"{poi.Location.Latitude:F6}, {poi.Location.Longitude:F6}",
-                            New = $"{newLat:F6}, {newLon:F6}"
-                        };
-                }
-
-                update = update
-                    .Set(p => p.ReviewStatus, "pending")
-                    .Set(p => p.ReviewNote, null)
-                    .Set(p => p.ReviewedAt, null)
-                    .Set(p => p.ReviewedBy, null)
-                    .Set(p => p.IsActive, false)
-                    .Set(p => p.PendingChanges, diff);
+                return Ok(new { message = "No content changes detected" });
             }
 
             // Vendor content edits should not change live active state before admin review.
@@ -802,22 +772,15 @@ public class POIsController : ControllerBase
                 && poi.PendingChanges != null
                 && poi.PendingChanges.Count > 0)
             {
-                // Minor updates by vendor are allowed without changing review decision.
-                // Vendor cannot self-approve by turning on POI when it is not approved yet.
-                var isApproved = string.Equals(poi.ReviewStatus, "approved", StringComparison.OrdinalIgnoreCase);
-                if (!isApproved && targetIsActive)
-                {
-                    update = update.Set(p => p.IsActive, false);
-                }
-                else
-                {
-                    update = update.Set(p => p.IsActive, targetIsActive);
-                }
+                // Legacy compatibility: old flow could force active POI to inactive while waiting review.
+                // When vendor re-submits, restore storefront availability by default.
+                liveIsActive = true;
             }
 
             var reviewStatusForLive = liveIsActive
                 ? "approved"
                 : (string.Equals(poi.ReviewStatus, "approved", StringComparison.OrdinalIgnoreCase) ? "approved" : "pending");
+
             var update = Builders<POI>.Update
                 .Set(p => p.ReviewStatus, reviewStatusForLive)
                 .Set(p => p.ReviewNote, null)
@@ -835,8 +798,8 @@ public class POIsController : ControllerBase
         if (!isAdmin && effectiveVendorId.HasValue && vendorSubmittedForReview)
         {
             await _notifications.PublishToAdminsAsync(
-                title: "POI cáº­p nháº­t chá» duyá»‡t",
-                message: $"POI \"{notifyPoiName}\" vá»«a Ä‘Æ°á»£c Vendor cáº­p nháº­t vÃ  Ä‘ang chá» Admin duyá»‡t.",
+                title: "POI cập nhật chờ duyệt",
+                message: $"POI \"{notifyPoiName}\" vừa được Vendor cập nhật và đang chờ Admin duyệt.",
                 href: "poi-list?reviewStatus=pending",
                 kind: "info",
                 icon: "fa-pen-to-square",
@@ -844,8 +807,8 @@ public class POIsController : ControllerBase
 
             await _notifications.PublishToVendorAsync(
                 vendorId: effectiveVendorId.Value,
-                title: "ÄÃ£ gá»­i chá»‰nh sá»­a chá» duyá»‡t",
-                message: $"POI \"{notifyPoiName}\" Ä‘Ã£ gá»­i cho Admin duyá»‡t. Dá»¯ liá»‡u Ä‘ang hoáº¡t Ä‘á»™ng váº«n giá»¯ nguyÃªn cho Ä‘áº¿n khi cÃ³ káº¿t quáº£ duyá»‡t.",
+                title: "Đã gửi chỉnh sửa chờ duyệt",
+                message: $"POI \"{notifyPoiName}\" đã gửi cho Admin duyệt. Dữ liệu đang hoạt động vẫn giữ nguyên cho đến khi có kết quả duyệt.",
                 href: "poi-list?reviewStatus=pending",
                 kind: "info",
                 icon: "fa-hourglass-half",
@@ -958,8 +921,8 @@ public class POIsController : ControllerBase
             {
                 await _notifications.PublishToVendorAsync(
                     vendorId: poi.VendorId.Value,
-                    title: "POI Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t",
-                    message: $"POI \"{approvedPoiName}\" Ä‘Ã£ Ä‘Æ°á»£c Admin duyá»‡t. Dá»¯ liá»‡u má»›i Ä‘Ã£ Ä‘Æ°á»£c Ã¡p dá»¥ng.",
+                    title: "POI đã được duyệt",
+                    message: $"POI \"{approvedPoiName}\" đã được Admin duyệt. Dữ liệu mới đã được áp dụng.",
                     href: "poi-list?reviewStatus=approved",
                     kind: "success",
                     icon: "fa-circle-check",
@@ -967,11 +930,11 @@ public class POIsController : ControllerBase
             }
             else
             {
-                var detail = noteText != null ? $" LÃ½ do: {noteText}" : string.Empty;
+                var detail = noteText != null ? $" Lý do: {noteText}" : string.Empty;
                 await _notifications.PublishToVendorAsync(
                     vendorId: poi.VendorId.Value,
-                    title: "POI bá»‹ tá»« chá»‘i",
-                    message: $"YÃªu cáº§u chá»‰nh sá»­a POI \"{poi.Name_Vi}\" Ä‘Ã£ bá»‹ tá»« chá»‘i.{detail}",
+                    title: "POI bị từ chối",
+                    message: $"Yêu cầu chỉnh sửa POI \"{poi.Name_Vi}\" đã bị từ chối.{detail}",
                     href: "poi-list?reviewStatus=rejected",
                     kind: "warn",
                     icon: "fa-circle-xmark",
@@ -980,10 +943,10 @@ public class POIsController : ControllerBase
         }
 
         // Keep admin side informed for cross-team visibility.
-        var adminTitle = status == "approved" ? "POI Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t" : "POI bá»‹ tá»« chá»‘i";
+        var adminTitle = status == "approved" ? "POI đã được duyệt" : "POI bị từ chối";
         var adminMessage = status == "approved"
-            ? $"Admin vá»«a duyá»‡t POI \"{approvedPoiName}\" vÃ  Ä‘Ã£ Ã¡p dá»¥ng dá»¯ liá»‡u má»›i."
-            : $"Admin vá»«a tá»« chá»‘i yÃªu cáº§u chá»‰nh sá»­a POI \"{poi.Name_Vi}\".";
+            ? $"Admin vừa duyệt POI \"{approvedPoiName}\" và đã áp dụng dữ liệu mới."
+            : $"Admin vừa từ chối yêu cầu chỉnh sửa POI \"{poi.Name_Vi}\".";
         await _notifications.PublishToAdminsAsync(
             title: adminTitle,
             message: adminMessage,
@@ -993,8 +956,8 @@ public class POIsController : ControllerBase
             category: "poi");
 
         var resultMsg = status == "rejected"
-            ? "ÄÃ£ tá»« chá»‘i chá»‰nh sá»­a. Dá»¯ liá»‡u Ä‘ang hoáº¡t Ä‘á»™ng Ä‘Æ°á»£c giá»¯ nguyÃªn."
-            : "POI Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t vÃ  Ã¡p dá»¥ng dá»¯ liá»‡u má»›i thÃ nh cÃ´ng.";
+            ? "Đã từ chối chỉnh sửa. Dữ liệu đang hoạt động được giữ nguyên."
+            : "POI đã được duyệt và áp dụng dữ liệu mới thành công.";
         return Ok(new { message = resultMsg });
     }
     /// <summary>

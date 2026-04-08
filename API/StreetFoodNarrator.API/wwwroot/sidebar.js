@@ -704,20 +704,25 @@
 
     function formatNotificationTime(createdAt) {
         const millis = toMillis(createdAt);
-        if (!millis) return '';
-        const diffSec = Math.max(0, Math.floor((Date.now() - millis) / 1000));
-        if (diffSec < 60) return 'Vừa xong';
-        const diffMin = Math.floor(diffSec / 60);
-        if (diffMin < 60) return `${diffMin} phút trước`;
-        const diffHour = Math.floor(diffMin / 60);
-        if (diffHour < 24) return `${diffHour} giờ trước`;
-        const diffDay = Math.floor(diffHour / 24);
-        if (diffDay <= 7) return `${diffDay} ngày trước`;
-        return new Date(millis).toLocaleString('vi-VN');
+        if (!millis) return 'Vừa xong';
+        const diffMin = Math.max(0, (Date.now() - millis) / 60000);
+        if (diffMin < 1) return 'Vừa xong';
+        if (diffMin < 60) return `${Math.round(diffMin)} phút trước`;
+        if (diffMin < 1440) return `${Math.round(diffMin / 60)} giờ trước`;
+        return `${Math.round(diffMin / 1440)} ngày trước`;
     }
 
     function mapServerNotificationToItem(raw) {
         if (!raw) return null;
+        const createdAt =
+            raw.createdAt ??
+            raw.CreatedAt ??
+            raw.updatedAt ??
+            raw.UpdatedAt ??
+            raw.timestamp ??
+            raw.Timestamp ??
+            null;
+
         return buildNotificationItem({
             notificationId: raw.notificationId ?? raw.NotificationId ?? null,
             icon: raw.icon ?? raw.Icon ?? 'fa-circle-info',
@@ -725,8 +730,26 @@
             message: raw.message ?? raw.Message ?? '',
             href: raw.href ?? raw.Href ?? '#',
             kind: String(raw.kind ?? raw.Kind ?? 'info').toLowerCase(),
-            createdAt: raw.createdAt ?? raw.CreatedAt ?? null
+            createdAt
         });
+    }
+
+    function dedupeAndSortNotificationItems(items, limit = 40) {
+        const seen = new Set();
+        const deduped = [];
+
+        for (const item of items) {
+            if (!item) continue;
+            const key = item.notificationId != null
+                ? `id:${item.notificationId}`
+                : `sig:${item.title || ''}|${item.message || ''}|${item.href || ''}|${toMillis(item.createdAt)}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            deduped.push(item);
+        }
+
+        deduped.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+        return deduped.slice(0, limit);
     }
 
     function mergeRealtimeNotification(item) {
@@ -834,6 +857,65 @@
             return [];
         }
     }
+
+    async function loadFallbackNotificationsFromActivity() {
+        if (!window.api) return [];
+
+        try {
+            const poiPromise = typeof api.getPOIs === 'function'
+                ? api.getPOIs(1, 30, '', null, null, null)
+                : Promise.resolve(null);
+            const audioPromise = typeof api.getAudioList === 'function'
+                ? api.getAudioList(1, 20, null, null, null, null)
+                : Promise.resolve(null);
+
+            const [poiRes, audioRes] = await Promise.all([poiPromise, audioPromise]);
+            const pois = Array.isArray(poiRes?.data) ? poiRes.data : [];
+            const audios = Array.isArray(audioRes?.data) ? audioRes.data : [];
+
+            const poiItems = pois.slice(0, 20).map((poi) => {
+                const id = poi.poI_ID ?? poi.poi_ID ?? poi.id ?? '';
+                const createdAt = poi.updatedAt || poi.createdAt || null;
+                return buildNotificationItem({
+                    notificationId: `fallback-activity-poi-${id}-${createdAt || ''}`,
+                    icon: 'fa-map-marker-alt',
+                    title: poi.name_Vi || poi.name || (id ? `POI #${id}` : 'POI mới'),
+                    message: 'Địa điểm tham quan ẩm thực',
+                    href: id ? `poi-edit?id=${id}` : 'poi-list',
+                    kind: 'info',
+                    createdAt
+                });
+            });
+
+            const audioItems = audios.slice(0, 20).map((audio) => {
+                const id = audio.audioContent_ID ?? audio.audioContentId ?? audio.id ?? '';
+                const createdAt = audio.updatedAt || audio.createdAt || null;
+                const title = audio.title || audio.poiName || (id ? `Audio #${id}` : 'Audio mới');
+                const language = String(audio.language || '').trim();
+                return buildNotificationItem({
+                    notificationId: `fallback-activity-audio-${id}-${createdAt || ''}`,
+                    icon: 'fa-music',
+                    title,
+                    message: `${language || 'VI'} audio`,
+                    href: 'audio-list',
+                    kind: 'success',
+                    createdAt
+                });
+            });
+
+            return dedupeAndSortNotificationItems([...poiItems, ...audioItems], 40);
+        } catch {
+            return [];
+        }
+    }
+
+    async function loadSidebarFallbackNotifications() {
+        const [reviewItems, activityItems] = await Promise.all([
+            loadFallbackNotificationsFromPois(),
+            loadFallbackNotificationsFromActivity()
+        ]);
+        return dedupeAndSortNotificationItems([...reviewItems, ...activityItems], 40);
+    }
     async function loadSidebarNotifications({ markSeen = false } = {}) {
         const list = document.getElementById('sidebarNotifList');
         if (list) list.innerHTML = '<div class="notif-empty">Đang tải thông báo...</div>';
@@ -853,12 +935,14 @@
                 rows = Array.isArray(res?.data) ? res.data : [];
             }
             if (rows.length > 0) {
-                liveNotificationItems = rows
-                    .map(mapServerNotificationToItem)
-                    .filter(Boolean)
-                    .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+                liveNotificationItems = dedupeAndSortNotificationItems(
+                    rows
+                        .map(mapServerNotificationToItem)
+                        .filter(Boolean),
+                    40
+                );
             } else {
-                liveNotificationItems = await loadFallbackNotificationsFromPois();
+                liveNotificationItems = await loadSidebarFallbackNotifications();
             }
 
             if (markSeen) {
@@ -867,7 +951,7 @@
 
             renderSidebarNotifications(liveNotificationItems);
         } catch {
-            liveNotificationItems = await loadFallbackNotificationsFromPois();
+            liveNotificationItems = await loadSidebarFallbackNotifications();
             if (markSeen) {
                 markSeenByItems(liveNotificationItems);
             }

@@ -32,6 +32,7 @@ public class TextToSpeechService : ITTSService
 
     private CancellationTokenSource? _nativeTtsCts;
     private bool _manualStop;
+    private Task? _nativeSpeakTask;
 
     // Native TTS progress simulation
     private bool _isNativeTts;
@@ -115,6 +116,18 @@ public class TextToSpeechService : ITTSService
             if (_currentPlayer != null && _currentPlayer.IsPlaying)
             {
                 _currentPlayer.Pause();
+                return;
+            }
+
+            // Native TTS fallback does not support true pause/resume well.
+            // Treat pause as stop so UI and POI switching stay responsive.
+            if (_isNativeTts)
+            {
+                _manualStop = true;
+                _nativeTtsCts?.Cancel();
+                _nativeTtsCts = null;
+                _isNativeTts = false;
+                _manualStop = false;
             }
         }
         catch
@@ -140,7 +153,19 @@ public class TextToSpeechService : ITTSService
     {
         try
         {
-            return _currentPlayer?.IsPlaying ?? false;
+            return (_currentPlayer?.IsPlaying ?? false) || _isNativeTts;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool CanPauseResume()
+    {
+        try
+        {
+            return _currentPlayer != null;
         }
         catch
         {
@@ -247,7 +272,8 @@ public class TextToSpeechService : ITTSService
             };
 
             using var timeoutCts2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts2.CancelAfter(TimeSpan.FromSeconds(6));
+            var ttsTimeout = poiId.HasValue ? TimeSpan.FromSeconds(2.2) : TimeSpan.FromSeconds(6);
+            timeoutCts2.CancelAfter(ttsTimeout);
 
             var response = await _httpClient.PostAsJsonAsync(
                 $"{_baseUrl}/api/tts/generate",
@@ -546,12 +572,8 @@ public class TextToSpeechService : ITTSService
                 Locale = locale
             };
 
-            await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(text, settings, cts.Token);
-            System.Diagnostics.Debug.WriteLine("[TTS] Native MAUI fallback playback complete.");
-
-            if (!_manualStop)
-                OnPlaybackEnded?.Invoke();
-
+            // Run native TTS in background so UI controls are not blocked while speaking.
+            _nativeSpeakTask = RunNativeSpeakAsync(text, settings, cts);
             return true;
         }
         catch (System.OperationCanceledException)
@@ -563,8 +585,31 @@ public class TextToSpeechService : ITTSService
             System.Diagnostics.Debug.WriteLine($"[TTS] Native TTS error: {ex.Message}");
             return false;
         }
+    }
+
+    private async Task RunNativeSpeakAsync(string text, SpeechOptions settings, CancellationTokenSource cts)
+    {
+        try
+        {
+            await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(text, settings, cts.Token);
+            System.Diagnostics.Debug.WriteLine("[TTS] Native MAUI fallback playback complete.");
+
+            if (!_manualStop && !cts.IsCancellationRequested)
+                OnPlaybackEnded?.Invoke();
+        }
+        catch (System.OperationCanceledException)
+        {
+            // Expected when user stops or switches POI.
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Native background playback error: {ex.Message}");
+        }
         finally
         {
+            if (ReferenceEquals(_nativeTtsCts, cts))
+                _nativeTtsCts = null;
+
             _isNativeTts = false;
         }
     }

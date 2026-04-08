@@ -1468,8 +1468,28 @@ public class AudioController : ControllerBase
             return null;
         }
 
+        // Legacy/merge-safe fallback: some vendor profiles are linked by email but missing UserId.
+        var email = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name;
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            vendor = await _db.VendorProfiles.Find(v => v.ContactEmail == email).FirstOrDefaultAsync();
+            if (vendor != null)
+            {
+                if (string.IsNullOrWhiteSpace(vendor.UserId))
+                {
+                    var bindUpdate = Builders<VendorProfile>.Update
+                        .Set(v => v.UserId, userId)
+                        .Set(v => v.UpdatedAt, DateTime.UtcNow);
+                    await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, bindUpdate);
+                    vendor.UserId = userId;
+                    vendor.UpdatedAt = DateTime.UtcNow;
+                }
+
+                return vendor;
+            }
+        }
+
         var vendorId = await _sequence.GetNextAsync("vendor_id");
-        var email = User.FindFirstValue(ClaimTypes.Email);
         var name = User.FindFirstValue(ClaimTypes.Name);
         var fallbackName = !string.IsNullOrWhiteSpace(name)
             ? name
