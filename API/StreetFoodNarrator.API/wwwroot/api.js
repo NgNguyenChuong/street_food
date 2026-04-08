@@ -593,9 +593,10 @@ class API {
     }
 
     // Menu Items APIs
-    async getMenuItems(poiId, page = 1, pageSize = 50) {
+    async getMenuItems(poiId, page = 1, pageSize = 50, includeDeleted = false) {
         let query = `page=${page}&pageSize=${pageSize}`;
         if (poiId) query += `&poiId=${poiId}`;
+        if (includeDeleted) query += '&includeDeleted=true';
         return this.request(`/MenuItems?${query}`);
     }
 

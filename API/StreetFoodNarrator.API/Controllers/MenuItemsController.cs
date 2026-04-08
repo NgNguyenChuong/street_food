@@ -25,9 +25,13 @@ public class MenuItemsController : ControllerBase
     public async Task<ActionResult> GetMenuItems(
         [FromQuery] int? poiId = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50)
+        [FromQuery] int pageSize = 50,
+        [FromQuery] bool includeDeleted = false)
     {
-        var filter = Builders<MenuItem>.Filter.Eq(m => m.IsDeleted, false);
+        var filter = Builders<MenuItem>.Filter.Empty;
+
+        if (!includeDeleted)
+            filter &= Builders<MenuItem>.Filter.Eq(m => m.IsDeleted, false);
 
         if (poiId.HasValue)
             filter &= Builders<MenuItem>.Filter.Eq(m => m.POI_ID, poiId.Value);
@@ -99,6 +103,9 @@ public class MenuItemsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<MenuItem>> CreateMenuItem([FromBody] CreateMenuItemModel model)
     {
+        if (User.IsInRole("Admin"))
+            return StatusCode(403, new { message = "Admin cannot create menu items" });
+
         // Verify POI exists
         var poi = await _db.POIs.Find(p => p.POI_ID == model.POI_ID && p.DeletedAt == null).FirstOrDefaultAsync();
         if (poi == null) return NotFound(new { message = "POI not found" });
@@ -152,16 +159,40 @@ public class MenuItemsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateMenuItem(int id, [FromBody] UpdateMenuItemModel model)
     {
-        var item = await _db.MenuItems.Find(m => m.MenuItemId == id && !m.IsDeleted).FirstOrDefaultAsync();
+        var item = await _db.MenuItems.Find(m => m.MenuItemId == id).FirstOrDefaultAsync();
         if (item == null) return NotFound(new { message = "Menu item not found" });
 
+        var poi = await _db.POIs.Find(p => p.POI_ID == item.POI_ID && p.DeletedAt == null).FirstOrDefaultAsync();
+        if (poi == null) return NotFound(new { message = "POI not found" });
+
         // Vendor scoping
+        int? vendorIdFromUser = null;
         if (User.IsInRole("Vendor"))
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
-            if (vendor == null || item.VendorId != vendor.VendorId)
+            if (vendor == null)
                 return Forbid();
+
+            vendorIdFromUser = vendor.VendorId;
+
+            var ownsByMenuItem = item.VendorId == vendor.VendorId;
+            var ownsByPoi = poi.VendorId == vendor.VendorId;
+            if (!ownsByMenuItem && !ownsByPoi)
+                return Forbid();
+        }
+
+        if (User.IsInRole("Admin"))
+        {
+            var hasInfoChanges =
+                model.Name_Vi != null || model.Name_En != null || model.Name_Zh != null ||
+                model.Description_Vi != null || model.Description_En != null || model.Description_Zh != null ||
+                model.Price.HasValue || model.PriceUnit != null || model.PriceNote != null ||
+                model.Category != null || model.ImageUrl != null || model.Tags != null ||
+                model.IsSignatureDish.HasValue || model.SortOrder.HasValue;
+
+            if (hasInfoChanges)
+                return StatusCode(403, new { message = "Admin can only toggle sale status" });
         }
 
         var update = Builders<MenuItem>.Update
@@ -179,7 +210,10 @@ public class MenuItemsController : ControllerBase
             .Set(m => m.Tags,           model.Tags        ?? item.Tags)
             .Set(m => m.IsSignatureDish,model.IsSignatureDish ?? item.IsSignatureDish)
             .Set(m => m.IsAvailable,    model.IsAvailable ?? item.IsAvailable)
+            .Set(m => m.IsDeleted,      model.IsDeleted ?? item.IsDeleted)
+            .Set(m => m.VendorId,       vendorIdFromUser ?? item.VendorId)
             .Set(m => m.SortOrder,      model.SortOrder   ?? item.SortOrder)
+            .Set(m => m.DeletedAt,      model.IsDeleted.HasValue ? (model.IsDeleted.Value ? DateTime.UtcNow : null) : item.DeletedAt)
             .Set(m => m.UpdatedAt,      DateTime.UtcNow);
 
         await _db.MenuItems.UpdateOneAsync(m => m.MenuItemId == id, update);
@@ -191,25 +225,7 @@ public class MenuItemsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteMenuItem(int id)
     {
-        var item = await _db.MenuItems.Find(m => m.MenuItemId == id && !m.IsDeleted).FirstOrDefaultAsync();
-        if (item == null) return NotFound(new { message = "Menu item not found" });
-
-        // Vendor scoping
-        if (User.IsInRole("Vendor"))
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
-            if (vendor == null || item.VendorId != vendor.VendorId)
-                return Forbid();
-        }
-
-        var update = Builders<MenuItem>.Update
-            .Set(m => m.IsDeleted,  true)
-            .Set(m => m.DeletedAt,  DateTime.UtcNow)
-            .Set(m => m.UpdatedAt,  DateTime.UtcNow);
-
-        await _db.MenuItems.UpdateOneAsync(m => m.MenuItemId == id, update);
-        return Ok(new { message = "Deleted successfully" });
+        return StatusCode(405, new { message = "Delete menu item is disabled. Please update IsDeleted status instead." });
     }
 }
 
@@ -250,5 +266,6 @@ public class UpdateMenuItemModel
     public List<string>? Tags { get; set; }
     public bool? IsSignatureDish { get; set; }
     public bool? IsAvailable { get; set; }
+    public bool? IsDeleted { get; set; }
     public int? SortOrder { get; set; }
 }
