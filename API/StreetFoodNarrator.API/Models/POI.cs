@@ -45,6 +45,9 @@ public class POI
     [MaxLength(500)]
     public string? Address { get; set; }
 
+    [MaxLength(1000)]
+    public string? MapUrl { get; set; }
+
     // Audio URLs for each language - CHỈ 3 NGÔN NGỮ
     [MaxLength(500)]
     public string? AudioUrl_Vi { get; set; }

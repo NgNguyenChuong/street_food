@@ -861,43 +861,22 @@
                         Tọa độ GPS
                         <span class="required">*</span>
                     </label>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label class="form-label" style="font-size: 0.85rem;">Cách nhập tọa độ</label>
-                        <select class="form-select" id="gpsInputMode">
-                            <option value="manual">Nhập thủ công lat/lng</option>
-                            <option value="maplink">Dán link Google Maps</option>
-                        </select>
-                    </div>
-
-                    <div id="gpsManualGroup">
-                        <div class="coordinate-group">
-                            <div>
-                                <input type="text" class="form-input" id="latitude" placeholder="Latitude (VD: 10.7623)">
-                                <div class="form-help">
-                                    <i class="fas fa-globe"></i>
-                                    Vĩ độ
-                                </div>
-                            </div>
-                            <div>
-                                <input type="text" class="form-input" id="longitude" placeholder="Longitude (VD: 106.7024)">
-                                <div class="form-help">
-                                    <i class="fas fa-globe"></i>
-                                    Kinh độ
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="gpsMapLinkGroup" style="display:none; margin-top: 0.75rem;">
+                    <div id="gpsMapLinkGroup" style="margin-top: 0.75rem;">
                         <div class="input-group">
                             <input type="url" class="form-input" id="mapUrl" placeholder="VD: https://maps.app.goo.gl/...">
                             <button type="button" class="btn btn-primary" id="btnResolveMap" style="white-space: nowrap;">
                                 <i class="fas fa-search-location"></i> Lấy tọa độ
                             </button>
                         </div>
+                        <input type="hidden" id="latitude">
+                        <input type="hidden" id="longitude">
                         <div class="form-help" id="mapUrlStatus">
                             <i class="fas fa-link"></i>
                             Dán link chia sẻ Google Maps để tự điền Lat/Lng
+                        </div>
+                        <div class="form-help" id="resolvedCoords" style="display: none; margin-top: 0.35rem;">
+                            <i class="fas fa-crosshairs"></i>
+                            Lat: <strong id="resolvedLat">-</strong>, Lng: <strong id="resolvedLng">-</strong>
                         </div>
                     </div>
                 </div>
@@ -1388,14 +1367,6 @@
             });
         }
 
-        function applyGpsInputMode() {
-            const mode = document.getElementById('gpsInputMode')?.value || 'manual';
-            const manualGroup = document.getElementById('gpsManualGroup');
-            const mapLinkGroup = document.getElementById('gpsMapLinkGroup');
-            if (manualGroup) manualGroup.style.display = '';
-            if (mapLinkGroup) mapLinkGroup.style.display = mode === 'maplink' ? '' : 'none';
-        }
-
         // Opening hours preset
         let currentPreset = 'weekday';
 
@@ -1560,6 +1531,7 @@
                 name_Vi: name_Vi,
                 description_Vi: description_Vi,
                 address: document.getElementById('address').value,
+                mapUrl: document.getElementById('mapUrl')?.value?.trim() || null,
                 category: document.getElementById('category')?.value || null,
                 openingHoursText: hoursData.openingHoursText || null,
                 openingHours: hoursData.openingHours || null,
@@ -1668,7 +1640,7 @@
                     poiData.latitude = lat;
                     poiData.longitude = lng;
                 } else {
-                    errorDiv.textContent = '❌ Vui lòng nhập Lat/Lng thủ công hoặc dán link Google Maps để lấy tọa độ.';
+                    errorDiv.textContent = '❌ Vui lòng dán link Google Maps và bấm "Lấy tọa độ" trước khi tạo POI.';
                     errorDiv.style.display = 'block';
                     submitBtns.forEach(btn => {
                         btn.disabled = false;
@@ -1710,11 +1682,8 @@
             await loadAdminVendorOptions();
             setupAddressSuggestions();
             updateHoursPreview();
-            applyGpsInputMode();
         })();
 
-        const gpsInputMode = document.getElementById('gpsInputMode');
-        if (gpsInputMode) gpsInputMode.addEventListener('change', applyGpsInputMode);
         const zoneTypeSelect = document.getElementById('zoneType');
         const cooldownInput = document.getElementById('cooldownMinutes');
         if (cooldownInput) {
@@ -1778,6 +1747,9 @@
         document.getElementById('btnResolveMap')?.addEventListener('click', async () => {
             const urlInput = document.getElementById('mapUrl');
             const statusDiv = document.getElementById('mapUrlStatus');
+            const resolvedCoords = document.getElementById('resolvedCoords');
+            const resolvedLat = document.getElementById('resolvedLat');
+            const resolvedLng = document.getElementById('resolvedLng');
             const url = urlInput.value.trim();
 
             if (!url) {
@@ -1787,6 +1759,7 @@
 
             statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lấy tọa độ...';
             statusDiv.style.color = '#666';
+            if (resolvedCoords) resolvedCoords.style.display = 'none';
 
             try {
                 const token = TokenManager.getToken();
@@ -1811,11 +1784,18 @@
                 if (latInput) latInput.value = data.latitude;
                 if (lngInput) lngInput.value = data.longitude;
 
+                const latValue = Number.parseFloat(data.latitude);
+                const lngValue = Number.parseFloat(data.longitude);
+                if (resolvedLat) resolvedLat.textContent = Number.isFinite(latValue) ? latValue.toFixed(6) : String(data.latitude);
+                if (resolvedLng) resolvedLng.textContent = Number.isFinite(lngValue) ? lngValue.toFixed(6) : String(data.longitude);
+                if (resolvedCoords) resolvedCoords.style.display = '';
+
                 statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Đã lấy tọa độ thành công!';
                 statusDiv.style.color = 'var(--success)';
             } catch (err) {
                 statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Lỗi: ${err.message}`;
                 statusDiv.style.color = 'var(--danger)';
+                if (resolvedCoords) resolvedCoords.style.display = 'none';
             }
         });
 

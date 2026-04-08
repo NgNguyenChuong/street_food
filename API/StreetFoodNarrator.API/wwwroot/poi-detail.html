@@ -609,6 +609,10 @@ function renderInfo() {
     const p = poiData;
     const lat  = p.location?.latitude  ?? p.Location?.Latitude  ?? p.latitude  ?? p.Latitude;
     const lon  = p.location?.longitude ?? p.Location?.Longitude ?? p.longitude ?? p.Longitude;
+    const mapUrl = p.mapUrl || p.MapUrl;
+    const mapUrlDisplay = mapUrl
+        ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--primary);font-weight:600;word-break:break-all;">${mapUrl}</a>`
+        : '—';
     const avgP = p.averagePrice || p.AveragePrice;
     const rat  = p.rating || p.Rating;
     const pLvl = p.priceLevel || p.PriceLevel;
@@ -628,6 +632,7 @@ function renderInfo() {
     document.getElementById('basicInfo').innerHTML = `
         ${row('POI ID',   poiIdVal ? `#${poiIdVal}` : '—')}
         ${row('Địa chỉ',  p.address || p.Address)}
+        ${row('URL bản đồ', mapUrlDisplay)}
         ${row('Tọa độ',   lat ? `${lat}, ${lon}` : '—')}
         ${row('Danh mục', p.category || p.Category)}
         ${row('Giờ mở cửa', hrs)}

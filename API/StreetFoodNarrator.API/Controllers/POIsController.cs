@@ -19,6 +19,7 @@ public class POIsController : ControllerBase
     private readonly MongoSequenceService _sequence;
     private readonly IWebHostEnvironment _env;
     private readonly HttpClient _httpClient;
+    private readonly ILogger<POIsController> _logger;
     private const string GpsTestApiKey = "streetfood-gps-test-mode-2026";
     private const string GpsTestCategory = "gps-test";
     private const string GpsTestPoiNameVi = "POI Test GPS Thuc Te";
@@ -27,12 +28,13 @@ public class POIsController : ControllerBase
     private const double DefaultGpsTestLat = 10.842597772316791;
     private const double DefaultGpsTestLon = 106.60874204402752;
 
-    public POIsController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env)
+    public POIsController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env, ILogger<POIsController> logger)
     {
         _db = db;
         _sequence = sequence;
         _env = env;
         _httpClient = new HttpClient();
+        _logger = logger;
     }
 
     /// <summary>
@@ -332,6 +334,7 @@ public class POIsController : ControllerBase
             Description_En = p.Description_En,
             Description_Zh = p.Description_Zh,
             Address = p.Address ?? string.Empty,
+            MapUrl = p.MapUrl,
             Latitude = (decimal)(p.Location?.Latitude ?? 0),
             Longitude = (decimal)(p.Location?.Longitude ?? 0),
             IsActive = p.IsActive,
@@ -445,6 +448,10 @@ public class POIsController : ControllerBase
         if (string.IsNullOrWhiteSpace(model.Address))
             return BadRequest(new { message = "Address is required" });
 
+        var normalizedMapUrl = NormalizeMapUrl(model.MapUrl);
+        if (!string.IsNullOrWhiteSpace(model.MapUrl) && normalizedMapUrl == null)
+            return BadRequest(new { message = "MapUrl is invalid. Please provide a valid http/https URL." });
+
         // Vendor must only create POIs under their own VendorId.
         int? vendorId = null;
         string? actorUserId = null;
@@ -523,6 +530,7 @@ public class POIsController : ControllerBase
             Description_En = model.Description_En,
             Description_Zh = model.Description_Zh,
             Address = model.Address,
+            MapUrl = normalizedMapUrl,
             Category = model.Category,
             SignatureDishes = BuildSignatureDishes(model.SignatureDish, model.SignatureDishes),
             Specialties = model.Specialties,
@@ -563,6 +571,7 @@ public class POIsController : ControllerBase
         };
 
         await _db.POIs.InsertOneAsync(poi);
+        _logger.LogInformation("CreatePOI saved MapUrl for POI_ID={PoiId}: {MapUrl}", poi.POI_ID, poi.MapUrl ?? "<null>");
 
         if (!string.IsNullOrWhiteSpace(idempotencyKey) && !string.IsNullOrWhiteSpace(actorUserId))
         {
@@ -660,6 +669,14 @@ public class POIsController : ControllerBase
         var scriptVi = isAdmin ? (model.Script_Vi ?? poi.Script_Vi) : poi.Script_Vi;
         var scriptEn = isAdmin ? (model.Script_En ?? poi.Script_En) : poi.Script_En;
         var scriptZh = isAdmin ? (model.Script_Zh ?? poi.Script_Zh) : poi.Script_Zh;
+        var normalizedMapUrl = model.MapUrl == null ? null : NormalizeMapUrl(model.MapUrl);
+
+        if (model.MapUrl != null && normalizedMapUrl == null && !string.IsNullOrWhiteSpace(model.MapUrl))
+            return BadRequest(new { message = "MapUrl is invalid. Please provide a valid http/https URL." });
+
+        var finalMapUrl = model.MapUrl == null
+            ? poi.MapUrl
+            : normalizedMapUrl;
 
         var update = Builders<POI>.Update
             .Set(p => p.Name_Vi, model.Name_Vi ?? poi.Name_Vi)
@@ -669,6 +686,7 @@ public class POIsController : ControllerBase
             .Set(p => p.Description_En, model.Description_En ?? poi.Description_En)
             .Set(p => p.Description_Zh, model.Description_Zh ?? poi.Description_Zh)
             .Set(p => p.Address, model.Address ?? poi.Address)
+            .Set(p => p.MapUrl, finalMapUrl)
             .Set(p => p.Location, GeoJsonLocation.FromLatLon(latitude, longitude))
             .Set(p => p.Category, model.Category ?? poi.Category)
             .Set(p => p.SignatureDishes, BuildSignatureDishes(model.SignatureDish, model.SignatureDishes) ?? poi.SignatureDishes)
@@ -1207,6 +1225,21 @@ public class POIsController : ControllerBase
     }
 
     private static double DegreesToRadians(double degrees) => degrees * (Math.PI / 180);
+
+    private static string? NormalizeMapUrl(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+            return null;
+
+        var trimmed = rawUrl.Trim();
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+            return null;
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            return null;
+
+        return uri.ToString();
+    }
 }
 
 // DTOs
@@ -1239,6 +1272,7 @@ public class POIDto
     public string? Description_En { get; set; }
     public string? Description_Zh { get; set; }
     public string Address { get; set; } = null!;
+    public string? MapUrl { get; set; }
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
     public bool IsActive { get; set; }
@@ -1295,6 +1329,7 @@ public class CreatePOIModel
     public string? Description_En { get; set; }
     public string? Description_Zh { get; set; }
     public string Address { get; set; } = null!;
+    public string? MapUrl { get; set; }
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
     public string? Category { get; set; }
@@ -1337,6 +1372,7 @@ public class UpdatePOIModel
     public string? Description_En { get; set; }
     public string? Description_Zh { get; set; }
     public string? Address { get; set; }
+    public string? MapUrl { get; set; }
     public decimal? Latitude { get; set; }
     public decimal? Longitude { get; set; }
     public string? Category { get; set; }
