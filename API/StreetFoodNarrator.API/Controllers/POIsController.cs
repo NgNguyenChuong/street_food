@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
@@ -723,56 +723,23 @@ public class POIsController : ControllerBase
         else
         {
             var targetIsActive = model.IsActive ?? poi.IsActive;
-            bool isMajorChange = IsMajorChange(poi, model);
+            var isApproved = string.Equals(poi.ReviewStatus, "approved", StringComparison.OrdinalIgnoreCase);
 
-            if (isMajorChange)
+            // Vendor edits are applied immediately, but while POI is waiting approval
+            // vendor is not allowed to change the active state.
+            if (!isApproved)
             {
-                // Vendor can edit content, but approval must be performed by Admin.
-                var diff = new Dictionary<string, PendingFieldChange>();
-
-                if (model.Name_Vi != null &&
-                    !string.Equals(model.Name_Vi.Trim(), poi.Name_Vi?.Trim(), StringComparison.OrdinalIgnoreCase))
-                    diff["Tên quán"] = new PendingFieldChange { Old = poi.Name_Vi, New = model.Name_Vi };
-
-                if (model.Address != null &&
-                    !string.Equals(model.Address.Trim(), poi.Address?.Trim(), StringComparison.OrdinalIgnoreCase))
-                    diff["Địa chỉ"] = new PendingFieldChange { Old = poi.Address, New = model.Address };
-
-                if (model.Latitude.HasValue || model.Longitude.HasValue)
-                {
-                    var newLat = model.Latitude.HasValue ? (double)model.Latitude.Value : poi.Location.Latitude;
-                    var newLon = model.Longitude.HasValue ? (double)model.Longitude.Value : poi.Location.Longitude;
-                    var dist = CalculateDistanceMeters(poi.Location.Latitude, poi.Location.Longitude, newLat, newLon);
-                    if (dist > 10)
-                        diff["Vị trí GPS"] = new PendingFieldChange
-                        {
-                            Old = $"{poi.Location.Latitude:F6}, {poi.Location.Longitude:F6}",
-                            New = $"{newLat:F6}, {newLon:F6}"
-                        };
-                }
-
-                update = update
-                    .Set(p => p.ReviewStatus, "pending")
-                    .Set(p => p.ReviewNote, null)
-                    .Set(p => p.ReviewedAt, null)
-                    .Set(p => p.ReviewedBy, null)
-                    .Set(p => p.IsActive, false)
-                    .Set(p => p.PendingChanges, diff);
+                update = update.Set(p => p.IsActive, false);
             }
             else
             {
-                // Minor updates by vendor are allowed without changing review decision.
-                // Vendor cannot self-approve by turning on POI when it is not approved yet.
-                var isApproved = string.Equals(poi.ReviewStatus, "approved", StringComparison.OrdinalIgnoreCase);
-                if (!isApproved && targetIsActive)
-                {
-                    update = update.Set(p => p.IsActive, false);
-                }
-                else
-                {
-                    update = update.Set(p => p.IsActive, targetIsActive);
-                }
+                update = update.Set(p => p.IsActive, targetIsActive);
             }
+
+            // Clear legacy pending diff artifacts when vendor saves using direct-apply flow.
+            update = update
+                .Set(p => p.PendingChanges, null)
+                .Set(p => p.ReviewNote, null);
         }
 
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id, update);
