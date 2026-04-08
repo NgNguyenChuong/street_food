@@ -14,6 +14,7 @@ public class AudioService : IAudioService
     private readonly IAudioManager _audioManager;
     private readonly IAudioCacheService _audioCache;
     private readonly ITTSService _tts;
+    private readonly LanguageService _langService;
     private readonly Dictionary<int, IAudioPlayer> _players  = new();
     private readonly Dictionary<int, double>       _positions = new();
     private readonly Dictionary<int, double>       _volumes   = new();
@@ -21,11 +22,12 @@ public class AudioService : IAudioService
     public event Action<int>?         OnPlaybackCompleted;
     public event Action<int, double>? OnPositionChanged;
 
-    public AudioService(IAudioCacheService audioCache, ITTSService tts)
+    public AudioService(IAudioCacheService audioCache, ITTSService tts, LanguageService langService)
     {
         _audioManager = AudioManager.Current;
         _audioCache = audioCache;
         _tts = tts;
+        _langService = langService;
     }
 
     // ── Public API ───────────────────────────────────────────────────────────
@@ -39,9 +41,8 @@ public class AudioService : IAudioService
         // 1. Try to load from AudioCacheService (downloads via HttpClient with ngrok bypass)
         try
         {
-            // Defaulting to "vi" as the user uses Vietnamese audio mostly, 
-            // or we can just pass audioSource mapping if needed in the future.
-            stream = await _audioCache.GetOrDownloadCachedStreamAsync(zoneId, "vi");
+            // Always try to load the current localized audio
+            stream = await _audioCache.GetOrDownloadCachedStreamAsync(zoneId, _langService.CurrentLanguage);
         }
         catch (Exception ex)
         {

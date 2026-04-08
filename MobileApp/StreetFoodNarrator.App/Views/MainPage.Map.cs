@@ -88,6 +88,15 @@ public partial class MainPage
                 {
                     MapView.Map.Layers.Add(CreateOfflineFallbackLayer());
                     Console.WriteLine("[Map] Offline fallback layer enabled (no tile cache)");
+                    
+                    MainThread.BeginInvokeOnMainThread(async () =>
+                    {
+                        await CustomAlert.ShowAsync(
+                            AppStrings.Get("Common_Info"),
+                            "Đang sử dụng bản đồ ngoại tuyến cơ bản do không có kết nối Internet.",
+                            AppStrings.Get("Common_OK"),
+                            AlertType.Info);
+                    });
                 }
             }
             catch (Exception ex)
@@ -347,17 +356,32 @@ public partial class MainPage
                     startLat,
                     startLon);
 
-                routeCoords = cachedPath is { Count: >= 2 }
-                    ? cachedPath.Select(point =>
+                if (cachedPath is { Count: >= 2 })
+                {
+                    routeCoords = cachedPath.Select(point =>
                     {
                         var (x, y) = SphericalMercator.FromLonLat(point.Longitude, point.Latitude);
                         return new Coordinate(x, y);
-                    }).ToArray()
-                    : new[]
+                    }).ToArray();
+                }
+                else
+                {
+                    routeCoords = new[]
                     {
                         new Coordinate(startPx, startPy),
                         new Coordinate(endPx, endPy)
                     };
+                    
+                    // Thong bao user duong thang
+                    MainThread.BeginInvokeOnMainThread(async () =>
+                    {
+                        await CustomAlert.ShowAsync(
+                            AppStrings.Get("Common_Info"),
+                            "Đang dùng đường thẳng ước tính do ứng dụng đang ngoại tuyến và chưa có dữ liệu chỉ đường đường bộ. Vui lòng kết nối mạng để xem đường đi chi tiết.",
+                            AppStrings.Get("Common_OK"),
+                            AlertType.Warning);
+                    });
+                }
             }
 
             if (routeCoords.Length >= 4)

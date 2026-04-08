@@ -90,7 +90,9 @@ public class AudioCacheService : IAudioCacheService
             return File.OpenRead(path);
 
         // Không có mạng thì không thể tải về mới.
-        if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+        var networkAccess = Connectivity.Current.NetworkAccess;
+        if (networkAccess != NetworkAccess.Internet &&
+            networkAccess != NetworkAccess.ConstrainedInternet)
         {
             Debug.WriteLine($"[AudioCache] Offline: bỏ qua download POI {poiId} ({language})");
             return null;
@@ -100,9 +102,28 @@ public class AudioCacheService : IAudioCacheService
         if (string.IsNullOrWhiteSpace(audioUrl))
             return null;
 
-        await DownloadAndSaveAsync(audioUrl, key, ct);
+        var requestTimeout = networkAccess == NetworkAccess.ConstrainedInternet
+            ? TimeSpan.FromSeconds(6)
+            : TimeSpan.FromSeconds(12);
 
-        return File.Exists(path) ? File.OpenRead(path) : null;
+        var tc = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        tc.CancelAfter(requestTimeout);
+
+        try
+        {
+            await DownloadAndSaveAsync(audioUrl, key, tc.Token);
+            return File.Exists(path) ? File.OpenRead(path) : null;
+        }
+        catch (OperationCanceledException) when (tc.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            Debug.WriteLine($"[AudioCache] Timeout tải audio ({requestTimeout.TotalSeconds:0.#}s), chuyển sang fallback TTS.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AudioCache] Lỗi khi tải audio: {ex.Message}");
+            return null;
+        }
     }
 
     /// <inheritdoc/>
@@ -271,7 +292,15 @@ public class AudioCacheService : IAudioCacheService
             ? audioUrl
             : $"{_baseUrl}{audioUrl}";
 
-        var bytes = await _http.GetByteArrayAsync(fileUrl, ct);
+        using var response = await _http.GetAsync(fileUrl, ct);
+        response.EnsureSuccessStatusCode();
+
+        if (response.Content.Headers.ContentType?.MediaType?.Contains("text/html") == true)
+        {
+            throw new Exception("Ngrok html returned instead of media file. Add ngrok-skip-browser-warning properly.");
+        }
+
+        var bytes = await response.Content.ReadAsByteArrayAsync(ct);
         var path = CachePath(key);
 
         await _lock.WaitAsync(ct);

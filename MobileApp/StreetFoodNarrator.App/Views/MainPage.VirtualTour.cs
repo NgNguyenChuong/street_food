@@ -414,7 +414,7 @@ public partial class MainPage
         return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
-    private static Task<bool> DisplayAlertAsync(string title, string msg, string accept, string cancel)
+    private new static Task<bool> DisplayAlertAsync(string title, string msg, string accept, string cancel)
         => CustomAlert.ShowConfirmAsync(title, msg, accept, cancel, AlertType.Warning);
 
     private static Task DisplayInfoAsync(string title, string msg, string accept)

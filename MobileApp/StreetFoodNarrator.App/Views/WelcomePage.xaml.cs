@@ -505,7 +505,7 @@ public partial class WelcomePage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[WelcomePage] OnStartTourClicked error: {ex}");
-            await DisplayAlert("Lỗi", $"Không thể mở bản đồ: {ex.Message}", "OK");
+            await DisplayAlertAsync("Lỗi", $"Không thể mở bản đồ: {ex.Message}", "OK");
         }
         finally
         {
@@ -527,7 +527,7 @@ public partial class WelcomePage : ContentPage
             if (status == PermissionStatus.Granted)
                 return true;
 
-            var openSettings = await DisplayAlert(
+            var openSettings = await DisplayAlertAsync(
                 "Cần quyền vị trí",
                 "App cần vị trí để tự động nhận biết bạn đang ở gần quán nào. Bạn vẫn có thể tiếp tục mà không bật vị trí.",
                 "Bật lại",
@@ -939,7 +939,7 @@ public partial class WelcomePage : ContentPage
             if (isUpdate)
             {
                 Preferences.Set(PREF_FULL_OFFLINE, true);
-                await DisplayAlert(
+                await DisplayAlertAsync(
                     "✅ Hoàn tất!",
                     "Dữ liệu đã được cập nhật phiên bản mới nhất. Tận hưởng tour nhé!",
                     "OK");
@@ -955,7 +955,7 @@ public partial class WelcomePage : ContentPage
         {
             mainGrid.Children.Remove(spinnerOverlay);
             EnableStartButton();
-            await DisplayAlert("Lỗi tải dữ liệu", $"Không thể tải: {ex.Message}", "OK");
+            await DisplayAlertAsync("Lỗi tải dữ liệu", $"Không thể tải: {ex.Message}", "OK");
         }
     }
 
@@ -1412,7 +1412,7 @@ public partial class WelcomePage : ContentPage
 
         border.Content = grid;
         border.Opacity = 0;
-        border.FadeTo(1, 300);
+        _ = border.FadeToAsync(1, 300);
 
         return border;
     }
@@ -1483,7 +1483,7 @@ public partial class WelcomePage : ContentPage
 
         border.Content = grid;
         border.Opacity = 0;
-        border.FadeTo(1, 300);
+        _ = border.FadeToAsync(1, 300);
 
         return border;
     }

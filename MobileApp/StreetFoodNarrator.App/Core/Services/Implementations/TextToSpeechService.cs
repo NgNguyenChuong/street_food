@@ -19,9 +19,9 @@ namespace StreetFoodNarrator.App.Core.Services.Implementations;
 /// </summary>
 public class TextToSpeechService : ITTSService
 {
-    // For POIs, prefer curated uploaded audio. If it does not exist, fall back to native TTS
-    // instead of generating server audio automatically, to keep voice quality consistent.
-    private const bool EnablePoiServerTtsFallback = false;
+    // For POIs, prefer curated uploaded audio. If it does not exist, allow server TTS generation
+    // before falling back to native TTS so remote narration still works over ngrok.
+    private const bool EnablePoiServerTtsFallback = true;
 
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
@@ -172,7 +172,9 @@ public class TextToSpeechService : ITTSService
             await StopAsync();
 
             var playbackMode = GetPlaybackMode();
-            var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
+            var networkAccess = Connectivity.Current.NetworkAccess;
+            var isOnline = networkAccess == NetworkAccess.Internet ||
+                           networkAccess == NetworkAccess.ConstrainedInternet;
 
             if (poiId.HasValue && _audioCache != null)
             {

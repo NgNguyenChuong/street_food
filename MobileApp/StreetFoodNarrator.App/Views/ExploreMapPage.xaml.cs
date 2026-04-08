@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using BruTile.Predefined;
 using BruTile.Web;
@@ -109,9 +109,9 @@ public partial class ExploreMapPage : ContentPage
     private const int NearRouteRedrawMinIntervalMs = 2600;
     private const double NearRouteRedrawMinMoveMeters = 10.0;
     private const double SpotZoneTemporaryExpandFactor = 1.15;
-    private const double SimulationPathStepMeters = 7.5;
-    private const int SimulationStepDelayMinMs = 240;
-    private const int SimulationStepDelayMaxMs = 520;
+    private const double SimulationPathStepMeters = 2.5;
+    private const int SimulationStepDelayMinMs = 1400;
+    private const int SimulationStepDelayMaxMs = 1900;
     private const int NearEntryNoticeCooldownMs = 10000;
     private const string IconHeart = "\U000F02D1";
     private const string IconPlay = "\U000F040A";
@@ -1118,13 +1118,23 @@ public partial class ExploreMapPage : ContentPage
                 startLat,
                 startLon);
 
-            routeCoords = cachedPath is { Count: >= 2 }
-                ? cachedPath.Select(point =>
+            if (cachedPath is { Count: >= 2 })
+            {
+                routeCoords = cachedPath.Select(point =>
                 {
                     var (x, y) = SphericalMercator.FromLonLat(point.Longitude, point.Latitude);
                     return new Coordinate(x, y);
-                }).ToArray()
-                : quickFallbackRoute;
+                }).ToArray();
+            }
+            else
+            {
+                routeCoords = quickFallbackRoute;
+                // Thông báo user rằng đây là đường thẳng ước tính vì offline + chưa sync route
+                _ = ShowApproachingToastCompactAsync(routeTargetPoiId.Value,
+                    Ui("📶 Offline – đường thẳng ước tính. Kết nối để xem đường đi thực tế.",
+                       "📶 Offline – straight line estimate. Connect for real route.",
+                       "📶 离线 – 直线估计。连接网络查看真实路线。"));
+            }
         }
 
         if (routeCoords.Length >= 4)
@@ -1548,11 +1558,8 @@ public partial class ExploreMapPage : ContentPage
 
     private static int GetHumanStopDwellDurationMs()
     {
-        // Mostly short waits, occasionally a longer stop (queue/photo/chat).
-        if (Random.Shared.NextDouble() < 0.25)
-            return Random.Shared.Next(8500, 15000);
-
-        return Random.Shared.Next(3200, 7600);
+        // Thời gian dừng lại quán 5-6 giây như user yêu cầu
+        return Random.Shared.Next(5000, 6500);
     }
 
     private async Task SwitchToInZoneSpotAsync(POI poi, bool forceAudioRestart)

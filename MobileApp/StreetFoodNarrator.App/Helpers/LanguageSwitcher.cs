@@ -45,13 +45,13 @@ public static class LanguageSwitcher
             })
             .ToList();
 
-        var selected = await page.DisplayActionSheet(
-            "Chon ngon ngu",
-            "Huy",
+        var selected = await page.DisplayActionSheetAsync(
+            "Chọn ngôn ngữ",
+            "Hủy",
             null,
             items.Select(i => i.Option).ToArray());
 
-        if (string.IsNullOrWhiteSpace(selected) || selected == "Huy")
+        if (string.IsNullOrWhiteSpace(selected) || selected == "Hủy")
             return current;
 
         var chosen = items.FirstOrDefault(i => i.Option == selected)?.Code ?? current;
