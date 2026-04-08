@@ -84,10 +84,12 @@ class Navigation {
                             <span>Tạo POI</span>
                         </a>
 
+                        ${this.user.role !== 'Admin' ? `
                         <a href="audio-bulk-generate" class="nav-item ${this.isActive('audio-bulk-generate')}">
                             <i class="fas fa-microphone"></i>
                             <span>Tạo Audio</span>
                         </a>
+                        ` : ''}
 
                         ${this.user.role === 'Admin' ? `
                         <a href="analytics" class="nav-item ${this.isActive('analytics')}">

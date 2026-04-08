@@ -972,7 +972,7 @@ public class AudioController : ControllerBase
     /// <summary>
     /// Bulk generate audio files for POIs based on existing descriptions.
     /// </summary>
-    [Authorize(Roles = "Admin,Vendor")]
+    [Authorize(Roles = "Vendor")]
     [HttpPost("bulk-generate")]
     public async Task<IActionResult> BulkGenerate([FromBody] BulkGenerateAudioRequest request)
     {

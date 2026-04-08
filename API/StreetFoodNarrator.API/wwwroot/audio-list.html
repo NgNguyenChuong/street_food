@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -845,7 +845,7 @@
                     <i class="fas fa-arrow-left"></i>
                     <span>Quay lại</span>
                 </button>
-                <button class="btn btn-secondary" onclick="openBulkGenerate()">
+                <button class="btn btn-secondary" id="bulkGenerateBtn" onclick="openBulkGenerate()">
                     <i class="fas fa-magic"></i>
                     <span>TTS Hàng loạt</span>
                 </button>
@@ -940,6 +940,11 @@
 
     const isAdmin = user?.roles?.includes('Admin');
     const isVendor = user?.roles?.includes('Vendor');
+
+    const bulkGenerateBtn = document.getElementById('bulkGenerateBtn');
+    if (bulkGenerateBtn && isAdmin) {
+        bulkGenerateBtn.style.display = 'none';
+    }
 
     let currentPage     = 1;
     let groupsPerPage   = 5;   // Number of POI cards shown per page
@@ -1095,6 +1100,9 @@
     }
 
     function openBulkGenerate() {
+        if (isAdmin) {
+            return;
+        }
         window.location.href = `audio-bulk-generate?v=${Date.now()}`;
     }
 

@@ -412,16 +412,9 @@
         const roleContext = String(TokenManager.getRoleContext() || '').toLowerCase();
         const userRoles = Array.isArray(user?.roles) ? user.roles.map(r => String(r).toLowerCase()) : [];
         const tokenRoles = Array.isArray(parseJwtRoles(token)) ? parseJwtRoles(token).map(r => String(r).toLowerCase()) : [];
-        const canUseBulkAudio = roleContext === 'admin'
-            || roleContext === 'vendor'
-            || userRoles.includes('admin')
+        const canUseBulkAudio = roleContext === 'vendor'
             || userRoles.includes('vendor')
-            || tokenRoles.includes('admin')
             || tokenRoles.includes('vendor');
-
-        if (tokenRoles.includes('admin') && roleContext !== 'admin') {
-            TokenManager.setRoleContext('admin');
-        }
 
         if (!canUseBulkAudio) {
             window.location.href = 'audio-list';
