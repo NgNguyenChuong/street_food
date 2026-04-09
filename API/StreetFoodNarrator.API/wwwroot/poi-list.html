@@ -210,7 +210,7 @@
 
         tr:hover td { background: rgba(255, 107, 53, 0.02); }
 
-        .poi-info { display: flex; align-items: center; gap: 0.75rem; }
+        .poi-info { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
 
         .poi-icon {
             width: 48px;
@@ -227,11 +227,18 @@
 
         .poi-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+        .poi-details {
+            min-width: 0;
+            max-width: 220px;
+        }
+
         .poi-details h4 {
             color: var(--dark);
             font-weight: 600;
             font-size: 0.9rem;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .poi-details p { font-size: 0.8rem; color: #999; }
@@ -284,6 +291,7 @@
 
         /* Vendor table simplification */
         body.is-vendor .vendor-hide { display: none !important; }
+        body.is-admin .admin-hide { display: none !important; }
 
         .pagination {
             display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem;
@@ -410,12 +418,12 @@
                 <tr>
                     <th><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                     <th>POI</th>
-                    <th class="vendor-hide">ĐỊA CHỈ</th>
+                    <th class="vendor-hide admin-hide">ĐỊA CHỈ</th>
                     <th>DANH MỤC</th>
-                    <th class="vendor-hide">GIỜ MỞ CỬA</th>
+                    <th class="vendor-hide admin-hide">GIỜ MỞ CỬA</th>
                     <th>SĐT</th>
                     <th>ĐÁNH GIÁ</th>
-                    <th class="vendor-hide">QR POI</th>
+                    <th class="vendor-hide admin-hide">QR POI</th>
                     <th>TRẠNG THÁI</th>
                     <th>HÀNH ĐỘNG</th>
                 </tr>
@@ -456,6 +464,7 @@
     const isVendor = roleContext ? roleContext === 'Vendor' : roles.includes('Vendor');
 
     if (isVendor) document.body.classList.add('is-vendor');
+    if (isAdmin) document.body.classList.add('is-admin');
 
     function getPoiQrLink(id) { return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}`; }
 
@@ -542,12 +551,12 @@
                         <div class="poi-details"><h4 title="${poi.name_Vi||'N/A'}">${poi.name_Vi||'N/A'}</h4></div>
                     </div>
                 </td>
-                <td class="vendor-hide" title="${poi.address||''}">${poi.address||'-'}</td>
+                <td class="vendor-hide admin-hide" title="${poi.address||''}">${poi.address||'-'}</td>
                 <td>${formatCategory(poi.category)}</td>
-                <td class="vendor-hide">${formatOpeningHours(poi.openingHoursText, poi.openingHours)}</td>
+                <td class="vendor-hide admin-hide">${formatOpeningHours(poi.openingHoursText, poi.openingHours)}</td>
                 <td>${poi.phoneNumber||'-'}</td>
                 <td>${formatPriceRating(poi)}</td>
-                <td class="vendor-hide">
+                <td class="vendor-hide admin-hide">
                     <div class="poi-qr-wrap">
                         <div class="poi-qr-box" id="poiQr_${poi.poI_ID}"></div>
                         <a class="poi-qr-link" href="${getPoiQrLink(poi.poI_ID)}" target="_blank" rel="noopener noreferrer">Mở link</a>
@@ -567,7 +576,7 @@
                 </td>
             </tr>
         `).join('');
-        renderPoiQrCodes(pois);
+        if (!isAdmin && !isVendor) renderPoiQrCodes(pois);
     }
 
     function renderPoiQrCodes(pois) {
