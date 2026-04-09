@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
-using StreetFoodNarrator.API.Services;
 using System.Security.Claims;
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -20,7 +19,7 @@ public class POIsController : ControllerBase
     private readonly MongoSequenceService _sequence;
     private readonly IWebHostEnvironment _env;
     private readonly HttpClient _httpClient;
-    private readonly NotificationService _notifications;
+    private readonly ILogger<POIsController> _logger;
     private const string GpsTestApiKey = "streetfood-gps-test-mode-2026";
     private const string GpsTestCategory = "gps-test";
     private const string GpsTestPoiNameVi = "POI Test GPS Thuc Te";
@@ -29,17 +28,13 @@ public class POIsController : ControllerBase
     private const double DefaultGpsTestLat = 10.842597772316791;
     private const double DefaultGpsTestLon = 106.60874204402752;
 
-    public POIsController(
-        MongoDbContext db,
-        MongoSequenceService sequence,
-        IWebHostEnvironment env,
-        NotificationService notifications)
+    public POIsController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env, ILogger<POIsController> logger)
     {
         _db = db;
         _sequence = sequence;
         _env = env;
         _httpClient = new HttpClient();
-        _notifications = notifications;
+        _logger = logger;
     }
 
     /// <summary>
@@ -79,18 +74,7 @@ public class POIsController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(reviewStatus))
         {
-            var normalizedReview = reviewStatus.ToLowerInvariant();
-            if (normalizedReview == "pending")
-            {
-                filter &= Builders<POI>.Filter.Or(
-                    Builders<POI>.Filter.Eq(p => p.ReviewStatus, "pending"),
-                    Builders<POI>.Filter.Ne(p => p.PendingUpdateData, null),
-                    Builders<POI>.Filter.Ne(p => p.PendingChanges, null));
-            }
-            else
-            {
-                filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, normalizedReview);
-            }
+            filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, reviewStatus.ToLowerInvariant());
         }
 
         // Vendor scoping: authenticated vendor only sees their own POIs
@@ -339,53 +323,48 @@ public class POIsController : ControllerBase
             .ToListAsync();
 
         var audioCountMap = audioCounts.ToDictionary(x => x.POI_ID, x => x.Count);
-        return pois.Select(rawPoi =>
+        return pois.Select(p => new POIDto
         {
-            var p = NormalizeLegacyPendingForView(rawPoi);
-            return new POIDto
-            {
-                Id = p.Id.ToString(),
-                POI_ID = p.POI_ID,
-                Name_Vi = p.Name_Vi,
-                Name_En = p.Name_En,
-                Name_Zh = p.Name_Zh,
-                Description_Vi = p.Description_Vi,
-                Description_En = p.Description_En,
-                Description_Zh = p.Description_Zh,
-                Address = p.Address ?? string.Empty,
-                Latitude = (decimal)(p.Location?.Latitude ?? 0),
-                Longitude = (decimal)(p.Location?.Longitude ?? 0),
-                IsActive = p.IsActive,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt,
-                AudioCount = audioCountMap.TryGetValue(p.POI_ID, out var count) ? (int)count : 0,
-                VendorId = p.VendorId,
-                ReviewStatus = p.ReviewStatus,
-                ReviewNote = p.ReviewNote,
-                Category = p.Category,
-                SignatureDish = p.SignatureDishes?.FirstOrDefault(),
-                OpeningHoursText = p.OpeningHoursText,
-                PhoneNumber = p.PhoneNumber,
-                AveragePrice = p.AveragePrice,
-                Rating = p.Rating,
-                PriceLevel = p.PriceLevel,
-                ImageUrl = p.ImageUrl,
-                FunFact = p.FunFact,
-                AudioUrl_Vi = p.AudioUrl_Vi,
-                AudioUrl_En = p.AudioUrl_En,
-                AudioUrl_Zh = p.AudioUrl_Zh,
-                Script_Vi = p.Script_Vi,
-                Script_En = p.Script_En,
-                Script_Zh = p.Script_Zh,
-                ZoneType = p.ZoneType,
-                ZoneLevel = p.ZoneLevel,
-                Priority = p.Priority,
-                TriggerRadius = p.TriggerRadius,
-                CooldownMinutes = p.CooldownMinutes,
-                ParentZoneId = p.ParentZoneId,
-                MaxPlaysPerSession = p.MaxPlaysPerSession,
-                PendingChanges = p.PendingChanges
-            };
+            Id = p.Id.ToString(),
+            POI_ID = p.POI_ID,
+            Name_Vi = p.Name_Vi,
+            Name_En = p.Name_En,
+            Name_Zh = p.Name_Zh,
+            Description_Vi = p.Description_Vi,
+            Description_En = p.Description_En,
+            Description_Zh = p.Description_Zh,
+            Address = p.Address ?? string.Empty,
+            MapUrl = p.MapUrl,
+            Latitude = (decimal)(p.Location?.Latitude ?? 0),
+            Longitude = (decimal)(p.Location?.Longitude ?? 0),
+            IsActive = p.IsActive,
+            CreatedAt = p.CreatedAt,
+            AudioCount = audioCountMap.TryGetValue(p.POI_ID, out var count) ? (int)count : 0,
+            VendorId = p.VendorId,
+            ReviewStatus = p.ReviewStatus,
+            Category = p.Category,
+            SignatureDish = p.SignatureDishes?.FirstOrDefault(),
+            OpeningHoursText = p.OpeningHoursText,
+            PhoneNumber = p.PhoneNumber,
+            AveragePrice = p.AveragePrice,
+            Rating = p.Rating,
+            PriceLevel = p.PriceLevel,
+            ImageUrl = p.ImageUrl,
+            FunFact = p.FunFact,
+            AudioUrl_Vi = p.AudioUrl_Vi,
+            AudioUrl_En = p.AudioUrl_En,
+            AudioUrl_Zh = p.AudioUrl_Zh,
+            Script_Vi = p.Script_Vi,
+            Script_En = p.Script_En,
+            Script_Zh = p.Script_Zh,
+            ZoneType = p.ZoneType,
+            ZoneLevel = p.ZoneLevel,
+            Priority = p.Priority,
+            TriggerRadius = p.TriggerRadius,
+            CooldownMinutes = p.CooldownMinutes,
+            ParentZoneId = p.ParentZoneId,
+            MaxPlaysPerSession = p.MaxPlaysPerSession,
+            PendingChanges = p.PendingChanges
         }).ToList();
     }
 
@@ -408,8 +387,6 @@ public class POIsController : ControllerBase
         {
             return NotFound(new { message = "POI not found" });
         }
-
-        poi = NormalizeLegacyPendingForView(poi);
 
         // Attach audio contents with least-privilege:
         // - Admin: all audio
@@ -471,10 +448,13 @@ public class POIsController : ControllerBase
         if (string.IsNullOrWhiteSpace(model.Address))
             return BadRequest(new { message = "Address is required" });
 
+        var normalizedMapUrl = NormalizeMapUrl(model.MapUrl);
+        if (!string.IsNullOrWhiteSpace(model.MapUrl) && normalizedMapUrl == null)
+            return BadRequest(new { message = "MapUrl is invalid. Please provide a valid http/https URL." });
+
         // Vendor must only create POIs under their own VendorId.
         int? vendorId = null;
         string? actorUserId = null;
-        VendorProfile? ownerVendor = null;
         if (User.IsInRole("Vendor"))
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -485,18 +465,18 @@ public class POIsController : ControllerBase
 
             actorUserId = userId;
 
-            ownerVendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
-            if (ownerVendor == null)
+            var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+            if (vendor == null)
             {
                 return Forbid();
             }
 
-            if (!string.Equals(ownerVendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
             {
                 return Forbid();
             }
 
-            vendorId = ownerVendor.VendorId;
+            vendorId = vendor.VendorId;
         }
 
         if (!vendorId.HasValue)
@@ -550,6 +530,7 @@ public class POIsController : ControllerBase
             Description_En = model.Description_En,
             Description_Zh = model.Description_Zh,
             Address = model.Address,
+            MapUrl = normalizedMapUrl,
             Category = model.Category,
             SignatureDishes = BuildSignatureDishes(model.SignatureDish, model.SignatureDishes),
             Specialties = model.Specialties,
@@ -590,27 +571,7 @@ public class POIsController : ControllerBase
         };
 
         await _db.POIs.InsertOneAsync(poi);
-
-        var vendorLabel = ownerVendor?.BusinessName
-            ?? ownerVendor?.ContactName
-            ?? $"Vendor #{vendorId.Value}";
-
-        await _notifications.PublishToAdminsAsync(
-            title: "POI mới chờ duyệt",
-            message: $"{vendorLabel} vừa gửi POI \"{poi.Name_Vi}\" để duyệt.",
-            href: "poi-list?reviewStatus=pending",
-            kind: "info",
-            icon: "fa-map-location-dot",
-            category: "poi");
-
-        await _notifications.PublishToVendorAsync(
-            vendorId: vendorId.Value,
-            title: "Đã gửi POI chờ duyệt",
-            message: $"POI \"{poi.Name_Vi}\" đã được gửi thành công và đang chờ Admin duyệt.",
-            href: "poi-list?reviewStatus=pending",
-            kind: "info",
-            icon: "fa-hourglass-half",
-            category: "poi");
+        _logger.LogInformation("CreatePOI saved MapUrl for POI_ID={PoiId}: {MapUrl}", poi.POI_ID, poi.MapUrl ?? "<null>");
 
         if (!string.IsNullOrWhiteSpace(idempotencyKey) && !string.IsNullOrWhiteSpace(actorUserId))
         {
@@ -674,76 +635,100 @@ public class POIsController : ControllerBase
 
         int? effectiveVendorId = poi.VendorId;
         var isAdmin = User.IsInRole("Admin");
-        var notifyPoiName = model.Name_Vi ?? poi.Name_Vi;
-        var vendorSubmittedForReview = false;
 
         if (!effectiveVendorId.HasValue)
         {
             return BadRequest(new { message = "POI must belong to a vendor" });
         }
 
+        var zoneType = isAdmin
+            ? (string.IsNullOrWhiteSpace(model.ZoneType) ? poi.ZoneType : model.ZoneType)
+            : poi.ZoneType;
+        var zoneLevel = isAdmin
+            ? (model.ZoneLevel ?? (zoneType == "Area" ? 1 : zoneType == "District" ? 2 : 3))
+            : poi.ZoneLevel;
+        var cooldown = isAdmin
+            ? (model.CooldownMinutes ?? (zoneType == "Spot" ? 0 : 30))
+            : poi.CooldownMinutes;
+        var triggerRadius = isAdmin ? (model.TriggerRadius ?? poi.TriggerRadius) : poi.TriggerRadius;
+        var priority = isAdmin ? (model.Priority ?? poi.Priority) : poi.Priority;
+        var maxPlays = isAdmin ? (model.MaxPlaysPerSession ?? poi.MaxPlaysPerSession) : poi.MaxPlaysPerSession;
+        var latitude = model.Latitude.HasValue ? (double)model.Latitude.Value : poi.Location.Latitude;
+        var longitude = model.Longitude.HasValue ? (double)model.Longitude.Value : poi.Location.Longitude;
+
+        var imageUrl = !string.IsNullOrWhiteSpace(model.ImageUrl) ? model.ImageUrl : poi.ImageUrl;
+        var imageUrls = isAdmin
+            ? (model.ImageUrls ?? poi.ImageUrls)
+            : (!string.IsNullOrWhiteSpace(model.ImageUrl)
+                ? new List<string> { model.ImageUrl }
+                : poi.ImageUrls);
+        var parentZoneId = isAdmin ? (model.ParentZoneId ?? poi.ParentZoneId) : poi.ParentZoneId;
+        var audioUrlVi = isAdmin ? (model.AudioUrl_Vi ?? poi.AudioUrl_Vi) : poi.AudioUrl_Vi;
+        var audioUrlEn = isAdmin ? (model.AudioUrl_En ?? poi.AudioUrl_En) : poi.AudioUrl_En;
+        var audioUrlZh = isAdmin ? (model.AudioUrl_Zh ?? poi.AudioUrl_Zh) : poi.AudioUrl_Zh;
+        var scriptVi = isAdmin ? (model.Script_Vi ?? poi.Script_Vi) : poi.Script_Vi;
+        var scriptEn = isAdmin ? (model.Script_En ?? poi.Script_En) : poi.Script_En;
+        var scriptZh = isAdmin ? (model.Script_Zh ?? poi.Script_Zh) : poi.Script_Zh;
+        var normalizedMapUrl = model.MapUrl == null ? null : NormalizeMapUrl(model.MapUrl);
+
+        if (model.MapUrl != null && normalizedMapUrl == null && !string.IsNullOrWhiteSpace(model.MapUrl))
+            return BadRequest(new { message = "MapUrl is invalid. Please provide a valid http/https URL." });
+
+        var finalMapUrl = model.MapUrl == null
+            ? poi.MapUrl
+            : normalizedMapUrl;
+
+        var update = Builders<POI>.Update
+            .Set(p => p.Name_Vi, model.Name_Vi ?? poi.Name_Vi)
+            .Set(p => p.Name_En, model.Name_En ?? poi.Name_En)
+            .Set(p => p.Name_Zh, model.Name_Zh ?? poi.Name_Zh)
+            .Set(p => p.Description_Vi, model.Description_Vi ?? poi.Description_Vi)
+            .Set(p => p.Description_En, model.Description_En ?? poi.Description_En)
+            .Set(p => p.Description_Zh, model.Description_Zh ?? poi.Description_Zh)
+            .Set(p => p.Address, model.Address ?? poi.Address)
+            .Set(p => p.MapUrl, finalMapUrl)
+            .Set(p => p.Location, GeoJsonLocation.FromLatLon(latitude, longitude))
+            .Set(p => p.Category, model.Category ?? poi.Category)
+            .Set(p => p.SignatureDishes, BuildSignatureDishes(model.SignatureDish, model.SignatureDishes) ?? poi.SignatureDishes)
+            .Set(p => p.Specialties, model.Specialties ?? poi.Specialties)
+            .Set(p => p.History, model.History ?? poi.History)
+            .Set(p => p.Story, model.Story ?? poi.Story)
+            .Set(p => p.OpeningHours, model.OpeningHours ?? poi.OpeningHours)
+            .Set(p => p.OpeningHoursText, model.OpeningHoursText ?? poi.OpeningHoursText)
+            .Set(p => p.PhoneNumber, model.PhoneNumber ?? poi.PhoneNumber)
+            .Set(p => p.AveragePrice, model.AveragePrice ?? poi.AveragePrice)
+            .Set(p => p.PriceLevel, model.PriceLevel ?? poi.PriceLevel)
+            .Set(p => p.Rating, model.Rating ?? poi.Rating)
+            .Set(p => p.Tags, model.Tags ?? poi.Tags)
+            .Set(p => p.ImageUrl, imageUrl)
+            .Set(p => p.ImageUrls, imageUrls)
+            .Set(p => p.FunFact, model.FunFact ?? poi.FunFact)
+            .Set(p => p.AudioUrl_Vi, audioUrlVi)
+            .Set(p => p.AudioUrl_En, audioUrlEn)
+            .Set(p => p.AudioUrl_Zh, audioUrlZh)
+            .Set(p => p.Script_Vi, scriptVi)
+            .Set(p => p.Script_En, scriptEn)
+            .Set(p => p.Script_Zh, scriptZh)
+            .Set(p => p.ZoneType, zoneType)
+            .Set(p => p.ZoneLevel, zoneLevel)
+            .Set(p => p.Priority, priority)
+            .Set(p => p.TriggerRadius, triggerRadius)
+            .Set(p => p.CooldownMinutes, cooldown)
+            .Set(p => p.ParentZoneId, parentZoneId)
+            .Set(p => p.MaxPlaysPerSession, maxPlays)
+            .Set(p => p.UpdatedAt, DateTime.UtcNow);
+
+        if (effectiveVendorId.HasValue)
+        {
+            update = update.Set(p => p.VendorId, effectiveVendorId.Value);
+        }
+
         if (isAdmin)
         {
-            var zoneType = string.IsNullOrWhiteSpace(model.ZoneType) ? poi.ZoneType : model.ZoneType;
-            var zoneLevel = model.ZoneLevel ?? (zoneType == "Area" ? 1 : zoneType == "District" ? 2 : 3);
-            var cooldown = model.CooldownMinutes ?? (zoneType == "Spot" ? 0 : 30);
-            var triggerRadius = model.TriggerRadius ?? poi.TriggerRadius;
-            var priority = model.Priority ?? poi.Priority;
-            var maxPlays = model.MaxPlaysPerSession ?? poi.MaxPlaysPerSession;
-            var latitude = model.Latitude.HasValue ? (double)model.Latitude.Value : poi.Location.Latitude;
-            var longitude = model.Longitude.HasValue ? (double)model.Longitude.Value : poi.Location.Longitude;
-            var imageUrl = !string.IsNullOrWhiteSpace(model.ImageUrl) ? model.ImageUrl : poi.ImageUrl;
-            var imageUrls = model.ImageUrls ?? poi.ImageUrls;
-            var parentZoneId = model.ParentZoneId ?? poi.ParentZoneId;
             var targetIsActive = model.IsActive ?? poi.IsActive;
+            update = update.Set(p => p.IsActive, targetIsActive);
 
-            var update = Builders<POI>.Update
-                .Set(p => p.Name_Vi, model.Name_Vi ?? poi.Name_Vi)
-                .Set(p => p.Name_En, model.Name_En ?? poi.Name_En)
-                .Set(p => p.Name_Zh, model.Name_Zh ?? poi.Name_Zh)
-                .Set(p => p.Description_Vi, model.Description_Vi ?? poi.Description_Vi)
-                .Set(p => p.Description_En, model.Description_En ?? poi.Description_En)
-                .Set(p => p.Description_Zh, model.Description_Zh ?? poi.Description_Zh)
-                .Set(p => p.Address, model.Address ?? poi.Address)
-                .Set(p => p.Location, GeoJsonLocation.FromLatLon(latitude, longitude))
-                .Set(p => p.Category, model.Category ?? poi.Category)
-                .Set(p => p.SignatureDishes, BuildSignatureDishes(model.SignatureDish, model.SignatureDishes) ?? poi.SignatureDishes)
-                .Set(p => p.Specialties, model.Specialties ?? poi.Specialties)
-                .Set(p => p.History, model.History ?? poi.History)
-                .Set(p => p.Story, model.Story ?? poi.Story)
-                .Set(p => p.OpeningHours, model.OpeningHours ?? poi.OpeningHours)
-                .Set(p => p.OpeningHoursText, model.OpeningHoursText ?? poi.OpeningHoursText)
-                .Set(p => p.PhoneNumber, model.PhoneNumber ?? poi.PhoneNumber)
-                .Set(p => p.AveragePrice, model.AveragePrice ?? poi.AveragePrice)
-                .Set(p => p.PriceLevel, model.PriceLevel ?? poi.PriceLevel)
-                .Set(p => p.Rating, model.Rating ?? poi.Rating)
-                .Set(p => p.Tags, model.Tags ?? poi.Tags)
-                .Set(p => p.ImageUrl, imageUrl)
-                .Set(p => p.ImageUrls, imageUrls)
-                .Set(p => p.FunFact, model.FunFact ?? poi.FunFact)
-                .Set(p => p.AudioUrl_Vi, model.AudioUrl_Vi ?? poi.AudioUrl_Vi)
-                .Set(p => p.AudioUrl_En, model.AudioUrl_En ?? poi.AudioUrl_En)
-                .Set(p => p.AudioUrl_Zh, model.AudioUrl_Zh ?? poi.AudioUrl_Zh)
-                .Set(p => p.Script_Vi, model.Script_Vi ?? poi.Script_Vi)
-                .Set(p => p.Script_En, model.Script_En ?? poi.Script_En)
-                .Set(p => p.Script_Zh, model.Script_Zh ?? poi.Script_Zh)
-                .Set(p => p.ZoneType, zoneType)
-                .Set(p => p.ZoneLevel, zoneLevel)
-                .Set(p => p.Priority, priority)
-                .Set(p => p.TriggerRadius, triggerRadius)
-                .Set(p => p.CooldownMinutes, cooldown)
-                .Set(p => p.ParentZoneId, parentZoneId)
-                .Set(p => p.MaxPlaysPerSession, maxPlays)
-                .Set(p => p.IsActive, targetIsActive)
-                .Set(p => p.PendingChanges, null)
-                .Set(p => p.PendingUpdateData, null)
-                .Set(p => p.UpdatedAt, DateTime.UtcNow);
-
-            if (effectiveVendorId.HasValue)
-            {
-                update = update.Set(p => p.VendorId, effectiveVendorId.Value);
-            }
-
+            // Admin keeps moderation control; turning on implies approved state.
             if (targetIsActive)
             {
                 update = update
@@ -752,71 +737,34 @@ public class POIsController : ControllerBase
                     .Set(p => p.ReviewedAt, DateTime.UtcNow)
                     .Set(p => p.ReviewedBy, User.Identity?.Name ?? "admin");
             }
-
-            await _db.POIs.UpdateOneAsync(p => p.POI_ID == id, update);
         }
         else
         {
-            var pendingUpdate = BuildVendorPendingUpdate(poi, model);
-            var diff = BuildPendingChangesDiff(poi, pendingUpdate);
+            var targetIsActive = model.IsActive ?? poi.IsActive;
+            var isApproved = string.Equals(poi.ReviewStatus, "approved", StringComparison.OrdinalIgnoreCase);
 
-            if (diff.Count == 0)
+            // Vendor edits are applied immediately, but while POI is waiting approval
+            // vendor is not allowed to change the active state.
+            if (!isApproved)
             {
-                return Ok(new { message = "No content changes detected" });
+                update = update.Set(p => p.IsActive, false);
+            }
+            else
+            {
+                update = update.Set(p => p.IsActive, targetIsActive);
             }
 
-            // Vendor content edits should not change live active state before admin review.
-            var liveIsActive = poi.IsActive;
-            if (!liveIsActive
-                && string.Equals(poi.ReviewStatus, "pending", StringComparison.OrdinalIgnoreCase)
-                && poi.PendingChanges != null
-                && poi.PendingChanges.Count > 0)
-            {
-                // Legacy compatibility: old flow could force active POI to inactive while waiting review.
-                // When vendor re-submits, restore storefront availability by default.
-                liveIsActive = true;
-            }
-
-            var reviewStatusForLive = liveIsActive
-                ? "approved"
-                : (string.Equals(poi.ReviewStatus, "approved", StringComparison.OrdinalIgnoreCase) ? "approved" : "pending");
-
-            var update = Builders<POI>.Update
-                .Set(p => p.ReviewStatus, reviewStatusForLive)
-                .Set(p => p.ReviewNote, null)
-                .Set(p => p.ReviewedAt, null)
-                .Set(p => p.ReviewedBy, null)
-                .Set(p => p.IsActive, liveIsActive)
-                .Set(p => p.PendingChanges, diff)
-                .Set(p => p.PendingUpdateData, pendingUpdate)
-                .Set(p => p.UpdatedAt, DateTime.UtcNow);
-
-            await _db.POIs.UpdateOneAsync(p => p.POI_ID == id, update);
-            vendorSubmittedForReview = true;
+            // Clear legacy pending diff artifacts when vendor saves using direct-apply flow.
+            update = update
+                .Set(p => p.PendingChanges, null)
+                .Set(p => p.ReviewNote, null);
         }
 
-        if (!isAdmin && effectiveVendorId.HasValue && vendorSubmittedForReview)
-        {
-            await _notifications.PublishToAdminsAsync(
-                title: "POI cập nhật chờ duyệt",
-                message: $"POI \"{notifyPoiName}\" vừa được Vendor cập nhật và đang chờ Admin duyệt.",
-                href: "poi-list?reviewStatus=pending",
-                kind: "info",
-                icon: "fa-pen-to-square",
-                category: "poi");
-
-            await _notifications.PublishToVendorAsync(
-                vendorId: effectiveVendorId.Value,
-                title: "Đã gửi chỉnh sửa chờ duyệt",
-                message: $"POI \"{notifyPoiName}\" đã gửi cho Admin duyệt. Dữ liệu đang hoạt động vẫn giữ nguyên cho đến khi có kết quả duyệt.",
-                href: "poi-list?reviewStatus=pending",
-                kind: "info",
-                icon: "fa-hourglass-half",
-                category: "poi");
-        }
+        await _db.POIs.UpdateOneAsync(p => p.POI_ID == id, update);
 
         return Ok(poi);
     }
+
     /// <summary>
     /// Admin review POI (approve/reject)
     /// </summary>
@@ -851,115 +799,57 @@ public class POIsController : ControllerBase
                 return BadRequest(new { message = "Cannot approve POI while vendor is not approved" });
         }
 
-        var pendingUpdate = poi.PendingUpdateData;
-        var isPendingContentUpdate = pendingUpdate != null;
-        var reviewStatusAfterDecision = status;
-        if (status == "rejected" && isPendingContentUpdate)
-        {
-            reviewStatusAfterDecision = poi.ReviewStatus;
-        }
-
         var update = Builders<POI>.Update
-            .Set(p => p.ReviewStatus, reviewStatusAfterDecision)
+            .Set(p => p.ReviewStatus, status)
             .Set(p => p.ReviewNote, request.Note)
             .Set(p => p.ReviewedAt, DateTime.UtcNow)
             .Set(p => p.ReviewedBy, User.Identity?.Name ?? "admin")
+            .Set(p => p.IsActive, status == "approved")
             .Set(p => p.PendingChanges, null)
-            .Set(p => p.PendingUpdateData, null)
             .Set(p => p.UpdatedAt, DateTime.UtcNow);
 
-        if (status == "approved")
+        // When rejected: REVERT the actual field data back to original values stored in PendingChanges
+        if (status == "rejected" && poi.PendingChanges != null)
         {
-            if (isPendingContentUpdate)
+            foreach (var kv in poi.PendingChanges)
             {
-                update = update
-                    .Set(p => p.Name_Vi, pendingUpdate!.Name_Vi)
-                    .Set(p => p.Name_En, pendingUpdate.Name_En)
-                    .Set(p => p.Name_Zh, pendingUpdate.Name_Zh)
-                    .Set(p => p.Description_Vi, pendingUpdate.Description_Vi)
-                    .Set(p => p.Description_En, pendingUpdate.Description_En)
-                    .Set(p => p.Description_Zh, pendingUpdate.Description_Zh)
-                    .Set(p => p.Address, pendingUpdate.Address)
-                    .Set(p => p.Location, GeoJsonLocation.FromLatLon(pendingUpdate.Latitude, pendingUpdate.Longitude))
-                    .Set(p => p.Category, pendingUpdate.Category)
-                    .Set(p => p.SignatureDishes, pendingUpdate.SignatureDishes)
-                    .Set(p => p.Specialties, pendingUpdate.Specialties)
-                    .Set(p => p.History, pendingUpdate.History)
-                    .Set(p => p.Story, pendingUpdate.Story)
-                    .Set(p => p.OpeningHours, pendingUpdate.OpeningHours)
-                    .Set(p => p.OpeningHoursText, pendingUpdate.OpeningHoursText)
-                    .Set(p => p.PhoneNumber, pendingUpdate.PhoneNumber)
-                    .Set(p => p.AveragePrice, pendingUpdate.AveragePrice)
-                    .Set(p => p.PriceLevel, pendingUpdate.PriceLevel)
-                    .Set(p => p.Rating, pendingUpdate.Rating)
-                    .Set(p => p.Tags, pendingUpdate.Tags)
-                    .Set(p => p.ImageUrl, pendingUpdate.ImageUrl)
-                    .Set(p => p.ImageUrls, pendingUpdate.ImageUrls)
-                    .Set(p => p.FunFact, pendingUpdate.FunFact)
-                    .Set(p => p.IsActive, poi.IsActive);
+                var oldVal = kv.Value?.Old;
+                if (oldVal == null) continue;
+
+                switch (kv.Key)
+                {
+                    case "T\u00ean qu\u00e1n":
+                        update = update.Set(p => p.Name_Vi, oldVal);
+                        break;
+
+                    case "\u0110\u1ecba ch\u1ec9":
+                        update = update.Set(p => p.Address, oldVal);
+                        break;
+
+                    case "V\u1ecb tr\u00ed GPS":
+                        // OldVal format: "lat, lon"
+                        var parts = oldVal.Split(',');
+                        if (parts.Length == 2 &&
+                            double.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture, out var oldLat) &&
+                            double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture, out var oldLon))
+                        {
+                            update = update.Set(p => p.Location, GeoJsonLocation.FromLatLon(oldLat, oldLon));
+                        }
+                        break;
+                }
             }
-            else
-            {
-                // Initial POI pending approval flow
-                update = update.Set(p => p.IsActive, true);
-            }
-        }
-        else
-        {
-            // Rejected: keep current live data untouched.
-            update = update.Set(p => p.IsActive, poi.IsActive);
         }
 
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
 
-        var approvedPoiName = pendingUpdate?.Name_Vi ?? poi.Name_Vi;
-        var noteText = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
-
-        if (poi.VendorId.HasValue)
-        {
-            if (status == "approved")
-            {
-                await _notifications.PublishToVendorAsync(
-                    vendorId: poi.VendorId.Value,
-                    title: "POI đã được duyệt",
-                    message: $"POI \"{approvedPoiName}\" đã được Admin duyệt. Dữ liệu mới đã được áp dụng.",
-                    href: "poi-list?reviewStatus=approved",
-                    kind: "success",
-                    icon: "fa-circle-check",
-                    category: "poi");
-            }
-            else
-            {
-                var detail = noteText != null ? $" Lý do: {noteText}" : string.Empty;
-                await _notifications.PublishToVendorAsync(
-                    vendorId: poi.VendorId.Value,
-                    title: "POI bị từ chối",
-                    message: $"Yêu cầu chỉnh sửa POI \"{poi.Name_Vi}\" đã bị từ chối.{detail}",
-                    href: "poi-list?reviewStatus=rejected",
-                    kind: "warn",
-                    icon: "fa-circle-xmark",
-                    category: "poi");
-            }
-        }
-
-        // Keep admin side informed for cross-team visibility.
-        var adminTitle = status == "approved" ? "POI đã được duyệt" : "POI bị từ chối";
-        var adminMessage = status == "approved"
-            ? $"Admin vừa duyệt POI \"{approvedPoiName}\" và đã áp dụng dữ liệu mới."
-            : $"Admin vừa từ chối yêu cầu chỉnh sửa POI \"{poi.Name_Vi}\".";
-        await _notifications.PublishToAdminsAsync(
-            title: adminTitle,
-            message: adminMessage,
-            href: status == "approved" ? "poi-list?reviewStatus=approved" : "poi-list?reviewStatus=rejected",
-            kind: status == "approved" ? "success" : "warn",
-            icon: status == "approved" ? "fa-circle-check" : "fa-circle-xmark",
-            category: "poi");
-
         var resultMsg = status == "rejected"
-            ? "Đã từ chối chỉnh sửa. Dữ liệu đang hoạt động được giữ nguyên."
-            : "POI đã được duyệt và áp dụng dữ liệu mới thành công.";
+            ? "Đã từ chối và khôi phục lại dữ liệu gốc cho POI."
+            : "POI đã được duyệt thành công.";
         return Ok(new { message = resultMsg });
     }
+
     /// <summary>
     /// Check integrity of Vendor-POI relation.
     /// </summary>
@@ -1054,11 +944,7 @@ public class POIsController : ControllerBase
         var activeFilter = Builders<POI>.Filter.Eq(p => p.IsActive, true) & Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
         var inactiveFilter = Builders<POI>.Filter.Eq(p => p.IsActive, false) & Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
         var totalFilter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
-        var pendingFilter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null) &
-                            Builders<POI>.Filter.Or(
-                                Builders<POI>.Filter.Eq(p => p.ReviewStatus, "pending"),
-                                Builders<POI>.Filter.Ne(p => p.PendingUpdateData, null),
-                                Builders<POI>.Filter.Ne(p => p.PendingChanges, null));
+        var pendingFilter = Builders<POI>.Filter.Eq(p => p.ReviewStatus, "pending") & Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
 
         var totalPOIs = await _db.POIs.CountDocumentsAsync(totalFilter);
         var activePOIs = await _db.POIs.CountDocumentsAsync(activeFilter);
@@ -1292,266 +1178,36 @@ public class POIsController : ControllerBase
         return Convert.ToHexString(bytes);
     }
 
-    private static POI NormalizeLegacyPendingForView(POI poi)
+    /// <summary>
+    /// Determines if a vendor update is a "major" change requiring admin review.
+    /// Major = tên quán, địa chỉ, hoặc vị trí GPS thay đổi.
+    /// Minor = mô tả, audio, menu, giờ mở cửa, SĐT, giá, ảnh → auto-approve.
+    /// </summary>
+    private static bool IsMajorChange(POI existing, UpdatePOIModel model)
     {
-        var review = (poi.ReviewStatus ?? string.Empty).Trim().ToLowerInvariant();
-        if (review != "pending" || poi.PendingChanges == null || poi.PendingChanges.Count == 0)
+        // Tên quán thay đổi
+        if (model.Name_Vi != null &&
+            !string.Equals(model.Name_Vi.Trim(), existing.Name_Vi?.Trim(), StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Địa chỉ thay đổi
+        if (model.Address != null &&
+            !string.Equals(model.Address.Trim(), existing.Address?.Trim(), StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Vị trí GPS thay đổi (thay đổi hơn ~10 mét)
+        if (model.Latitude.HasValue || model.Longitude.HasValue)
         {
-            return poi;
+            var newLat = model.Latitude.HasValue ? (double)model.Latitude.Value : existing.Location.Latitude;
+            var newLon = model.Longitude.HasValue ? (double)model.Longitude.Value : existing.Location.Longitude;
+            var distanceMeters = CalculateDistanceMeters(
+                existing.Location.Latitude, existing.Location.Longitude,
+                newLat, newLon);
+            if (distanceMeters > 10)
+                return true;
         }
 
-        // Legacy compatibility: old flow could overwrite live fields while waiting admin approval.
-        var restoredAny = false;
-
-        if (TryRestoreLegacyStringValue(poi.PendingChanges, poi.Name_Vi, out var restoredNameVi, "nameVi", "Tên quán"))
-        {
-            poi.Name_Vi = restoredNameVi!;
-            restoredAny = true;
-        }
-
-        if (TryRestoreLegacyStringValue(poi.PendingChanges, poi.Address, out var restoredAddress, "address", "Địa chỉ"))
-        {
-            poi.Address = restoredAddress;
-            restoredAny = true;
-        }
-
-        if (TryRestoreLegacyLocation(poi.PendingChanges, poi.Location, out var restoredLocation, "location", "Vị trí GPS"))
-        {
-            poi.Location = restoredLocation!;
-            restoredAny = true;
-        }
-
-        if (restoredAny && !poi.IsActive)
-        {
-            poi.IsActive = true;
-        }
-
-        return poi;
-    }
-
-    private static PendingFieldChange? GetPendingChange(Dictionary<string, PendingFieldChange> changes, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            if (changes.TryGetValue(key, out var change) && change != null)
-            {
-                return change;
-            }
-        }
-
-        foreach (var pair in changes)
-        {
-            if (keys.Any(k => string.Equals(pair.Key, k, StringComparison.OrdinalIgnoreCase)))
-            {
-                return pair.Value;
-            }
-        }
-
-        return null;
-    }
-
-    private static bool TryRestoreLegacyStringValue(
-        Dictionary<string, PendingFieldChange> changes,
-        string? currentValue,
-        out string? restoredValue,
-        params string[] keys)
-    {
-        restoredValue = null;
-        var change = GetPendingChange(changes, keys);
-        if (change == null
-            || string.IsNullOrWhiteSpace(change.Old)
-            || string.IsNullOrWhiteSpace(change.New))
-        {
-            return false;
-        }
-
-        if (NormalizeForComparison(currentValue) != NormalizeForComparison(change.New))
-        {
-            return false;
-        }
-
-        if (NormalizeForComparison(change.Old) == NormalizeForComparison(change.New))
-        {
-            return false;
-        }
-
-        restoredValue = change.Old;
-        return true;
-    }
-
-    private static bool TryRestoreLegacyLocation(
-        Dictionary<string, PendingFieldChange> changes,
-        GeoJsonLocation? current,
-        out GeoJsonLocation? restoredLocation,
-        params string[] keys)
-    {
-        restoredLocation = null;
-        if (current == null)
-        {
-            return false;
-        }
-
-        var change = GetPendingChange(changes, keys);
-        if (change == null
-            || string.IsNullOrWhiteSpace(change.Old)
-            || string.IsNullOrWhiteSpace(change.New))
-        {
-            return false;
-        }
-
-        if (!TryParseLatLon(change.New, out var newLat, out var newLon)
-            || !TryParseLatLon(change.Old, out var oldLat, out var oldLon))
-        {
-            return false;
-        }
-
-        var currentMatchesNew = Math.Abs(current.Latitude - newLat) < 0.000001
-            && Math.Abs(current.Longitude - newLon) < 0.000001;
-        if (!currentMatchesNew)
-        {
-            return false;
-        }
-
-        var oldEqualsNew = Math.Abs(oldLat - newLat) < 0.000001
-            && Math.Abs(oldLon - newLon) < 0.000001;
-        if (oldEqualsNew)
-        {
-            return false;
-        }
-
-        restoredLocation = GeoJsonLocation.FromLatLon(oldLat, oldLon);
-        return true;
-    }
-
-    private static bool TryParseLatLon(string raw, out double lat, out double lon)
-    {
-        lat = 0;
-        lon = 0;
-        var parts = raw.Split(',');
-        if (parts.Length != 2)
-        {
-            return false;
-        }
-
-        if (!double.TryParse(parts[0].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out lat))
-        {
-            return false;
-        }
-
-        if (!double.TryParse(parts[1].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out lon))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private static POIPendingUpdateData BuildVendorPendingUpdate(POI existing, UpdatePOIModel model)
-    {
-        var imageUrl = !string.IsNullOrWhiteSpace(model.ImageUrl) ? model.ImageUrl : existing.ImageUrl;
-        var imageUrls = !string.IsNullOrWhiteSpace(model.ImageUrl)
-            ? new List<string> { model.ImageUrl }
-            : (model.ImageUrls ?? existing.ImageUrls);
-
-        return new POIPendingUpdateData
-        {
-            Name_Vi = model.Name_Vi ?? existing.Name_Vi,
-            Name_En = model.Name_En ?? existing.Name_En,
-            Name_Zh = model.Name_Zh ?? existing.Name_Zh,
-            Description_Vi = model.Description_Vi ?? existing.Description_Vi,
-            Description_En = model.Description_En ?? existing.Description_En,
-            Description_Zh = model.Description_Zh ?? existing.Description_Zh,
-            Address = model.Address ?? existing.Address,
-            Latitude = model.Latitude.HasValue ? (double)model.Latitude.Value : existing.Location.Latitude,
-            Longitude = model.Longitude.HasValue ? (double)model.Longitude.Value : existing.Location.Longitude,
-            Category = model.Category ?? existing.Category,
-            SignatureDishes = BuildSignatureDishes(model.SignatureDish, model.SignatureDishes) ?? existing.SignatureDishes,
-            Specialties = model.Specialties ?? existing.Specialties,
-            History = model.History ?? existing.History,
-            Story = model.Story ?? existing.Story,
-            OpeningHours = model.OpeningHours ?? existing.OpeningHours,
-            OpeningHoursText = model.OpeningHoursText ?? existing.OpeningHoursText,
-            PhoneNumber = model.PhoneNumber ?? existing.PhoneNumber,
-            AveragePrice = model.AveragePrice ?? existing.AveragePrice,
-            PriceLevel = model.PriceLevel ?? existing.PriceLevel,
-            Rating = model.Rating ?? existing.Rating,
-            Tags = model.Tags ?? existing.Tags,
-            ImageUrl = imageUrl,
-            ImageUrls = imageUrls,
-            FunFact = model.FunFact ?? existing.FunFact
-        };
-    }
-
-    private static Dictionary<string, PendingFieldChange> BuildPendingChangesDiff(POI existing, POIPendingUpdateData pending)
-    {
-        var diff = new Dictionary<string, PendingFieldChange>();
-
-        AddPendingDiff(diff, "nameVi", existing.Name_Vi, pending.Name_Vi);
-        AddPendingDiff(diff, "nameEn", existing.Name_En, pending.Name_En);
-        AddPendingDiff(diff, "nameZh", existing.Name_Zh, pending.Name_Zh);
-        AddPendingDiff(diff, "descriptionVi", existing.Description_Vi, pending.Description_Vi);
-        AddPendingDiff(diff, "descriptionEn", existing.Description_En, pending.Description_En);
-        AddPendingDiff(diff, "descriptionZh", existing.Description_Zh, pending.Description_Zh);
-        AddPendingDiff(diff, "category", existing.Category, pending.Category);
-        AddPendingDiff(diff, "address", existing.Address, pending.Address);
-        AddPendingDiff(diff, "openingHours", JoinForDisplay(existing.OpeningHours, "; "), JoinForDisplay(pending.OpeningHours, "; "));
-        AddPendingDiff(diff, "openingHoursText", existing.OpeningHoursText, pending.OpeningHoursText);
-        AddPendingDiff(diff, "phoneNumber", existing.PhoneNumber, pending.PhoneNumber);
-        AddPendingDiff(diff, "averagePrice", ToInvariant(existing.AveragePrice), ToInvariant(pending.AveragePrice));
-        AddPendingDiff(diff, "priceLevel", ToInvariant(existing.PriceLevel), ToInvariant(pending.PriceLevel));
-        AddPendingDiff(diff, "signatureDishes", JoinForDisplay(existing.SignatureDishes, ", "), JoinForDisplay(pending.SignatureDishes, ", "));
-        AddPendingDiff(diff, "specialties", JoinForDisplay(existing.Specialties, ", "), JoinForDisplay(pending.Specialties, ", "));
-        AddPendingDiff(diff, "tags", JoinForDisplay(existing.Tags, ", "), JoinForDisplay(pending.Tags, ", "));
-        AddPendingDiff(diff, "funFact", existing.FunFact, pending.FunFact);
-        AddPendingDiff(diff, "imageUrl", existing.ImageUrl, pending.ImageUrl);
-
-        var distanceMeters = CalculateDistanceMeters(
-            existing.Location.Latitude, existing.Location.Longitude,
-            pending.Latitude, pending.Longitude);
-        if (distanceMeters > 0.5)
-        {
-            diff["location"] = new PendingFieldChange
-            {
-                Old = $"{existing.Location.Latitude:F6}, {existing.Location.Longitude:F6}",
-                New = $"{pending.Latitude:F6}, {pending.Longitude:F6}"
-            };
-        }
-
-        return diff;
-    }
-
-    private static void AddPendingDiff(Dictionary<string, PendingFieldChange> diff, string key, string? oldValue, string? newValue)
-    {
-        if (NormalizeForComparison(oldValue) == NormalizeForComparison(newValue))
-        {
-            return;
-        }
-
-        diff[key] = new PendingFieldChange
-        {
-            Old = oldValue,
-            New = newValue
-        };
-    }
-
-    private static string JoinForDisplay(List<string>? values, string separator)
-    {
-        if (values == null || values.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        return string.Join(separator, values.Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()));
-    }
-
-    private static string ToInvariant(object? value)
-    {
-        if (value == null)
-        {
-            return string.Empty;
-        }
-
-        return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+        return false;
     }
 
     private static double CalculateDistanceMeters(double lat1, double lon1, double lat2, double lon2)
@@ -1569,6 +1225,21 @@ public class POIsController : ControllerBase
     }
 
     private static double DegreesToRadians(double degrees) => degrees * (Math.PI / 180);
+
+    private static string? NormalizeMapUrl(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+            return null;
+
+        var trimmed = rawUrl.Trim();
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+            return null;
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            return null;
+
+        return uri.ToString();
+    }
 }
 
 // DTOs
@@ -1601,15 +1272,14 @@ public class POIDto
     public string? Description_En { get; set; }
     public string? Description_Zh { get; set; }
     public string Address { get; set; } = null!;
+    public string? MapUrl { get; set; }
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
     public int AudioCount { get; set; }
     public int? VendorId { get; set; }
     public string? ReviewStatus { get; set; }
-    public string? ReviewNote { get; set; }
     public string? Category { get; set; }
     public string? SignatureDish { get; set; }
     public string? OpeningHoursText { get; set; }
@@ -1659,6 +1329,7 @@ public class CreatePOIModel
     public string? Description_En { get; set; }
     public string? Description_Zh { get; set; }
     public string Address { get; set; } = null!;
+    public string? MapUrl { get; set; }
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
     public string? Category { get; set; }
@@ -1701,6 +1372,7 @@ public class UpdatePOIModel
     public string? Description_En { get; set; }
     public string? Description_Zh { get; set; }
     public string? Address { get; set; }
+    public string? MapUrl { get; set; }
     public decimal? Latitude { get; set; }
     public decimal? Longitude { get; set; }
     public string? Category { get; set; }
@@ -1734,6 +1406,3 @@ public class UpdatePOIModel
     public int? MaxPlaysPerSession { get; set; }
     public bool? IsActive { get; set; }
 }
-
-
-

@@ -9,7 +9,7 @@
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js?v=20260408-notif-activity"></script>
+    <script src="sidebar.js?v=20260406"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -37,28 +37,15 @@
         }
 
         .container {
-            max-width: 1040px;
-            margin: 0 auto 0 0;
-            padding: 2rem 2.25rem;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
         }
 
         /* Vendor Simple Mode */
         .vendor-mode .container {
-            max-width: 1280px;
+            max-width: 700px;
         }
-
-        .form-layout {
-            display: grid;
-            grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
-            gap: 1.5rem;
-            align-items: start;
-        }
-
-        .form-row {
-            width: 100%;
-        }
-
-        .form-row-secondary { margin-top: 0; }
 
         /* Page Header */
         .page-header {
@@ -289,6 +276,51 @@
         .form-help i {
             font-size: 0.75rem;
             color: var(--primary);
+        }
+
+        /* Address Autocomplete */
+        .address-field {
+            position: relative;
+        }
+
+        .address-suggestions {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+            display: none;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .address-suggestions.show {
+            display: block;
+        }
+
+        .address-item {
+            padding: 0.875rem 1.1rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .address-item:last-child {
+            border-bottom: none;
+        }
+
+        .address-item:hover {
+            background: rgba(255, 107, 53, 0.05);
+        }
+
+        .address-empty {
+            padding: 0.875rem 1.1rem;
+            color: #888;
+            text-align: center;
         }
 
         /* Opening Hours - Simple Version */
@@ -610,11 +642,6 @@
                 padding: 1rem;
             }
 
-            .form-layout {
-                grid-template-columns: 1fr;
-                gap: 0.5rem;
-            }
-
             .page-title {
                 font-size: 2rem;
             }
@@ -683,8 +710,6 @@
 
         <!-- Form -->
         <form id="poiForm">
-            <div class="form-layout">
-                <div class="form-row form-row-primary">
             <!-- Basic Information -->
             <div class="form-section">
                 <h2 class="section-title">
@@ -785,8 +810,11 @@
                         Địa chỉ
                         <span class="required">*</span>
                     </label>
-                    <input type="text" class="form-input" id="address"
-                        placeholder="VD: 123 Vĩnh Khánh, Phường 5, Quận 4" autocomplete="off" required>
+                    <div class="address-field">
+                        <input type="text" class="form-input" id="address"
+                            placeholder="VD: 123 Vĩnh Khánh, Phường 5, Quận 4" autocomplete="off" required>
+                        <div id="addressSuggestions" class="address-suggestions"></div>
+                    </div>
                     <div class="form-help">
                         <i class="fas fa-map-marker-alt"></i>
                         Địa chỉ chính xác giúp du khách dễ tìm thấy quán
@@ -833,43 +861,22 @@
                         Tọa độ GPS
                         <span class="required">*</span>
                     </label>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label class="form-label" style="font-size: 0.85rem;">Cách nhập tọa độ</label>
-                        <select class="form-select" id="gpsInputMode">
-                            <option value="manual">Nhập thủ công lat/lng</option>
-                            <option value="maplink">Dán link Google Maps</option>
-                        </select>
-                    </div>
-
-                    <div id="gpsManualGroup">
-                        <div class="coordinate-group">
-                            <div>
-                                <input type="text" class="form-input" id="latitude" placeholder="Latitude (VD: 10.7623)">
-                                <div class="form-help">
-                                    <i class="fas fa-globe"></i>
-                                    Vĩ độ
-                                </div>
-                            </div>
-                            <div>
-                                <input type="text" class="form-input" id="longitude" placeholder="Longitude (VD: 106.7024)">
-                                <div class="form-help">
-                                    <i class="fas fa-globe"></i>
-                                    Kinh độ
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="gpsMapLinkGroup" style="display:none; margin-top: 0.75rem;">
+                    <div id="gpsMapLinkGroup" style="margin-top: 0.75rem;">
                         <div class="input-group">
                             <input type="url" class="form-input" id="mapUrl" placeholder="VD: https://maps.app.goo.gl/...">
                             <button type="button" class="btn btn-primary" id="btnResolveMap" style="white-space: nowrap;">
                                 <i class="fas fa-search-location"></i> Lấy tọa độ
                             </button>
                         </div>
+                        <input type="hidden" id="latitude">
+                        <input type="hidden" id="longitude">
                         <div class="form-help" id="mapUrlStatus">
                             <i class="fas fa-link"></i>
                             Dán link chia sẻ Google Maps để tự điền Lat/Lng
+                        </div>
+                        <div class="form-help" id="resolvedCoords" style="display: none; margin-top: 0.35rem;">
+                            <i class="fas fa-crosshairs"></i>
+                            Lat: <strong id="resolvedLat">-</strong>, Lng: <strong id="resolvedLng">-</strong>
                         </div>
                     </div>
                 </div>
@@ -988,8 +995,6 @@
                     </div>
                 </div>
             </div>
-                </div>
-                <div class="form-row form-row-secondary">
 
             <!-- Opening Hours -->
             <div class="form-section">
@@ -1125,8 +1130,6 @@
                     Sau khi tạo gian hàng, bạn có thể thêm file thuyết minh (audio) tại trang <strong>Quản lý
                         Audio</strong>.
                     Hệ thống cũng hỗ trợ tạo thuyết minh tự động bằng AI cho nhiều ngôn ngữ.
-                </div>
-            </div>
                 </div>
             </div>
 
@@ -1265,12 +1268,103 @@
             document.getElementById(`lang-${lang}`).classList.add('active');
         }
 
-        function applyGpsInputMode() {
-            const mode = document.getElementById('gpsInputMode')?.value || 'manual';
-            const manualGroup = document.getElementById('gpsManualGroup');
-            const mapLinkGroup = document.getElementById('gpsMapLinkGroup');
-            if (manualGroup) manualGroup.style.display = '';
-            if (mapLinkGroup) mapLinkGroup.style.display = mode === 'maplink' ? '' : 'none';
+        // Address autocomplete
+        function setupAddressSuggestions() {
+            const input = document.getElementById('address');
+            const box = document.getElementById('addressSuggestions');
+            if (!input || !box) return;
+
+            let timer = null;
+            const vinhKhanhHint = 'Vĩnh Khánh, Quận 4, TP.HCM';
+
+            const normalize = (str) => String(str || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+
+            const isInVinhKhanh = (item) => {
+                const name = normalize(item?.display_name || '');
+                const road = normalize(item?.address?.road || '');
+                const suburb = normalize(item?.address?.suburb || '');
+                const district = normalize(item?.address?.city_district || item?.address?.county || '');
+
+                const hasVinhKhanh = name.includes('vinh khanh') || road.includes('vinh khanh') || suburb.includes('vinh khanh');
+                const hasDistrict4 = name.includes('quan 4') || name.includes('district 4') || district.includes('4');
+
+                return hasVinhKhanh && hasDistrict4;
+            };
+
+            const hideBox = () => {
+                box.classList.remove('show');
+                box.innerHTML = '';
+            };
+
+            const showSuggestions = (items) => {
+                box.innerHTML = '';
+
+                if (!items.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'address-empty';
+                    empty.textContent = 'Không tìm thấy địa chỉ trong khu Vĩnh Khánh, Quận 4';
+                    box.appendChild(empty);
+                    box.classList.add('show');
+                    return;
+                }
+
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'address-item';
+                    row.textContent = item.display_name || '';
+                    row.addEventListener('click', () => {
+                        input.value = item.display_name || '';
+
+                        const lat = parseFloat(item.lat);
+                        const lng = parseFloat(item.lon);
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            document.getElementById('latitude').value = lat.toFixed(6);
+                            document.getElementById('longitude').value = lng.toFixed(6);
+                        }
+
+                        hideBox();
+                    });
+                    box.appendChild(row);
+                });
+
+                box.classList.add('show');
+            };
+
+            const fetchSuggestions = async () => {
+                const query = input.value.trim();
+                if (query.length < 3) {
+                    hideBox();
+                    return;
+                }
+
+                try {
+                    const results = await api.geocode(`${query}, ${vinhKhanhHint}`, 10);
+                    const list = Array.isArray(results) ? results : [];
+                    const filtered = list.filter(isInVinhKhanh);
+                    showSuggestions(filtered);
+                } catch (error) {
+                    console.error('Geocoding error:', error);
+                    hideBox();
+                }
+            };
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(fetchSuggestions, 400);
+            });
+
+            input.addEventListener('focus', () => {
+                if (input.value.trim().length >= 3) {
+                    fetchSuggestions();
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                setTimeout(hideBox, 250);
+            });
         }
 
         // Opening hours preset
@@ -1437,6 +1531,7 @@
                 name_Vi: name_Vi,
                 description_Vi: description_Vi,
                 address: document.getElementById('address').value,
+                mapUrl: document.getElementById('mapUrl')?.value?.trim() || null,
                 category: document.getElementById('category')?.value || null,
                 openingHoursText: hoursData.openingHoursText || null,
                 openingHours: hoursData.openingHours || null,
@@ -1545,7 +1640,7 @@
                     poiData.latitude = lat;
                     poiData.longitude = lng;
                 } else {
-                    errorDiv.textContent = '❌ Vui lòng nhập Lat/Lng thủ công hoặc dán link Google Maps để lấy tọa độ.';
+                    errorDiv.textContent = '❌ Vui lòng dán link Google Maps và bấm "Lấy tọa độ" trước khi tạo POI.';
                     errorDiv.style.display = 'block';
                     submitBtns.forEach(btn => {
                         btn.disabled = false;
@@ -1585,12 +1680,10 @@
             applyRoleUi();
             await loadVendorContext();
             await loadAdminVendorOptions();
+            setupAddressSuggestions();
             updateHoursPreview();
-            applyGpsInputMode();
         })();
 
-        const gpsInputMode = document.getElementById('gpsInputMode');
-        if (gpsInputMode) gpsInputMode.addEventListener('change', applyGpsInputMode);
         const zoneTypeSelect = document.getElementById('zoneType');
         const cooldownInput = document.getElementById('cooldownMinutes');
         if (cooldownInput) {
@@ -1654,6 +1747,9 @@
         document.getElementById('btnResolveMap')?.addEventListener('click', async () => {
             const urlInput = document.getElementById('mapUrl');
             const statusDiv = document.getElementById('mapUrlStatus');
+            const resolvedCoords = document.getElementById('resolvedCoords');
+            const resolvedLat = document.getElementById('resolvedLat');
+            const resolvedLng = document.getElementById('resolvedLng');
             const url = urlInput.value.trim();
 
             if (!url) {
@@ -1663,6 +1759,7 @@
 
             statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lấy tọa độ...';
             statusDiv.style.color = '#666';
+            if (resolvedCoords) resolvedCoords.style.display = 'none';
 
             try {
                 const token = TokenManager.getToken();
@@ -1687,11 +1784,18 @@
                 if (latInput) latInput.value = data.latitude;
                 if (lngInput) lngInput.value = data.longitude;
 
+                const latValue = Number.parseFloat(data.latitude);
+                const lngValue = Number.parseFloat(data.longitude);
+                if (resolvedLat) resolvedLat.textContent = Number.isFinite(latValue) ? latValue.toFixed(6) : String(data.latitude);
+                if (resolvedLng) resolvedLng.textContent = Number.isFinite(lngValue) ? lngValue.toFixed(6) : String(data.longitude);
+                if (resolvedCoords) resolvedCoords.style.display = '';
+
                 statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Đã lấy tọa độ thành công!';
                 statusDiv.style.color = 'var(--success)';
             } catch (err) {
                 statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Lỗi: ${err.message}`;
                 statusDiv.style.color = 'var(--danger)';
+                if (resolvedCoords) resolvedCoords.style.display = 'none';
             }
         });
 

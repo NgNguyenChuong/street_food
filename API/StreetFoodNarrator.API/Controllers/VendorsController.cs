@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
-using StreetFoodNarrator.API.Services;
 using System.Security.Claims;
 
 namespace StreetFoodNarrator.API.Controllers;
@@ -17,18 +16,12 @@ public class VendorsController : ControllerBase
     private readonly MongoDbContext _db;
     private readonly MongoSequenceService _sequence;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly NotificationService _notifications;
 
-    public VendorsController(
-        MongoDbContext db,
-        MongoSequenceService sequence,
-        UserManager<ApplicationUser> userManager,
-        NotificationService notifications)
+    public VendorsController(MongoDbContext db, MongoSequenceService sequence, UserManager<ApplicationUser> userManager)
     {
         _db = db;
         _sequence = sequence;
         _userManager = userManager;
-        _notifications = notifications;
     }
 
     [Authorize(Roles = "Admin,Vendor")]
@@ -233,10 +226,6 @@ public class VendorsController : ControllerBase
         if (string.IsNullOrWhiteSpace(status) || !allowedStatuses.Contains(status))
             return BadRequest(new { message = "Invalid status. Allowed: pending, approved, rejected" });
 
-        var existingVendor = await _db.VendorProfiles.Find(v => v.VendorId == vendorId).FirstOrDefaultAsync();
-        if (existingVendor == null)
-            return NotFound(new { message = "Vendor not found" });
-
         var filter = Builders<VendorProfile>.Filter.Eq(v => v.VendorId, vendorId);
         var update = Builders<VendorProfile>.Update
             .Set(v => v.VerificationStatus, status)
@@ -244,46 +233,8 @@ public class VendorsController : ControllerBase
             .Set(v => v.UpdatedAt, DateTime.UtcNow);
 
         var result = await _db.VendorProfiles.UpdateOneAsync(filter, update);
-
-        var vendorName = existingVendor.BusinessName
-            ?? existingVendor.ContactName
-            ?? $"Vendor #{vendorId}";
-        if (!string.Equals(existingVendor.VerificationStatus, status, StringComparison.OrdinalIgnoreCase))
-        {
-            if (status == "approved")
-            {
-                await _notifications.PublishToVendorAsync(
-                    vendorId,
-                    title: "Tài khoản Vendor đã được duyệt",
-                    message: $"Tài khoản \"{vendorName}\" đã được Admin duyệt và mở quyền quản lý nội dung.",
-                    href: "dashboard",
-                    kind: "success",
-                    icon: "fa-store",
-                    category: "vendor");
-            }
-            else if (status == "rejected")
-            {
-                await _notifications.PublishToVendorAsync(
-                    vendorId,
-                    title: "Tài khoản Vendor bị từ chối",
-                    message: $"Tài khoản \"{vendorName}\" đã bị Admin từ chối. Vui lòng liên hệ Admin để được hỗ trợ.",
-                    href: "dashboard",
-                    kind: "warn",
-                    icon: "fa-triangle-exclamation",
-                    category: "vendor");
-            }
-            else
-            {
-                await _notifications.PublishToVendorAsync(
-                    vendorId,
-                    title: "Tài khoản Vendor chuyển về chờ duyệt",
-                    message: $"Tài khoản \"{vendorName}\" đã được chuyển sang trạng thái chờ duyệt.",
-                    href: "dashboard",
-                    kind: "info",
-                    icon: "fa-hourglass-half",
-                    category: "vendor");
-            }
-        }
+        if (result.MatchedCount == 0)
+            return NotFound(new { message = "Vendor not found" });
 
         return Ok(new { message = $"Vendor status updated to {status}" });
     }

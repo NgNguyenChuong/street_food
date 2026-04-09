@@ -9,7 +9,7 @@
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js?v=20260408-notif-activity"></script>
+    <script src="sidebar.js"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -1363,13 +1363,8 @@
             window.location.href = '/index';
         }
 
-        const roleSet = new Set(
-            [...(Array.isArray(user?.roles) ? user.roles : []), ...(Array.isArray(user?.roleNames) ? user.roleNames : [])]
-                .map(r => String(r || '').trim().toLowerCase())
-                .filter(Boolean)
-        );
-        const isAdmin = roleSet.has('admin');
-        const isVendor = roleSet.has('vendor');
+        const isAdmin = user?.roles?.includes('Admin');
+        const isVendor = user?.roles?.includes('Vendor');
 
         let currentStatus = true;
         let currentPoiId = null;
@@ -1667,19 +1662,12 @@
 
             const review = (poi?.reviewStatus || '').toLowerCase();
             const isActive = !!(poi?.isActive);
-            const hasPendingChanges = !!(poi?.pendingChanges && Object.keys(poi.pendingChanges).length);
 
             let cls = 'pending';
             let text = 'Chờ duyệt';
             let help = 'Trạng thái này do Admin quyết định.';
 
-            if (hasPendingChanges) {
-                cls = 'pending';
-                text = isActive ? '\u0110ang ch\u1edd duy\u1ec7t ch\u1ec9nh s\u1eeda' : 'Ch\u1edd duy\u1ec7t ch\u1ec9nh s\u1eeda';
-                help = isActive
-                    ? 'POI v\u1eabn \u0111ang ho\u1ea1t \u0111\u1ed9ng v\u1edbi d\u1eef li\u1ec7u c\u0169. N\u1ed9i dung m\u1edbi s\u1ebd \u00e1p d\u1ee5ng sau khi Admin duy\u1ec7t.'
-                    : 'POI \u0111ang ch\u1edd Admin duy\u1ec7t n\u1ed9i dung ch\u1ec9nh s\u1eeda.';
-            } else if (review === 'approved' && isActive) {
+            if (review === 'approved' && isActive) {
                 cls = 'approved';
                 text = 'Đã duyệt - Đang hoạt động';
                 help = 'POI đang hiển thị cho người dùng cuối.';
@@ -1829,8 +1817,6 @@
                 // Admin: update review badge and show/hide review action panel
                 if (isAdmin) {
                     const reviewStatus = (poi.reviewStatus || '').toLowerCase();
-                    const hasPendingChanges = !!(poi?.pendingChanges && Object.keys(poi.pendingChanges).length);
-                    const effectiveReviewStatus = hasPendingChanges ? 'pending' : reviewStatus;
                     const badge = document.getElementById('adminReviewBadge');
                     const badgeText = document.getElementById('adminReviewText');
                     const noteEl = document.getElementById('adminReviewNote');
@@ -1841,18 +1827,18 @@
                         approved: { icon: 'fa-check-circle', text: '\u0110\u00e3 duy\u1ec7t',            bg: 'rgba(6,214,160,.15)', color: '#06d6a0' },
                         rejected: { icon: 'fa-times-circle', text: 'T\u1eeb ch\u1ed1i',              bg: 'rgba(239,71,111,.15)', color: '#EF476F' }
                     };
-                    const s = statusMap[effectiveReviewStatus] || statusMap.pending;
+                    const s = statusMap[reviewStatus] || statusMap.pending;
                     if (badge) {
                         badge.style.background = s.bg;
                         badge.style.color = s.color;
                         badge.innerHTML = `<i class="fas ${s.icon}"></i>`;
                     }
                     if (badgeText) badgeText.textContent = s.text;
-                    if (noteEl) noteEl.textContent = effectiveReviewStatus === 'rejected' && poi.reviewNote ? `L\u00fd do: ${poi.reviewNote}` : '';
-                    if (panel)  panel.style.display = hasPendingChanges || reviewStatus === 'pending' ? '' : 'none';
+                    if (noteEl) noteEl.textContent = reviewStatus === 'rejected' && poi.reviewNote ? `L\u00fd do: ${poi.reviewNote}` : '';
+                    if (panel)  panel.style.display = reviewStatus === 'pending' ? '' : 'none';
 
                     // Apply highlights if any
-                    if ((hasPendingChanges || reviewStatus === 'pending') && poi.pendingChanges) {
+                    if (reviewStatus === 'pending' && poi.pendingChanges) {
                         applyPendingChangesHighlight(poi.pendingChanges);
                     } else {
                         clearPendingChangesHighlight();
@@ -2167,57 +2153,29 @@
             clearPendingChangesHighlight();
             if (!changes) return;
 
-            const normalizeKey = (key) => {
-                const raw = String(key || '').trim();
-                const lower = raw.toLowerCase();
-                if (raw === 'Tên quán' || lower === 'tên quán') return 'nameVi';
-                if (raw === 'Địa chỉ' || lower === 'địa chỉ') return 'address';
-                if (raw === 'Vị trí GPS' || lower === 'vị trí gps') return 'location';
-                return raw;
-            };
-
+            // Mapping from server dict key string -> HTML Element ID or logical block
             const fieldMap = {
-                nameVi: 'poiName',
-                nameEn: 'poiName',
-                nameZh: 'poiName',
-                descriptionVi: 'poiDescription',
-                descriptionEn: 'poiDescription',
-                descriptionZh: 'poiDescription',
-                category: 'poiCategory',
-                address: 'poiAddress',
-                location: 'coordinateGroup',
-                openingHours: 'openingHoursEditor',
-                openingHoursText: 'openingHoursEditor',
-                phoneNumber: 'phone',
-                averagePrice: 'avgPrice',
-                priceLevel: 'avgPrice',
-                signatureDishes: 'specialty',
-                specialties: 'specialty',
-                tags: 'tags',
-                funFact: 'funFact',
-                imageUrl: 'imageDropzone',
-                imageUrls: 'imageDropzone'
+                'T\u00ean qu\u00e1n': 'poiName',
+                '\u0110\u1ecba ch\u1ec9': 'poiAddress',
+                'V\u1ecb tr\u00ed GPS': 'map' // We can highlight the map container
             };
 
-            const toText = (value) => {
-                const text = value == null ? '' : String(value).trim();
-                return text || '(Trống)';
-            };
-
-            for (const [rawKey, change] of Object.entries(changes)) {
-                const key = normalizeKey(rawKey);
+            for (const [key, change] of Object.entries(changes)) {
                 const elementId = fieldMap[key];
                 if (!elementId) continue;
 
                 const el = document.getElementById(elementId);
-                if (!el) continue;
-
-                el.classList.add('changed-field');
-
-                const hintMap = document.createElement('div');
-                hintMap.className = 'old-value-hint pending-change-hint';
-                hintMap.innerHTML = `<strong>Thông tin cũ:</strong> ${toText(change?.old)}<br><strong>Thông tin mới:</strong> ${toText(change?.new)}`;
-                el.parentNode.insertBefore(hintMap, el.nextSibling);
+                if (el) {
+                    el.classList.add('changed-field');
+                    
+                    // Add hint below the element
+                    const hintMap = document.createElement('div');
+                    hintMap.className = 'old-value-hint pending-change-hint';
+                    hintMap.innerHTML = `<strong>Th\u00f4ng tin c\u0169:</strong> ${change.old || '(Tr\u1ed1ng)'}`;
+                    
+                    // Insert hint after the input (or after its container)
+                    el.parentNode.insertBefore(hintMap, el.nextSibling);
+                }
             }
         }
 

@@ -6,7 +6,7 @@
     <title>Quản lý Audio - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Be+Vietnam+Pro:wght@400;500&family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js?v=20260408-notif-activity"></script>
+    <script src="sidebar.js?v=20260406"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -443,7 +443,7 @@
             position: relative;
         }
         .audio-bar .progress-fill::after {
-            content: 'ðŸ”¥';
+            content: '🔥';
             font-size: 13px;
             position: absolute;
             right: -9px; top: 50%;
@@ -845,7 +845,7 @@
                     <i class="fas fa-arrow-left"></i>
                     <span>Quay lại</span>
                 </button>
-                <button class="btn btn-secondary" onclick="openBulkGenerate()">
+                <button class="btn btn-secondary" id="bulkGenerateBtn" onclick="openBulkGenerate()">
                     <i class="fas fa-magic"></i>
                     <span>TTS Hàng loạt</span>
                 </button>
@@ -887,7 +887,7 @@
                         <option value="">Tất cả</option>
                         <option value="vi-VN">Tiếng Việt</option>
                         <option value="en-US">English</option>
-                        <option value="zh-CN">ä¸­æ–‡</option>
+                        <option value="zh-CN">中文</option>
                     </select>
                 </div>
 
@@ -940,6 +940,11 @@
 
     const isAdmin = user?.roles?.includes('Admin');
     const isVendor = user?.roles?.includes('Vendor');
+
+    const bulkGenerateBtn = document.getElementById('bulkGenerateBtn');
+    if (bulkGenerateBtn && isAdmin) {
+        bulkGenerateBtn.style.display = 'none';
+    }
 
     let currentPage     = 1;
     let groupsPerPage   = 5;   // Number of POI cards shown per page
@@ -1028,11 +1033,7 @@
     async function updateStats(audios, total) {
         const statsAudios = audios || [];
         const totalCount = total ?? statsAudios.length;
-        const poiSet = new Set(
-            statsAudios
-                .map(a => getAudioPoiId(a) ?? (a.poiName || '').trim().toLowerCase() || null)
-                .filter(v => v !== null && v !== undefined && v !== '')
-        );
+        const poiSet = new Set(statsAudios.map(a => a.poi_ID));
         const langSet = new Set(statsAudios.map(a => a.language || '').filter(Boolean));
         const totalSize = statsAudios.reduce((sum, a) => sum + (a.fileSize || 0), 0);
 
@@ -1099,6 +1100,9 @@
     }
 
     function openBulkGenerate() {
+        if (isAdmin) {
+            return;
+        }
         window.location.href = `audio-bulk-generate?v=${Date.now()}`;
     }
 
@@ -1124,24 +1128,8 @@
         return null;
     }
 
-    function getAudioPoiId(audio) {
-        if (!audio || typeof audio !== 'object') return null;
-
-        const raw = audio.poi_ID
-            ?? audio.poI_ID
-            ?? audio.poiId
-            ?? audio.poiID
-            ?? audio.poi_Id
-            ?? audio.POI_ID;
-
-        if (raw === undefined || raw === null || raw === '') return null;
-
-        const numeric = Number(raw);
-        return Number.isFinite(numeric) ? numeric : raw;
-    }
-
     function getPoiIdLabel(audio) {
-        const raw = getAudioPoiId(audio);
+        const raw = audio.poi_ID ?? audio.poiId ?? audio.poiID ?? audio.poi_Id ?? audio.POI_ID;
         return raw !== undefined && raw !== null ? raw : 'N/A';
     }
 
@@ -1150,7 +1138,7 @@
         const map = {
             vi: 'VN Tiếng Việt',
             en: 'GB English',
-            zh: 'CN ä¸­æ–‡'
+            zh: 'CN 中文'
         };
         return map[normalized] || (language || 'N/A');
     }
@@ -1169,7 +1157,7 @@
 
     function sanitizeTitle(title, poiName) {
         const raw = (title || '').trim();
-        const hasMojibake = /[\u00C2\u00C3\u00C4\u00C6\u00E1\u00E2]/.test(raw);
+        const hasMojibake = /[Ãƒï¿½Ã¢â‚¬Â¢Ã°Å¸]/.test(raw);
         if (!raw || hasMojibake) {
             return poiName || 'Audio';
         }
@@ -1193,7 +1181,7 @@
     function groupAudiosByPoi(audios) {
         const map = new Map();
         audios.forEach(a => {
-            const rawKey = getAudioPoiId(a);
+            const rawKey = (a.poi_ID ?? a.poiId ?? a.poiID ?? a.poi_Id);
             const nameKey = (a.poiName || '').trim().toLowerCase();
             let safeKey = null;
             if (nameKey && map.has(`name-${nameKey}`)) {
@@ -1245,7 +1233,7 @@
         return `
             <div class="audio-card" data-group-key="${group.key}" data-poi-id="${group.poiId}" data-selected-id="${selected.audioContent_ID}">
                 <div class="audio-header">
-                    <div class="audio-icon">ðŸ¬</div>
+                    <div class="audio-icon">🏬</div>
                     <div class="audio-info">
                         <h3 class="audio-title">${displayTitle}</h3>
                         <p>${group.poiName ? `POI: ${group.poiName}` : `POI #${group.poiId}`}</p>
@@ -1809,5 +1797,4 @@
 </script>
 </body>
 </html>
-
 

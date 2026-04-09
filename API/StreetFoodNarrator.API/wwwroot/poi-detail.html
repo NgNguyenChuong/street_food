@@ -6,7 +6,7 @@
     <title>Chi tiết POI - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="sidebar.js?v=20260408-notif-activity"></script>
+    <script src="sidebar.js?v=20260406"></script>
     <style>
         :root {
             --primary: #FF6B35; --primary-dark: #E85A2A;
@@ -117,16 +117,6 @@
         .info-row:last-child { border-bottom:none; }
         .info-label { width:145px; color:#6B7280; font-size:.88rem; flex-shrink:0; }
         .info-value { flex:1; color:var(--dark); font-size:.88rem; font-weight:500; }
-        .poi-qr-wrap { display:flex; flex-direction:column; gap:.4rem; align-items:flex-start; }
-        .poi-qr-box {
-            width:102px; height:102px;
-            border-radius:10px; border:1px solid var(--border);
-            background:#fff; display:flex; align-items:center; justify-content:center;
-            overflow:hidden;
-        }
-        .poi-qr-box img, .poi-qr-box canvas { width:96px; height:96px; display:block; }
-        .poi-qr-link { color:var(--secondary); font-size:.82rem; text-decoration:none; }
-        .poi-qr-link:hover { text-decoration:underline; }
 
         /* lang tabs inside info */
         .lang-tabs { display:flex; gap:.4rem; margin-bottom:1rem; }
@@ -191,6 +181,18 @@
             padding-top:.75rem; border-top:1px solid #F3F4F6; }
         .menu-card-price { font-size:1.1rem; font-weight:700; color:var(--primary); }
         .menu-card-actions { display:flex; gap:.4rem; }
+        .menu-card-status {
+            margin-top:.35rem;
+            font-size:.78rem;
+            font-weight:700;
+            display:inline-flex;
+            align-items:center;
+            gap:.35rem;
+            padding:.2rem .55rem;
+            border-radius:999px;
+        }
+        .menu-card-status.on-sale { background:#DCFCE7; color:#166534; }
+        .menu-card-status.off-sale { background:#FEE2E2; color:#B91C1C; }
         .icon-btn {
             width:30px; height:30px; border-radius:8px; border:1px solid var(--border);
             background:white; color:#6B7280; font-size:.8rem; cursor:pointer;
@@ -198,6 +200,7 @@
         }
         .icon-btn:hover { border-color:var(--primary); color:var(--primary); }
         .icon-btn.danger:hover { border-color:var(--danger); color:var(--danger); }
+        .icon-btn.warning:hover { border-color:#D97706; color:#D97706; }
 
         /* ── Geofence Tab ── */
         .geo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.25rem; }
@@ -335,7 +338,7 @@
         <div class="card">
             <div class="menu-toolbar">
                 <h2 id="menuTitle">Menu (<span id="menuCount">0</span> món)</h2>
-                <button class="btn btn-primary btn-sm" onclick="openMenuModal()">
+                <button id="menuAddBtn" class="btn btn-primary btn-sm" onclick="openMenuModal()">
                     <i class="fas fa-plus"></i> Thêm món
                 </button>
             </div>
@@ -460,7 +463,6 @@
 </div>
 
 <script src="api.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 // Auth guard — runs after api.js (which defines TokenManager)
 (function() {
@@ -470,7 +472,11 @@
 
 const params   = new URLSearchParams(location.search);
 const POI_ID   = parseInt(params.get('id') || '0', 10);
-const isAdmin  = TokenManager.getUser()?.roles?.includes('Admin');
+const roleContext = String(TokenManager.getRoleContext() || '').toLowerCase();
+const userRoles = Array.isArray(TokenManager.getUser()?.roles)
+    ? TokenManager.getUser().roles.map(r => String(r).toLowerCase())
+    : [];
+const isAdmin  = roleContext ? roleContext === 'admin' : userRoles.includes('admin');
 
 let poiData     = null;
 let menuItems   = [];
@@ -509,28 +515,6 @@ function fmtDate(d) { return d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 function priceLevel(n) { return n ? '🍜'.repeat(Math.min(n,4)) : '—'; }
 function row(label, val) {
     return `<div class="info-row"><div class="info-label">${label}</div><div class="info-value">${val || '—'}</div></div>`;
-}
-
-function getPoiQrLink(id) {
-    return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}`;
-}
-
-function renderPoiQrCodeInDetail(poiId) {
-    const box = document.getElementById('poiDetailQrBox');
-    if (!box || !poiId) return;
-    box.innerHTML = '';
-    if (typeof QRCode === 'undefined') {
-        box.textContent = 'QR chưa sẵn sàng';
-        return;
-    }
-    new QRCode(box, {
-        text: getPoiQrLink(poiId),
-        width: 96,
-        height: 96,
-        colorDark: '#111111',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
-    });
 }
 
 // ── Load POI ──────────────────────────────────────────────────────────────────
@@ -608,12 +592,27 @@ function renderHeader() {
 
     // Edit link
     document.getElementById('editBtn').href = `poi-edit?id=${POI_ID}`;
+
+    // Admin role is not allowed to create audio from this page.
+    const createBtn = document.getElementById('audioCreateBtn');
+    if (createBtn && isAdmin) {
+        createBtn.style.display = 'none';
+    }
+
+    const menuAddBtn = document.getElementById('menuAddBtn');
+    if (menuAddBtn && isAdmin) {
+        menuAddBtn.style.display = 'none';
+    }
 }
 
 function renderInfo() {
     const p = poiData;
     const lat  = p.location?.latitude  ?? p.Location?.Latitude  ?? p.latitude  ?? p.Latitude;
     const lon  = p.location?.longitude ?? p.Location?.Longitude ?? p.longitude ?? p.Longitude;
+    const mapUrl = p.mapUrl || p.MapUrl;
+    const mapUrlDisplay = mapUrl
+        ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--primary);font-weight:600;word-break:break-all;">${mapUrl}</a>`
+        : '—';
     const avgP = p.averagePrice || p.AveragePrice;
     const rat  = p.rating || p.Rating;
     const pLvl = p.priceLevel || p.PriceLevel;
@@ -628,12 +627,12 @@ function renderInfo() {
     const cAt  = p.createdAt || p.CreatedAt;
 
     const poiIdVal = p.poI_ID || p.poi_ID || p.POI_ID || p.id || p.Id;
-    const qrLink = poiIdVal ? getPoiQrLink(poiIdVal) : '';
 
     // Basic
     document.getElementById('basicInfo').innerHTML = `
         ${row('POI ID',   poiIdVal ? `#${poiIdVal}` : '—')}
         ${row('Địa chỉ',  p.address || p.Address)}
+        ${row('URL bản đồ', mapUrlDisplay)}
         ${row('Tọa độ',   lat ? `${lat}, ${lon}` : '—')}
         ${row('Danh mục', p.category || p.Category)}
         ${row('Giờ mở cửa', hrs)}
@@ -656,21 +655,8 @@ function renderInfo() {
     if (spec.length) extraHtml += `<div class="info-row"><div class="info-label">Đặc sản</div><div class="info-value">${spec.join(', ')}</div></div>`;
     if (tags.length) extraHtml += `<div class="info-row"><div class="info-label">Tags</div><div class="info-value">${tags.map(t=>`<span style="background:#EFF6FF;color:#1D4ED8;padding:.2rem .6rem;border-radius:8px;font-size:.8rem;margin:.15rem;display:inline-block">#${t}</span>`).join('')}</div></div>`;
     if (ff) extraHtml += `<div class="info-row"><div class="info-label">Fun Fact</div><div class="info-value" style="font-style:italic;color:#374151">${ff}</div></div>`;
-    if (qrLink) {
-        extraHtml += `
-            <div class="info-row">
-                <div class="info-label">QR POI</div>
-                <div class="info-value">
-                    <div class="poi-qr-wrap">
-                        <div class="poi-qr-box" id="poiDetailQrBox"></div>
-                        <a class="poi-qr-link" href="${qrLink}" target="_blank" rel="noopener noreferrer">Mở link QR</a>
-                    </div>
-                </div>
-            </div>`;
-    }
     if (!extraHtml) extraHtml = `<p style="color:#9CA3AF;font-size:.9rem">Chưa có thông tin bổ sung.</p>`;
     document.getElementById('extraInfo').innerHTML = `<div class="card-title"><i class="fas fa-star"></i> Chi tiết thêm</div>${extraHtml}`;
-    if (qrLink) renderPoiQrCodeInDetail(poiIdVal);
 }
 
 // ── Audio tab ──────────────────────────────────────────────────────────────────
@@ -720,6 +706,10 @@ function renderAudio() {
 }
 
 function handleCreateAudio() {
+    if (isAdmin) {
+        return;
+    }
+
     if (window.__poiAudioAllDone) {
         openAudioDoneModal();
         return;
@@ -750,7 +740,7 @@ function closeAudioDoneModal() {
 async function loadMenuItems() {
     document.getElementById('menuGrid').innerHTML = `<div class="loading-spin" style="grid-column:1/-1"><i class="fas fa-spinner"></i></div>`;
     try {
-        const resp = await api.getMenuItems(POI_ID, 1, 100);
+        const resp = await api.getMenuItems(POI_ID, 1, 100, true);
         menuItems = resp.data || [];
         document.getElementById('menuBadge').textContent = menuItems.length;
         document.getElementById('menuCount').textContent = menuItems.length;
@@ -765,11 +755,14 @@ function renderMenuGrid() {
         document.getElementById('menuGrid').innerHTML = `
             <div class="empty" style="grid-column:1/-1">
                 <i class="fas fa-utensils"></i>
-                <p>Chưa có món ăn nào.<br>Nhấn "Thêm món" để bắt đầu.</p>
+                <p>Chưa có món ăn nào.${isAdmin ? '' : '<br>Nhấn "Thêm món" để bắt đầu.'}</p>
             </div>`;
         return;
     }
     document.getElementById('menuGrid').innerHTML = menuItems.map(item => `
+        ${(() => {
+            const isOffSale = item.isDeleted === true || item.isAvailable === false;
+            return `
         <div class="menu-card">
             <div class="menu-card-img">
                 ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.name_Vi}">` : `<span class="no-img">🍽️</span>`}
@@ -778,20 +771,38 @@ function renderMenuGrid() {
             <div class="menu-card-body">
                 <div class="menu-card-name">${item.name_Vi || '—'}${item.name_En ? `<span style="font-size:.75rem;color:#9CA3AF;font-weight:400;margin-left:.4rem">${item.name_En}</span>` : ''}</div>
                 <div class="menu-card-desc">${item.description_Vi || item.description_En || '(Chưa có mô tả)'}</div>
+                <div class="menu-card-status ${isOffSale ? 'off-sale' : 'on-sale'}">
+                    <i class="fas ${isOffSale ? 'fa-store-slash' : 'fa-store'}"></i>
+                    ${isOffSale ? 'Ngừng bán' : 'Đang bán'}
+                </div>
                 <div class="menu-card-footer">
                     <div class="menu-card-price">${fmtPrice(item.price)}</div>
                     <div class="menu-card-actions">
-                        <button class="icon-btn" title="Chỉnh sửa" onclick="openEditMenu(${item.menuItemId})"><i class="fas fa-pen"></i></button>
-                        <button class="icon-btn danger" title="Xóa" onclick="deleteMenu(${item.menuItemId},'${(item.name_Vi||'').replace(/'/g,"\\'")}')"><i class="fas fa-trash"></i></button>
+                        ${isAdmin
+                            ? `<button class="icon-btn" title="Xem chi tiết" onclick="openViewMenu(${item.menuItemId})"><i class="fas fa-eye"></i></button>`
+                            : `<button class="icon-btn" title="Chỉnh sửa" onclick="openEditMenu(${item.menuItemId})"><i class="fas fa-pen"></i></button>`}
+                        <button
+                            class="icon-btn warning"
+                            title="${isOffSale ? 'Bật bán lại' : 'Ngừng bán'}"
+                            onclick="toggleMenuSaleStatus(${item.menuItemId}, ${isOffSale ? 'true' : 'false'}, '${(item.name_Vi||'').replace(/'/g,"\\'")}')">
+                            <i class="fas ${isOffSale ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
+            `;
+        })()}
     `).join('');
 }
 
 // ── Menu Modal ─────────────────────────────────────────────────────────────────
 function openMenuModal() {
+    if (isAdmin) {
+        alert('Admin không được thêm món ăn.');
+        return;
+    }
+
     document.getElementById('editItemId').value = '';
     document.getElementById('menuModalTitle').textContent = 'Thêm món ăn';
     ['NameVi','NameEn','NameZh','DescVi','DescEn','Category'].forEach(f => {
@@ -818,6 +829,7 @@ function openMenuModal() {
     }
     document.getElementById('itemSig').checked  = false;
     document.getElementById('itemAvail').checked = true;
+    setMenuModalReadOnly(false);
     document.getElementById('menuModal').classList.add('show');
 }
 
@@ -847,11 +859,11 @@ async function autoTranslateMenu(srcId, enId, zhId) {
     }
 }
 
-function openEditMenu(id) {
+function openEditMenu(id, readOnly = false) {
     const item = menuItems.find(m => m.menuItemId === id);
     if (!item) return;
     document.getElementById('editItemId').value       = id;
-    document.getElementById('menuModalTitle').textContent = 'Chỉnh sửa món ăn';
+    document.getElementById('menuModalTitle').textContent = readOnly ? 'Chi tiết món ăn' : 'Chỉnh sửa món ăn';
     const nameViEl = document.getElementById('itemNameVi');
     if (nameViEl) nameViEl.value = item.name_Vi || '';
     const nameEnEl = document.getElementById('itemNameEn');
@@ -899,7 +911,28 @@ function openEditMenu(id) {
     }
     document.getElementById('itemSig').checked         = !!item.isSignatureDish;
     document.getElementById('itemAvail').checked       = item.isAvailable !== false;
+    setMenuModalReadOnly(readOnly);
     document.getElementById('menuModal').classList.add('show');
+}
+
+function openViewMenu(id) {
+    openEditMenu(id, true);
+}
+
+function setMenuModalReadOnly(readOnly) {
+    const fieldIds = [
+        'itemNameVi', 'itemPrice', 'itemCategory', 'itemCategoryOther',
+        'itemDescVi', 'itemImageFile', 'itemSig', 'itemAvail'
+    ];
+
+    fieldIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.disabled = !!readOnly;
+    });
+
+    const saveBtn = document.getElementById('btnSaveMenu');
+    if (saveBtn) saveBtn.style.display = readOnly ? 'none' : '';
 }
 
 function closeMenuModal() {
@@ -974,6 +1007,11 @@ document.getElementById('itemImageFile')?.addEventListener('change', async (e) =
 });
 
 async function saveMenuItem() {
+    if (isAdmin) {
+        alert('Admin không được thêm hoặc chỉnh sửa món ăn.');
+        return;
+    }
+
     const nameVi = document.getElementById('itemNameVi').value.trim();
     const price  = parseFloat(document.getElementById('itemPrice').value);
     if (!nameVi) { alert('Vui lòng nhập tên món (VI)'); return; }
@@ -1054,13 +1092,26 @@ async function saveMenuItem() {
 }
 
 async function deleteMenu(id, name) {
-    if (!confirm(`Xóa món "${name}"?`)) return;
+    if (!confirm(`Đổi trạng thái bán cho món "${name}"?`)) return;
     try {
-        await api.deleteMenuItem(id);
+        await api.updateMenuItem(id, { isDeleted: true });
         menuItems = [];
         await loadMenuItems();
     } catch(e) {
-        alert('Lỗi xóa: ' + e.message);
+        alert('Lỗi cập nhật trạng thái: ' + e.message);
+    }
+}
+
+async function toggleMenuSaleStatus(id, nextIsDeleted, name) {
+    const nextIsAvailable = !!nextIsDeleted;
+    const action = nextIsAvailable ? 'bật bán lại' : 'ngừng bán';
+    if (!confirm(`Bạn muốn ${action} món "${name}"?`)) return;
+    try {
+        await api.updateMenuItem(id, { isAvailable: nextIsAvailable, isDeleted: false });
+        menuItems = [];
+        await loadMenuItems();
+    } catch (e) {
+        alert('Lỗi cập nhật trạng thái: ' + e.message);
     }
 }
 

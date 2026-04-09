@@ -37,13 +37,6 @@ function parseJwtPayload(token) {
     }
 }
 
-function normalizeRoleName(role) {
-    const r = String(role || '').trim().toLowerCase();
-    if (r === 'admin') return 'Admin';
-    if (r === 'vendor') return 'Vendor';
-    return null;
-}
-
 function parseJwtRoles(token) {
     const payload = parseJwtPayload(token);
     if (!payload) return [];
@@ -51,10 +44,7 @@ function parseJwtRoles(token) {
     const raw = payload[MS_ROLE] || payload.role || payload.roles || payload.Role;
     if (!raw) return [];
     const list = Array.isArray(raw) ? raw : [raw];
-    return list
-        .flatMap(r => String(r).split(','))
-        .map(normalizeRoleName)
-        .filter(Boolean);
+    return list.flatMap(r => String(r).split(',')).map(r => r.trim()).filter(Boolean);
 }
 
 function getCookieValue(name) {
@@ -187,9 +177,7 @@ const TokenManager = {
 
     pickRoleForUser(user, token) {
         const rawRoles = user?.roles || user?.roleNames || [];
-        const roles = (Array.isArray(rawRoles) ? rawRoles.slice() : [rawRoles])
-            .map(normalizeRoleName)
-            .filter(Boolean);
+        const roles = Array.isArray(rawRoles) ? rawRoles.slice() : [rawRoles];
         const tokenRoles = token ? parseJwtRoles(token) : [];
         const merged = [...new Set([...roles, ...tokenRoles].filter(Boolean))];
         const ctx = this.getRoleContext();
@@ -224,13 +212,6 @@ const TokenManager = {
             }
         }
         return token;
-    },
-
-    getExactToken(role) {
-        const normalized = this.normalizeRole(role);
-        if (!normalized) return null;
-        const key = this.roleKeys[normalized]?.token;
-        return key ? localStorage.getItem(key) : null;
     },
 
     setToken(token, role) {
@@ -612,9 +593,10 @@ class API {
     }
 
     // Menu Items APIs
-    async getMenuItems(poiId, page = 1, pageSize = 50) {
+    async getMenuItems(poiId, page = 1, pageSize = 50, includeDeleted = false) {
         let query = `page=${page}&pageSize=${pageSize}`;
         if (poiId) query += `&poiId=${poiId}`;
+        if (includeDeleted) query += '&includeDeleted=true';
         return this.request(`/MenuItems?${query}`);
     }
 
@@ -651,41 +633,6 @@ class API {
 
     async getVendorStats() {
         return this.request('/Vendors/stats');
-    }
-
-    async getNotifications(take = 30, role = null, afterId = null) {
-        let query = `take=${take}`;
-        if (role) query += `&role=${encodeURIComponent(role)}`;
-        if (afterId !== null && afterId !== undefined) query += `&afterId=${encodeURIComponent(afterId)}`;
-        const endpoint = `/Notifications?${query}`;
-        try {
-            return await this.request(endpoint);
-        } catch (err) {
-            // Fallback: retry with exact stored tokens to avoid stale activeRole context.
-            const tryRoles = ['Admin', 'Vendor'];
-            for (const roleName of tryRoles) {
-                const token = TokenManager.getExactToken(roleName);
-                if (!token) continue;
-                try {
-                    const response = await fetch(`${this.baseURL}${endpoint}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        cache: 'no-store'
-                    });
-                    if (!response.ok) continue;
-
-                    const data = await response.json().catch(() => null);
-                    if (data) return data;
-                } catch {
-                    // continue trying next token
-                }
-            }
-
-            throw err;
-        }
     }
     
 
@@ -1045,11 +992,6 @@ const UsersApi = {
     delete: (id) => api.request(`/Users/${id}`, { method: 'DELETE' }),
     lock: (id) => api.request(`/Users/${id}/lock`, { method: 'POST' }),
     unlock: (id) => api.request(`/Users/${id}/unlock`, { method: 'POST' })
-};
-
-const NotificationsApi = {
-    list: ({ take = 30, role, afterId } = {}) =>
-        api.request('/Notifications' + qs({ take, role, afterId }))
 };
 
 

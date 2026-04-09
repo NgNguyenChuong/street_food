@@ -1,4 +1,4 @@
-﻿// Sidebar injection script
+// Sidebar injection script
 (function() {
     let user = null;
     try {
@@ -23,42 +23,12 @@
     } catch {
         user = null;
     }
-    const normalizeRoleName = (role) => {
-        const r = String(role || '').trim().toLowerCase();
-        if (r === 'admin') return 'Admin';
-        if (r === 'vendor') return 'Vendor';
-        return null;
-    };
-
-    const userRoles = (Array.isArray(user?.roles) ? user.roles : [])
-        .map(normalizeRoleName)
-        .filter(Boolean);
-    const tokenRoles = (() => {
-        try {
-            const token = window.TokenManager?.getToken?.();
-            if (!token) return [];
-            const payloadRaw = token.split('.')[1];
-            if (!payloadRaw) return [];
-            const payload = JSON.parse(atob(payloadRaw.replace(/-/g, '+').replace(/_/g, '/')));
-            const roleClaim = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || payload.role || payload.roles || payload.Role;
-            if (!roleClaim) return [];
-            return (Array.isArray(roleClaim) ? roleClaim : [roleClaim])
-                .flatMap(r => String(r).split(','))
-                .map(normalizeRoleName)
-                .filter(Boolean);
-        } catch {
-            return [];
-        }
-    })();
-
-    const roles = [...new Set([...userRoles, ...tokenRoles])];
+    const roles = user?.roles || [];
     const roleContext = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
     const hasAdmin = roles.includes('Admin');
     const hasVendor = roles.includes('Vendor');
-
-    // Respect explicit context only when that role actually exists in token/profile.
-    const isAdmin = roleContext === 'admin' ? hasAdmin : (roleContext === 'vendor' ? false : hasAdmin);
-    const isVendor = roleContext === 'vendor' ? hasVendor : (roleContext === 'admin' ? false : hasVendor);
+    const isAdmin = roleContext ? roleContext === 'admin' : hasAdmin;
+    const isVendor = roleContext ? roleContext === 'vendor' : hasVendor;
     const poiListHref = isAdmin ? 'poi-list' : 'poi-list?scope=mine';
     const poiListLabel = isAdmin ? 'Danh sách POI' : 'POI của tôi';
 
@@ -67,13 +37,9 @@
     const roleLabel = isAdmin ? 'Quản trị viên' : (isVendor ? 'Vendor' : 'Người dùng');
     const roleBadgeClass = isAdmin ? 'role-badge-admin' : 'role-badge-vendor';
     const avatarLetters = displayName.split(' ').map(w => w[0]).slice(-2).join('').toUpperCase();
-    const notifSeenStorageKey = isAdmin ? 'sidebar_notif_seen_admin' : 'sidebar_notif_seen_vendor';
-    const signalRClientUrl = 'https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js';
-    let liveNotificationItems = [];
-    let notifHubConnection = null;
 
         const sidebarHTML = `
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar ${isVendor ? 'sidebar-vendor' : ''}" id="sidebar">
             <div class="logo-section">
             <div class="logo">
                 <div class="logo-icon">
@@ -115,22 +81,31 @@
 
             <nav>
                 <ul class="nav-menu">
+                    ${isAdmin ? `
                     <li class="nav-item">
                         <a href="dashboard" class="nav-link">
                             <i class="nav-icon fas fa-home"></i>
                             <span>Trang chủ</span>
                         </a>
                     </li>
+                    ` : `
+                    <li class="nav-item">
+                        <a href="dashboard" class="nav-link">
+                            <i class="nav-icon fas fa-home"></i>
+                            <span>Trang chủ</span>
+                        </a>
+                    </li>
+                    `}
 
                     ${isAdmin ? `
-                    <li class="nav-item" data-nav-group="poi">
-                        <a href="${poiListHref}" class="nav-link">
+                    <li class="nav-item">
+                        <a href="poi-list" class="nav-link">
                             <i class="nav-icon fas fa-map-marker-alt"></i>
                             <span>Quản lý POI</span>
                         </a>
                     </li>
                     ` : `
-                    <li class="nav-item has-submenu" data-nav-group="poi">
+                    <li class="nav-item has-submenu" id="poiNavGroup">
                         <button type="button" class="nav-link nav-toggle">
                             <i class="nav-icon fas fa-map-marker-alt"></i>
                             <span>POI của tôi</span>
@@ -174,14 +149,14 @@
                     ` : ''}
 
                     ${isAdmin ? `
-                    <li class="nav-item" data-nav-group="audio">
+                    <li class="nav-item">
                         <a href="audio-list" class="nav-link">
                             <i class="nav-icon fas fa-microphone"></i>
-                            <span>Âm thanh</span>
+                            <span>Quản lý âm thanh</span>
                         </a>
                     </li>
                     ` : `
-                    <li class="nav-item has-submenu" data-nav-group="audio">
+                    <li class="nav-item has-submenu" id="audioNavGroup">
                         <button type="button" class="nav-link nav-toggle">
                             <i class="nav-icon fas fa-microphone"></i>
                             <span>Âm thanh</span>
@@ -464,11 +439,6 @@
                 color: #B91C1C;
             }
 
-            .notif-item.success .notif-item-icon {
-                background: #ECFDF3;
-                color: #047857;
-            }
-
             .notif-item-content {
                 min-width: 0;
             }
@@ -486,13 +456,6 @@
                 font-size: 0.76rem;
                 color: #6B7280;
                 line-height: 1.35;
-            }
-
-            .notif-item-time {
-                display: block;
-                margin-top: 0.2rem;
-                font-size: 0.7rem;
-                color: #9CA3AF;
             }
 
             .logo {
@@ -541,6 +504,10 @@
                 border: none;
                 text-align: left;
                 cursor: pointer;
+            }
+
+            .sidebar-vendor .nav-link {
+                font-size: 0.96rem;
             }
 
             .nav-link::before {
@@ -600,6 +567,11 @@
                 text-decoration: none;
                 border-radius: 10px;
                 transition: all 0.2s ease;
+            }
+
+            .sidebar-vendor .nav-sublink {
+                font-size: 0.95rem;
+                font-weight: 500;
             }
 
             .nav-sublink:hover,
@@ -666,102 +638,120 @@
         }
     }
 
+    function extractTotalCount(payload) {
+        if (!payload) return 0;
+        if (typeof payload.total === 'number') return payload.total;
+        if (typeof payload.totalItems === 'number') return payload.totalItems;
+        if (typeof payload.count === 'number') return payload.count;
+        if (Array.isArray(payload.data)) return payload.data.length;
+        if (Array.isArray(payload)) return payload.length;
+        return 0;
+    }
+
     function buildNotificationItem({
-        notificationId = null,
         icon = 'fa-circle-info',
         title,
         message,
         href,
-        kind = 'info',
-        createdAt = null
+        count = 0,
+        kind = 'info'
     }) {
-        return { notificationId, icon, title, message, href, kind, createdAt };
+        return { icon, title, message, href, count, kind };
     }
 
-    function toMillis(input) {
-        if (!input) return 0;
-        const d = new Date(input);
-        const t = d.getTime();
-        return Number.isFinite(t) ? t : 0;
-    }
+    async function fetchAdminNotifications() {
+        if (!window.api) return [];
 
-    function getSeenMillis() {
-        const raw = localStorage.getItem(notifSeenStorageKey);
-        if (!raw) return 0;
-        const parsed = Number(raw);
-        return Number.isFinite(parsed) ? parsed : 0;
-    }
+        const [poiRes, audioRes] = await Promise.allSettled([
+            api.getPOIs(1, 1, '', null, null, 'pending'),
+            api.getAudioList(1, 1, null, null, 'pending')
+        ]);
 
-    function setSeenMillis(value) {
-        if (!Number.isFinite(value) || value <= 0) return;
-        localStorage.setItem(notifSeenStorageKey, String(Math.floor(value)));
-    }
+        const pendingPois = poiRes.status === 'fulfilled' ? extractTotalCount(poiRes.value) : 0;
+        const pendingAudios = audioRes.status === 'fulfilled' ? extractTotalCount(audioRes.value) : 0;
 
-    function markSeenByItems(items) {
-        const maxCreatedAt = items.reduce((max, item) => Math.max(max, toMillis(item.createdAt)), 0);
-        if (maxCreatedAt > 0) setSeenMillis(maxCreatedAt);
-    }
-
-    function formatNotificationTime(createdAt) {
-        const millis = toMillis(createdAt);
-        if (!millis) return 'Vừa xong';
-        const diffMin = Math.max(0, (Date.now() - millis) / 60000);
-        if (diffMin < 1) return 'Vừa xong';
-        if (diffMin < 60) return `${Math.round(diffMin)} phút trước`;
-        if (diffMin < 1440) return `${Math.round(diffMin / 60)} giờ trước`;
-        return `${Math.round(diffMin / 1440)} ngày trước`;
-    }
-
-    function mapServerNotificationToItem(raw) {
-        if (!raw) return null;
-        const createdAt =
-            raw.createdAt ??
-            raw.CreatedAt ??
-            raw.updatedAt ??
-            raw.UpdatedAt ??
-            raw.timestamp ??
-            raw.Timestamp ??
-            null;
-
-        return buildNotificationItem({
-            notificationId: raw.notificationId ?? raw.NotificationId ?? null,
-            icon: raw.icon ?? raw.Icon ?? 'fa-circle-info',
-            title: raw.title ?? raw.Title ?? 'Thông báo',
-            message: raw.message ?? raw.Message ?? '',
-            href: raw.href ?? raw.Href ?? '#',
-            kind: String(raw.kind ?? raw.Kind ?? 'info').toLowerCase(),
-            createdAt
-        });
-    }
-
-    function dedupeAndSortNotificationItems(items, limit = 40) {
-        const seen = new Set();
-        const deduped = [];
-
-        for (const item of items) {
-            if (!item) continue;
-            const key = item.notificationId != null
-                ? `id:${item.notificationId}`
-                : `sig:${item.title || ''}|${item.message || ''}|${item.href || ''}|${toMillis(item.createdAt)}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            deduped.push(item);
+        const items = [];
+        if (pendingPois > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-map-location-dot',
+                title: 'POI chờ duyệt',
+                message: `${pendingPois} POI đang chờ Admin duyệt.`,
+                href: 'poi-list?reviewStatus=pending',
+                count: pendingPois
+            }));
+        }
+        if (pendingAudios > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-microphone-lines',
+                title: 'Audio chờ duyệt',
+                message: `${pendingAudios} audio đang chờ Admin duyệt.`,
+                href: 'audio-list?status=pending',
+                count: pendingAudios
+            }));
         }
 
-        deduped.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
-        return deduped.slice(0, limit);
+        return items;
     }
 
-    function mergeRealtimeNotification(item) {
-        if (!item) return;
-        const next = [item, ...liveNotificationItems.filter(x => String(x.notificationId ?? '') !== String(item.notificationId ?? ''))];
-        liveNotificationItems = next.slice(0, 80);
-    }
+    async function fetchVendorNotifications() {
+        if (!window.api) return [];
 
-    function getUnreadCount(items) {
-        const seen = getSeenMillis();
-        if (!seen) return items.length;
-        return items.filter(item => toMillis(item.createdAt) > seen).length;
+        const [poiRes, audioPendingRes, audioRejectedRes] = await Promise.allSettled([
+            api.getPOIs(1, 5000),
+            api.getAudioList(1, 1, null, null, 'pending'),
+            api.getAudioList(1, 1, null, null, 'rejected')
+        ]);
+
+        const poiRows = poiRes.status === 'fulfilled'
+            ? (Array.isArray(poiRes.value?.data) ? poiRes.value.data : [])
+            : [];
+
+        const pendingPois = poiRows.filter(p => String(p.reviewStatus || p.ReviewStatus || '').toLowerCase() === 'pending').length;
+        const rejectedPois = poiRows.filter(p => String(p.reviewStatus || p.ReviewStatus || '').toLowerCase() === 'rejected').length;
+        const pendingAudios = audioPendingRes.status === 'fulfilled' ? extractTotalCount(audioPendingRes.value) : 0;
+        const rejectedAudios = audioRejectedRes.status === 'fulfilled' ? extractTotalCount(audioRejectedRes.value) : 0;
+
+        const items = [];
+        if (pendingPois > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-hourglass-half',
+                title: 'POI đang chờ duyệt',
+                message: `${pendingPois} POI của bạn đang chờ Admin duyệt.`,
+                href: 'poi-list?reviewStatus=pending',
+                count: pendingPois
+            }));
+        }
+        if (rejectedPois > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-circle-xmark',
+                title: 'POI bị từ chối',
+                message: `${rejectedPois} POI bị từ chối, vui lòng cập nhật lại nội dung.`,
+                href: 'poi-list?reviewStatus=rejected',
+                count: rejectedPois,
+                kind: 'warn'
+            }));
+        }
+        if (pendingAudios > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-microphone',
+                title: 'Audio đang chờ duyệt',
+                message: `${pendingAudios} audio của bạn đang chờ Admin duyệt.`,
+                href: 'audio-list?status=pending',
+                count: pendingAudios
+            }));
+        }
+        if (rejectedAudios > 0) {
+            items.push(buildNotificationItem({
+                icon: 'fa-volume-xmark',
+                title: 'Audio bị từ chối',
+                message: `${rejectedAudios} audio bị từ chối, hãy chỉnh sửa và gửi lại.`,
+                href: 'audio-list?status=rejected',
+                count: rejectedAudios,
+                kind: 'warn'
+            }));
+        }
+
+        return items;
     }
 
     function renderSidebarNotifications(items) {
@@ -775,255 +765,36 @@
             return;
         }
 
-        const unread = getUnreadCount(items);
-        if (unread > 0) {
-            badge.textContent = unread > 99 ? '99+' : String(unread);
+        const total = items.reduce((sum, item) => sum + Math.max(0, Number(item.count || 0)), 0);
+        if (total > 0) {
+            badge.textContent = total > 99 ? '99+' : String(total);
             badge.classList.remove('hidden');
         } else {
             badge.classList.add('hidden');
         }
 
         list.innerHTML = items.map(item => `
-            <a href="${item.href || '#'}" class="notif-item ${item.kind === 'warn' ? 'warn' : ''} ${item.kind === 'success' ? 'success' : ''}">
+            <a href="${item.href || '#'}" class="notif-item ${item.kind === 'warn' ? 'warn' : ''}">
                 <span class="notif-item-icon"><i class="fas ${item.icon || 'fa-circle-info'}"></i></span>
                 <span class="notif-item-content">
                     <span class="notif-item-title">${item.title || ''}</span>
                     <span class="notif-item-message">${item.message || ''}</span>
-                    <span class="notif-item-time">${formatNotificationTime(item.createdAt)}</span>
                 </span>
             </a>
         `).join('');
     }
 
-    async function loadFallbackNotificationsFromPois() {
-        if (!window.api || typeof api.getPOIs !== 'function') return [];
-
-        try {
-            const reviewFilter = isAdmin ? 'pending' : null;
-            const res = await api.getPOIs(1, 40, '', null, null, reviewFilter);
-            const rows = Array.isArray(res?.data) ? res.data : [];
-            if (!rows.length) return [];
-
-            const items = rows
-                .map((poi) => {
-                    const review = String(poi.reviewStatus || '').toLowerCase();
-                    const hasPending = !!(poi.pendingChanges && Object.keys(poi.pendingChanges).length);
-                    const id = poi.poI_ID ?? poi.poi_ID ?? poi.id;
-                    const name = poi.name_Vi || poi.name || `POI #${id ?? ''}`;
-                    const createdAt = poi.updatedAt || poi.createdAt || null;
-
-                    if (isAdmin) {
-                        if (!(hasPending || review === 'pending')) return null;
-                        return buildNotificationItem({
-                            notificationId: `fallback-admin-poi-${id}-${createdAt || ''}`,
-                            icon: 'fa-pen-to-square',
-                            title: 'POI chờ duyệt',
-                            message: `POI "${name}" đang chờ Admin duyệt chỉnh sửa.`,
-                            href: id ? `poi-edit?id=${id}` : 'poi-list?reviewStatus=pending',
-                            kind: 'info',
-                            createdAt
-                        });
-                    }
-
-                    if (hasPending || review === 'pending') {
-                        return buildNotificationItem({
-                            notificationId: `fallback-vendor-poi-pending-${id}-${createdAt || ''}`,
-                            icon: 'fa-hourglass-half',
-                            title: 'POI đang chờ duyệt',
-                            message: `POI "${name}" đang chờ Admin duyệt.`,
-                            href: id ? `poi-edit?id=${id}` : 'poi-list?reviewStatus=pending',
-                            kind: 'info',
-                            createdAt
-                        });
-                    }
-                    if (review === 'rejected') {
-                        return buildNotificationItem({
-                            notificationId: `fallback-vendor-poi-rejected-${id}-${createdAt || ''}`,
-                            icon: 'fa-circle-xmark',
-                            title: 'POI bị từ chối',
-                            message: `Yêu cầu chỉnh sửa của POI "${name}" đã bị từ chối.`,
-                            href: id ? `poi-edit?id=${id}` : 'poi-list?reviewStatus=rejected',
-                            kind: 'warn',
-                            createdAt
-                        });
-                    }
-                    return null;
-                })
-                .filter(Boolean)
-                .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
-
-            return items.slice(0, 40);
-        } catch {
-            return [];
-        }
-    }
-
-    async function loadFallbackNotificationsFromActivity() {
-        if (!window.api) return [];
-
-        try {
-            const poiPromise = typeof api.getPOIs === 'function'
-                ? api.getPOIs(1, 30, '', null, null, null)
-                : Promise.resolve(null);
-            const audioPromise = typeof api.getAudioList === 'function'
-                ? api.getAudioList(1, 20, null, null, null, null)
-                : Promise.resolve(null);
-
-            const [poiRes, audioRes] = await Promise.all([poiPromise, audioPromise]);
-            const pois = Array.isArray(poiRes?.data) ? poiRes.data : [];
-            const audios = Array.isArray(audioRes?.data) ? audioRes.data : [];
-
-            const poiItems = pois.slice(0, 20).map((poi) => {
-                const id = poi.poI_ID ?? poi.poi_ID ?? poi.id ?? '';
-                const createdAt = poi.updatedAt || poi.createdAt || null;
-                return buildNotificationItem({
-                    notificationId: `fallback-activity-poi-${id}-${createdAt || ''}`,
-                    icon: 'fa-map-marker-alt',
-                    title: poi.name_Vi || poi.name || (id ? `POI #${id}` : 'POI mới'),
-                    message: 'Địa điểm tham quan ẩm thực',
-                    href: id ? `poi-edit?id=${id}` : 'poi-list',
-                    kind: 'info',
-                    createdAt
-                });
-            });
-
-            const audioItems = audios.slice(0, 20).map((audio) => {
-                const id = audio.audioContent_ID ?? audio.audioContentId ?? audio.id ?? '';
-                const createdAt = audio.updatedAt || audio.createdAt || null;
-                const title = audio.title || audio.poiName || (id ? `Audio #${id}` : 'Audio mới');
-                const language = String(audio.language || '').trim();
-                return buildNotificationItem({
-                    notificationId: `fallback-activity-audio-${id}-${createdAt || ''}`,
-                    icon: 'fa-music',
-                    title,
-                    message: `${language || 'VI'} audio`,
-                    href: 'audio-list',
-                    kind: 'success',
-                    createdAt
-                });
-            });
-
-            return dedupeAndSortNotificationItems([...poiItems, ...audioItems], 40);
-        } catch {
-            return [];
-        }
-    }
-
-    async function loadSidebarFallbackNotifications() {
-        const [reviewItems, activityItems] = await Promise.all([
-            loadFallbackNotificationsFromPois(),
-            loadFallbackNotificationsFromActivity()
-        ]);
-        return dedupeAndSortNotificationItems([...reviewItems, ...activityItems], 40);
-    }
-    async function loadSidebarNotifications({ markSeen = false } = {}) {
+    async function loadSidebarNotifications() {
         const list = document.getElementById('sidebarNotifList');
         if (list) list.innerHTML = '<div class="notif-empty">Đang tải thông báo...</div>';
 
         try {
-            if (!window.api || typeof api.getNotifications !== 'function') {
-                throw new Error('Notifications API is unavailable');
-            }
-
-            const role = isAdmin ? 'admin' : 'vendor';
-            let res = await api.getNotifications(40, role);
-            let rows = Array.isArray(res?.data) ? res.data : [];
-
-            // Fallback for stale/misaligned role context in browser storage.
-            if (rows.length === 0) {
-                res = await api.getNotifications(40, null);
-                rows = Array.isArray(res?.data) ? res.data : [];
-            }
-            if (rows.length > 0) {
-                liveNotificationItems = dedupeAndSortNotificationItems(
-                    rows
-                        .map(mapServerNotificationToItem)
-                        .filter(Boolean),
-                    40
-                );
-            } else {
-                liveNotificationItems = await loadSidebarFallbackNotifications();
-            }
-
-            if (markSeen) {
-                markSeenByItems(liveNotificationItems);
-            }
-
-            renderSidebarNotifications(liveNotificationItems);
+            const items = isAdmin
+                ? await fetchAdminNotifications()
+                : await fetchVendorNotifications();
+            renderSidebarNotifications(items);
         } catch {
-            liveNotificationItems = await loadSidebarFallbackNotifications();
-            if (markSeen) {
-                markSeenByItems(liveNotificationItems);
-            }
-            renderSidebarNotifications(liveNotificationItems);
-        }
-    }
-
-    async function ensureSignalRLoaded() {
-        if (window.signalR) return;
-        const existing = document.getElementById('signalr-client-script');
-        if (existing) {
-            await new Promise((resolve, reject) => {
-                existing.addEventListener('load', resolve, { once: true });
-                existing.addEventListener('error', reject, { once: true });
-            });
-            return;
-        }
-
-        await new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.id = 'signalr-client-script';
-            script.src = signalRClientUrl;
-            script.async = true;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-    }
-
-    async function startRealtimeNotifications(panel) {
-        if (!window.TokenManager || typeof TokenManager.getToken !== 'function') return;
-        const token = TokenManager.getToken();
-        if (!token) return;
-
-        try {
-            await ensureSignalRLoaded();
-            if (!window.signalR) return;
-
-            if (notifHubConnection) {
-                try {
-                    await notifHubConnection.stop();
-                } catch {
-                    // ignore reconnect cleanup
-                }
-            }
-
-            let hubUrl = '/hubs/notifications';
-            if (window.api && typeof api.baseURL === 'string' && api.baseURL.length > 0) {
-                hubUrl = api.baseURL.replace(/\/api\/?$/i, '') + '/hubs/notifications';
-            }
-
-            notifHubConnection = new signalR.HubConnectionBuilder()
-                .withUrl(hubUrl, {
-                    accessTokenFactory: () => TokenManager.getToken() || ''
-                })
-                .withAutomaticReconnect()
-                .build();
-
-            notifHubConnection.on('notification', (payload) => {
-                const item = mapServerNotificationToItem(payload);
-                if (!item) return;
-
-                mergeRealtimeNotification(item);
-                if (panel?.classList.contains('show')) {
-                    markSeenByItems([item]);
-                }
-                renderSidebarNotifications(liveNotificationItems);
-            });
-
-            await notifHubConnection.start();
-        } catch {
-            // keep polling fallback if realtime hub fails
+            if (list) list.innerHTML = '<div class="notif-empty">Không tải được thông báo.</div>';
         }
     }
 
@@ -1037,7 +808,7 @@
             event.stopPropagation();
             panel.classList.toggle('show');
             if (panel.classList.contains('show')) {
-                await loadSidebarNotifications({ markSeen: true });
+                await loadSidebarNotifications();
             }
         });
 
@@ -1048,13 +819,12 @@
             refresh.addEventListener('click', async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                await loadSidebarNotifications({ markSeen: panel.classList.contains('show') });
+                await loadSidebarNotifications();
             });
         }
 
-        loadSidebarNotifications({ markSeen: false });
-        // Reliability-first: polling only, no hard dependency on realtime transport.
-        setInterval(() => loadSidebarNotifications({ markSeen: panel.classList.contains('show') }), 15000);
+        loadSidebarNotifications();
+        setInterval(loadSidebarNotifications, 60000);
     }
 
     function init() {
@@ -1089,9 +859,7 @@
         });
 
         if (currentPage === 'poi-edit') {
-            const poiLink = document.querySelector('.nav-item[data-nav-group="poi"] > .nav-link');
-            if (poiLink) poiLink.classList.add('active');
-            const poiGroup = document.querySelector('.nav-item.has-submenu[data-nav-group="poi"]');
+            const poiGroup = document.getElementById('poiNavGroup');
             if (poiGroup) poiGroup.classList.add('open');
         }
 
@@ -1215,5 +983,4 @@
         });
     };
 })();
-
 

@@ -45,6 +45,9 @@ public class POI
     [MaxLength(500)]
     public string? Address { get; set; }
 
+    [MaxLength(1000)]
+    public string? MapUrl { get; set; }
+
     // Audio URLs for each language - CHỈ 3 NGÔN NGỮ
     [MaxLength(500)]
     public string? AudioUrl_Vi { get; set; }
@@ -169,12 +172,6 @@ public class POI
     /// </summary>
     public Dictionary<string, PendingFieldChange>? PendingChanges { get; set; }
 
-    /// <summary>
-    /// Full vendor-submitted payload waiting for admin approval.
-    /// Live POI data remains unchanged until admin approves.
-    /// </summary>
-    public POIPendingUpdateData? PendingUpdateData { get; set; }
-
     // Vendor relationship
     public int? VendorId { get; set; }
     [BsonIgnore]
@@ -235,35 +232,4 @@ public class PendingFieldChange
     public string? Old { get; set; }
     /// <summary>New value submitted by vendor.</summary>
     public string? New { get; set; }
-}
-
-/// <summary>
-/// Snapshot of vendor-editable fields used for approval workflow.
-/// </summary>
-public class POIPendingUpdateData
-{
-    public string Name_Vi { get; set; } = string.Empty;
-    public string? Name_En { get; set; }
-    public string? Name_Zh { get; set; }
-    public string Description_Vi { get; set; } = string.Empty;
-    public string? Description_En { get; set; }
-    public string? Description_Zh { get; set; }
-    public string? Address { get; set; }
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-    public string? Category { get; set; }
-    public List<string>? SignatureDishes { get; set; }
-    public List<string>? Specialties { get; set; }
-    public string? History { get; set; }
-    public string? Story { get; set; }
-    public List<string>? OpeningHours { get; set; }
-    public string? OpeningHoursText { get; set; }
-    public string? PhoneNumber { get; set; }
-    public decimal? AveragePrice { get; set; }
-    public int? PriceLevel { get; set; }
-    public double? Rating { get; set; }
-    public List<string>? Tags { get; set; }
-    public string? ImageUrl { get; set; }
-    public List<string>? ImageUrls { get; set; }
-    public string? FunFact { get; set; }
 }
