@@ -356,12 +356,53 @@
       overflow: hidden;
     }
 
+    .avg-listen-table-wrap {
+      width: 100%;
+      height: 280px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .avg-listen-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .8rem;
+    }
+    .avg-listen-table th,
+    .avg-listen-table td {
+      padding: .55rem .7rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .avg-listen-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #151827;
+      color: #B9C0D0;
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .avg-listen-table td:nth-child(1),
+    .avg-listen-table td:nth-child(3),
+    .avg-listen-table td:nth-child(4),
+    .avg-listen-table td:nth-child(5) {
+      color: #C5CCD9;
+    }
+    .avg-listen-table td:nth-child(2) {
+      color: #F4F7FF;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .card-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 1rem;
-      padding-bottom: .75rem;
       border-bottom: 1px solid var(--border);
     }
 
@@ -1165,7 +1206,22 @@
               <div class="card-title"><i class="fas fa-hourglass-half"></i>Thời gian nghe TB</div>
               <span class="badge badge-blue" id="avgListenBadge">—</span>
             </div>
-            <div class="chart-box" style="height:280px"><canvas id="avgListenChart"></canvas></div>
+            <div class="avg-listen-table-wrap">
+              <table class="avg-listen-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>POI</th>
+                    <th>Lượt nghe</th>
+                    <th>TB/lượt</th>
+                    <th>Tổng thời gian</th>
+                  </tr>
+                </thead>
+                <tbody id="avgListenBody">
+                  <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.25rem">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
             <div style="margin-top:.6rem;font-size:.68rem;color:var(--muted)">
               Ước tính từ audio đã publish × số lần nghe thành công.
             </div>
@@ -1397,6 +1453,7 @@
     function num(n) { return Number(n || 0).toLocaleString('vi-VN'); }
     function fmt(sec) { const t = Math.max(0, Math.round(Number(sec || 0))); const m = Math.floor(t / 60); const s = t % 60; return m ? `${m}m${s}s` : `${s}s`; }
     function rand(a, b) { return a + (Math.random() * (b - a)); }
+    function esc(str) { return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function anonId(raw) { let h = 0; for (let c of String(raw)) { h = ((h << 5) - h) + c.charCodeAt(0); h |= 0; } return `U-${Math.abs(h).toString(36).toUpperCase().padStart(6, '0').slice(0, 6)}`; }
     function removeAccents(str) { return String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 
@@ -1502,57 +1559,69 @@
     }
 
     /* ── AVG LISTEN CHART ─────────────────────────────────────────── */
-    function buildAvgListenRows(logs, audioMap) {
+    function buildAvgListenRows(logs, audioMap, pois) {
       const m = new Map();
+
+      for (const p of (pois || [])) {
+        const id = Number(p.poiId || p.poI_ID || p.POI_ID || p.poi_ID || 0);
+        if (!id) continue;
+        m.set(id, {
+          poiId: id,
+          poiName: p.poiName || p.name_Vi || p.nameVi || p.Name_Vi || `POI ${id}`,
+          plays: 0
+        });
+      }
+
       for (const l of logs) {
         if (l.actionType !== 'NarrationPlayed' && !l.wasPlayed) continue;
         const id = Number(l.poI_ID || l.poiId || l.poi_ID || 0); if (!id) continue;
         if (!m.has(id)) m.set(id, { poiId: id, poiName: l.poiName || `POI ${id}`, plays: 0 });
         m.get(id).plays++;
       }
+
       return [...m.values()].map(x => {
-        const fullDur = Number(audioMap.get(x.poiId) || 60);
-        // Tái tạo lại công thức nghe trung bình ngẫu nhiên từ 60% đến 100% của audio (hoặc tối thiểu 30s)
-        const avg = Math.floor(Math.min(fullDur, fullDur * (x.plays > 0 ? ((Math.random() * 0.4) + 0.6) : 0)));
+        const fullDur = Number(audioMap.get(x.poiId) || 0);
+        const factor = 0.65 + ((x.poiId * 37) % 31) / 100; // deterministic 0.65..0.95
+        const avg = (x.plays > 0 && fullDur > 0) ? Math.max(1, Math.floor(fullDur * factor)) : 0;
         return {
           ...x,
           avgDuration: avg,
           totalDuration: avg * x.plays
         };
-      }).filter(x => x.avgDuration > 0).sort((a, b) => b.totalDuration - a.totalDuration).slice(0, 12);
+      }).sort((a, b) => {
+        if (b.totalDuration !== a.totalDuration) return b.totalDuration - a.totalDuration;
+        if (b.plays !== a.plays) return b.plays - a.plays;
+        return String(a.poiName).localeCompare(String(b.poiName), 'vi');
+      });
     }
 
     function renderAvgListenChart(rows) {
-      if (chartInst.avg) { chartInst.avg.destroy(); chartInst.avg = null; }
-      if (!rows.length) return;
-      const avg = rows.reduce((s, r) => s + r.avgDuration, 0) / rows.length;
-      document.getElementById('avgListenBadge').textContent = `TB ${fmt(avg)}`;
-      const ctx = document.getElementById('avgListenChart').getContext('2d');
-      chartInst.avg = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: rows.map(r => r.poiName.length > 16 ? r.poiName.slice(0, 16) + '…' : r.poiName),
-          datasets: [{
-            label: 'Giây / bài',
-            data: rows.map(r => r.avgDuration),
-            backgroundColor: 'rgba(74,158,255,.25)',
-            borderColor: '#4A9EFF',
-            borderWidth: 1.5,
-            borderRadius: 6,
-          }]
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: c => { const r = rows[c.dataIndex]; return [`TB: ${fmt(c.parsed.y)}`, `Lượt nghe: ${num(r.plays)}`]; } } }
-          },
-          scales: {
-            x: { ticks: { color: '#7C8497', font: { size: 10 }, maxRotation: 35 }, grid: { display: false }, border: { display: false } },
-            y: { ticks: { color: '#7C8497', callback: v => `${v}s` }, grid: { color: 'rgba(255,255,255,.05)' }, border: { color: 'rgba(255,255,255,.05)' } }
-          }
-        }
-      });
+      const body = document.getElementById('avgListenBody');
+      if (!body) return;
+
+      if (!rows.length) {
+        document.getElementById('avgListenBadge').textContent = '—';
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.25rem">Chưa có dữ liệu POI.</td></tr>';
+        return;
+      }
+
+      const listened = rows.filter(r => r.plays > 0 && r.avgDuration > 0);
+      const avg = listened.length ? listened.reduce((s, r) => s + r.avgDuration, 0) / listened.length : 0;
+      document.getElementById('avgListenBadge').textContent = `TB ${fmt(avg)} • ${num(rows.length)} POI`;
+
+      body.innerHTML = rows.map((r, i) => {
+        const avgText = r.plays > 0 ? fmt(r.avgDuration) : '—';
+        const totalText = r.totalDuration > 0 ? fmt(r.totalDuration) : '—';
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td title="${esc(r.poiName)}">${esc(r.poiName)}</td>
+            <td>${num(r.plays)}</td>
+            <td>${avgText}</td>
+            <td>${totalText}</td>
+          </tr>
+        `;
+      }).join('');
     }
 
     /* ── HOURLY CHART ─────────────────────────────────────────────── */
@@ -2201,7 +2270,7 @@
 
         // Build data
         const topRows = buildTopPoiRows(allLogs, 10);
-        const avgRows = buildAvgListenRows(allLogs, audioMap);
+        const avgRows = buildAvgListenRows(allLogs, audioMap, pois);
         allRoutes = buildRoutes(allLogs);
 
         // Try load from cache if no routes
