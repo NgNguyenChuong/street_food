@@ -936,7 +936,7 @@ public class POIsController : ControllerBase
     }
 
     /// <summary>
-    /// Deactivate POI - Admin or owning Vendor only
+    /// Permanently close POI (soft delete) - Admin or owning Vendor only
     /// </summary>
     [Authorize(Roles = "Admin,Vendor")]
     [HttpDelete("{id}")]
@@ -964,16 +964,33 @@ public class POIsController : ControllerBase
             }
             if (vendor == null || poi.VendorId != vendor.VendorId)
             {
-                return StatusCode(403, new { message = "Bạn không có quyền ngưng hoạt động POI này." });
+                return StatusCode(403, new { message = "Bạn không có quyền đóng cửa vĩnh viễn POI này." });
             }
         }
 
         var update = Builders<POI>.Update
             .Set(p => p.IsActive, false)
+            .Set(p => p.IsDeleted, true)
+            .Set(p => p.DeletedAt, DateTime.UtcNow)
             .Set(p => p.UpdatedAt, DateTime.UtcNow);
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
 
-        return Ok(new { message = "POI deactivated successfully" });
+        await RemovePoiFromAllToursAsync(poi.Id.ToString());
+
+        return Ok(new { message = "POI đã được đóng cửa vĩnh viễn." });
+    }
+
+    private async Task RemovePoiFromAllToursAsync(string poiObjectId)
+    {
+        if (string.IsNullOrWhiteSpace(poiObjectId))
+            return;
+
+        var filter = Builders<Tour>.Filter.AnyEq(t => t.PoiIds, poiObjectId);
+        var update = Builders<Tour>.Update
+            .Pull(t => t.PoiIds, poiObjectId)
+            .Set(t => t.UpdatedAt, DateTime.UtcNow);
+
+        await _db.Tours.UpdateManyAsync(filter, update);
     }
 
     /// <summary>
