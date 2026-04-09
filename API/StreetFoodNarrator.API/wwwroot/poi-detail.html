@@ -513,8 +513,8 @@ let activeTab   = 'info';
 let ownerName   = null;
 
 if (!POI_ID) {
-    alert('Thiếu POI ID trong URL'); 
-    location.href = 'poi-list';
+    showToast('Thiếu POI ID trong URL', 'warn');
+    setTimeout(() => { location.href = 'poi-list'; }, 350);
 }
 
 // ── Tab switching ──────────────────────────────────────────────────────────────
@@ -538,6 +538,10 @@ function isPermanentlyClosedPoi() {
 }
 
 function showToast(message, type = 'warn') {
+    if (window.UiFeedback?.toast) {
+        window.UiFeedback.toast(message, type);
+        return;
+    }
     const wrap = document.getElementById('toastWrap');
     if (!wrap || !message) return;
     const item = document.createElement('div');
@@ -545,6 +549,35 @@ function showToast(message, type = 'warn') {
     item.innerHTML = `<i class="fas fa-triangle-exclamation"></i>${message}`;
     wrap.appendChild(item);
     setTimeout(() => item.remove(), 2600);
+}
+
+function showConfirmPopup(message) {
+    if (window.UiFeedback?.confirm) {
+        return window.UiFeedback.confirm(message || '', {
+            title: 'Xác nhận',
+            confirmText: 'Đồng ý',
+            cancelText: 'Hủy'
+        });
+    }
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay show';
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:420px;border-radius:16px;">
+                <div class="modal-header"><div class="modal-title">Xác nhận</div></div>
+                <div class="modal-body" style="padding:1rem 1.25rem;color:#374151;">${message}</div>
+                <div class="modal-footer" style="justify-content:flex-end;gap:.6rem;">
+                    <button class="btn btn-secondary" id="confirmNo">Hủy</button>
+                    <button class="btn btn-primary" id="confirmYes">Đồng ý</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const cleanup = (val) => { overlay.remove(); resolve(val); };
+        overlay.querySelector('#confirmNo')?.addEventListener('click', () => cleanup(false));
+        overlay.querySelector('#confirmYes')?.addEventListener('click', () => cleanup(true));
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+    });
 }
 
 // ── Lang tabs (description) ────────────────────────────────────────────────────
@@ -857,7 +890,7 @@ function renderMenuGrid() {
 // ── Menu Modal ─────────────────────────────────────────────────────────────────
 function openMenuModal() {
     if (isAdmin) {
-        alert('Admin không được thêm món ăn.');
+        showToast('Admin không được thêm món ăn.', 'warn');
         return;
     }
 
@@ -897,7 +930,7 @@ async function autoTranslateMenu(srcId, enId, zhId) {
     const enEl = document.getElementById(enId);
     const zhEl = zhId ? document.getElementById(zhId) : null;
     const text = srcEl.value.trim();
-    if (!text) return alert("Vui lòng nhập nội dung tiếng Việt trước khi dịch!");
+    if (!text) { showToast('Vui lòng nhập nội dung tiếng Việt trước khi dịch!', 'warn'); return; }
     
     const btn = event.currentTarget;
     const originalHtml = btn.innerHTML;
@@ -910,7 +943,7 @@ async function autoTranslateMenu(srcId, enId, zhId) {
         if (res.en) enEl.value = res.en;
         if (zhEl && res['zh-CN']) zhEl.value = res['zh-CN'];
     } catch (error) {
-        alert("Lỗi dịch tự động: " + error.message);
+        showToast('Lỗi dịch tự động: ' + error.message, 'error');
     } finally {
         btn.innerHTML = originalHtml;
         btn.disabled = false;
@@ -1054,7 +1087,7 @@ document.getElementById('itemImageFile')?.addEventListener('change', async (e) =
             statusEl.textContent = 'Lỗi upload ảnh';
             statusEl.style.color = 'var(--danger)';
         }
-        alert('Lỗi upload ảnh: ' + err.message);
+        showToast('Lỗi upload ảnh: ' + err.message, 'error');
         e.target.value = '';
         document.getElementById('itemImageUrl').value = '';
         if (previewWrap && previewImg) {
@@ -1066,14 +1099,14 @@ document.getElementById('itemImageFile')?.addEventListener('change', async (e) =
 
 async function saveMenuItem() {
     if (isAdmin) {
-        alert('Admin không được thêm hoặc chỉnh sửa món ăn.');
+        showToast('Admin không được thêm hoặc chỉnh sửa món ăn.', 'warn');
         return;
     }
 
     const nameVi = document.getElementById('itemNameVi').value.trim();
     const price  = parseFloat(document.getElementById('itemPrice').value);
-    if (!nameVi) { alert('Vui lòng nhập tên món (VI)'); return; }
-    if (isNaN(price) || price < 0) { alert('Giá không hợp lệ'); return; }
+    if (!nameVi) { showToast('Vui lòng nhập tên món (VI)', 'warn'); return; }
+    if (isNaN(price) || price < 0) { showToast('Giá không hợp lệ', 'warn'); return; }
 
     const btn = document.getElementById('btnSaveMenu');
     if (btn) {
@@ -1140,7 +1173,7 @@ async function saveMenuItem() {
         menuItems = [];
         await loadMenuItems();
     } catch(e) {
-        alert('Lỗi: ' + e.message);
+        showToast('Lỗi: ' + e.message, 'error');
     } finally {
         if (btn) {
             btn.innerHTML = btn.dataset.original;
@@ -1150,26 +1183,28 @@ async function saveMenuItem() {
 }
 
 async function deleteMenu(id, name) {
-    if (!confirm(`Đổi trạng thái bán cho món "${name}"?`)) return;
+    const ok = await showConfirmPopup(`Đổi trạng thái bán cho món "${name}"?`);
+    if (!ok) return;
     try {
         await api.updateMenuItem(id, { isDeleted: true });
         menuItems = [];
         await loadMenuItems();
     } catch(e) {
-        alert('Lỗi cập nhật trạng thái: ' + e.message);
+        showToast('Lỗi cập nhật trạng thái: ' + e.message, 'error');
     }
 }
 
 async function toggleMenuSaleStatus(id, nextIsDeleted, name) {
     const nextIsAvailable = !!nextIsDeleted;
     const action = nextIsAvailable ? 'bật bán lại' : 'ngừng bán';
-    if (!confirm(`Bạn muốn ${action} món "${name}"?`)) return;
+    const ok = await showConfirmPopup(`Bạn muốn ${action} món "${name}"?`);
+    if (!ok) return;
     try {
         await api.updateMenuItem(id, { isAvailable: nextIsAvailable, isDeleted: false });
         menuItems = [];
         await loadMenuItems();
     } catch (e) {
-        alert('Lỗi cập nhật trạng thái: ' + e.message);
+        showToast('Lỗi cập nhật trạng thái: ' + e.message, 'error');
     }
 }
 

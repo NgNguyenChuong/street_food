@@ -1034,72 +1034,212 @@ function hideLoading(elementId = 'loading') {
 
 
 
-// Show toast notification
+// Unified feedback UI: toast (top-right), confirm popup, prompt popup.
+(function initUnifiedFeedbackUi() {
+    if (window.UiFeedback) return;
 
-function showToast(message, type = 'info') {
+    function normalizeType(type) {
+        const key = String(type || 'info').toLowerCase();
+        if (key === 'ok') return 'success';
+        if (key === 'err') return 'error';
+        if (key === 'warn') return 'warning';
+        return key;
+    }
 
-    const toast = document.createElement('div');
+    function ensureStyles() {
+        if (document.getElementById('unified-feedback-style')) return;
+        const style = document.createElement('style');
+        style.id = 'unified-feedback-style';
+        style.textContent = `
+            #uf-toast-wrap {
+                position: fixed;
+                top: 1rem;
+                right: 1rem;
+                z-index: 12000;
+                display: flex;
+                flex-direction: column;
+                gap: .5rem;
+                pointer-events: none;
+                max-width: min(90vw, 420px);
+            }
+            .uf-toast {
+                pointer-events: auto;
+                display: flex;
+                align-items: center;
+                gap: .55rem;
+                color: #fff;
+                font-weight: 600;
+                line-height: 1.35;
+                border-radius: 11px;
+                padding: .72rem .9rem;
+                box-shadow: 0 12px 28px rgba(0,0,0,.2);
+                animation: uf-toast-in .2s ease-out;
+            }
+            .uf-toast.success { background: #0f766e; }
+            .uf-toast.error { background: #b42318; }
+            .uf-toast.warning { background: #b45309; }
+            .uf-toast.info { background: #1f2937; }
+            @keyframes uf-toast-in {
+                from { opacity: 0; transform: translateY(-8px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .uf-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, .46);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 12001;
+                padding: 1rem;
+                backdrop-filter: blur(2px);
+            }
+            .uf-dialog {
+                width: min(460px, 100%);
+                background: #fff;
+                color: #111827;
+                border-radius: 14px;
+                box-shadow: 0 20px 42px rgba(0,0,0,.24);
+                padding: 1rem;
+            }
+            .uf-title {
+                font-size: 1.02rem;
+                font-weight: 700;
+                margin-bottom: .45rem;
+            }
+            .uf-msg {
+                line-height: 1.46;
+                color: #374151;
+                margin-bottom: .8rem;
+                white-space: pre-wrap;
+            }
+            .uf-input {
+                width: 100%;
+                border: 1px solid #d1d5db;
+                border-radius: 10px;
+                padding: .62rem .7rem;
+                margin-bottom: .85rem;
+                font-size: .95rem;
+                outline: none;
+            }
+            .uf-input:focus {
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37,99,235,.17);
+            }
+            .uf-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: .5rem;
+            }
+            .uf-btn {
+                border: 0;
+                border-radius: 10px;
+                padding: .52rem .82rem;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .uf-btn-cancel { background: #e5e7eb; color: #111827; }
+            .uf-btn-ok { background: #2563eb; color: #fff; }
+            .uf-btn-ok.danger { background: #b91c1c; }
+        `;
+        document.head.appendChild(style);
+    }
 
-    toast.className = `toast toast-${type}`;
+    function ensureToastWrap() {
+        ensureStyles();
+        let wrap = document.getElementById('uf-toast-wrap');
+        if (!wrap) {
+            wrap = document.createElement('div');
+            wrap.id = 'uf-toast-wrap';
+            document.body.appendChild(wrap);
+        }
+        return wrap;
+    }
 
-    toast.textContent = message;
+    function toast(message, type = 'info', timeout = 3200) {
+        if (!message) return;
+        const kind = normalizeType(type);
+        const icon = kind === 'success' ? 'fa-check-circle'
+            : kind === 'error' ? 'fa-circle-exclamation'
+            : kind === 'warning' ? 'fa-triangle-exclamation'
+            : 'fa-circle-info';
 
-    toast.style.cssText = `
+        const item = document.createElement('div');
+        item.className = `uf-toast ${kind}`;
+        item.innerHTML = `<i class="fas ${icon}"></i><span>${String(message)}</span>`;
+        ensureToastWrap().appendChild(item);
+        setTimeout(() => item.remove(), timeout || 3200);
+    }
 
-        position: fixed;
+    function confirm(message, options = {}) {
+        ensureStyles();
+        return new Promise(resolve => {
+            const title = options.title || 'Xác nhận';
+            const confirmText = options.confirmText || 'Đồng ý';
+            const cancelText = options.cancelText || 'Hủy';
+            const danger = !!options.danger;
 
-        top: 20px;
+            const overlay = document.createElement('div');
+            overlay.className = 'uf-overlay';
+            overlay.innerHTML = `
+                <div class="uf-dialog" role="dialog" aria-modal="true">
+                    <div class="uf-title">${title}</div>
+                    <div class="uf-msg">${String(message || '')}</div>
+                    <div class="uf-actions">
+                        <button type="button" class="uf-btn uf-btn-cancel" data-uf-cancel>${cancelText}</button>
+                        <button type="button" class="uf-btn uf-btn-ok ${danger ? 'danger' : ''}" data-uf-ok>${confirmText}</button>
+                    </div>
+                </div>
+            `;
+            const done = (ok) => { overlay.remove(); resolve(ok); };
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) done(false); });
+            overlay.querySelector('[data-uf-cancel]')?.addEventListener('click', () => done(false));
+            overlay.querySelector('[data-uf-ok]')?.addEventListener('click', () => done(true));
+            document.body.appendChild(overlay);
+        });
+    }
 
-        right: 20px;
+    function prompt(message, defaultValue = '', options = {}) {
+        ensureStyles();
+        return new Promise(resolve => {
+            const title = options.title || 'Nhập thông tin';
+            const confirmText = options.confirmText || 'Xác nhận';
+            const cancelText = options.cancelText || 'Hủy';
+            const placeholder = options.placeholder || '';
 
-        padding: 1rem 1.5rem;
+            const overlay = document.createElement('div');
+            overlay.className = 'uf-overlay';
+            overlay.innerHTML = `
+                <div class="uf-dialog" role="dialog" aria-modal="true">
+                    <div class="uf-title">${title}</div>
+                    <div class="uf-msg">${String(message || '')}</div>
+                    <input class="uf-input" value="${String(defaultValue || '').replace(/"/g, '&quot;')}" placeholder="${String(placeholder || '').replace(/"/g, '&quot;')}" />
+                    <div class="uf-actions">
+                        <button type="button" class="uf-btn uf-btn-cancel" data-uf-cancel>${cancelText}</button>
+                        <button type="button" class="uf-btn uf-btn-ok" data-uf-ok>${confirmText}</button>
+                    </div>
+                </div>
+            `;
+            const input = overlay.querySelector('.uf-input');
+            const done = (val) => { overlay.remove(); resolve(val); };
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) done(null); });
+            overlay.querySelector('[data-uf-cancel]')?.addEventListener('click', () => done(null));
+            overlay.querySelector('[data-uf-ok]')?.addEventListener('click', () => done((input?.value || '').trim()));
+            input?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') done((input.value || '').trim());
+                if (e.key === 'Escape') done(null);
+            });
+            document.body.appendChild(overlay);
+            setTimeout(() => input?.focus(), 0);
+        });
+    }
 
-        border-radius: 8px;
+    window.UiFeedback = { toast, confirm, prompt, normalizeType };
+})();
 
-        color: white;
-
-        font-weight: 600;
-
-        z-index: 10000;
-
-        animation: slideIn 0.3s ease-out;
-
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-
-    `;
-
-    
-
-    const colors = {
-
-        success: '#06D6A0',
-
-        error: '#EF476F',
-
-        warning: '#FFD23F',
-
-        info: '#004E89'
-
-    };
-
-    
-
-    toast.style.background = colors[type] || colors.info;
-
-    
-
-    document.body.appendChild(toast);
-
-    
-
-    setTimeout(() => {
-
-        toast.style.animation = 'slideOut 0.3s ease-in';
-
-        setTimeout(() => toast.remove(), 300);
-
-    }, 3000);
-
+// Keep backward-compatible API for existing pages.
+function showToast(message, type = 'info', timeout = 3200) {
+    return window.UiFeedback.toast(message, type, timeout);
 }
 
 

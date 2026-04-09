@@ -161,14 +161,79 @@ class Navigation {
         }, 100);
     }
 
-    logout() {
-        if (confirm('Bạn có chắc muốn đăng xuất?')) {
-            localStorage.removeItem('userSession');
-            sessionStorage.removeItem('userSession');
-            localStorage.removeItem('authToken');
-            sessionStorage.removeItem('authToken');
-            window.location.href = '/';
-        }
+    showInlineConfirm(message, options = {}) {
+        return new Promise(resolve => {
+            const {
+                title = 'Xác nhận',
+                confirmText = 'Đồng ý',
+                cancelText = 'Hủy',
+                danger = false
+            } = options;
+
+            const overlay = document.createElement('div');
+            overlay.style.position = 'fixed';
+            overlay.style.inset = '0';
+            overlay.style.background = 'rgba(15, 23, 42, 0.46)';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.padding = '16px';
+            overlay.style.zIndex = '100000';
+
+            overlay.innerHTML = `
+                <div style="width:min(460px,100%);background:#fff;border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.22);padding:16px;color:#0f172a;">
+                    <div style="font-size:1.02rem;font-weight:700;margin-bottom:8px;">${title}</div>
+                    <div style="line-height:1.45;margin-bottom:12px;white-space:pre-wrap;">${message || ''}</div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;">
+                        <button type="button" data-cancel style="border:0;border-radius:10px;padding:.55rem .85rem;font-weight:600;cursor:pointer;background:#e5e7eb;color:#111827;">${cancelText}</button>
+                        <button type="button" data-ok style="border:0;border-radius:10px;padding:.55rem .85rem;font-weight:600;cursor:pointer;background:${danger ? '#b91c1c' : '#2563eb'};color:#fff;">${confirmText}</button>
+                    </div>
+                </div>
+            `;
+
+            const done = (ok) => {
+                overlay.remove();
+                resolve(ok);
+            };
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) done(false);
+            });
+            overlay.querySelector('[data-cancel]')?.addEventListener('click', () => done(false));
+            overlay.querySelector('[data-ok]')?.addEventListener('click', () => done(true));
+            document.body.appendChild(overlay);
+        });
+    }
+
+    async logout() {
+        const ok = window.UiFeedback?.confirm
+            ? await window.UiFeedback.confirm('Bạn có chắc muốn đăng xuất?', {
+                title: 'Xác nhận đăng xuất',
+                confirmText: 'Đăng xuất',
+                cancelText: 'Hủy',
+                danger: true
+            })
+            : typeof window.showConfirmDialog === 'function'
+            ? await window.showConfirmDialog('Bạn có chắc muốn đăng xuất?', {
+                title: 'Xác nhận đăng xuất',
+                confirmText: 'Đăng xuất',
+                cancelText: 'Hủy',
+                danger: true
+            })
+            : await this.showInlineConfirm('Bạn có chắc muốn đăng xuất?', {
+                title: 'Xác nhận đăng xuất',
+                confirmText: 'Đăng xuất',
+                cancelText: 'Hủy',
+                danger: true
+            });
+
+        if (!ok) return;
+
+        localStorage.removeItem('userSession');
+        sessionStorage.removeItem('userSession');
+        localStorage.removeItem('authToken');
+        sessionStorage.removeItem('authToken');
+        window.location.href = '/';
     }
 
     addStyles() {

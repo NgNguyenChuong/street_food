@@ -405,6 +405,43 @@
 
     <script src="api.js"></script>
     <script>
+        function showTopRightToast(message, type = 'warning', timeout = 3200) {
+            if (window.UiFeedback?.toast) {
+                window.UiFeedback.toast(message, type, timeout);
+                return;
+            }
+            if (!message) return;
+            let wrap = document.getElementById('globalToastWrap');
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.id = 'globalToastWrap';
+                wrap.style.position = 'fixed';
+                wrap.style.top = '1rem';
+                wrap.style.right = '1rem';
+                wrap.style.zIndex = '12000';
+                wrap.style.display = 'flex';
+                wrap.style.flexDirection = 'column';
+                wrap.style.gap = '.5rem';
+                document.body.appendChild(wrap);
+            }
+            const bg = type === 'success' ? '#0f766e' : type === 'error' ? '#b42318' : '#1f2937';
+            const item = document.createElement('div');
+            item.style.background = bg;
+            item.style.color = '#fff';
+            item.style.padding = '.75rem .95rem';
+            item.style.borderRadius = '10px';
+            item.style.fontWeight = '600';
+            item.style.maxWidth = '520px';
+            item.style.boxShadow = '0 10px 26px rgba(0,0,0,.18)';
+            item.textContent = String(message);
+            wrap.appendChild(item);
+            setTimeout(() => item.remove(), timeout);
+        }
+
+        window.alert = function(message) {
+            showTopRightToast(message, 'warning');
+        };
+
         const user = TokenManager.getUser();
         const token = TokenManager.getToken();
         if (!user && !token) window.location.href = TokenManager.getLoginUrl();
@@ -786,7 +823,7 @@
                 }
             } catch (err) {
                 setTranslateHint(id, 'Dịch thất bại, vui lòng thử lại.', true);
-                if (notifyOnError) alert(err?.message || 'Không thể tự động dịch.');
+                if (notifyOnError) showTopRightToast(err?.message || 'Không thể tự động dịch.', 'error');
             } finally {
                 translatingPoi.delete(id);
             }
@@ -849,19 +886,19 @@
             const button = document.getElementById('btnAutoTranslate');
             const targets = getTranslateTargets();
             if (!targets.length) {
-                if (notify) alert('Không có ngôn ngữ cần dịch (chỉ chọn tiếng Việt).');
+                if (notify) showTopRightToast('Không có ngôn ngữ cần dịch (chỉ chọn tiếng Việt).', 'warning');
                 return;
             }
             const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
             if (!selected.length) {
-                if (notify) alert('Vui lòng chọn POI trước.');
+                if (notify) showTopRightToast('Vui lòng chọn POI trước.', 'warning');
                 return;
             }
             for (const poi of selected) {
                 const id = getPoiId(poi);
                 const baseText = getBaseScriptForPoi(poi);
                 if (!baseText) {
-                    if (notify) alert('Nội dung trống cho một số POI. Vui lòng nhập text trước khi dịch.');
+                    if (notify) showTopRightToast('Nội dung trống cho một số POI. Vui lòng nhập text trước khi dịch.', 'warning');
                     return;
                 }
             }
@@ -875,9 +912,9 @@
                     const id = getPoiId(poi);
                     await translatePoi(id, { notifyOnError: true });
                 }
-                if (notify) alert('Đã tự động dịch xong.');
+                if (notify) showTopRightToast('Đã tự động dịch xong.', 'success');
             } catch (err) {
-                if (notify) alert(err?.message || 'Không thể tự động dịch.');
+                if (notify) showTopRightToast(err?.message || 'Không thể tự động dịch.', 'error');
             } finally {
                 if (button) {
                     button.disabled = false;
@@ -1328,7 +1365,7 @@ function showValidationError(stepId, message) {
             const validPOIs = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
 
             if (validPOIs.length === 0 || selectedLangs.size === 0) {
-                alert('Không có POI hợp lệ hoặc chưa chọn ngôn ngữ.');
+                showTopRightToast('Không có POI hợp lệ hoặc chưa chọn ngôn ngữ.', 'warning');
                 return;
             }
 
@@ -1353,7 +1390,7 @@ function showValidationError(stepId, message) {
                         });
                     });
                     if (stillMissing) {
-                        alert('Không thể tự động dịch đầy đủ. Vui lòng thử lại.');
+                        showTopRightToast('Không thể tự động dịch đầy đủ. Vui lòng thử lại.', 'error');
                         return;
                     }
                 }
@@ -1470,7 +1507,7 @@ function showValidationError(stepId, message) {
 
             const remaining = total - completed - failed;
             if (stopped && remaining > 0) {
-                alert(`⛔ Đã dừng sớm.\n\n✅ Thành công: ${completed}\n❌ Lỗi / bỏ qua: ${failed}\n⏳ Chưa xử lý: ${remaining}`);
+                showTopRightToast(`Đã dừng sớm. Thành công: ${completed}, Lỗi / bỏ qua: ${failed}, Chưa xử lý: ${remaining}`, 'warning', 5500);
             } else {
                 showSuccessOnly(completed, total, failed);
             }
@@ -1555,7 +1592,7 @@ function showValidationError(stepId, message) {
             const row = document.querySelector(`.result-item[data-key="${key}"]`);
             const textarea = row?.querySelector('textarea.result-textarea');
             const text = (textarea ? textarea.value : item.text || '').trim();
-            if (!text) { alert('Nội dung trống.'); return; }
+            if (!text) { showTopRightToast('Nội dung trống.', 'warning'); return; }
             item.text = text; // sync back
 
             const voice = getVoiceForLang(item.lang);
@@ -1603,7 +1640,7 @@ function showValidationError(stepId, message) {
                 renderResults();
             } catch (e) {
                 const msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Không thể tạo lại.');
-                alert(msg);
+                showTopRightToast(msg, 'error');
             } finally {
                 if (regenBtn) {
                     regenBtn.disabled = false;
@@ -1616,7 +1653,7 @@ function showValidationError(stepId, message) {
             const item = generatedItems.get(key);
             if (!item) return;
             const text = (item.text || '').trim();
-            if (!text) { alert('Nội dung trống.'); return; }
+            if (!text) { showTopRightToast('Nội dung trống.', 'warning'); return; }
             try {
                 await api.request('/Audio', {
                     method: 'POST',
@@ -1647,7 +1684,7 @@ function showValidationError(stepId, message) {
                     await afterAllSaved();
                 }
             } catch (e) {
-                alert(e.message || 'Không thể lưu audio.');
+                showTopRightToast(e.message || 'Không thể lưu audio.', 'error');
             }
         }
 
@@ -1726,7 +1763,7 @@ function showValidationError(stepId, message) {
         // Play audio from generated files
         function playAudio(audioKey) {
             if (!generatedAudioFiles.has(audioKey)) {
-                alert('File audio không tồn tại');
+                showTopRightToast('File audio không tồn tại', 'error');
                 return;
             }
 
@@ -1742,7 +1779,7 @@ function showValidationError(stepId, message) {
             currentAudioPlayer = new Audio(audioUrl);
             currentAudioPlayer.play().catch(err => {
                 console.error('Lỗi phát audio:', err);
-                alert(`Không thể phát audio: ${err.message}`);
+                showTopRightToast(`Không thể phát audio: ${err.message}`, 'error');
             });
 
             // Update button to show playing state
@@ -1785,8 +1822,8 @@ function showValidationError(stepId, message) {
             };
             try {
                 localStorage.setItem('tts_draft', JSON.stringify(draft));
-                alert(`💾 Đã lưu nháp lúc ${new Date().toLocaleString('vi-VN')}`);
-            } catch { alert('Không thể lưu nháp.'); }
+                showTopRightToast(`Đã lưu nháp lúc ${new Date().toLocaleString('vi-VN')}`, 'success');
+            } catch { showTopRightToast('Không thể lưu nháp.', 'error'); }
         }
 
         function goStep(step) {
