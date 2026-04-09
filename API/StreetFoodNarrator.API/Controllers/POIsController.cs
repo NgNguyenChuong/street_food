@@ -399,6 +399,8 @@ public class POIsController : ControllerBase
             PhoneNumber = p.PhoneNumber,
             AveragePrice = p.AveragePrice,
             Rating = p.Rating,
+            PlayCount = p.PlayCount,
+            MeanPlay = p.MeanPlay,
             PriceLevel = p.PriceLevel,
             ImageUrl = p.ImageUrl,
             FunFact = p.FunFact,
@@ -1407,6 +1409,8 @@ public class POIDto
     public string? PhoneNumber { get; set; }
     public decimal? AveragePrice { get; set; }
     public double? Rating { get; set; }
+    public long PlayCount { get; set; }
+    public double MeanPlay { get; set; }
     public int? PriceLevel { get; set; }
     public string? ImageUrl { get; set; }
     public string? FunFact { get; set; }

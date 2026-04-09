@@ -216,7 +216,7 @@ function renderHistLogs(data) {
     <tr>
       <td><span class="mono">${h.userId}</span></td>
       <td>${h.device}</td>
-      <td><span class="badge ${h.os.includes('iOS')?'b-blue':'b-green'}">${h.os}</span></td>
+      <td><span class="badge b-green">Android</span></td>
       <td style="font-size:13px">${h.poi}</td>
       <td><span class="badge ${h.action==='audio'?'b-purple':'b-gray'}">${h.action==='audio'?'🎵 Audio':'👁️ View'}</span></td>
       <td style="font-size:12px;color:var(--muted2)">${h.time}</td>
@@ -240,7 +240,7 @@ function renderUsers(data) {
       <td onclick="event.stopPropagation()"><input type="checkbox" style="accent-color:var(--accent)"/></td>
       <td><span class="mono">${u.deviceId}</span></td>
       <td>${u.model}</td>
-      <td><span class="badge ${u.os.includes('iOS')?'b-blue':'b-green'}">${u.os}</span></td>
+      <td><span class="badge b-green">Android</span></td>
       <td style="font-size:12px;color:var(--muted2)">${u.firstSeen}</td>
       <td style="font-size:12px;color:var(--muted2)">${u.lastSeen}</td>
       <td><strong>${u.sessions}</strong></td>
@@ -278,7 +278,7 @@ function viewDevice(id) {
       <div style="display:grid;grid-template-columns:120px 1fr;gap:12px;font-size:13px">
         <div style="color:var(--muted)">Device ID</div><div><span class="mono">${u.deviceId}</span></div>
         <div style="color:var(--muted)">Model</div><div>${u.model}</div>
-        <div style="color:var(--muted)">OS</div><div><span class="badge ${u.os.includes('iOS')?'b-blue':'b-green'}">${u.os}</span></div>
+        <div style="color:var(--muted)">OS</div><div><span class="badge b-green">Android</span></div>
         <div style="color:var(--muted)">First Seen</div><div>${u.firstSeen}</div>
         <div style="color:var(--muted)">Last Seen</div><div>${u.lastSeen}</div>
         <div style="color:var(--muted)">Sessions</div><div><strong>${u.sessions}</strong></div>

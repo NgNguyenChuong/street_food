@@ -162,10 +162,6 @@
             <div class="quick-icon" style="background:rgba(255,210,63,0.15);color:#D69E00"><i class="fas fa-route"></i></div>
             <div><div class="quick-name">Quản lý Tour</div><div class="quick-desc">Lộ trình tham quan ẩm thực</div></div>
         </a>
-        <a class="quick-card" href='history">
-            <div class="quick-icon" style="background:rgba(6,214,160,0.12);color:var(--success)"><i class="fas fa-history"></i></div>
-            <div><div class="quick-name">Lịch sử</div><div class="quick-desc">Theo dõi hành vi người dùng</div></div>
-        </a>
         <a class="quick-card" href='users">
             <div class="quick-icon" style="background:rgba(255,107,53,0.1);color:var(--primary)"><i class="fas fa-mobile-alt"></i></div>
             <div><div class="quick-name">Lịch sử sử dụng</div><div class="quick-desc">Phân tích người dùng app</div></div>
@@ -201,7 +197,7 @@
         // Hide admin-only quick links
         document.querySelectorAll('.quick-links .quick-card').forEach(card => {
             const href = card.getAttribute('href');
-            if (['translation', 'tour', 'history', 'users'].includes(href)) {
+            if (['translation', 'tour', 'users'].includes(href)) {
                 card.style.display = 'none';
             }
         });
