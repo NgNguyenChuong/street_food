@@ -200,6 +200,13 @@
         .pagination-btn[disabled]{opacity:.5;cursor:not-allowed}
         .pagination-info{color:#666;margin:0 1rem}
 
+        .qr-modal{max-width:420px}
+        .qr-modal-body{display:flex;flex-direction:column;align-items:center;gap:.8rem;padding:1.4rem 1.6rem 1.2rem}
+        .qr-preview{width:236px;height:236px;border-radius:14px;border:1.5px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center}
+        .qr-link-row{width:100%;display:flex;gap:.45rem;align-items:center}
+        .qr-link-row input{flex:1;padding:.58rem .72rem;border:1.5px solid var(--border);border-radius:10px;font-size:.8rem;color:#555;background:#f9fbff}
+        .qr-hint{font-size:.75rem;color:#8b95a1;text-align:center;line-height:1.45}
+
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
         @keyframes slideUp{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -251,6 +258,24 @@
     </div>
     <div class="pagination" id="tourPagination"></div>
 </main>
+
+<div class="modal-overlay" id="tourQrModal">
+    <div class="modal qr-modal">
+        <div class="modal-header">
+            <h2 class="modal-title">QR Tour</h2>
+            <button class="modal-close" onclick="closeTourQrModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="qr-modal-body">
+            <div class="qr-preview" id="tourQrPreview"></div>
+            <div class="qr-link-row">
+                <input id="tourQrLinkInput" type="text" readonly>
+                <button class="btn btn-outline btn-sm" type="button" onclick="copyTourQrLink()"><i class="fas fa-copy"></i> Copy</button>
+                <button class="btn btn-primary btn-sm" type="button" onclick="downloadTourQrPng()"><i class="fas fa-download"></i> PNG</button>
+            </div>
+            <div class="qr-hint" id="tourQrHint">Quét mã để mở danh sách tour trong app và hiện chi tiết đúng tour.</div>
+        </div>
+    </div>
+</div>
 
 <!-- -- MODAL -- -->
 <div class="modal-overlay" id="tourModal">
@@ -356,6 +381,7 @@
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script src="api.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 /* --- CONSTANTS --- */
 const THEME_MAP = {
@@ -366,6 +392,8 @@ const TIME_MAP = {
     sang:'Sáng sớm', trua:'Trưa', chieu:'Chiều', khuya:'Khuya'
 };
 const HCM_LL = [10.762, 106.682];
+const QR_LINK_EXPIRY_DAYS = 5;
+const QR_LINK_EXPIRY_WINDOW_MS = QR_LINK_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 const DEFAULT_TOUR_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 600'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23ff6b35'/%3E%3Cstop offset='100%25' stop-color='%23004e89'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='600' fill='url(%23g)'/%3E%3Ccircle cx='1040' cy='130' r='150' fill='rgba(255,255,255,0.16)'/%3E%3Ccircle cx='230' cy='460' r='210' fill='rgba(255,255,255,0.10)'/%3E%3Cpath d='M120 430 L350 265 L570 375 L760 225 L1030 355' stroke='rgba(255,255,255,0.88)' stroke-width='15' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='350' cy='265' r='21' fill='white'/%3E%3Ccircle cx='570' cy='375' r='21' fill='white'/%3E%3Ccircle cx='760' cy='225' r='21' fill='white'/%3E%3Ctext x='78' y='112' font-family='DM Sans,Arial,sans-serif' font-size='64' fill='white' font-weight='700'%3EStreet Food Tour%3C/text%3E%3Ctext x='78' y='176' font-family='DM Sans,Arial,sans-serif' font-size='34' fill='rgba(255,255,255,0.92)'%3EKh%C3%A1m ph%C3%A1 h%C3%A0nh tr%C3%ACnh %E1%BA%A9m th%E1%BB%B1c%3C/text%3E%3C/svg%3E";
 
 /* --- STATE --- */
@@ -377,6 +405,8 @@ let pMap = null, pRoute = null, pMarkers = [];
 let savedRouteGeom = null;   // stored routeGeometry from DB
 let currentPage = 1;
 const pageSize = 6;
+let currentQrTourId = '';
+let currentQrTourName = '';
 
 /* --- INIT --- */
 document.addEventListener('DOMContentLoaded', async () => {
@@ -444,6 +474,18 @@ function isPOIInactive(poiOrId) {
     return active === false || active === 0 || active === 'false';
 }
 
+function getCurrentQrExpiryEpochSeconds() {
+    const nowMs = Date.now();
+    const windowStartMs = Math.floor(nowMs / QR_LINK_EXPIRY_WINDOW_MS) * QR_LINK_EXPIRY_WINDOW_MS;
+    const windowEndMs = windowStartMs + QR_LINK_EXPIRY_WINDOW_MS;
+    return Math.floor(windowEndMs / 1000);
+}
+
+function getTourQrLink(tourId) {
+    const exp = getCurrentQrExpiryEpochSeconds();
+    return `https://streetfoodnarrator.app/qr/tour/${encodeURIComponent(String(tourId || '').trim())}?exp=${exp}`;
+}
+
 /* --- RENDER CARDS --- */
 function renderTours(data) {
     if (!data.length) {
@@ -495,6 +537,7 @@ function renderTours(data) {
             <div class="card-footer">
                 <div></div>
                 <div class="footer-btns">
+                    <button class="icon-btn" onclick="openTourQrById('${t.id}')" title="QR Tour"><i class="fas fa-qrcode"></i></button>
                     <button class="icon-btn" onclick="editTour('${t.id}')" title="Sửa"><i class="fas fa-edit"></i></button>
                     <button class="icon-btn del" onclick="delTour('${t.id}')" title="Xóa"><i class="fas fa-trash"></i></button>
                 </div>
@@ -568,6 +611,98 @@ function changePage(direction) {
 function goToPage(page) {
     currentPage = page;
     renderPagedTours();
+}
+
+function openTourQrById(tourId) {
+    const id = String(tourId || '').trim();
+    if (!id) return;
+
+    const link = getTourQrLink(id);
+    const tour = allTours.find(x => String(x.id || x.Id || '').trim() === id);
+    const tourName = (tour?.tourName || tour?.name || tour?.Name || `Tour ${id}`).trim();
+
+    const qrBox = document.getElementById('tourQrPreview');
+    const linkInput = document.getElementById('tourQrLinkInput');
+    const hint = document.getElementById('tourQrHint');
+    if (!qrBox || !linkInput) return;
+
+    currentQrTourId = id;
+    currentQrTourName = tourName;
+
+    qrBox.innerHTML = '';
+    linkInput.value = link;
+    if (hint) hint.textContent = `Quét mã để mở danh sách tour và xem chi tiết: ${tourName}`;
+
+    if (typeof QRCode === 'undefined') {
+        qrBox.textContent = 'Không tải được thư viện QR.';
+    } else {
+        new QRCode(qrBox, {
+            text: link,
+            width: 220,
+            height: 220,
+            colorDark: '#111',
+            colorLight: '#fff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    }
+
+    document.getElementById('tourQrModal')?.classList.add('active');
+}
+
+function closeTourQrModal() {
+    document.getElementById('tourQrModal')?.classList.remove('active');
+}
+
+async function copyTourQrLink() {
+    const input = document.getElementById('tourQrLinkInput');
+    const value = input?.value?.trim();
+    if (!value) return;
+
+    try {
+
+function toSafeFileSegment(raw) {
+    return String(raw || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 50) || 'tour';
+}
+
+function downloadTourQrPng() {
+    const qrBox = document.getElementById('tourQrPreview');
+    if (!qrBox) return;
+
+    const fileBase = `tour_qr_${toSafeFileSegment(currentQrTourName || currentQrTourId || 'item')}`;
+    const fileName = `${fileBase}.png`;
+
+    const img = qrBox.querySelector('img');
+    if (img?.src) {
+        const a = document.createElement('a');
+        a.href = img.src;
+        a.download = fileName;
+        a.click();
+        toast('Đã tải QR PNG.', 'ok');
+        return;
+    }
+
+    const canvas = qrBox.querySelector('canvas');
+    if (canvas && typeof canvas.toDataURL === 'function') {
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = fileName;
+        a.click();
+        toast('Đã tải QR PNG.', 'ok');
+        return;
+    }
+
+    toast('Chưa có QR để tải. Hãy mở QR tour trước.', 'err');
+}
+        await navigator.clipboard.writeText(value);
+        toast('Đã copy link QR tour.', 'ok');
+    } catch (e) {
+        toast('Không thể copy tự động, vui lòng copy thủ công.', 'err');
+    }
 }
 
 /* --- MODAL --- */

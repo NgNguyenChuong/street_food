@@ -891,43 +891,17 @@ public partial class MainPage : ContentPage
             }
             else if (!string.IsNullOrWhiteSpace(payload.TourId))
             {
-                if (_vm.AllTours.Count == 0)
-                    await _vm.LoadToursAsync(forceSyncNow: false);
+                Preferences.Set(SavedPage.OpenBrowseSegmentOnNextAppearKey, true);
+                Preferences.Set(SavedPage.PendingQrTourIdOnNextAppearKey, payload.TourId.Trim());
+                _vm.CurrentAppMode = MainViewModel.AppMode.Explore;
+                _vm.IsLegacyMapVisible = false;
+                SyncExplorePresentationState();
+                ApplyMapPresentation();
 
-                var tour = _vm.AllTours.FirstOrDefault(t =>
-                    string.Equals(t.Id, payload.TourId, StringComparison.OrdinalIgnoreCase));
+                if (Shell.Current != null)
+                    await Shell.Current.GoToAsync("//SavedPage", false);
 
-                if (tour == null)
-                {
-                    await DisplayAlertAsync(
-                        Ui("Không tìm thấy tour", "Tour not found", "未找到行程"),
-                        Ui(
-                            "Tour trong mã QR chưa có dữ liệu trên máy. Vui lòng đồng bộ rồi thử lại.",
-                            "The tour in this QR is not available on this device yet. Please sync and try again.",
-                            "此二维码中的行程尚未同步到设备。请同步后重试。"),
-                        "OK");
-                    return;
-                }
-
-                var orderedStops = ResolveTourStopsForQr(tour);
-                if (orderedStops.Count == 0)
-                {
-                    await DisplayAlertAsync(
-                        Ui("Tour chưa sẵn sàng", "Tour not ready", "行程尚未就绪"),
-                        Ui(
-                            "Tour trong mã QR chưa có điểm dừng hợp lệ để mở bản đồ.",
-                            "The tour in this QR does not have valid stops to open on map.",
-                            "此二维码中的行程没有可用于打开地图的有效站点。"),
-                        "OK");
-                    return;
-                }
-
-                _vm.ActivateTourOverride(tour, orderedStops);
-                _vm.RequestedTourStops = orderedStops;
-                _vm.AutoStartRequestedTour = false;
-                _vm.AutoOpenRequestedTourOnMap = false;
-
-                targetPoi = orderedStops[0];
+                return;
             }
 
             if (payload.PoiId.HasValue && targetPoi == null)
