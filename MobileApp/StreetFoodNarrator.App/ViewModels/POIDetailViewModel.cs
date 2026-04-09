@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Net.Http.Json;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
 using System.Collections.ObjectModel;
@@ -17,6 +18,7 @@ public partial class POIDetailViewModel : ObservableObject
     private readonly LanguageService _lang;
     private readonly ILocalDatabaseService _db;
     private readonly HttpClient _httpClient;
+    private readonly UserSession _session;
     private readonly Action<double>? _seekCallback;
     private readonly bool _keepCurrentAudio;
 
@@ -84,6 +86,7 @@ public partial class POIDetailViewModel : ObservableObject
         _lang = MauiProgram.Services.GetRequiredService<LanguageService>();
         _db = MauiProgram.Services.GetRequiredService<ILocalDatabaseService>();
         _httpClient = MauiProgram.Services.GetRequiredService<HttpClient>();
+        _session = MauiProgram.Services.GetRequiredService<UserSession>();
         _seekCallback = seekCallback;
         _keepCurrentAudio = keepCurrentAudio;
 
@@ -310,7 +313,88 @@ public partial class POIDetailViewModel : ObservableObject
             IsAudioPlaying = false;
             AudioProgress = 0;
             AudioPositionText = "00:00";
+            return;
         }
+
+        await TrackManualPlaybackAsync();
+    }
+
+    private async Task TrackManualPlaybackAsync()
+    {
+        try
+        {
+            var now = DateTime.UtcNow;
+            var sessionId = _session.SessionId;
+            var history = await _db.GetZoneHistoryAsync(sessionId, _poi.Id);
+
+            if (history == null)
+            {
+                history = new ZoneHistory
+                {
+                    POI_ID = _poi.Id,
+                    FirstPlayedAt = now,
+                    LastTriggeredAt = now,
+                    PlayCount = 1,
+                    Language = _lang.CurrentLanguage,
+                    SessionId = sessionId
+                };
+            }
+            else
+            {
+                history.LastTriggeredAt = now;
+                history.PlayCount += 1;
+                history.Language = _lang.CurrentLanguage;
+            }
+
+            await _db.SaveZoneHistoryAsync(history);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIDetailVM] Track local play count failed: {ex.Message}");
+        }
+
+        try
+        {
+            var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                return;
+
+            var payload = new MobileNarrationLogPayload
+            {
+                POI_ID = _poi.Id,
+                UserId = _session.SessionId,
+                SessionId = _session.SessionId,
+                DeviceId = GetOrCreateAnonymousDeviceId(),
+                Platform = Microsoft.Maui.Devices.DeviceInfo.Platform.ToString(),
+                Model = Microsoft.Maui.Devices.DeviceInfo.Model,
+                OsVersion = Microsoft.Maui.Devices.DeviceInfo.VersionString,
+                AppVersion = Microsoft.Maui.ApplicationModel.AppInfo.Current.VersionString,
+                Language = _lang.CurrentLanguage,
+                TriggerType = "ManualTap",
+                ActionType = "NarrationPlayed",
+                TriggeredAt = DateTime.UtcNow,
+                WasPlayed = true
+            };
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+            await _httpClient.PostAsJsonAsync($"{baseUrl}/api/Analytics/narration-logs/mobile", payload, cts.Token);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIDetailVM] Upload manual playback analytics failed: {ex.Message}");
+        }
+    }
+
+    private static string GetOrCreateAnonymousDeviceId()
+    {
+        const string key = "analytics_anonymous_device_id";
+        var current = Microsoft.Maui.Storage.Preferences.Get(key, string.Empty);
+        if (!string.IsNullOrWhiteSpace(current))
+            return current;
+
+        var created = $"m-{Guid.NewGuid():N}";
+        Microsoft.Maui.Storage.Preferences.Set(key, created);
+        return created;
     }
 
     private void StartProgressTimer()
@@ -539,5 +623,22 @@ public partial class POIDetailViewModel : ObservableObject
         _tts.OnPlaybackEnded -= OnTtsPlaybackEnded;
         // Keep global playback alive when leaving POIDetail so audio can continue
         // seamlessly across pages (MainPage/ExploreMap/POIDetail).
+    }
+
+    private sealed class MobileNarrationLogPayload
+    {
+        public int POI_ID { get; set; }
+        public string? UserId { get; set; }
+        public string? SessionId { get; set; }
+        public string? DeviceId { get; set; }
+        public string? Platform { get; set; }
+        public string? Model { get; set; }
+        public string? OsVersion { get; set; }
+        public string? AppVersion { get; set; }
+        public string? Language { get; set; }
+        public string? TriggerType { get; set; }
+        public string? ActionType { get; set; }
+        public DateTime TriggeredAt { get; set; }
+        public bool WasPlayed { get; set; }
     }
 }

@@ -2358,92 +2358,101 @@ public partial class MainViewModel : ObservableObject
         await _loadPoisGate.WaitAsync();
         try
         {
-        Console.WriteLine("[MainViewModel] 🔄 LoadAllPoisAsync started...");
+            Console.WriteLine("[MainViewModel] 🔄 LoadAllPoisAsync started...");
 
-        // 1. ✅ Load local SQLite data IMMEDIATELY (cache-first)
-        await _repository.LoadLocalAsync();
-
-        var zones = _repository.GetAllActiveZones();
-        if (zones.Count == 0)
-        {
-            Console.WriteLine("[MainViewModel] Cache is empty, scheduling non-blocking sync...");
-
-            // Do not block first screen render on network sync.
-            _ = Task.Run(async () =>
+            async Task SyncAndReloadPoiUiAsync()
             {
-                try
-                {
-                    await _repository.SyncFromMongoAsync();
-                    await _repository.LoadLocalAsync();
+                await _repository.SyncFromMongoAsync();
+                await _repository.LoadLocalAsync();
 
-                    var refreshedZones = _repository.GetAllActiveZones();
-                    await MainThread.InvokeOnMainThreadAsync(() =>
+                var updatedZones = _repository.GetAllActiveZones();
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    AllPOIs = new ObservableCollection<POI>(updatedZones);
+                    RefreshRuntimeTourPools(refreshExplore: false);
+                    BuildMapCategories();
+                    _ = ApplyFilterAsync();
+                    RefreshDataSourceState();
+                    RefreshExploreExperience();
+                });
+
+                if (_repository.CurrentDataSource == DataSourceKind.LiveApi)
+                    Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
+            }
+
+            // 1. ✅ Load local SQLite data IMMEDIATELY (cache-first)
+            await _repository.LoadLocalAsync();
+
+            var zones = _repository.GetAllActiveZones();
+            var hasSyncedDuringInitialLoad = false;
+
+            if (zones.Count == 0)
+            {
+                if (forceSyncNow)
+                {
+                    Console.WriteLine("[MainViewModel] Cache is empty, forcing immediate sync...");
+                    await SyncAndReloadPoiUiAsync();
+                    zones = _repository.GetAllActiveZones();
+                    hasSyncedDuringInitialLoad = true;
+                }
+                else
+                {
+                    Console.WriteLine("[MainViewModel] Cache is empty, scheduling non-blocking sync...");
+
+                    // Do not block first screen render on network sync.
+                    _ = Task.Run(async () =>
                     {
-                        AllPOIs = new ObservableCollection<POI>(refreshedZones);
-                        RefreshRuntimeTourPools(refreshExplore: false);
-                        BuildMapCategories();
-                        _ = ApplyFilterAsync();
-                        RefreshDataSourceState();
-                        RefreshExploreExperience();
+                        try
+                        {
+                            await SyncAndReloadPoiUiAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MainViewModel] Non-blocking initial sync failed: {ex.Message}");
+                        }
                     });
                 }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[MainViewModel] Non-blocking initial sync failed: {ex.Message}");
-                }
-            });
-        }
+            }
 
-        AllPOIs = new ObservableCollection<POI>(zones);
+            AllPOIs = new ObservableCollection<POI>(zones);
 
-        // 2. ✅ Populate runtime spot pool (ActiveTour override when available)
-        RefreshRuntimeTourPools(refreshExplore: false);
+            // 2. ✅ Populate runtime spot pool (ActiveTour override when available)
+            RefreshRuntimeTourPools(refreshExplore: false);
 
-        // 3. ✅ Build map filter categories from loaded POI data
-        BuildMapCategories();
-        _ = ApplyFilterAsync();
-        _ = LoadToursAsync(forceSyncNow);
-        RefreshDataSourceState();
-        _ = LoadSavedPOIsAsync();
-        RefreshExploreExperience();
+            // 3. ✅ Build map filter categories from loaded POI data
+            BuildMapCategories();
+            _ = ApplyFilterAsync();
+            _ = LoadToursAsync(forceSyncNow);
+            RefreshDataSourceState();
+            _ = LoadSavedPOIsAsync();
+            RefreshExploreExperience();
 
-        Console.WriteLine($"[MainViewModel] ✅ Cache-first load done! AllPOIs={AllPOIs.Count}, VirtualTourPOIs={VirtualTourPOIs.Count}");
+            Console.WriteLine($"[MainViewModel] ✅ Cache-first load done! AllPOIs={AllPOIs.Count}, VirtualTourPOIs={VirtualTourPOIs.Count}");
 
-        // 3. ✅ Sync in background (non-blocking) unless forceSyncNow=true
-        if (forceSyncNow || ShouldSyncNow())
-        {
-            _ = Task.Run(async () =>
+            // 4. ✅ Sync policy
+            if (forceSyncNow)
             {
-                try
+                if (!hasSyncedDuringInitialLoad)
+                    await SyncAndReloadPoiUiAsync();
+
+                Console.WriteLine("[MainViewModel] ✅ Forced sync completed");
+            }
+            else if (ShouldSyncNow())
+            {
+                _ = Task.Run(async () =>
                 {
-                    await _repository.SyncFromMongoAsync();
-                    await _repository.LoadLocalAsync();
-
-                    var updatedZones = _repository.GetAllActiveZones();
-
-                    // After sync, reload UI on main thread
-                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    try
                     {
-                        AllPOIs = new ObservableCollection<POI>(updatedZones);
-                        RefreshRuntimeTourPools(refreshExplore: false);
-
-                        BuildMapCategories();
-                        _ = ApplyFilterAsync();
-                        RefreshDataSourceState();
-                    });
-
-                    // Update last sync time
-                    if (_repository.CurrentDataSource == DataSourceKind.LiveApi)
-                        Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
-                    Console.WriteLine("[MainViewModel] ✅ Background sync completed");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ Background sync failed: {ex.Message}");
-                    // Don't crash app, just log error
-                }
-            });
-        }
+                        await SyncAndReloadPoiUiAsync();
+                        Console.WriteLine("[MainViewModel] ✅ Background sync completed");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"⚠️ Background sync failed: {ex.Message}");
+                        // Don't crash app, just log error
+                    }
+                });
+            }
         }
         finally
         {
@@ -2634,7 +2643,7 @@ public partial class MainViewModel : ObservableObject
         }
         finally
         {
-            IsToursRefreshing = false;
+            await MainThread.InvokeOnMainThreadAsync(() => IsToursRefreshing = false);
         }
     }
 
@@ -2686,7 +2695,7 @@ public partial class MainViewModel : ObservableObject
         {
             _isLiveSyncInFlight = false;
             _liveSyncGate.Release();
-            IsMainDataRefreshing = false;
+            await MainThread.InvokeOnMainThreadAsync(() => IsMainDataRefreshing = false);
         }
     }
 
@@ -2711,7 +2720,7 @@ public partial class MainViewModel : ObservableObject
         }
         finally
         {
-            IsSavedDataRefreshing = false;
+            await MainThread.InvokeOnMainThreadAsync(() => IsSavedDataRefreshing = false);
         }
     }
 

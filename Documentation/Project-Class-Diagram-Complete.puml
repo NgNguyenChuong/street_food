@@ -1,0 +1,129 @@
+@startuml
+' StreetFoodNarrator - Layered Class Diagram (Report Friendly)
+top to bottom direction
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam ArrowColor #6B4FA2
+skinparam package {
+  BackgroundColor #FBF8FF
+  BorderColor #8A6BC1
+}
+skinparam class {
+  BackgroundColor #F2EBFA
+  BorderColor #6B4FA2
+}
+
+package "(Mobile App MVVM)" as L1 {
+  class MainViewModel
+  class POIDetailViewModel
+  class VirtualTourViewModel
+
+  interface IGeofenceService
+  interface IReviewService
+  interface ITTSService
+}
+
+package "(API - Controllers)" as L2 {
+  class AuthController
+  class POIsController
+  class ReviewsController
+  class AnalyticsController
+  class TTSController
+  class NotificationsController
+}
+
+package "(Domain Models)" as L3 {
+  class ApplicationUser {
+    +Id
+    +FullName
+  }
+
+  class VendorProfile {
+    +VendorId
+    +BusinessName
+    +VerificationStatus
+  }
+
+  class POI {
+    +POI_ID
+    +Name_Vi
+    +Location
+    +ReviewStatus
+  }
+
+  class MenuItem {
+    +MenuItemId
+    +POI_ID
+    +Price
+  }
+
+  class AudioContent {
+    +AudioContent_ID
+    +POI_ID
+    +Language
+    +AudioUrl
+  }
+
+  class Review {
+    +POI_ID
+    +Rating
+  }
+
+  class NarrationLog {
+    +Log_ID
+    +POI_ID
+    +TriggeredAt
+  }
+
+  class Tour {
+    +Tour_ID
+    +TourName
+  }
+
+  class AppNotification {
+    +NotificationId
+    +AudienceRole
+    +Title
+  }
+}
+
+' Enforce vertical layer ordering
+L1 -[hidden]down-> L2
+L2 -[hidden]down-> L3
+
+' Domain relations
+ApplicationUser "1" o-- "0..1" VendorProfile
+VendorProfile "1" o-- "0..*" POI
+POI "1" o-- "0..*" MenuItem
+POI "1" o-- "0..*" AudioContent
+POI "1" o-- "0..*" Review
+POI "1" o-- "0..*" NarrationLog
+Tour "1" ..> "0..*" POI : gồm các điểm dừng
+
+' API -> Domain
+AuthController ..> ApplicationUser
+POIsController ..> POI
+POIsController ..> MenuItem
+ReviewsController ..> Review
+ReviewsController ..> POI
+AnalyticsController ..> NarrationLog
+AnalyticsController ..> POI
+AnalyticsController ..> Tour
+TTSController ..> AudioContent
+NotificationsController ..> AppNotification
+
+' Mobile -> API / service
+MainViewModel ..> IGeofenceService
+MainViewModel ..> POIsController : REST
+MainViewModel ..> NotificationsController : REST
+POIDetailViewModel ..> POIsController : REST
+POIDetailViewModel ..> ReviewsController : REST
+POIDetailViewModel ..> ITTSService
+VirtualTourViewModel ..> Tour
+IReviewService ..> ReviewsController
+ITTSService ..> TTSController
+
+@enduml

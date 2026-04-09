@@ -12,6 +12,7 @@ using Mapsui.Tiling.Layers;
 using Microsoft.Extensions.DependencyInjection;
 using NetTopologySuite.Geometries;
 using System.Text.Json;
+using Microsoft.Maui.Storage;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Services.Implementations;
@@ -83,6 +84,7 @@ public partial class ExploreMapPage : ContentPage
 
     private bool _isNearSheetCollapsed;
     private bool _isSimulationToolsExpanded;
+    private bool _showSimulationControls = AppConfig.DefaultShowExploreSimulationControls;
     private bool _useInZoneSheetAfterRoute;
     private readonly HashSet<int> _tourSimulationVisitedPoiIds = new();
     private string _tourSimulationScopeKey = string.Empty;
@@ -144,6 +146,7 @@ public partial class ExploreMapPage : ContentPage
         _offlineRouting = ResolveOptionalService<IOfflineRoutingService>();
         BindingContext = _vm;
         TabMapComponent.BindingContext = _vm;
+        RefreshSimulationToolsPreference();
     }
 
     public bool IsNearFocusMode => _isNearFocusMode;
@@ -325,6 +328,7 @@ public partial class ExploreMapPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        RefreshSimulationToolsPreference();
         _vm.RefreshOfflineBannerSession();
 
         HookEvents();
@@ -2183,13 +2187,23 @@ public partial class ExploreMapPage : ContentPage
 
     private void OnNearFocusSimulateToggleTapped(object? sender, TappedEventArgs e)
     {
+        if (!_showSimulationControls)
+            return;
+
         _isSimulationToolsExpanded = !_isSimulationToolsExpanded;
         UpdateSimulationToolsVisibility();
     }
 
     private void UpdateSimulationToolsVisibility()
     {
-        var shouldShowPanel = _isNearFocusMode && _isSimulationToolsExpanded;
+        var canShowSimulationTools = _showSimulationControls;
+        if (!canShowSimulationTools)
+            _isSimulationToolsExpanded = false;
+
+        if (NearFocusSimulateToggleButton != null)
+            NearFocusSimulateToggleButton.IsVisible = _isNearFocusMode && canShowSimulationTools;
+
+        var shouldShowPanel = _isNearFocusMode && canShowSimulationTools && _isSimulationToolsExpanded;
         if (NearFocusSimulateOptionsPanel != null)
             NearFocusSimulateOptionsPanel.IsVisible = shouldShowPanel;
 
@@ -2213,7 +2227,7 @@ public partial class ExploreMapPage : ContentPage
 
     private async void OnExploreFarStateAdvanceTapped(object? sender, TappedEventArgs e)
     {
-        if (_isNearFocusMode)
+        if (_isNearFocusMode || !_showSimulationControls)
             return;
 
         await RunSimulateNearFromFarAsync();
@@ -2228,7 +2242,7 @@ public partial class ExploreMapPage : ContentPage
 
     private void OnVirtualStateAdvanceTapped(object? sender, TappedEventArgs e)
     {
-        if (!_isNearFocusMode)
+        if (!_isNearFocusMode || !_showSimulationControls)
             return;
 
         var nextState = _vm.CurrentExploreState switch
@@ -3408,7 +3422,7 @@ public partial class ExploreMapPage : ContentPage
 
         var isFarState = _vm.CurrentExploreState == MainViewModel.ExploreState.Far;
         var isNearState = _vm.CurrentExploreState == MainViewModel.ExploreState.Near;
-        VirtualStateAdvanceButton.IsVisible = _isNearFocusMode && (isFarState || isNearState);
+        VirtualStateAdvanceButton.IsVisible = _showSimulationControls && _isNearFocusMode && (isFarState || isNearState);
         VirtualStateAdvanceLabel.Text = isFarState
             ? AppStrings.Get("Explore_Near_Action_Approach")
             : AppStrings.Get("Explore_Near_Action_Enter");
@@ -3420,8 +3434,18 @@ public partial class ExploreMapPage : ContentPage
             return;
 
         var isFarState = _vm.CurrentExploreState == MainViewModel.ExploreState.Far;
-        ExploreFarStateAdvanceButton.IsVisible = !_isNearFocusMode && isFarState;
+        ExploreFarStateAdvanceButton.IsVisible = _showSimulationControls && !_isNearFocusMode && isFarState;
         ExploreFarStateAdvanceLabel.Text = AppStrings.Get("Explore_Near_Action_Approach");
+    }
+
+    private void RefreshSimulationToolsPreference()
+    {
+        _showSimulationControls = Preferences.Get(
+            AppConfig.ShowExploreSimulationControlsPrefKey,
+            AppConfig.DefaultShowExploreSimulationControls);
+        UpdateSimulationToolsVisibility();
+        UpdateVirtualStateAdvanceButton();
+        UpdateExploreFarStateAdvanceButton();
     }
 
     private bool IsUserInsidePoiActivationZone(POI poi)

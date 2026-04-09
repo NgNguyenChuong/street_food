@@ -466,7 +466,20 @@
     if (isVendor) document.body.classList.add('is-vendor');
     if (isAdmin) document.body.classList.add('is-admin');
 
-    function getPoiQrLink(id) { return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}`; }
+    const QR_LINK_EXPIRY_DAYS = 5;
+    const QR_LINK_EXPIRY_WINDOW_MS = QR_LINK_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+
+    function getCurrentQrExpiryEpochSeconds() {
+        const nowMs = Date.now();
+        const windowStartMs = Math.floor(nowMs / QR_LINK_EXPIRY_WINDOW_MS) * QR_LINK_EXPIRY_WINDOW_MS;
+        const windowEndMs = windowStartMs + QR_LINK_EXPIRY_WINDOW_MS;
+        return Math.floor(windowEndMs / 1000);
+    }
+
+    function getPoiQrLink(id) {
+        const exp = getCurrentQrExpiryEpochSeconds();
+        return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}?exp=${exp}`;
+    }
 
     function formatCategory(cat) {
         if (!cat) return '-';

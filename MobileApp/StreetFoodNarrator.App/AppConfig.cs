@@ -58,7 +58,11 @@ public static class AppConfig
     public const string LocationSourceSimulated = "simulated";
     public const string GpsTestModeEnabledPrefKey = "settings_gps_test_mode_enabled";
     public const string GpsTestEnsurePoiApiPath = "api/POIs/test-mode/ensure-nearby";
+    public const string GpsTestCleanupPoiApiPath = "api/POIs/test-mode/cleanup";
     public const string GpsTestApiKey = "streetfood-gps-test-mode-2026";
+    public const string AutoOpenExploreMapOnNextMainPageKey = "auto_open_exploremap_on_next_mainpage";
+    public const string ShowExploreSimulationControlsPrefKey = "settings_show_explore_simulation_controls";
+    public const bool DefaultShowExploreSimulationControls = false;
     public const double GpsTestLatitude = 10.842597772316791;
     public const double GpsTestLongitude = 106.60874204402752;
     public const string GpsTestAddress = "Toa do test GPS thuc te - 10.842597772316791, 106.60874204402752";
