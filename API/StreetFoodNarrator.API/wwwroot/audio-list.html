@@ -1303,7 +1303,6 @@
         const canSubmit = isVendor && (status === 'draft' || status === 'rejected');
         const canApprove = isAdmin && status === 'pending';
         const canReject = isAdmin && status === 'pending';
-        const canDelete = isVendor && status !== 'approved' && status !== 'published';
         const canDownload = !isVendor && !isAdmin;
 
         return `
@@ -1311,12 +1310,6 @@
                 <button class="btn-icon btn-download" data-action="download" data-url="${audioUrl}">
                     <i class="fas fa-download"></i>
                     <span>Tải về</span>
-                </button>
-            ` : ''}
-            ${canDelete ? `
-                <button class="btn-icon btn-delete" data-action="delete-poi" data-group-key="${groupKey}">
-                    <i class="fas fa-trash"></i>
-                    <span>Xóa theo POI</span>
                 </button>
             ` : ''}
             ${canSubmit ? `
@@ -1335,12 +1328,6 @@
                 <button class="btn-icon btn-reject" data-action="reject" data-id="${audio.audioContent_ID}">
                     <i class="fas fa-times"></i>
                     <span>Từ chối cả bộ</span>
-                </button>
-            ` : ''}
-            ${canDelete ? `
-                <button class="btn-icon btn-delete" data-action="delete" data-id="${audio.audioContent_ID}">
-                    <i class="fas fa-trash"></i>
-                    <span>Xóa</span>
                 </button>
             ` : ''}
         `;
@@ -1393,11 +1380,6 @@
                 if (action === 'submit') return submitAudio(id);
                 if (action === 'approve') return approveAudio(id);
                 if (action === 'reject') return rejectAudio(id);
-                if (action === 'delete') return deleteAudio(id);
-                if (action === 'delete-poi') {
-                    const key = btn.getAttribute('data-group-key');
-                    return deletePoiAudios(key);
-                }
             };
         });
 
@@ -1594,29 +1576,6 @@
                 triggerBtn.innerHTML = originalHtml;
             }
         }
-    }
-
-    async function deleteAudio(id) {
-        if (!confirm('Bạn có chắc muốn xóa audio này?')) return;
-        try {
-            await api.deleteAudio(id);
-            loadAudios();
-        } catch (error) {
-            alert('Lỗi khi xóa audio: ' + error.message);
-        }
-    }
-
-    async function deletePoiAudios(groupKey) {
-        if (!groupKey) return;
-        const store = window.__audioGroupStore || {};
-        const list = store[groupKey] || [];
-        if (!list.length) return;
-        const ok = await showConfirm('Xóa tất cả audio của POI này?');
-        if (!ok) return;
-        for (const a of list) {
-            try { await api.deleteAudio(a.audioContent_ID); } catch {}
-        }
-        loadAudios();
     }
 
     async function deleteAllFiltered() {

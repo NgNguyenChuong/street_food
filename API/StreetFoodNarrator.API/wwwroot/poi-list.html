@@ -422,7 +422,7 @@
                     <th>DANH MỤC</th>
                     <th class="vendor-hide admin-hide">GIỜ MỞ CỬA</th>
                     <th>SĐT</th>
-                    <th>ĐÁNH GIÁ</th>
+                    <th id="scoreOrAudioHeader">ĐÁNH GIÁ</th>
                     <th class="vendor-hide admin-hide">QR POI</th>
                     <th>TRẠNG THÁI</th>
                     <th>HÀNH ĐỘNG</th>
@@ -465,6 +465,8 @@
 
     if (isVendor) document.body.classList.add('is-vendor');
     if (isAdmin) document.body.classList.add('is-admin');
+    const scoreOrAudioHeader = document.getElementById('scoreOrAudioHeader');
+    if (scoreOrAudioHeader && isVendor) scoreOrAudioHeader.textContent = 'AUDIO';
 
     function getPoiQrLink(id) { return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}`; }
 
@@ -500,7 +502,14 @@
         return parts.join('; ');
     }
 
+    function formatAudioAvailability(poi) {
+        const audioCount = Number(poi.audioCount ?? poi.AudioCount ?? 0);
+        const hasAudio = audioCount > 0;
+        return `<span class="status-badge ${hasAudio ? 'active' : 'inactive'}"><span class="status-dot ${hasAudio ? 'active' : 'inactive'}"></span>${hasAudio ? 'Đã có audio' : 'Chưa có audio'}</span>`;
+    }
+
     function formatPriceRating(poi) {
+        if (isVendor) return formatAudioAvailability(poi);
         const r = (poi.rating !== undefined && poi.rating !== null) ? `⭐ ${Number(poi.rating).toFixed(1)}` : '';
         return r || '-';
     }
