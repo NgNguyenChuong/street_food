@@ -264,6 +264,33 @@
         }
         .loading-spin i { font-size:2rem; animation:spin 1s linear infinite; }
         @keyframes spin { to{transform:rotate(360deg)} }
+
+        .toast-wrap {
+            position: fixed;
+            top: 1.25rem;
+            right: 1.25rem;
+            z-index: 1100;
+            display: flex;
+            flex-direction: column;
+            gap: .5rem;
+            pointer-events: none;
+        }
+        .toast {
+            background: #1A1A2E;
+            color: #fff;
+            border-radius: 10px;
+            padding: .65rem .95rem;
+            font-size: .85rem;
+            box-shadow: 0 10px 24px rgba(0,0,0,.2);
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            animation: fadeInDown .2s ease;
+        }
+        .toast.warn {
+            background: #7F1D1D;
+            border-left: 3px solid #DC2626;
+        }
     </style>
 </head>
 <body>
@@ -462,6 +489,8 @@
     </div>
 </div>
 
+<div class="toast-wrap" id="toastWrap"></div>
+
 <script src="api.js"></script>
 <script>
 // Auth guard — runs after api.js (which defines TokenManager)
@@ -490,12 +519,32 @@ if (!POI_ID) {
 
 // ── Tab switching ──────────────────────────────────────────────────────────────
 function switchTab(name) {
+    if (name === 'menu' && isPermanentlyClosedPoi()) {
+        showToast('Quán này đã đóng cửa vĩnh viễn.', 'warn');
+        return;
+    }
+
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     event.currentTarget.classList.add('active');
     document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
     activeTab = name;
     if (name === 'menu' && menuItems.length === 0) loadMenuItems();
+}
+
+function isPermanentlyClosedPoi() {
+    const p = poiData || {};
+    return !!(p.isDeleted ?? p.IsDeleted ?? p.deletedAt ?? p.DeletedAt);
+}
+
+function showToast(message, type = 'warn') {
+    const wrap = document.getElementById('toastWrap');
+    if (!wrap || !message) return;
+    const item = document.createElement('div');
+    item.className = `toast ${type}`;
+    item.innerHTML = `<i class="fas fa-triangle-exclamation"></i>${message}`;
+    wrap.appendChild(item);
+    setTimeout(() => item.remove(), 2600);
 }
 
 // ── Lang tabs (description) ────────────────────────────────────────────────────
@@ -591,7 +640,16 @@ function renderHeader() {
     `;
 
     // Edit link
-    document.getElementById('editBtn').href = `poi-edit?id=${POI_ID}`;
+    const editBtn = document.getElementById('editBtn');
+    if (editBtn) {
+        const isClosedPermanently = !!(p.isDeleted ?? p.IsDeleted ?? p.deletedAt ?? p.DeletedAt);
+        if (isClosedPermanently) {
+            editBtn.style.display = 'none';
+        } else {
+            editBtn.style.display = '';
+            editBtn.href = `poi-edit?id=${POI_ID}`;
+        }
+    }
 
     // Admin role is not allowed to create audio from this page.
     const createBtn = document.getElementById('audioCreateBtn');

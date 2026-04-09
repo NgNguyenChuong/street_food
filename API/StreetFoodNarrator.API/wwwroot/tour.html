@@ -161,6 +161,7 @@
         .sel-wrap{display:flex;flex-wrap:wrap;gap:.35rem;min-height:26px;align-items:center;margin-top:.5rem}
         .sel-tag{display:inline-flex;align-items:center;gap:.28rem;padding:.2rem .55rem;background:white;border:1px solid var(--border);border-radius:6px;font-size:.76rem;font-weight:600;color:var(--dark)}
         .sel-tag .num{width:15px;height:15px;border-radius:50%;background:var(--primary);color:white;font-size:.58rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+        .sel-tag .inactive-label{font-size:.67rem;font-weight:700;color:#b42318}
         .sel-tag button{background:none;border:none;cursor:pointer;color:#ccc;font-size:.72rem;padding:0;margin-left:1px}
         .sel-tag button:hover{color:var(--danger)}
         .empty-sel{font-size:.8rem;color:#ccc}
@@ -368,8 +369,9 @@ const HCM_LL = [10.762, 106.682];
 const DEFAULT_TOUR_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 600'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23ff6b35'/%3E%3Cstop offset='100%25' stop-color='%23004e89'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='600' fill='url(%23g)'/%3E%3Ccircle cx='1040' cy='130' r='150' fill='rgba(255,255,255,0.16)'/%3E%3Ccircle cx='230' cy='460' r='210' fill='rgba(255,255,255,0.10)'/%3E%3Cpath d='M120 430 L350 265 L570 375 L760 225 L1030 355' stroke='rgba(255,255,255,0.88)' stroke-width='15' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='350' cy='265' r='21' fill='white'/%3E%3Ccircle cx='570' cy='375' r='21' fill='white'/%3E%3Ccircle cx='760' cy='225' r='21' fill='white'/%3E%3Ctext x='78' y='112' font-family='DM Sans,Arial,sans-serif' font-size='64' fill='white' font-weight='700'%3EStreet Food Tour%3C/text%3E%3Ctext x='78' y='176' font-family='DM Sans,Arial,sans-serif' font-size='34' fill='rgba(255,255,255,0.92)'%3EKh%C3%A1m ph%C3%A1 h%C3%A0nh tr%C3%ACnh %E1%BA%A9m th%E1%BB%B1c%3C/text%3E%3C/svg%3E";
 
 /* --- STATE --- */
-let allTours = [], allPOIs = [];
+let allTours = [], allPOIs = [], allPOIsRaw = [];
 let selPOIs  = [];   // ordered array of id strings
+let selPOIMetaById = {}; // includes POIs not available in active selection list
 let activeFilter = 'all';
 let pMap = null, pRoute = null, pMarkers = [];
 let savedRouteGeom = null;   // stored routeGeometry from DB
@@ -409,9 +411,37 @@ async function loadPOIs() {
         const r = typeof POIApi !== 'undefined'
             ? await POIApi.list({page:1,pageSize:500})
             : await fetch('/api/pois?pageSize=500').then(x=>x.json());
-        allPOIs = r.data || r.items || r || [];
-    } catch(e) { allPOIs = []; }
+        const pois = r.data || r.items || r || [];
+        allPOIsRaw = pois;
+        allPOIs = pois.filter(isPOIActiveForTour);
+    } catch(e) { allPOIs = []; allPOIsRaw = []; }
     renderPOIList('');
+}
+
+function isPOIActiveForTour(poi) {
+    const active = poi?.isActive ?? poi?.IsActive;
+    // Backward compatible: if flag is missing, keep POI visible.
+    return active !== false && active !== 0 && active !== 'false';
+}
+
+function isPOIInactive(poiOrId) {
+    if (poiOrId && typeof poiOrId === 'object') {
+        const active = poiOrId.isActive ?? poiOrId.IsActive;
+        if (active === false || active === 0 || active === 'false') return true;
+        if (active === true || active === 1 || active === 'true') return false;
+        const objId = String(poiOrId.id || poiOrId.Id || '');
+        if (!objId) return false;
+        const matchedByObj = allPOIsRaw.find(p => String(p.id || p.Id || '') === objId);
+        if (!matchedByObj) return false;
+        const activeByObj = matchedByObj.isActive ?? matchedByObj.IsActive;
+        return activeByObj === false || activeByObj === 0 || activeByObj === 'false';
+    }
+    const id = String(poiOrId || '');
+    if (!id) return false;
+    const matched = allPOIsRaw.find(p => String(p.id || p.Id || '') === id);
+    if (!matched) return false;
+    const active = matched.isActive ?? matched.IsActive;
+    return active === false || active === 0 || active === 'false';
 }
 
 /* --- RENDER CARDS --- */
@@ -435,7 +465,13 @@ function renderTours(data) {
                 ? `<span class="route-badge rb-ok"><i class="fas fa-list-check"></i> Đã có lộ trình</span>`
                 : `<span class="route-badge rb-no"><i class="fas fa-clock"></i> Chưa có đường</span>`);
         const poisHtml = pois.length
-            ? pois.slice(0,4).map(p=>`<span class="poi-chip">${esc(p.name||p)}</span>`).join('')
+            ? pois.slice(0,4).map(p=>{
+                const poiName = esc(p?.name || p?.name_Vi || p);
+                const inactiveTag = isPOIInactive(p)
+                    ? ' <span style="color:#b42318;font-weight:700">(Ngừng hoạt động)</span>'
+                    : '';
+                return `<span class="poi-chip">${poiName}${inactiveTag}</span>`;
+            }).join('')
               + (pois.length>4?`<span class="poi-chip-more">+${pois.length-4} nữa</span>`:'')
             : '<span class="poi-chip-more">Chưa có quán</span>';
         return `
@@ -551,6 +587,17 @@ function openModal(t) {
     resetChips('themeChips', isEdit ? (t.themes||[]) : []);
     resetChips('timeChips',  isEdit ? (t.timeSlots||[]) : []);
     selPOIs = isEdit ? (t.pois||[]).map(p=>p.id||p) : [];
+    selPOIMetaById = {};
+    if (isEdit) {
+        (t.pois || []).forEach(p => {
+            const pid = String(p?.id || p?.Id || '');
+            if (!pid) return;
+            selPOIMetaById[pid] = {
+                id: pid,
+                name: p?.name || p?.Name || p?.name_Vi || p?.Name_Vi || ''
+            };
+        });
+    }
     savedRouteGeom = isEdit ? (t.routeGeometry||null) : null;
     val('poiSearch','');
     renderPOIList('');
@@ -636,8 +683,15 @@ function renderSel() {
     const w=document.getElementById('selWrap');
     if (!selPOIs.length) { w.innerHTML='<span class="empty-sel">Chưa chọn quán nào</span>'; return; }
     w.innerHTML = selPOIs.map((id,i)=>{
-        const p=allPOIs.find(x=>x.id===id);
-        return `<span class="sel-tag"><span class="num">${i+1}</span>${esc(p?(p.name_Vi||p.name||id):id)}<button onclick="togglePOI('${id}')"><i class="fas fa-times"></i></button></span>`;
+        const p = allPOIs.find(x=>x.id===id)
+            || allPOIsRaw.find(x=>x.id===id)
+            || allPOIs.find(x=>x.Id===id)
+            || allPOIsRaw.find(x=>x.Id===id)
+            || selPOIMetaById[id]
+            || null;
+        const displayName = p ? (p.name_Vi || p.name || p.Name_Vi || p.Name || id) : id;
+        const inactiveLabel = isPOIInactive(id) ? ' <span class="inactive-label">(Ngừng hoạt động)</span>' : '';
+        return `<span class="sel-tag"><span class="num">${i+1}</span>${esc(displayName)}${inactiveLabel}<button onclick="togglePOI('${id}')"><i class="fas fa-times"></i></button></span>`;
     }).join('');
 }
 

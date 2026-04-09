@@ -1328,23 +1328,15 @@
                     </div>
                 </div>
 
-                <!-- Danger Zone -->
-                <div class="form-section" style="margin-top: 2rem; border: 2px solid var(--danger);" id="dangerZone">
-                    <h2 class="section-title" style="color: var(--danger);">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Vùng nguy hiểm
-                    </h2>
-                    <p style="margin-bottom: 1rem; color: #666;">Các hành động không thể hoàn tác</p>
-                    <button type="button" class="btn btn-danger" onclick="deletePOI()" style="width: 100%;">
-                        <i class="fas fa-trash"></i>
-                        <span>Xóa POI này</span>
-                    </button>
-                </div>
             </div>
         </form>
 
         <!-- Form Actions (Bottom) -->
         <div class="form-actions" style="margin-top: 2rem;">
+            <button type="button" class="btn btn-danger" onclick="closePOIPermanently()">
+                <i class="fas fa-store-slash"></i>
+                <span>Đóng cửa vĩnh viễn</span>
+            </button>
             <button class="btn btn-outline" onclick="window.location.href='poi-list'">
                 <i class="fas fa-times"></i>
                 <span>Hủy bỏ</span>
@@ -1704,8 +1696,6 @@
             const systemMetaSection = document.getElementById('systemMetaSection');
             if (systemMetaSection) systemMetaSection.classList.add('role-hidden');
 
-            const dangerZone = document.getElementById('dangerZone');
-            if (dangerZone) dangerZone.classList.add('role-hidden');
         }
 
         async function loadPoi() {
@@ -2015,13 +2005,19 @@
             }
         }
 
-        async function deletePOI() {
-            if (!confirm('Bạn có chắc chắn muốn xóa POI này?')) return;
+        async function closePOIPermanently() {
+            if (!currentPoiId) return;
+            const ok = confirm('Xác nhận đóng cửa vĩnh viễn POI này? POI sẽ bị gỡ khỏi tất cả tour và không thể khôi phục từ màn hình này.');
+            if (!ok) return;
+
             try {
                 await api.deletePOI(currentPoiId);
-                window.location.href = 'poi-list';
+                showToast('Đã đóng cửa vĩnh viễn POI và gỡ khỏi các tour liên quan.', 'success');
+                window.setTimeout(() => {
+                    window.location.href = 'poi-list';
+                }, 500);
             } catch (error) {
-                alert('Lỗi khi xóa POI: ' + error.message);
+                showToast('Lỗi khi đóng cửa vĩnh viễn POI: ' + error.message, 'error');
             }
         }
 
