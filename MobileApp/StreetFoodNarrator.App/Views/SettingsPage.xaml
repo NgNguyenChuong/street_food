@@ -76,15 +76,26 @@
                                    FontSize="12"
                                    TextColor="#64748B"
                                    CharacterSpacing="1" />
-                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,2">
+                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,10">
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="10" />
                                 </Border.StrokeShape>
-                                <Picker x:Name="LanguagePicker"
-                                        Title="Chọn ngôn ngữ"
-                                        TextColor="White"
-                                        TitleColor="#64748B"
-                                        SelectedIndexChanged="OnLanguagePickerChanged" />
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label x:Name="LanguageValueLabel"
+                                           Text="VI - Tiếng Việt"
+                                           FontSize="14"
+                                           TextColor="White"
+                                           VerticalTextAlignment="Center" />
+                                    <Label Grid.Column="1"
+                                           Text="&#xF0142;"
+                                           FontFamily="MDI"
+                                           FontSize="16"
+                                           TextColor="#64748B"
+                                           VerticalTextAlignment="Center" />
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnLanguageSelectionTapped" />
+                                </Border.GestureRecognizers>
                             </Border>
                         </VerticalStackLayout>
 
@@ -100,15 +111,26 @@
                                    Text="Chọn GPS thật hoặc GPS giả lập khi test"
                                    FontSize="12"
                                    TextColor="#64748B" />
-                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,2">
+                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,10">
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="10" />
                                 </Border.StrokeShape>
-                                <Picker x:Name="LocationSourcePicker"
-                                        Title="Chọn nguồn vị trí"
-                                        TextColor="White"
-                                        TitleColor="#64748B"
-                                        SelectedIndexChanged="OnLocationSourceChanged" />
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label x:Name="LocationSourceValueLabel"
+                                           Text="GPS thật (mặc định)"
+                                           FontSize="14"
+                                           TextColor="White"
+                                           VerticalTextAlignment="Center" />
+                                    <Label Grid.Column="1"
+                                           Text="&#xF0142;"
+                                           FontFamily="MDI"
+                                           FontSize="16"
+                                           TextColor="#64748B"
+                                           VerticalTextAlignment="Center" />
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnLocationSourceSelectionTapped" />
+                                </Border.GestureRecognizers>
                             </Border>
                         </VerticalStackLayout>
 
@@ -123,7 +145,7 @@
                                            FontAttributes="Bold"
                                            TextColor="White" />
                                     <Label x:Name="GpsTestModeSubtitleLabel"
-                                           Text="Bat mode rieng de test GPS that ngoai hien truong"
+                                         Text="Bat de tao ngay 3 POI test theo toa do co dinh"
                                            FontSize="12"
                                            TextColor="#64748B" />
                                 </VerticalStackLayout>
@@ -136,19 +158,32 @@
                             </Grid>
 
                             <Label x:Name="GpsTestCoordinateLabel"
-                                   Text="Toa do test: 10.842598, 106.608742"
-                                   FontSize="11"
+                                        Text="Tao dung 3 diem GPS test voi priority 10, 9, 8 ngay khi bat mode"
+                                        FontSize="12"
                                    TextColor="#94A3B8" />
-
-                            <Button x:Name="GpsTestModeActionButton"
-                                    Text="Bat GPS test mode"
-                                    BackgroundColor="#F97316"
-                                    TextColor="White"
-                                    FontAttributes="Bold"
-                                    CornerRadius="10"
-                                    HeightRequest="42"
-                                    Clicked="OnGpsTestModeActionClicked" />
                         </VerticalStackLayout>
+
+                                   <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
+
+                                   <Grid ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label x:Name="SimulationToolsTitleLabel"
+                                            Text="Hiện nút giả lập ExploreMap"
+                                            FontSize="14"
+                                            FontAttributes="Bold"
+                                            TextColor="White" />
+                                        <Label x:Name="SimulationToolsSubtitleLabel"
+                                            Text="Bật để hiện cụm nút simulate phục vụ test nhanh"
+                                            FontSize="12"
+                                            TextColor="#64748B" />
+                                    </VerticalStackLayout>
+                                    <Switch x:Name="SimulationToolsSwitch"
+                                         Grid.Column="1"
+                                         OnColor="#22C55E"
+                                         ThumbColor="White"
+                                         Toggled="OnSimulationToolsToggled"
+                                         VerticalOptions="Center" />
+                                   </Grid>
 
                         <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
 
@@ -367,32 +402,6 @@
                                     VerticalOptions="Center" />
                         </Grid>
 
-                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
-
-                        <VerticalStackLayout Spacing="8">
-                            <Label x:Name="AudioPlaybackTitleLabel"
-                                Text="Chế độ phát audio"
-                                   FontSize="14"
-                                   FontAttributes="Bold"
-                                   TextColor="White" />
-                            <Label x:Name="AudioPlaybackSubtitleLabel"
-                                Text="Tự động hoặc phát trực tuyến"
-                                   FontSize="12"
-                                   TextColor="#64748B" />
-                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,2">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="10" />
-                                </Border.StrokeShape>
-                                <Picker x:Name="AudioPlaybackModePicker"
-                                        Title="Chọn chế độ"
-                                        TextColor="White"
-                                        TitleColor="#64748B"
-                                        SelectedIndexChanged="OnAudioPlaybackModeChanged" />
-                            </Border>
-                        </VerticalStackLayout>
-
-                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
-
                         <VerticalStackLayout Spacing="8">
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="VolumeTitleLabel"
@@ -418,44 +427,6 @@
                                     ValueChanged="OnVolumeChanged" />
                         </VerticalStackLayout>
 
-                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
-
-                        <VerticalStackLayout Spacing="8">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label x:Name="SensitivityTitleLabel"
-                                       Text="Độ nhạy vị trí"
-                                       FontSize="14"
-                                       FontAttributes="Bold"
-                                       TextColor="White" />
-                                <Label x:Name="SensitivityValueLabel"
-                                       Grid.Column="1"
-                                       Text="40m"
-                                       FontSize="13"
-                                       FontAttributes="Bold"
-                                       TextColor="#22C55E"
-                                       VerticalTextAlignment="Center" />
-                            </Grid>
-                            <Slider x:Name="SensitivitySlider"
-                                    Minimum="0"
-                                    Maximum="100"
-                                    Value="40"
-                                    MinimumTrackColor="#22C55E"
-                                    MaximumTrackColor="#1E3D2A"
-                                    ThumbColor="#22C55E"
-                                    ValueChanged="OnSensitivityChanged" />
-                            <Grid ColumnDefinitions="*,*">
-                                <Label x:Name="SensitivityLeftLabel"
-                                       Text="Mượt hơn"
-                                       FontSize="11"
-                                       TextColor="#64748B" />
-                                <Label Grid.Column="1"
-                                       x:Name="SensitivityRightLabel"
-                                       Text="Chính xác hơn"
-                                       FontSize="11"
-                                       TextColor="#64748B"
-                                       HorizontalTextAlignment="End" />
-                            </Grid>
-                        </VerticalStackLayout>
                     </VerticalStackLayout>
                 </Border>
 
@@ -519,7 +490,7 @@
 
                 <VerticalStackLayout Spacing="8" Margin="0,16,0,0" HorizontalOptions="Center">
                     <Label x:Name="FooterPolicyLabel"
-                           Text="Quyền riêng tư • Điều khoản"
+                           Text="Nguon du lieu: ..."
                            FontSize="12"
                            TextColor="#64748B"
                            HorizontalTextAlignment="Center" />

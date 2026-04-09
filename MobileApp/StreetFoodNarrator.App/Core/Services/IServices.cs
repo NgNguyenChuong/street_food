@@ -68,7 +68,7 @@ public interface ILocalDatabaseService
 // ── Audio Service ──────────────────────────────────────────────────
 public interface IAudioService
 {
-    Task PlayAsync(int zoneId, string audioSource, int durationSeconds);
+    Task PlayAsync(int zoneId, string audioSource, int durationSeconds, string fallbackText = "");
     Task PauseAsync(int zoneId);
     Task ResumeFromAsync(int zoneId, double positionSeconds);
     Task StopAsync(int zoneId);

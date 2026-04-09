@@ -59,6 +59,22 @@ public partial class WelcomePage : ContentPage
         ApplyLanguage(lang);
     }
 
+    private static AlertType ResolveAlertType(string title)
+    {
+        var normalized = (title ?? string.Empty).Trim().ToLowerInvariant();
+        if (normalized.Contains("lỗi") || normalized.Contains("error") || normalized.Contains("không thể"))
+            return AlertType.Error;
+        if (normalized.Contains("cần quyền") || normalized.Contains("warning") || normalized.Contains("cảnh báo"))
+            return AlertType.Warning;
+        return AlertType.Info;
+    }
+
+    private new Task DisplayAlertAsync(string title, string message, string cancel)
+        => CustomAlert.ShowAsync(title, message, cancel, ResolveAlertType(title));
+
+    private new Task<bool> DisplayAlertAsync(string title, string message, string accept, string cancel)
+        => CustomAlert.ShowConfirmAsync(title, message, accept, cancel, ResolveAlertType(title));
+
     protected override async void OnAppearing()
     {
         base.OnAppearing();
@@ -505,7 +521,7 @@ public partial class WelcomePage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[WelcomePage] OnStartTourClicked error: {ex}");
-            await DisplayAlert("Lỗi", $"Không thể mở bản đồ: {ex.Message}", "OK");
+            await DisplayAlertAsync("Lỗi", $"Không thể mở bản đồ: {ex.Message}", "OK");
         }
         finally
         {
@@ -527,7 +543,7 @@ public partial class WelcomePage : ContentPage
             if (status == PermissionStatus.Granted)
                 return true;
 
-            var openSettings = await DisplayAlert(
+            var openSettings = await DisplayAlertAsync(
                 "Cần quyền vị trí",
                 "App cần vị trí để tự động nhận biết bạn đang ở gần quán nào. Bạn vẫn có thể tiếp tục mà không bật vị trí.",
                 "Bật lại",
@@ -939,7 +955,7 @@ public partial class WelcomePage : ContentPage
             if (isUpdate)
             {
                 Preferences.Set(PREF_FULL_OFFLINE, true);
-                await DisplayAlert(
+                await DisplayAlertAsync(
                     "✅ Hoàn tất!",
                     "Dữ liệu đã được cập nhật phiên bản mới nhất. Tận hưởng tour nhé!",
                     "OK");
@@ -955,7 +971,7 @@ public partial class WelcomePage : ContentPage
         {
             mainGrid.Children.Remove(spinnerOverlay);
             EnableStartButton();
-            await DisplayAlert("Lỗi tải dữ liệu", $"Không thể tải: {ex.Message}", "OK");
+            await DisplayAlertAsync("Lỗi tải dữ liệu", $"Không thể tải: {ex.Message}", "OK");
         }
     }
 
@@ -1412,7 +1428,7 @@ public partial class WelcomePage : ContentPage
 
         border.Content = grid;
         border.Opacity = 0;
-        border.FadeTo(1, 300);
+        _ = border.FadeToAsync(1, 300);
 
         return border;
     }
@@ -1483,7 +1499,7 @@ public partial class WelcomePage : ContentPage
 
         border.Content = grid;
         border.Opacity = 0;
-        border.FadeTo(1, 300);
+        _ = border.FadeToAsync(1, 300);
 
         return border;
     }
@@ -1705,10 +1721,10 @@ public partial class WelcomePage : ContentPage
         }
     }
 
-    private void OnHeaderLanguageClicked(object sender, EventArgs e)
+    private async void OnHeaderLanguageClicked(object sender, EventArgs e)
     {
-        var next = LanguageSwitcher.CycleLanguage(_languageService);
-        ApplyLanguage(next);
+        var selected = await LanguageSwitcher.ShowLanguagePickerAsync(this, _languageService);
+        ApplyLanguage(selected);
     }
 
     // LANGUAGE

@@ -25,6 +25,7 @@ namespace StreetFoodNarrator.App.Views;
 public partial class MainPage : ContentPage
 {
     private const string AutoOpenInZoneOnNextMainPageKey = "auto_open_inzone_on_next_mainpage";
+    private const string AutoOpenExploreMapOnNextMainPageKey = AppConfig.AutoOpenExploreMapOnNextMainPageKey;
     private const string HasOnboardedPreferenceKey = "has_onboarded";
     private const int MainPagePrewarmMaxAgeSeconds = 180;
     private const int MapOpenMinimumLoadingMs = 0;
@@ -75,6 +76,19 @@ public partial class MainPage : ContentPage
             "zh" => zh ?? en,
             _ => vi
         };
+
+    private static AlertType ResolveAlertTypeFromTitle(string title)
+    {
+        var normalized = (title ?? string.Empty).Trim().ToLowerInvariant();
+        if (normalized.Contains("lỗi") || normalized.Contains("error") || normalized.Contains("không thể"))
+            return AlertType.Error;
+        if (normalized.Contains("cảnh báo") || normalized.Contains("warning"))
+            return AlertType.Warning;
+        return AlertType.Info;
+    }
+
+    private new Task DisplayAlertAsync(string title, string message, string cancel)
+        => CustomAlert.ShowAsync(title, message, cancel, ResolveAlertTypeFromTitle(title));
 
     public MainPage()
         : this(null, null, null, null, null)
@@ -275,9 +289,9 @@ public partial class MainPage : ContentPage
     private void OnMenuButtonClicked(object? sender, EventArgs e)
         => OnSettingsClicked(sender, e);
 
-    private void OnHeaderLanguageClicked(object? sender, EventArgs e)
+    private async void OnHeaderLanguageClicked(object? sender, EventArgs e)
     {
-        LanguageSwitcher.CycleLanguage(_lang);
+        await LanguageSwitcher.ShowLanguagePickerAsync(this, _lang);
     }
 
     private async void OnProfileButtonClicked(object? sender, EventArgs e)
@@ -850,9 +864,9 @@ public partial class MainPage : ContentPage
                 await DisplayAlertAsync(
                     Ui("QR đã hết hạn", "QR expired", "二维码已过期"),
                     Ui(
-                        "Mã QR này đã quá hạn 7 ngày. Vui lòng dùng mã mới tại điểm dừng xe buýt.",
-                        "This QR is older than 7 days. Please use a newly generated code at the bus stop.",
-                        "此二维码已超过 7 天。请在公交站使用新生成的二维码。"),
+                        $"Mã QR này đã quá hạn {Constants.QR_CODE_EXPIRY_DAYS} ngày. Vui lòng dùng mã mới tại điểm dừng xe buýt.",
+                        $"This QR is older than {Constants.QR_CODE_EXPIRY_DAYS} days. Please use a newly generated code at the bus stop.",
+                        $"此二维码已超过 {Constants.QR_CODE_EXPIRY_DAYS} 天。请在公交站使用新生成的二维码。"),
                     "OK");
                 return;
             }
@@ -952,6 +966,9 @@ public partial class MainPage : ContentPage
             _vm.PrimaryZoneRating = (targetPoi.Rating ?? 4.5).ToString("F1");
             _vm.VisitedPOIIds.Add(targetPoi.Id);
 
+            if (payload.PoiId.HasValue)
+                await StartQrPoiPlaybackAsync(targetPoi);
+
             SyncExplorePresentationState();
             ApplyMapPresentation();
             await OpenExploreMapPageAsync(nearFocusMode: false);
@@ -963,6 +980,22 @@ public partial class MainPage : ContentPage
         finally
         {
             _isHandlingQrDeepLink = false;
+        }
+    }
+
+    private async Task StartQrPoiPlaybackAsync(StreetFoodNarrator.App.Core.Models.POI targetPoi)
+    {
+        try
+        {
+            _vm.SetJournalCurrentlyPlayingFromPoi(targetPoi);
+            _queueAudioSwitchCts?.Cancel();
+            var cts = new CancellationTokenSource();
+            _queueAudioSwitchCts = cts;
+            await SwitchAudioForQueueItemAsync(cts.Token);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainPage] StartQrPoiPlaybackAsync error: {ex}");
         }
     }
 
@@ -2024,14 +2057,14 @@ public partial class MainPage : ContentPage
         if (poi == null) return;
         if (_vm.PrimaryZone?.Id == poi.Id) return;
 
-        // Update PrimaryZone immediately so audio player shows correct POI info
+        // Update PrimaryZone + hero card immediately so switch feels instant.
         _vm.PrimaryZone = poi;
         _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);
         _vm.PrimaryZoneDesc = poi.GetDisplayDescription(_lang.CurrentLanguage);
         _vm.PrimaryZoneAddress = poi.Address ?? "Đang cập nhật địa chỉ...";
+        _vm.SetJournalCurrentlyPlayingFromPoi(poi);
 
-        // Only refresh the queue list - do NOT update Currently Playing card YET
-        // The card updates when audio actually starts playing (in OnPlayPauseTapped)
+        // Refresh queue order under the selected currently-playing POI.
         _vm.RefreshJournalQueueOnly();
 
         // Keep card switching responsive: only switch audio automatically if something is already playing/paused.
@@ -2415,6 +2448,9 @@ public partial class MainPage : ContentPage
         _autoOpenInZoneDirectly = Preferences.Get(AutoOpenInZoneOnNextMainPageKey, false);
         if (_autoOpenInZoneDirectly)
             Preferences.Set(AutoOpenInZoneOnNextMainPageKey, false);
+        var autoOpenExploreMapFromSettings = Preferences.Get(AutoOpenExploreMapOnNextMainPageKey, false);
+        if (autoOpenExploreMapFromSettings)
+            Preferences.Set(AutoOpenExploreMapOnNextMainPageKey, false);
         OnTourAppearing();
         StartExploreAudioUiTimer();
         StartLiveSyncTimer();
@@ -2434,6 +2470,15 @@ public partial class MainPage : ContentPage
             {
                 _ = TryAutoOpenInZoneMapAsync();
             }
+        }
+        if (autoOpenExploreMapFromSettings)
+        {
+            _ = MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                await Task.Yield();
+                if (!_isOpeningExploreMapPage)
+                    await OpenExploreMapPageAsync(nearFocusMode: false);
+            });
         }
         _ = HandlePendingQrDeepLinkAsync();
         _ = HandlePendingRequestedTourAsync();

@@ -19,9 +19,9 @@ namespace StreetFoodNarrator.App.Core.Services.Implementations;
 /// </summary>
 public class TextToSpeechService : ITTSService
 {
-    // For POIs, prefer curated uploaded audio. If it does not exist, fall back to native TTS
-    // instead of generating server audio automatically, to keep voice quality consistent.
-    private const bool EnablePoiServerTtsFallback = false;
+    // For POIs, prefer curated uploaded audio. If it does not exist, allow server TTS generation
+    // before falling back to native TTS so remote narration still works over ngrok.
+    private const bool EnablePoiServerTtsFallback = true;
 
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
@@ -32,6 +32,7 @@ public class TextToSpeechService : ITTSService
 
     private CancellationTokenSource? _nativeTtsCts;
     private bool _manualStop;
+    private Task? _nativeSpeakTask;
 
     // Native TTS progress simulation
     private bool _isNativeTts;
@@ -115,6 +116,18 @@ public class TextToSpeechService : ITTSService
             if (_currentPlayer != null && _currentPlayer.IsPlaying)
             {
                 _currentPlayer.Pause();
+                return;
+            }
+
+            // Native TTS fallback does not support true pause/resume well.
+            // Treat pause as stop so UI and POI switching stay responsive.
+            if (_isNativeTts)
+            {
+                _manualStop = true;
+                _nativeTtsCts?.Cancel();
+                _nativeTtsCts = null;
+                _isNativeTts = false;
+                _manualStop = false;
             }
         }
         catch
@@ -140,7 +153,19 @@ public class TextToSpeechService : ITTSService
     {
         try
         {
-            return _currentPlayer?.IsPlaying ?? false;
+            return (_currentPlayer?.IsPlaying ?? false) || _isNativeTts;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool CanPauseResume()
+    {
+        try
+        {
+            return _currentPlayer != null;
         }
         catch
         {
@@ -172,34 +197,27 @@ public class TextToSpeechService : ITTSService
             await StopAsync();
 
             var playbackMode = GetPlaybackMode();
-            var isOnline = Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
+            var networkAccess = Connectivity.Current.NetworkAccess;
+            var isOnline = networkAccess == NetworkAccess.Internet ||
+                           networkAccess == NetworkAccess.ConstrainedInternet;
 
             if (poiId.HasValue && _audioCache != null)
             {
-                var cachedStream = await _audioCache.GetCachedStreamAsync(poiId.Value, languageCode);
-                if (cachedStream != null)
+                if (playbackMode != AudioPlaybackModes.Stream)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[TTS] Using cached offline audio for POI {poiId}");
-                    _currentPlayer = CreateAndWirePlayer(cachedStream);
-                    _currentPlayer.Play();
-                    StartDurationWarmup(_currentPlayer);
-                    return true;
-                }
-
-                if (playbackMode == AudioPlaybackModes.Download)
-                {
-                    if (!isOnline)
+                    if (playbackMode == AudioPlaybackModes.Download && !isOnline)
                     {
-                        System.Diagnostics.Debug.WriteLine("[TTS] Download mode but offline, skip download and use native fallback.");
+                        System.Diagnostics.Debug.WriteLine("[TTS] Download mode but offline, trying existing cache.");
                     }
 
+                    // Always go through GetOrDownload for POI mode to trigger cache validation/update.
                     var ensuredStream = await _audioCache.GetOrDownloadCachedStreamAsync(
                         poiId.Value,
                         languageCode,
                         cancellationToken);
                     if (ensuredStream != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[TTS] Downloaded and cached POI {poiId} audio locally.");
+                        System.Diagnostics.Debug.WriteLine($"[TTS] Using cached/downloaded POI {poiId} audio.");
                         _currentPlayer = CreateAndWirePlayer(ensuredStream);
                         _currentPlayer.Play();
                         StartDurationWarmup(_currentPlayer);
@@ -207,7 +225,7 @@ public class TextToSpeechService : ITTSService
                     }
                 }
 
-                if (playbackMode != AudioPlaybackModes.Download && isOnline)
+                if (isOnline)
                 {
                     var audioUrl = await _audioCache.GetAudioUrlAsync(poiId.Value, languageCode, cancellationToken);
                     if (!string.IsNullOrEmpty(audioUrl))
@@ -223,6 +241,17 @@ public class TextToSpeechService : ITTSService
                         StartDurationWarmup(_currentPlayer);
                         return true;
                     }
+                }
+
+                // Final fallback for stream mode/offline cases: use existing cached copy if any.
+                var cachedFallbackStream = await _audioCache.GetCachedStreamAsync(poiId.Value, languageCode);
+                if (cachedFallbackStream != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[TTS] Using fallback cached audio for POI {poiId}");
+                    _currentPlayer = CreateAndWirePlayer(cachedFallbackStream);
+                    _currentPlayer.Play();
+                    StartDurationWarmup(_currentPlayer);
+                    return true;
                 }
 
                 System.Diagnostics.Debug.WriteLine($"[TTS] No published audio for POI {poiId}, falling back to TTS.");
@@ -245,7 +274,8 @@ public class TextToSpeechService : ITTSService
             };
 
             using var timeoutCts2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts2.CancelAfter(TimeSpan.FromSeconds(6));
+            var ttsTimeout = poiId.HasValue ? TimeSpan.FromSeconds(2.2) : TimeSpan.FromSeconds(6);
+            timeoutCts2.CancelAfter(ttsTimeout);
 
             var response = await _httpClient.PostAsJsonAsync(
                 $"{_baseUrl}/api/tts/generate",
@@ -544,12 +574,8 @@ public class TextToSpeechService : ITTSService
                 Locale = locale
             };
 
-            await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(text, settings, cts.Token);
-            System.Diagnostics.Debug.WriteLine("[TTS] Native MAUI fallback playback complete.");
-
-            if (!_manualStop)
-                OnPlaybackEnded?.Invoke();
-
+            // Run native TTS in background so UI controls are not blocked while speaking.
+            _nativeSpeakTask = RunNativeSpeakAsync(text, settings, cts);
             return true;
         }
         catch (System.OperationCanceledException)
@@ -561,8 +587,31 @@ public class TextToSpeechService : ITTSService
             System.Diagnostics.Debug.WriteLine($"[TTS] Native TTS error: {ex.Message}");
             return false;
         }
+    }
+
+    private async Task RunNativeSpeakAsync(string text, SpeechOptions settings, CancellationTokenSource cts)
+    {
+        try
+        {
+            await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(text, settings, cts.Token);
+            System.Diagnostics.Debug.WriteLine("[TTS] Native MAUI fallback playback complete.");
+
+            if (!_manualStop && !cts.IsCancellationRequested)
+                OnPlaybackEnded?.Invoke();
+        }
+        catch (System.OperationCanceledException)
+        {
+            // Expected when user stops or switches POI.
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Native background playback error: {ex.Message}");
+        }
         finally
         {
+            if (ReferenceEquals(_nativeTtsCts, cts))
+                _nativeTtsCts = null;
+
             _isNativeTts = false;
         }
     }

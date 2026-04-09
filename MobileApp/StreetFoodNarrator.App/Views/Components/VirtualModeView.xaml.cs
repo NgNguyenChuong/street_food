@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Controls;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
 
@@ -21,15 +23,16 @@ public partial class VirtualModeView : ContentView
     public string QueueItemHeaderText => AppStrings.Get("Virtual_Queue_Item_Header");
     public string QueueEmptyText => AppStrings.Get("Virtual_Queue_Empty");
     public string AudioStreetSuffixText => AppStrings.Get("Virtual_Audio_StreetSuffix");
+    public string HeaderLanguageText => LanguageSwitcher.GetHeaderLabel(_languageService?.CurrentLanguage ?? "vi");
     public string BottomExploreText => AppStrings.Get("Nav_Explore");
     public string BottomLibraryText => AppStrings.Get("Nav_Library");
     public string BottomSettingsText => AppStrings.Get("Nav_Settings");
 
-    // ── Events ────────────────────────────────────────────────────────────────
+    // Events
     public event EventHandler? BackRequested;
     public event EventHandler? HeaderSettingsRequested;
 
-    // ── Carousel / Swipe event (kept for MainPage compatibility) ──────────────
+    // Carousel / Swipe event (kept for MainPage compatibility)
     public event EventHandler<POI>? POISwiped;
 
     // Audio events
@@ -48,8 +51,11 @@ public partial class VirtualModeView : ContentView
     public event EventHandler? CurrentlyPlayingSeeMoreTapped;
 
     private MainViewModel? _boundVm;
+    private LanguageService? _languageService;
+
     public VirtualModeView()
     {
+        _languageService = MauiProgram.Services.GetService<LanguageService>();
         InitializeComponent();
         BindingContextChanged += OnBindingContextChanged;
         Loaded += OnLoaded;
@@ -87,6 +93,7 @@ public partial class VirtualModeView : ContentView
         OnPropertyChanged(nameof(QueueItemHeaderText));
         OnPropertyChanged(nameof(QueueEmptyText));
         OnPropertyChanged(nameof(AudioStreetSuffixText));
+        OnPropertyChanged(nameof(HeaderLanguageText));
         OnPropertyChanged(nameof(BottomExploreText));
         OnPropertyChanged(nameof(BottomLibraryText));
         OnPropertyChanged(nameof(BottomSettingsText));
@@ -112,16 +119,27 @@ public partial class VirtualModeView : ContentView
         // Respond to any VM property changes if needed
     }
 
-    // ── Header Actions ────────────────────────────────────────────────────────
-
+    // Header actions
     private void OnBackTapped(object? sender, EventArgs e)
         => BackRequested?.Invoke(this, EventArgs.Empty);
+
+    private async void OnHeaderLanguageTapped(object? sender, EventArgs e)
+    {
+        var hostPage = ResolveHostPage();
+        if (hostPage == null)
+            return;
+
+        _languageService ??= MauiProgram.Services.GetService<LanguageService>();
+        if (_languageService == null)
+            return;
+
+        await LanguageSwitcher.ShowLanguagePickerAsync(hostPage, _languageService);
+    }
 
     private void OnHeaderSettingsTapped(object? sender, EventArgs e)
         => HeaderSettingsRequested?.Invoke(this, EventArgs.Empty);
 
-    // ── Audio Controls ───────────────────────────────────────────────────────
-
+    // Audio controls
     private void OnPlayPauseTapped(object? sender, EventArgs e)
         => PlayPauseRequested?.Invoke(this, EventArgs.Empty);
 
@@ -131,21 +149,18 @@ public partial class VirtualModeView : ContentView
     private void OnForwardTapped(object? sender, EventArgs e)
         => ForwardRequested?.Invoke(this, EventArgs.Empty);
 
-    // ── Currently Playing Hero Card ──────────────────────────────────────────
-
+    // Currently playing hero card
     private void OnCurrentlyPlayingSeeMoreTapped(object? sender, EventArgs e)
         => CurrentlyPlayingSeeMoreTapped?.Invoke(this, EventArgs.Empty);
 
-    // ── Queue Items ───────────────────────────────────────────────────────────
-
+    // Queue items
     private void OnQueueItemTapped(object? sender, TappedEventArgs e)
     {
         if (sender is View view && view.BindingContext is POI poi)
             QueueItemTapped?.Invoke(this, poi);
     }
 
-    // ── Bottom Navigation ────────────────────────────────────────────────────
-
+    // Bottom navigation
     private void OnExploreNavTapped(object? sender, EventArgs e)
         => ExploreNavRequested?.Invoke(this, EventArgs.Empty);
 
@@ -158,7 +173,21 @@ public partial class VirtualModeView : ContentView
     private void OnSettingsNavTapped(object? sender, EventArgs e)
         => SettingsNavRequested?.Invoke(this, EventArgs.Empty);
 
-    // ── Map centering (kept for MainPage compatibility) ──────────────────────
+    private Page? ResolveHostPage()
+    {
+        Element? current = this;
+        while (current != null)
+        {
+            if (current is Page page)
+                return page;
+
+            current = current.Parent;
+        }
+
+        return Shell.Current?.CurrentPage;
+    }
+
+    // Map centering (kept for MainPage compatibility)
     public void CenterVirtualMap(double lat, double lon, IEnumerable<POI>? allPois = null, POI? primaryPoi = null)
     {
         // Deprecated: map tab removed from new Journal UI

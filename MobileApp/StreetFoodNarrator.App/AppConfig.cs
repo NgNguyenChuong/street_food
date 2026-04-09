@@ -39,13 +39,14 @@ public static class AppConfig
     public const double DefaultZoom      = 24;
 
     // ── Backend API ───────────────────────────────────────────────
-    // ── Emulator (Android AVD): http://10.0.2.2:5004/
-    //    (10.0.2.2 là địa chỉ host PC khi chạy trên máy ảo Android)
-    public static string EmulatorApiBaseUrl { get; set; } = "http://10.0.2.2:5004/";
+        // ── Emulator (Android AVD): http://10.0.2.2:5004/
+        //    (10.0.2.2 là địa chỉ host PC khi chạy trên máy ảo Android)
+      //  public static string EmulatorApiBaseUrl { get; set; } = "http://10.0.2.2:5004/";
+      public static string EmulatorApiBaseUrl { get; set; } = "https://vexed-unsaturated-jovanni.ngrok-free.dev/";
 
-    // ── Máy thật (Real Device): dùng IP LAN của PC chạy API
-    public static string DefaultRealDeviceApiUrl { get; set; } = "http://192.168.31.253:5004/";
-
+        // ── Máy thật (Real Device): dùng IP LAN của PC chạy API
+      //  public static string DefaultRealDeviceApiUrl { get; set; } = "http://192.168.100.9:5004/";
+    public static string DefaultRealDeviceApiUrl { get; set; } = "https://vexed-unsaturated-jovanni.ngrok-free.dev/";
     public const int NetworkTimeoutSeconds = 30;
     public static bool UseBackendApi { get; set; } = true;
     public const string DataVersionKey = "pois_data_version";
@@ -57,7 +58,11 @@ public static class AppConfig
     public const string LocationSourceSimulated = "simulated";
     public const string GpsTestModeEnabledPrefKey = "settings_gps_test_mode_enabled";
     public const string GpsTestEnsurePoiApiPath = "api/POIs/test-mode/ensure-nearby";
+    public const string GpsTestCleanupPoiApiPath = "api/POIs/test-mode/cleanup";
     public const string GpsTestApiKey = "streetfood-gps-test-mode-2026";
+    public const string AutoOpenExploreMapOnNextMainPageKey = "auto_open_exploremap_on_next_mainpage";
+    public const string ShowExploreSimulationControlsPrefKey = "settings_show_explore_simulation_controls";
+    public const bool DefaultShowExploreSimulationControls = false;
     public const double GpsTestLatitude = 10.842597772316791;
     public const double GpsTestLongitude = 106.60874204402752;
     public const string GpsTestAddress = "Toa do test GPS thuc te - 10.842597772316791, 106.60874204402752";

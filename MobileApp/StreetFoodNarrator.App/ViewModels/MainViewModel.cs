@@ -34,11 +34,15 @@ public partial class MainViewModel : ObservableObject
         public string CoverImageUrl { get; set; } = "welcome_streetfood.jpg";
         public bool IsActive { get; set; } = true;
         public bool IsFavorite { get; set; }
+        public bool IsCompleted { get; set; }
 
         public string DisplayPoiStopsText => AppStrings.Format("TourCard_PoiStopsFormat", PoiCount);
         public string DisplayDurationText => AppStrings.Format("TourCard_DurationFormat", EstimatedDurationMinutes);
         public string DetailButtonText => AppStrings.Get("TourCard_DetailButton");
         public string StartNowButtonText => AppStrings.Get("TourCard_StartNowButton");
+        public string CompletionStatusText => IsCompleted
+            ? UiText("Đã đi", "Completed", "已体验")
+            : UiText("Chưa đi", "Not yet", "未体验");
     }
 
     public enum AppMode
@@ -117,6 +121,7 @@ public partial class MainViewModel : ObservableObject
         IsNetworkOffline = !hasInternet;
         IsOfflineHintDismissed = OfflineBannerSessionState.IsDismissed;
         LoadSavedTourIdsFromPreferences();
+        LoadCompletedTourIdsFromPreferences();
         Connectivity.Current.ConnectivityChanged += (_, _) =>
             MainThread.BeginInvokeOnMainThread(() =>
             {
@@ -660,6 +665,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool hasSearchText = false;
     [ObservableProperty] private bool isToursLoading = false;
     [ObservableProperty] private bool isToursRefreshing = false;
+    [ObservableProperty] private bool isMainDataRefreshing = false;
+    [ObservableProperty] private bool isSavedDataRefreshing = false;
     [ObservableProperty] private bool isTourDataStale = false;
     [ObservableProperty] private ObservableCollection<POI> virtualTourPOIs = new();
     [ObservableProperty] private bool isVirtualTourPopupShown = false;
@@ -713,6 +720,7 @@ public partial class MainViewModel : ObservableObject
     private DateTime _lastSavedPoisLoadedUtc = DateTime.MinValue;
     private const string ToursCacheJsonKey = "tours_cache_json_v1";
     private const string SavedTourIdsKey = "saved_tour_ids_v1";
+    private const string CompletedTourIdsKey = "completed_tour_ids_v1";
     private const string LastTourSyncTimeKey = "LastTourSyncTime";
     private const string LastPoiSyncTimeKey = "LastSyncTime";
     private const int PoiSyncIntervalSeconds = 60;
@@ -723,6 +731,7 @@ public partial class MainViewModel : ObservableObject
         PropertyNameCaseInsensitive = true
     };
     private HashSet<string> _savedTourIds = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> _completedTourIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<int> _activeTourPoiIds = new();
 
     partial void OnSelectedCategoryChanged(string value)
@@ -969,14 +978,55 @@ public partial class MainViewModel : ObservableObject
     private const string JournalMilestonePopupDateKey = "journal_milestone_popup_last_date";
     private const int MaxVirtualQueueItems = 6;
     private readonly HashSet<int> _journalCompletedPoiIds = new();
+    public void SetJournalCurrentlyPlayingFromPoi(POI? poi)
+    {
+        if (poi == null)
+            return;
+
+        JournalCurrentlyPlayingName = GetPoiDisplayName(poi);
+        JournalCurrentlyPlayingDesc = GetPoiDisplayDescription(poi, string.Empty);
+        JournalCurrentlyPlayingImage = poi.DisplayImageUrl;
+        JournalCurrentlyPlayingPoi = poi;
+    }
+
     private void ReplaceJournalQueueItems(IEnumerable<POI> queueItems)
     {
         var snapshot = queueItems.ToList();
 
         void apply()
         {
-            // Replace whole collection instead of Clear/Add to avoid ObservableCollection re-entrancy crashes.
-            JournalQueueItems = new ObservableCollection<POI>(snapshot);
+            var current = JournalQueueItems;
+
+            // Skip updates if the queue content/order is unchanged.
+            if (current.Count == snapshot.Count)
+            {
+                var same = true;
+                for (var i = 0; i < snapshot.Count; i++)
+                {
+                    if (current[i].Id != snapshot[i].Id)
+                    {
+                        same = false;
+                        break;
+                    }
+                }
+
+                if (same)
+                    return;
+            }
+
+            // Update in place to avoid rebinding the full CollectionView.
+            var shared = Math.Min(current.Count, snapshot.Count);
+            for (var i = 0; i < shared; i++)
+            {
+                if (current[i].Id != snapshot[i].Id)
+                    current[i] = snapshot[i];
+            }
+
+            for (var i = current.Count - 1; i >= snapshot.Count; i--)
+                current.RemoveAt(i);
+
+            for (var i = shared; i < snapshot.Count; i++)
+                current.Add(snapshot[i]);
         }
 
         if (MainThread.IsMainThread) apply();
@@ -1018,14 +1068,11 @@ public partial class MainViewModel : ObservableObject
 
         // Currently playing POI
         var current = spots[currentIdx];
-        JournalCurrentlyPlayingName = GetPoiDisplayName(current);
-        JournalCurrentlyPlayingDesc = GetPoiDisplayDescription(current, string.Empty);
-        JournalCurrentlyPlayingImage = current.DisplayImageUrl;
-        JournalCurrentlyPlayingPoi = current;
+        SetJournalCurrentlyPlayingFromPoi(current);
 
         // Queue: show all remaining POIs in order (wrap-around)
         var queueItems = new List<POI>();
-        var queueCount = Math.Min(MaxVirtualQueueItems, Math.Max(0, spots.Count - 1));
+        var queueCount = Math.Max(0, spots.Count - 1);
         for (var i = 1; i <= queueCount; i++)
         {
             var idx = (currentIdx + i) % spots.Count;
@@ -1057,7 +1104,7 @@ public partial class MainViewModel : ObservableObject
             if (found >= 0) currentIdx = found;
         }
 
-        var queueCount = Math.Min(MaxVirtualQueueItems, Math.Max(0, spots.Count - 1));
+        var queueCount = Math.Max(0, spots.Count - 1);
         for (var i = 1; i <= queueCount; i++)
         {
             var idx = (currentIdx + i) % spots.Count;
@@ -1974,20 +2021,24 @@ public partial class MainViewModel : ObservableObject
     public async Task LoadReviewsForCurrentPOIAsync()
     {
         if (PrimaryZone == null) return;
+        var hasInternet = HasInternetAccess();
 
-        // ✅ Check cache first
+        // Show cache first for instant UI.
         if (_reviewCache.TryGetValue(PrimaryZone.Id, out var cachedReviews))
         {
             PoiReviews = new ObservableCollection<Review>(cachedReviews);
             RebuildVisibleReviews();
-            return;
+
+            // Offline: keep cache and stop.
+            if (!hasInternet)
+                return;
         }
 
-        // ✅ Load from repository (will be cached)
+        // Online (or cache miss): fetch latest from API/local merge.
         var originalPoiId = PrimaryZone.Id;
         await LoadPoiReviewsAsync(PrimaryZone.Id);
 
-        // ✅ Cache the loaded items (only if still on same POI)
+        // Cache loaded reviews (only if still on same POI)
         if (PrimaryZone != null && PrimaryZone.Id == originalPoiId)
         {
             _reviewCache[originalPoiId] = PoiReviews.ToList();
@@ -2307,92 +2358,101 @@ public partial class MainViewModel : ObservableObject
         await _loadPoisGate.WaitAsync();
         try
         {
-        Console.WriteLine("[MainViewModel] 🔄 LoadAllPoisAsync started...");
+            Console.WriteLine("[MainViewModel] 🔄 LoadAllPoisAsync started...");
 
-        // 1. ✅ Load local SQLite data IMMEDIATELY (cache-first)
-        await _repository.LoadLocalAsync();
-
-        var zones = _repository.GetAllActiveZones();
-        if (zones.Count == 0)
-        {
-            Console.WriteLine("[MainViewModel] Cache is empty, scheduling non-blocking sync...");
-
-            // Do not block first screen render on network sync.
-            _ = Task.Run(async () =>
+            async Task SyncAndReloadPoiUiAsync()
             {
-                try
-                {
-                    await _repository.SyncFromMongoAsync();
-                    await _repository.LoadLocalAsync();
+                await _repository.SyncFromMongoAsync();
+                await _repository.LoadLocalAsync();
 
-                    var refreshedZones = _repository.GetAllActiveZones();
-                    await MainThread.InvokeOnMainThreadAsync(() =>
+                var updatedZones = _repository.GetAllActiveZones();
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    AllPOIs = new ObservableCollection<POI>(updatedZones);
+                    RefreshRuntimeTourPools(refreshExplore: false);
+                    BuildMapCategories();
+                    _ = ApplyFilterAsync();
+                    RefreshDataSourceState();
+                    RefreshExploreExperience();
+                });
+
+                if (_repository.CurrentDataSource == DataSourceKind.LiveApi)
+                    Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
+            }
+
+            // 1. ✅ Load local SQLite data IMMEDIATELY (cache-first)
+            await _repository.LoadLocalAsync();
+
+            var zones = _repository.GetAllActiveZones();
+            var hasSyncedDuringInitialLoad = false;
+
+            if (zones.Count == 0)
+            {
+                if (forceSyncNow)
+                {
+                    Console.WriteLine("[MainViewModel] Cache is empty, forcing immediate sync...");
+                    await SyncAndReloadPoiUiAsync();
+                    zones = _repository.GetAllActiveZones();
+                    hasSyncedDuringInitialLoad = true;
+                }
+                else
+                {
+                    Console.WriteLine("[MainViewModel] Cache is empty, scheduling non-blocking sync...");
+
+                    // Do not block first screen render on network sync.
+                    _ = Task.Run(async () =>
                     {
-                        AllPOIs = new ObservableCollection<POI>(refreshedZones);
-                        RefreshRuntimeTourPools(refreshExplore: false);
-                        BuildMapCategories();
-                        _ = ApplyFilterAsync();
-                        RefreshDataSourceState();
-                        RefreshExploreExperience();
+                        try
+                        {
+                            await SyncAndReloadPoiUiAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MainViewModel] Non-blocking initial sync failed: {ex.Message}");
+                        }
                     });
                 }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[MainViewModel] Non-blocking initial sync failed: {ex.Message}");
-                }
-            });
-        }
+            }
 
-        AllPOIs = new ObservableCollection<POI>(zones);
+            AllPOIs = new ObservableCollection<POI>(zones);
 
-        // 2. ✅ Populate runtime spot pool (ActiveTour override when available)
-        RefreshRuntimeTourPools(refreshExplore: false);
+            // 2. ✅ Populate runtime spot pool (ActiveTour override when available)
+            RefreshRuntimeTourPools(refreshExplore: false);
 
-        // 3. ✅ Build map filter categories from loaded POI data
-        BuildMapCategories();
-        _ = ApplyFilterAsync();
-        _ = LoadToursAsync(forceSyncNow);
-        RefreshDataSourceState();
-        _ = LoadSavedPOIsAsync();
-        RefreshExploreExperience();
+            // 3. ✅ Build map filter categories from loaded POI data
+            BuildMapCategories();
+            _ = ApplyFilterAsync();
+            _ = LoadToursAsync(forceSyncNow);
+            RefreshDataSourceState();
+            _ = LoadSavedPOIsAsync();
+            RefreshExploreExperience();
 
-        Console.WriteLine($"[MainViewModel] ✅ Cache-first load done! AllPOIs={AllPOIs.Count}, VirtualTourPOIs={VirtualTourPOIs.Count}");
+            Console.WriteLine($"[MainViewModel] ✅ Cache-first load done! AllPOIs={AllPOIs.Count}, VirtualTourPOIs={VirtualTourPOIs.Count}");
 
-        // 3. ✅ Sync in background (non-blocking) unless forceSyncNow=true
-        if (forceSyncNow || ShouldSyncNow())
-        {
-            _ = Task.Run(async () =>
+            // 4. ✅ Sync policy
+            if (forceSyncNow)
             {
-                try
+                if (!hasSyncedDuringInitialLoad)
+                    await SyncAndReloadPoiUiAsync();
+
+                Console.WriteLine("[MainViewModel] ✅ Forced sync completed");
+            }
+            else if (ShouldSyncNow())
+            {
+                _ = Task.Run(async () =>
                 {
-                    await _repository.SyncFromMongoAsync();
-                    await _repository.LoadLocalAsync();
-
-                    var updatedZones = _repository.GetAllActiveZones();
-
-                    // After sync, reload UI on main thread
-                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    try
                     {
-                        AllPOIs = new ObservableCollection<POI>(updatedZones);
-                        RefreshRuntimeTourPools(refreshExplore: false);
-
-                        BuildMapCategories();
-                        _ = ApplyFilterAsync();
-                        RefreshDataSourceState();
-                    });
-
-                    // Update last sync time
-                    if (_repository.CurrentDataSource == DataSourceKind.LiveApi)
-                        Preferences.Set("LastSyncTime", DateTime.Now.ToString("O"));
-                    Console.WriteLine("[MainViewModel] ✅ Background sync completed");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ Background sync failed: {ex.Message}");
-                    // Don't crash app, just log error
-                }
-            });
-        }
+                        await SyncAndReloadPoiUiAsync();
+                        Console.WriteLine("[MainViewModel] ✅ Background sync completed");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"⚠️ Background sync failed: {ex.Message}");
+                        // Don't crash app, just log error
+                    }
+                });
+            }
         }
         finally
         {
@@ -2583,7 +2643,84 @@ public partial class MainViewModel : ObservableObject
         }
         finally
         {
-            IsToursRefreshing = false;
+            await MainThread.InvokeOnMainThreadAsync(() => IsToursRefreshing = false);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshMainDataAsync()
+    {
+        if (IsMainDataRefreshing)
+            return;
+
+        IsMainDataRefreshing = true;
+        await _liveSyncGate.WaitAsync();
+        try
+        {
+            if (_isLiveSyncInFlight)
+                return;
+
+            _isLiveSyncInFlight = true;
+
+            var hasInternet = HasInternetAccess();
+            if (hasInternet)
+            {
+                await _repository.SyncFromMongoAsync();
+            }
+
+            await _repository.LoadLocalAsync();
+            var updatedZones = _repository.GetAllActiveZones();
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                AllPOIs = new ObservableCollection<POI>(updatedZones);
+                RefreshRuntimeTourPools(refreshExplore: false);
+                BuildMapCategories();
+                _ = ApplyFilterAsync();
+                RefreshExploreExperience();
+                RefreshDataSourceState();
+            });
+
+            if (hasInternet && _repository.CurrentDataSource == DataSourceKind.LiveApi)
+                Preferences.Set(LastPoiSyncTimeKey, DateTime.Now.ToString("O"));
+
+            await LoadToursAsync(forceSyncNow: true);
+            await LoadSavedPOIsAsync(forceReload: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] RefreshMainDataAsync error: {ex.Message}");
+        }
+        finally
+        {
+            _isLiveSyncInFlight = false;
+            _liveSyncGate.Release();
+            await MainThread.InvokeOnMainThreadAsync(() => IsMainDataRefreshing = false);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshSavedDataAsync()
+    {
+        if (IsSavedDataRefreshing)
+            return;
+
+        IsSavedDataRefreshing = true;
+        try
+        {
+            // User-initiated pull-to-refresh should force latest POI/tour snapshot,
+            // then reload local saved items to refresh heart states immediately.
+            await LoadAllPoisAsync(forceSyncNow: true);
+            await LoadToursAsync(forceSyncNow: true);
+            await LoadSavedPOIsAsync(forceReload: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] RefreshSavedDataAsync error: {ex.Message}");
+        }
+        finally
+        {
+            await MainThread.InvokeOnMainThreadAsync(() => IsSavedDataRefreshing = false);
         }
     }
 
@@ -2919,6 +3056,29 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private void LoadCompletedTourIdsFromPreferences()
+    {
+        try
+        {
+            var json = Preferences.Get(CompletedTourIdsKey, string.Empty);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                _completedTourIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                return;
+            }
+
+            var ids = JsonSerializer.Deserialize<List<string>>(json, TourJsonOptions) ?? new List<string>();
+            _completedTourIds = ids
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            _completedTourIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
     private void PersistSavedTourIds()
     {
         try
@@ -2932,12 +3092,45 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private void PersistCompletedTourIds()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(_completedTourIds.OrderBy(id => id).ToList(), TourJsonOptions);
+            Preferences.Set(CompletedTourIdsKey, json);
+        }
+        catch
+        {
+            // Ignore preference write errors to avoid blocking UI.
+        }
+    }
+
     private void ApplySavedTourStateToTours(IEnumerable<TourListItem> tours)
     {
         foreach (var tour in tours)
         {
-            tour.IsFavorite = !string.IsNullOrWhiteSpace(tour.Id) && _savedTourIds.Contains(tour.Id);
+            var hasId = !string.IsNullOrWhiteSpace(tour.Id);
+            tour.IsFavorite = hasId && _savedTourIds.Contains(tour.Id);
+            tour.IsCompleted = hasId && _completedTourIds.Contains(tour.Id);
         }
+    }
+
+    public bool MarkActiveTourCompleted()
+        => MarkTourCompletedById(ActiveTourId);
+
+    public bool MarkTourCompletedById(string? tourId)
+    {
+        if (string.IsNullOrWhiteSpace(tourId))
+            return false;
+
+        var normalizedId = tourId.Trim();
+        if (!_completedTourIds.Add(normalizedId))
+            return false;
+
+        PersistCompletedTourIds();
+        ApplySavedTourStateToTours(AllTours);
+        ApplyTourFilterCore();
+        return true;
     }
 
     private void RebuildSavedToursCollection()

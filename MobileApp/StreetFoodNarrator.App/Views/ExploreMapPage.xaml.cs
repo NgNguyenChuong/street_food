@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using BruTile.Predefined;
 using BruTile.Web;
@@ -12,6 +12,7 @@ using Mapsui.Tiling.Layers;
 using Microsoft.Extensions.DependencyInjection;
 using NetTopologySuite.Geometries;
 using System.Text.Json;
+using Microsoft.Maui.Storage;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Services.Implementations;
@@ -83,6 +84,7 @@ public partial class ExploreMapPage : ContentPage
 
     private bool _isNearSheetCollapsed;
     private bool _isSimulationToolsExpanded;
+    private bool _showSimulationControls = AppConfig.DefaultShowExploreSimulationControls;
     private bool _useInZoneSheetAfterRoute;
     private readonly HashSet<int> _tourSimulationVisitedPoiIds = new();
     private string _tourSimulationScopeKey = string.Empty;
@@ -109,9 +111,9 @@ public partial class ExploreMapPage : ContentPage
     private const int NearRouteRedrawMinIntervalMs = 2600;
     private const double NearRouteRedrawMinMoveMeters = 10.0;
     private const double SpotZoneTemporaryExpandFactor = 1.15;
-    private const double SimulationPathStepMeters = 7.5;
-    private const int SimulationStepDelayMinMs = 240;
-    private const int SimulationStepDelayMaxMs = 520;
+    private const double SimulationPathStepMeters = 2.5;
+    private const int SimulationStepDelayMinMs = 1400;
+    private const int SimulationStepDelayMaxMs = 1900;
     private const int NearEntryNoticeCooldownMs = 10000;
     private const string IconHeart = "\U000F02D1";
     private const string IconPlay = "\U000F040A";
@@ -144,6 +146,7 @@ public partial class ExploreMapPage : ContentPage
         _offlineRouting = ResolveOptionalService<IOfflineRoutingService>();
         BindingContext = _vm;
         TabMapComponent.BindingContext = _vm;
+        RefreshSimulationToolsPreference();
     }
 
     public bool IsNearFocusMode => _isNearFocusMode;
@@ -159,6 +162,16 @@ public partial class ExploreMapPage : ContentPage
     private bool CanPresentAlert()
         => !_isClosing && IsVisible && Window != null && Handler != null;
 
+    private static AlertType ResolveAlertType(string title)
+    {
+        var normalized = (title ?? string.Empty).Trim().ToLowerInvariant();
+        if (normalized.Contains("lỗi") || normalized.Contains("error") || normalized.Contains("không thể"))
+            return AlertType.Error;
+        if (normalized.Contains("cảnh báo") || normalized.Contains("warning"))
+            return AlertType.Warning;
+        return AlertType.Info;
+    }
+
     private async Task TryDisplayAlertSafeAsync(string title, string message, string cancel = "OK")
     {
         if (!CanPresentAlert())
@@ -171,7 +184,7 @@ public partial class ExploreMapPage : ContentPage
                 if (!CanPresentAlert())
                     return;
 
-                await DisplayAlertAsync(title, message, cancel);
+                await CustomAlert.ShowAsync(title, message, cancel, ResolveAlertType(title));
             });
         }
         catch (ObjectDisposedException)
@@ -201,7 +214,12 @@ public partial class ExploreMapPage : ContentPage
                 if (!CanPresentAlert())
                     return defaultValue;
 
-                return await DisplayAlertAsync(title, message, accept, cancel);
+                return await CustomAlert.ShowConfirmAsync(
+                    title,
+                    message,
+                    accept,
+                    cancel,
+                    ResolveAlertType(title));
             });
         }
         catch (ObjectDisposedException)
@@ -310,6 +328,7 @@ public partial class ExploreMapPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        RefreshSimulationToolsPreference();
         _vm.RefreshOfflineBannerSession();
 
         HookEvents();
@@ -434,6 +453,7 @@ public partial class ExploreMapPage : ContentPage
             UpdateNearRouteActionVisibility();
             UpdateExploreFarStateAdvanceButton();
             UpdateNearFocusOverlayState();
+            UpdateZonePins();
             UpdatePreviewAudioUiState();
         });
     }
@@ -514,9 +534,9 @@ public partial class ExploreMapPage : ContentPage
             ExploreOfflineBannerTextLabel.Text = AppStrings.Get("Offline_Banner_Full");
     }
 
-    private void OnNearFocusLanguageTapped(object? sender, EventArgs e)
+    private async void OnNearFocusLanguageTapped(object? sender, EventArgs e)
     {
-        LanguageSwitcher.CycleLanguage(_lang);
+        await LanguageSwitcher.ShowLanguagePickerAsync(this, _lang);
     }
 
     private void PrewarmPoiDetailForNearFocus(POI? poi)
@@ -1117,13 +1137,23 @@ public partial class ExploreMapPage : ContentPage
                 startLat,
                 startLon);
 
-            routeCoords = cachedPath is { Count: >= 2 }
-                ? cachedPath.Select(point =>
+            if (cachedPath is { Count: >= 2 })
+            {
+                routeCoords = cachedPath.Select(point =>
                 {
                     var (x, y) = SphericalMercator.FromLonLat(point.Longitude, point.Latitude);
                     return new Coordinate(x, y);
-                }).ToArray()
-                : quickFallbackRoute;
+                }).ToArray();
+            }
+            else
+            {
+                routeCoords = quickFallbackRoute;
+                // Thông báo user rằng đây là đường thẳng ước tính vì offline + chưa sync route
+                _ = ShowApproachingToastCompactAsync(routeTargetPoiId.Value,
+                    Ui("📶 Offline – đường thẳng ước tính. Kết nối để xem đường đi thực tế.",
+                       "📶 Offline – straight line estimate. Connect for real route.",
+                       "📶 离线 – 直线估计。连接网络查看真实路线。"));
+            }
         }
 
         if (routeCoords.Length >= 4)
@@ -1547,11 +1577,8 @@ public partial class ExploreMapPage : ContentPage
 
     private static int GetHumanStopDwellDurationMs()
     {
-        // Mostly short waits, occasionally a longer stop (queue/photo/chat).
-        if (Random.Shared.NextDouble() < 0.25)
-            return Random.Shared.Next(8500, 15000);
-
-        return Random.Shared.Next(3200, 7600);
+        // Thời gian dừng lại quán 5-6 giây như user yêu cầu
+        return Random.Shared.Next(5000, 6500);
     }
 
     private async Task SwitchToInZoneSpotAsync(POI poi, bool forceAudioRestart)
@@ -1571,7 +1598,7 @@ public partial class ExploreMapPage : ContentPage
 
         CenterMapOnPoi(poi, InZoneFocusZoomLevel);
 
-        if (switchingToDifferentPoi && (_tts.IsPlaying() || _vm.IsAudioPaused))
+        if (switchingToDifferentPoi)
             await StopPreviewAudioAsync();
 
         var isSamePlaying = _vm.PlayingPoiId == poi.Id && (_tts.IsPlaying() || _vm.IsAudioPaused);
@@ -1614,7 +1641,7 @@ public partial class ExploreMapPage : ContentPage
 
             if (!_isNearFocusMode || _vm.CurrentExploreState != MainViewModel.ExploreState.InZone)
             {
-                if (_activeSpotZonePoiId.HasValue && (_tts.IsPlaying() || _vm.IsAudioPaused))
+                if (_activeSpotZonePoiId.HasValue)
                     await StopPreviewAudioAsync();
                 _activeSpotZonePoiId = null;
                 _candidateSpotZonePoiId = null;
@@ -1663,7 +1690,7 @@ public partial class ExploreMapPage : ContentPage
 
             if (candidate == null)
             {
-                if (_activeSpotZonePoiId.HasValue && (_tts.IsPlaying() || _vm.IsAudioPaused))
+                if (_activeSpotZonePoiId.HasValue)
                     await StopPreviewAudioAsync();
                 _activeSpotZonePoiId = null;
                 _candidateSpotZonePoiId = null;
@@ -2160,13 +2187,23 @@ public partial class ExploreMapPage : ContentPage
 
     private void OnNearFocusSimulateToggleTapped(object? sender, TappedEventArgs e)
     {
+        if (!_showSimulationControls)
+            return;
+
         _isSimulationToolsExpanded = !_isSimulationToolsExpanded;
         UpdateSimulationToolsVisibility();
     }
 
     private void UpdateSimulationToolsVisibility()
     {
-        var shouldShowPanel = _isNearFocusMode && _isSimulationToolsExpanded;
+        var canShowSimulationTools = _showSimulationControls;
+        if (!canShowSimulationTools)
+            _isSimulationToolsExpanded = false;
+
+        if (NearFocusSimulateToggleButton != null)
+            NearFocusSimulateToggleButton.IsVisible = _isNearFocusMode && canShowSimulationTools;
+
+        var shouldShowPanel = _isNearFocusMode && canShowSimulationTools && _isSimulationToolsExpanded;
         if (NearFocusSimulateOptionsPanel != null)
             NearFocusSimulateOptionsPanel.IsVisible = shouldShowPanel;
 
@@ -2190,7 +2227,7 @@ public partial class ExploreMapPage : ContentPage
 
     private async void OnExploreFarStateAdvanceTapped(object? sender, TappedEventArgs e)
     {
-        if (_isNearFocusMode)
+        if (_isNearFocusMode || !_showSimulationControls)
             return;
 
         await RunSimulateNearFromFarAsync();
@@ -2205,7 +2242,7 @@ public partial class ExploreMapPage : ContentPage
 
     private void OnVirtualStateAdvanceTapped(object? sender, TappedEventArgs e)
     {
-        if (!_isNearFocusMode)
+        if (!_isNearFocusMode || !_showSimulationControls)
             return;
 
         var nextState = _vm.CurrentExploreState switch
@@ -2237,7 +2274,14 @@ public partial class ExploreMapPage : ContentPage
 
             if (spots.Count == 0)
             {
-                await ShowInZoneToastAsync(Ui("Chưa có dữ liệu quán để giả lập.", "No venue data available for simulation.", "没有可用于模拟的店铺数据。"));
+                if (usingSelectedTour && navigableSpots.Count > 0)
+                {
+                    var completedPoi = ResolveTourCompletionAnchorPoi(navigableSpots);
+                    await PromptTourCompletionChoicesAsync(completedPoi, restartRouteOnContinue: false);
+                    return;
+                }
+
+                await ShowInZoneToastAsync(Ui("Chưa có dữ liệu quán để giả lập.", "No venue data available for simulation.", "No venue data available for simulation."));
                 return;
             }
 
@@ -2245,23 +2289,25 @@ public partial class ExploreMapPage : ContentPage
                 spots[0].Id,
                 usingSelectedTour
                     ? Ui(
-                        $"→ Theo tour đã chọn: {spots.Count} quán",
-                        $"→ Follow selected tour: {spots.Count} venues",
-                        $"→ 按已选路线：{spots.Count} 个店铺")
+                        $"-> Theo tour đã chọn: {spots.Count} quán",
+                        $"-> Follow selected tour: {spots.Count} venues",
+                        $"-> Follow selected tour: {spots.Count} venues")
                     : Ui(
-                        $"→ Không có tour: giả lập ngẫu nhiên {spots.Count} quán",
-                        $"→ No active tour: random {spots.Count}-venue simulation",
-                        $"→ 未选择路线：随机模拟 {spots.Count} 个店铺"));
+                        $"-> Không có tour: giả lập ngẫu nhiên {spots.Count} quán",
+                        $"-> No active tour: random {spots.Count}-venue simulation",
+                        $"-> No active tour: random {spots.Count}-venue simulation"));
 
-            foreach (var spot in spots)
+            POI? lastCompletedSpot = null;
+            for (var stopIndex = 0; stopIndex < spots.Count; stopIndex++)
             {
+                var spot = spots[stopIndex];
                 token.ThrowIfCancellationRequested();
                 var spotName = spot.GetDisplayName(_lang.CurrentLanguage);
                 if (string.IsNullOrWhiteSpace(spotName))
-                    spotName = Ui("quán tiếp theo", "next venue", "下一家");
+                    spotName = Ui("quán tiếp theo", "next venue", "next venue");
                 await ShowApproachingToastCompactAsync(
                     spot.Id,
-                    Ui($"→ Tiến tới {spotName}", $"→ Moving to {spotName}", $"→ 前往 {spotName}"));
+                    Ui($"-> Tiến tới {spotName}", $"-> Moving to {spotName}", $"-> Moving to {spotName}"));
 
                 var currentLat = _vm.CurrentLat != 0 ? _vm.CurrentLat : AppConfig.DefaultLatitude;
                 var currentLon = _vm.CurrentLon != 0 ? _vm.CurrentLon : AppConfig.DefaultLongitude;
@@ -2290,25 +2336,35 @@ public partial class ExploreMapPage : ContentPage
                 UpdateUserPin();
                 CenterMapOnPoi(spot, InZoneFocusZoomLevel);
 
-                var dwellDurationMs = usingSelectedTour
-                    ? Random.Shared.Next(1300, 2601)
-                    : Random.Shared.Next(2600, 4201);
+                var dwellDurationMs = ResolveSimulationDwellDurationMs(usingSelectedTour, stopIndex, spots.Count);
                 var holdUntil = DateTime.UtcNow.AddMilliseconds(dwellDurationMs);
                 while (DateTime.UtcNow < holdUntil)
                 {
                     token.ThrowIfCancellationRequested();
                     await EvaluateInZoneSpotPlaybackAsync(forceSwitch: false);
-                    await Task.Delay(Random.Shared.Next(260, 520), token);
+                    await Task.Delay(Random.Shared.Next(280, 680), token);
                 }
 
                 if (usingSelectedTour)
+                {
                     _tourSimulationVisitedPoiIds.Add(spot.Id);
+                    _vm.VisitedPOIIds.Add(spot.Id);
+                }
+
+                lastCompletedSpot = spot;
 
                 // One final pass to ensure bottom sheet/audio reflect the new spot.
                 await EvaluateInZoneSpotPlaybackAsync(forceSwitch: false);
             }
 
             HideInZoneToastIfVisible();
+
+            if (usingSelectedTour &&
+                HasCompletedSelectedTourSimulation(navigableSpots) &&
+                lastCompletedSpot != null)
+            {
+                await PromptTourCompletionChoicesAsync(lastCompletedSpot, restartRouteOnContinue: false);
+            }
         }
         catch (TaskCanceledException)
         {
@@ -2318,8 +2374,8 @@ public partial class ExploreMapPage : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"[ExploreMapPage] RunSimulateThreeStopsAsync error: {ex}");
             await TryDisplayAlertSafeAsync(
-                Ui("Lỗi", "Error", "错误"),
-                Ui("Không thể chạy giả lập 3 quán lúc này.", "Unable to run 3-stop simulation right now.", "当前无法运行三站模拟。"),
+                Ui("Lỗi", "Error", "Error"),
+                Ui("Không thể chạy giả lập 3 quán lúc này.", "Unable to run 3-stop simulation right now.", "Unable to run 3-stop simulation right now."),
                 "OK");
         }
     }
@@ -2590,12 +2646,58 @@ public partial class ExploreMapPage : ContentPage
             .ToList();
 
         if (remainingTourStops.Count == 0)
-        {
-            _tourSimulationVisitedPoiIds.Clear();
-            remainingTourStops = navigableSpots.ToList();
-        }
+            return new List<POI>();
 
         return BuildNearestFirstOrder(remainingTourStops, startLat, startLon);
+    }
+
+    private bool HasCompletedSelectedTourSimulation(IReadOnlyList<POI> navigableSpots)
+    {
+        if (!_vm.HasActiveTourOverride || navigableSpots.Count == 0)
+            return false;
+
+        return navigableSpots.All(p => _tourSimulationVisitedPoiIds.Contains(p.Id));
+    }
+
+    private POI ResolveTourCompletionAnchorPoi(IReadOnlyList<POI> navigableSpots)
+    {
+        if (_vm.NavigationTarget != null)
+        {
+            var navPoi = navigableSpots.FirstOrDefault(p => p.Id == _vm.NavigationTarget.Id);
+            if (navPoi != null)
+                return navPoi;
+        }
+
+        if (_vm.SelectedPinPOI != null)
+        {
+            var selectedPoi = navigableSpots.FirstOrDefault(p => p.Id == _vm.SelectedPinPOI.Id);
+            if (selectedPoi != null)
+                return selectedPoi;
+        }
+
+        return navigableSpots[0];
+    }
+
+    private static int ResolveSimulationDwellDurationMs(bool usingSelectedTour, int stopIndex, int totalStops)
+    {
+        if (!usingSelectedTour)
+            return Random.Shared.Next(2400, 4401);
+
+        var roll = Random.Shared.NextDouble();
+        var dwellMs = roll switch
+        {
+            < 0.24 => Random.Shared.Next(1400, 2801),
+            < 0.78 => Random.Shared.Next(3200, 6201),
+            < 0.94 => Random.Shared.Next(6400, 9801),
+            _ => Random.Shared.Next(10200, 14001)
+        };
+
+        if (stopIndex == 0)
+            dwellMs = (int)(dwellMs * 1.10);
+        else if (stopIndex == totalStops - 1)
+            dwellMs = (int)(dwellMs * 0.90);
+
+        return Math.Clamp(dwellMs, 1200, 15000);
     }
 
     private POI? ResolveNextZoneProbeTarget(
@@ -2854,6 +2956,8 @@ public partial class ExploreMapPage : ContentPage
         try
         {
             var currentState = _vm.CurrentExploreState;
+            var wasNearLikeState = currentState == MainViewModel.ExploreState.Near ||
+                                   currentState == MainViewModel.ExploreState.InZone;
             var poiName = poi.GetDisplayName(_lang.CurrentLanguage);
             if (string.IsNullOrWhiteSpace(poiName))
                 poiName = Ui("địa điểm này", "this place", "这个地点");
@@ -2896,27 +3000,32 @@ public partial class ExploreMapPage : ContentPage
             _vm.PrimaryZoneRating = (poi.Rating ?? 4.5).ToString("F1");
             _vm.CurrentAppMode = MainViewModel.AppMode.Explore;
             _vm.IsLegacyMapVisible = false;
+            _vm.NavigationTarget = poi;
             _vm.RefreshExploreState();
 
-            if (!_isNearFocusMode &&
-                (_vm.CurrentExploreState == MainViewModel.ExploreState.Near ||
-                 _vm.CurrentExploreState == MainViewModel.ExploreState.InZone))
+            var canStartNearRoute = wasNearLikeState ||
+                                    _vm.CurrentExploreState == MainViewModel.ExploreState.Near ||
+                                    _vm.CurrentExploreState == MainViewModel.ExploreState.InZone;
+
+            if (!_isNearFocusMode && canStartNearRoute)
             {
                 await MainThread.InvokeOnMainThreadAsync(ActivateNearFocusModeInPlace);
             }
 
-            if (_vm.CurrentExploreState == MainViewModel.ExploreState.Near)
+            if (canStartNearRoute)
             {
                 _useInZoneSheetAfterRoute = false;
                 _isNearRouteActive = true;
                 _nearRouteTargetPoiId = poi.Id;
+                _vm.NavigationTarget = poi;
+                _vm.SelectedPinPOI = poi;
                 _routeDrawRequestVersion++;
                 _lastRouteRedraw = DateTime.MinValue;
                 _ = RequestNearRouteRedrawAsync(force: true);
             }
-            else if (_vm.CurrentExploreState == MainViewModel.ExploreState.InZone)
+            else
             {
-                _useInZoneSheetAfterRoute = true;
+                _useInZoneSheetAfterRoute = false;
                 _isNearRouteActive = false;
                 _nearRouteTargetPoiId = null;
                 _routeDrawRequestVersion++;
@@ -3313,7 +3422,7 @@ public partial class ExploreMapPage : ContentPage
 
         var isFarState = _vm.CurrentExploreState == MainViewModel.ExploreState.Far;
         var isNearState = _vm.CurrentExploreState == MainViewModel.ExploreState.Near;
-        VirtualStateAdvanceButton.IsVisible = _isNearFocusMode && (isFarState || isNearState);
+        VirtualStateAdvanceButton.IsVisible = _showSimulationControls && _isNearFocusMode && (isFarState || isNearState);
         VirtualStateAdvanceLabel.Text = isFarState
             ? AppStrings.Get("Explore_Near_Action_Approach")
             : AppStrings.Get("Explore_Near_Action_Enter");
@@ -3325,8 +3434,18 @@ public partial class ExploreMapPage : ContentPage
             return;
 
         var isFarState = _vm.CurrentExploreState == MainViewModel.ExploreState.Far;
-        ExploreFarStateAdvanceButton.IsVisible = !_isNearFocusMode && isFarState;
+        ExploreFarStateAdvanceButton.IsVisible = _showSimulationControls && !_isNearFocusMode && isFarState;
         ExploreFarStateAdvanceLabel.Text = AppStrings.Get("Explore_Near_Action_Approach");
+    }
+
+    private void RefreshSimulationToolsPreference()
+    {
+        _showSimulationControls = Preferences.Get(
+            AppConfig.ShowExploreSimulationControlsPrefKey,
+            AppConfig.DefaultShowExploreSimulationControls);
+        UpdateSimulationToolsVisibility();
+        UpdateVirtualStateAdvanceButton();
+        UpdateExploreFarStateAdvanceButton();
     }
 
     private bool IsUserInsidePoiActivationZone(POI poi)
@@ -3651,6 +3770,9 @@ public partial class ExploreMapPage : ContentPage
         if (!_isNearFocusMode || !IsVisible)
             return;
 
+        if (_isNearRouteActive && _nearRouteTargetPoiId.HasValue)
+            return;
+
         if (currentState != MainViewModel.ExploreState.Far)
             return;
 
@@ -3765,7 +3887,7 @@ public partial class ExploreMapPage : ContentPage
         try
         {
             var switchingToDifferentPoi = _vm.PlayingPoiId.HasValue && _vm.PlayingPoiId.Value != poi.Id;
-            if (switchingToDifferentPoi && (_tts.IsPlaying() || _vm.IsAudioPaused))
+            if (switchingToDifferentPoi)
                 await StopPreviewAudioAsync();
 
             if (_vm.PlayingPoiId == poi.Id)
@@ -3774,8 +3896,17 @@ public partial class ExploreMapPage : ContentPage
                 {
                     if (allowToggleCurrent)
                     {
-                        _tts.Pause();
-                        _vm.IsAudioPaused = true;
+                        if (_tts.CanPauseResume())
+                        {
+                            _tts.Pause();
+                            _vm.IsAudioPaused = true;
+                        }
+                        else
+                        {
+                            // Native fallback: pause behaves as stop for predictable UX.
+                            await StopPreviewAudioAsync();
+                            return true;
+                        }
                     }
                     else
                     {
@@ -3786,7 +3917,7 @@ public partial class ExploreMapPage : ContentPage
                     return true;
                 }
 
-                if (_vm.IsAudioPaused)
+                if (_vm.IsAudioPaused && _tts.CanPauseResume())
                 {
                     _tts.Resume();
                     if (_tts.IsPlaying())
@@ -4026,6 +4157,8 @@ public partial class ExploreMapPage : ContentPage
             _useInZoneSheetAfterRoute = false;
             _vm.NavigationTarget = null;
             _vm.RequestedTourStops = null;
+            _tourSimulationVisitedPoiIds.Clear();
+            _tourSimulationScopeKey = string.Empty;
             _vm.ClearTourOverride();
 
             ClearNearFocusRoute();
@@ -4101,7 +4234,7 @@ public partial class ExploreMapPage : ContentPage
                 $"你已到达 {Fallback(routePoi.GetDisplayName("zh"), "目的地")}"));
     }
 
-    private async Task PromptTourCompletionChoicesAsync(POI completedPoi)
+    private async Task PromptTourCompletionChoicesAsync(POI completedPoi, bool restartRouteOnContinue = true)
     {
         if (_isTourCompletionPromptVisible)
             return;
@@ -4110,30 +4243,44 @@ public partial class ExploreMapPage : ContentPage
         try
         {
             var tourName = string.IsNullOrWhiteSpace(_vm.ActiveTourName)
-                ? Ui("tour hiện tại", "current tour", "当前行程")
+                ? Ui("tour hiện tại", "current tour", "current tour")
                 : _vm.ActiveTourName;
+            _vm.MarkActiveTourCompleted();
 
             if (!CanPresentAlert())
                 return;
 
             var replayCurrentTour = await TryDisplayConfirmSafeAsync(
-                Ui("Hoàn thành tour", "Tour completed", "行程已完成"),
+                Ui("Hoàn thành tour", "Tour completed", "Tour completed"),
                 Ui(
                     $"Bạn đã hoàn thành \"{tourName}\". Bạn muốn khám phá lại tour này hay tìm một tour khác?",
                     $"You completed \"{tourName}\". Do you want to replay this tour or explore another one?",
-                    $"你已完成\"{tourName}\"。你想重走此行程，还是探索其他行程？"),
-                Ui("Xem lại tour này", "Replay this tour", "重走此行程"),
-                Ui("Khám phá tour khác", "Explore another tour", "探索其他行程"),
+                    $"You completed \"{tourName}\". Do you want to replay this tour or explore another one?"),
+                Ui("Xem lại tour này", "Replay this tour", "Replay this tour"),
+                Ui("Khám phá tour khác", "Explore another tour", "Explore another tour"),
                 defaultValue: true);
 
             if (replayCurrentTour)
             {
-                RestartActiveTourFromBeginning();
+                if (restartRouteOnContinue)
+                {
+                    RestartActiveTourFromBeginning();
+                }
+                else
+                {
+                    ResetActiveTourProgressTracking();
+                    _vm.NavigationTarget = completedPoi;
+                    _vm.SelectedPinPOI = completedPoi;
+                    UpdateZonePins();
+                    UpdateNearFocusOverlayState();
+                    CenterMapForCurrentState();
+                }
+
                 await ShowInZoneToastAsync(
                     Ui(
                         $"Đang bắt đầu lại {tourName}",
                         $"Restarting {tourName}",
-                        $"正在重新开始 {tourName}"));
+                        $"Restarting {tourName}"));
                 return;
             }
 
@@ -4151,18 +4298,24 @@ public partial class ExploreMapPage : ContentPage
 
     private void RestartActiveTourFromBeginning()
     {
-        var activeTourStops = GetNavigablePois();
+        var activeTourStops = ResetActiveTourProgressTracking();
         if (activeTourStops.Count == 0)
             return;
-
-        var activeTourPoiIds = activeTourStops.Select(p => p.Id).ToHashSet();
-        _vm.VisitedPOIIds.RemoveWhere(id => activeTourPoiIds.Contains(id));
 
         var firstStop = activeTourStops[0];
         StartNearRouteToPoi(firstStop);
         UpdateZonePins();
         UpdateNearFocusOverlayState();
         CenterMapForNearFocus();
+    }
+
+    private List<POI> ResetActiveTourProgressTracking()
+    {
+        var activeTourStops = GetNavigablePois();
+        var activeTourPoiIds = activeTourStops.Select(p => p.Id).ToHashSet();
+        _vm.VisitedPOIIds.RemoveWhere(id => activeTourPoiIds.Contains(id));
+        _tourSimulationVisitedPoiIds.Clear();
+        return activeTourStops;
     }
 
     private async Task CancelCurrentTourAndOpenTourListAsync(POI completedPoi)
@@ -4174,6 +4327,8 @@ public partial class ExploreMapPage : ContentPage
         _vm.NavigationTarget = completedPoi;
         _vm.SelectedPinPOI = completedPoi;
         _vm.RequestedTourStops = null;
+        _tourSimulationVisitedPoiIds.Clear();
+        _tourSimulationScopeKey = string.Empty;
         _vm.ClearTourOverride();
 
         ClearNearFocusRoute();

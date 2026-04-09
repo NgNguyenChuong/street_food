@@ -23,12 +23,12 @@ public partial class SettingsPage : ContentPage
 
     private UserSettings? _settings;
     private bool _isVoicePickerExpanded;
-    private bool _isLoadingPlaybackMode;
-    private bool _isLoadingLanguagePicker;
-    private bool _isLoadingLocationSourcePicker;
     private bool _isLoadingGpsTestModeSwitch;
     private bool _isApplyingControls;
+    private bool _isApplyingGpsTestModeToggle;
     private bool _hasPendingChanges;
+    private bool _initialGpsTestModeEnabled;
+    private bool _initialSimulationToolsVisible;
     private string _pendingLanguageCode = "vi";
     private string _pendingLocationSourceMode = AppConfig.LocationSourceReal;
 
@@ -53,8 +53,18 @@ public partial class SettingsPage : ContentPage
         { "zh-CN-XiaoxiaoNeural", "zh-CN-XiaoxiaoNeural_welcome.mp3" }
     };
 
-    private readonly List<AudioPlaybackOption> _audioPlaybackOptions = new();
+    private static readonly IReadOnlyList<GpsTestPoiPointMobileRequest> FixedGpsTestPoiPoints =
+    [
+        new() { Latitude = 10.842078975289178, Longitude = 106.60899362124417, Priority = 10 },
+        new() { Latitude = 10.842098731748207, Longitude = 106.60896276355663, Priority = 9 },
+        new() { Latitude = 10.84207831569258, Longitude = 106.60906602860645, Priority = 8 }
+    ];
+
     private readonly List<LocationSourceOption> _locationSourceOptions = new();
+    private static readonly JsonSerializerOptions MobileJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     private IAudioPlayer? _demoPlayer;
 
@@ -65,7 +75,6 @@ public partial class SettingsPage : ContentPage
         _ttsService = MauiProgram.Services.GetRequiredService<ITTSService>();
         _mainViewModel = MauiProgram.Services.GetService<MainViewModel>();
 
-        RefreshPlaybackModeOptions();
         RefreshLocationSourceOptions();
 
         LoadSettingsAndControls();
@@ -91,10 +100,11 @@ public partial class SettingsPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             _pendingLanguageCode = languageCode;
-            SetupLanguagePicker();
             ReloadUIStrings();
-            RefreshPlaybackModeOptions();
             RefreshLocationSourceOptions();
+            FilterVoicesByLanguage(_pendingLanguageCode);
+            VoiceListView.ItemsSource = _voices;
+            UpdateSelectedVoiceDisplay();
         });
     }
 
@@ -106,23 +116,17 @@ public partial class SettingsPage : ContentPage
             _ => vi
         };
 
-    private void RefreshPlaybackModeOptions()
+    private string BuildDataSourceFooterText()
     {
-        var selectedMode = _settings?.TTS.AudioPlaybackMode?.Trim().ToLowerInvariant() ?? AudioPlaybackModes.Auto;
+        var resolvedBaseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+        var locationSourceLabel = string.Equals(_pendingLocationSourceMode, AppConfig.LocationSourceSimulated, StringComparison.OrdinalIgnoreCase)
+            ? Localize("GPS gia lap", "Simulated GPS", "mo ni GPS")
+            : Localize("GPS that", "Real GPS", "zhen shi GPS");
 
-        _audioPlaybackOptions.Clear();
-        _audioPlaybackOptions.Add(new AudioPlaybackOption(
-            AudioPlaybackModes.Auto,
-            Localize("Tự động (khuyên dùng)", "Auto (recommended)", "自动（推荐）")));
-        _audioPlaybackOptions.Add(new AudioPlaybackOption(
-            AudioPlaybackModes.Stream,
-            Localize("Phát trực tuyến khi có mạng", "Stream when online", "联网时在线播放")));
-
-        _isLoadingPlaybackMode = true;
-        AudioPlaybackModePicker.ItemsSource = _audioPlaybackOptions.Select(o => o.Label).ToList();
-        var selectedIndex = _audioPlaybackOptions.FindIndex(o => o.Mode == selectedMode);
-        AudioPlaybackModePicker.SelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
-        _isLoadingPlaybackMode = false;
+        return Localize(
+            $"Nguon du lieu: API ({resolvedBaseUrl}) | {locationSourceLabel}",
+            $"Data source: API ({resolvedBaseUrl}) | {locationSourceLabel}",
+            $"shu ju lai yuan: API ({resolvedBaseUrl}) | {locationSourceLabel}");
     }
 
     private void LoadSettingsAndControls()
@@ -134,11 +138,13 @@ public partial class SettingsPage : ContentPage
         if (!string.Equals(_pendingLocationSourceMode, AppConfig.LocationSourceSimulated, StringComparison.OrdinalIgnoreCase))
             _pendingLocationSourceMode = AppConfig.LocationSourceReal;
 
-        SetupLanguagePicker();
-        SetupLocationSourcePicker();
+        RefreshLocationSourceOptions();
+        RefreshLanguageSelectionLabel();
+        RefreshLocationSourceSelectionLabel();
         ApplySettingsToControls();
         ApplyUserPreferencesToControls();
         SetupGpsTestModeControls();
+        SetupSimulationToolsControls();
         _hasPendingChanges = false;
         _isApplyingControls = false;
     }
@@ -146,19 +152,20 @@ public partial class SettingsPage : ContentPage
     private void SetupGpsTestModeControls()
     {
         _isLoadingGpsTestModeSwitch = true;
-        GpsTestModeSwitch.IsToggled = Preferences.Get(AppConfig.GpsTestModeEnabledPrefKey, false);
+        _initialGpsTestModeEnabled = Preferences.Get(AppConfig.GpsTestModeEnabledPrefKey, false);
+        GpsTestModeSwitch.IsToggled = _initialGpsTestModeEnabled;
         _isLoadingGpsTestModeSwitch = false;
-        UpdateGpsTestModeActionButtonText();
     }
 
-    private void UpdateGpsTestModeActionButtonText()
+    private void SetupSimulationToolsControls()
     {
-        if (GpsTestModeActionButton == null)
+        if (SimulationToolsSwitch == null)
             return;
 
-        GpsTestModeActionButton.Text = GpsTestModeSwitch?.IsToggled == true
-            ? Localize("Tao/Cap nhat POI test + dong bo", "Create/update test POI + sync", "chuang jian huo geng xin ce shi dian + tong bu")
-            : Localize("Bat GPS test mode", "Enable GPS test mode", "kai qi GPS ce shi mo shi");
+        _initialSimulationToolsVisible = Preferences.Get(
+            AppConfig.ShowExploreSimulationControlsPrefKey,
+            AppConfig.DefaultShowExploreSimulationControls);
+        SimulationToolsSwitch.IsToggled = _initialSimulationToolsVisible;
     }
 
     private UserSettings LoadSettingsFromPreferences()
@@ -212,23 +219,17 @@ public partial class SettingsPage : ContentPage
         };
     }
 
-    private void SetupLanguagePicker()
+    private void RefreshLanguageSelectionLabel()
     {
-        _isLoadingLanguagePicker = true;
-        LanguagePicker.ItemsSource = new List<string>
-        {
-            "Tiếng Việt",
-            "English",
-            "中文"
-        };
+        if (LanguageValueLabel == null)
+            return;
 
-        LanguagePicker.SelectedIndex = _pendingLanguageCode switch
+        LanguageValueLabel.Text = _pendingLanguageCode switch
         {
-            "en" => 1,
-            "zh" => 2,
-            _ => 0
+            "en" => "EN - English",
+            "zh" => "中 - 中文",
+            _ => "VI - Tiếng Việt"
         };
-        _isLoadingLanguagePicker = false;
     }
 
     private void RefreshLocationSourceOptions()
@@ -242,16 +243,17 @@ public partial class SettingsPage : ContentPage
             Localize("GPS giả lập", "Simulated GPS", "模拟 GPS")));
     }
 
-    private void SetupLocationSourcePicker()
+    private void RefreshLocationSourceSelectionLabel()
     {
-        RefreshLocationSourceOptions();
-        _isLoadingLocationSourcePicker = true;
-        LocationSourcePicker.ItemsSource = _locationSourceOptions.Select(x => x.Label).ToList();
+        if (LocationSourceValueLabel == null)
+            return;
 
-        var selectedIndex = _locationSourceOptions.FindIndex(x =>
+        var selected = _locationSourceOptions.FirstOrDefault(x =>
             string.Equals(x.Mode, _pendingLocationSourceMode, StringComparison.OrdinalIgnoreCase));
-        LocationSourcePicker.SelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
-        _isLoadingLocationSourcePicker = false;
+
+        LocationSourceValueLabel.Text = selected?.Label
+            ?? _locationSourceOptions.FirstOrDefault()?.Label
+            ?? Localize("GPS thật", "Real GPS", "真实 GPS");
     }
 
     private void ApplySettingsToControls()
@@ -262,21 +264,7 @@ public partial class SettingsPage : ContentPage
         VolumeSlider.Value = _settings.TTS.Volume;
         VolumeValueLabel.Text = $"{_settings.TTS.Volume}%";
 
-        SensitivitySlider.Value = _settings.Location.SensitivityRadius;
-        SensitivityValueLabel.Text = $"{_settings.Location.SensitivityRadius}m";
-
         AutoPlaySwitch.IsToggled = _settings.TTS.AutoPlay;
-
-        var mode = string.IsNullOrWhiteSpace(_settings.TTS.AudioPlaybackMode)
-            ? AudioPlaybackModes.Auto
-            : _settings.TTS.AudioPlaybackMode.Trim().ToLowerInvariant();
-
-        var idx = _audioPlaybackOptions.FindIndex(x => x.Mode == mode);
-        if (idx < 0) idx = 0;
-
-        _isLoadingPlaybackMode = true;
-        AudioPlaybackModePicker.SelectedIndex = idx;
-        _isLoadingPlaybackMode = false;
     }
 
     private void ApplyUserPreferencesToControls()
@@ -376,34 +364,25 @@ public partial class SettingsPage : ContentPage
         if (_settings == null)
             return;
 
+        var requestedGpsTestModeEnabled = GpsTestModeSwitch.IsToggled;
+        var requestedSimulationToolsVisible = SimulationToolsSwitch?.IsToggled == true;
+
         _settings.TTS.AutoPlay = AutoPlaySwitch.IsToggled;
         _settings.TTS.Volume = (int)Math.Round(VolumeSlider.Value);
-        _settings.Location.SensitivityRadius = (int)Math.Round(SensitivitySlider.Value);
-
-        var modeIndex = AudioPlaybackModePicker.SelectedIndex;
-        if (modeIndex >= 0 && modeIndex < _audioPlaybackOptions.Count)
-            _settings.TTS.AudioPlaybackMode = _audioPlaybackOptions[modeIndex].Mode;
-
-        if (LanguagePicker.SelectedIndex >= 0)
-        {
-            _pendingLanguageCode = LanguagePicker.SelectedIndex switch
-            {
-                1 => "en",
-                2 => "zh",
-                _ => "vi"
-            };
-        }
 
         _languageService.ApplyLanguage(_pendingLanguageCode);
-        var sourceIndex = LocationSourcePicker.SelectedIndex;
-        if (sourceIndex >= 0 && sourceIndex < _locationSourceOptions.Count)
-            _pendingLocationSourceMode = _locationSourceOptions[sourceIndex].Mode;
 
         if (GpsTestModeSwitch.IsToggled)
+        {
             _pendingLocationSourceMode = AppConfig.LocationSourceReal;
+            RefreshLocationSourceSelectionLabel();
+        }
 
         Preferences.Set(AppConfig.LocationSourceModePrefKey, _pendingLocationSourceMode);
-        Preferences.Set(AppConfig.GpsTestModeEnabledPrefKey, GpsTestModeSwitch.IsToggled);
+        Preferences.Set(AppConfig.GpsTestModeEnabledPrefKey, requestedGpsTestModeEnabled);
+        if (!requestedGpsTestModeEnabled)
+            Preferences.Set(AppConfig.AutoOpenExploreMapOnNextMainPageKey, false);
+        Preferences.Set(AppConfig.ShowExploreSimulationControlsPrefKey, requestedSimulationToolsVisible);
         Preferences.Set(PrefHapticFeedback, HapticFeedbackSwitch.IsToggled);
         Preferences.Set(PrefKeepScreenOn, KeepScreenOnSwitch.IsToggled);
         Preferences.Set(PrefLargeText, LargeTextSwitch.IsToggled);
@@ -416,151 +395,197 @@ public partial class SettingsPage : ContentPage
         }
 
         await SaveSettingsAsync();
+
+        _initialGpsTestModeEnabled = requestedGpsTestModeEnabled;
+        _initialSimulationToolsVisible = requestedSimulationToolsVisible;
         _hasPendingChanges = false;
     }
 
-    private void OnLanguagePickerChanged(object sender, EventArgs e)
+    private async void OnHeaderLanguageClicked(object sender, EventArgs e)
     {
-        if (_isApplyingControls || _isLoadingLanguagePicker || LanguagePicker.SelectedIndex < 0)
+        await ApplyLanguageSelectionAsync();
+    }
+
+    private async void OnLanguageSelectionTapped(object sender, EventArgs e)
+    {
+        await ApplyLanguageSelectionAsync();
+    }
+
+    private async Task ApplyLanguageSelectionAsync()
+    {
+        if (_isApplyingControls)
             return;
 
-        _pendingLanguageCode = LanguagePicker.SelectedIndex switch
-        {
-            1 => "en",
-            2 => "zh",
-            _ => "vi"
-        };
+        var selected = await LanguageSwitcher.ShowLanguagePickerAsync(this, _languageService);
+        if (string.Equals(selected, _pendingLanguageCode, StringComparison.OrdinalIgnoreCase))
+            return;
 
+        _pendingLanguageCode = selected;
         SwitchVoiceForLanguage(_pendingLanguageCode);
         _hasPendingChanges = true;
-        _languageService.ApplyLanguage(_pendingLanguageCode);
-        ReloadUIStrings();
-        RefreshPlaybackModeOptions();
         RefreshLocationSourceOptions();
-        SetupLocationSourcePicker();
+        ReloadUIStrings();
     }
 
-    private void OnHeaderLanguageClicked(object sender, EventArgs e)
+    private async void OnLocationSourceSelectionTapped(object sender, EventArgs e)
     {
-        var next = LanguageSwitcher.GetNextLanguageCode(_pendingLanguageCode);
-        var idx = next switch
-        {
-            "en" => 1,
-            "zh" => 2,
-            _ => 0
-        };
-
-        LanguagePicker.SelectedIndex = idx;
-    }
-
-    private void OnLocationSourceChanged(object sender, EventArgs e)
-    {
-        if (_isApplyingControls || _isLoadingLocationSourcePicker || LocationSourcePicker.SelectedIndex < 0)
+        if (_isApplyingControls)
             return;
 
-        var idx = LocationSourcePicker.SelectedIndex;
-        if (idx >= 0 && idx < _locationSourceOptions.Count)
+        var currentIndex = _locationSourceOptions.FindIndex(x =>
+            string.Equals(x.Mode, _pendingLocationSourceMode, StringComparison.OrdinalIgnoreCase));
+        if (currentIndex < 0)
+            currentIndex = 0;
+
+        var selectedIndex = await CustomAlert.ShowSelectionAsync(
+            title: Localize("Chọn nguồn vị trí", "Choose location source", "选择定位来源"),
+            options: _locationSourceOptions.Select(x => x.Label).ToList(),
+            selectedIndex: currentIndex,
+            cancelText: Localize("Hủy", "Cancel", "取消"),
+            hostPage: this);
+
+        if (!selectedIndex.HasValue || selectedIndex.Value < 0 || selectedIndex.Value >= _locationSourceOptions.Count)
+            return;
+
+        var selectedMode = _locationSourceOptions[selectedIndex.Value].Mode;
+
+        if (GpsTestModeSwitch.IsToggled &&
+            string.Equals(selectedMode, AppConfig.LocationSourceSimulated, StringComparison.OrdinalIgnoreCase))
         {
-            _pendingLocationSourceMode = _locationSourceOptions[idx].Mode;
-            _hasPendingChanges = true;
+            await CustomAlert.ShowAsync(
+                Localize("GPS test mode đang bật", "GPS test mode is enabled", "GPS ce shi mo shi yi qi yong"),
+                Localize(
+                    "Hãy tắt GPS test mode nếu bạn muốn dùng GPS giả lập.",
+                    "Turn off GPS test mode if you want to use simulated GPS.",
+                    "ru xu shi yong mo ni GPS, qing xian guan bi GPS ce shi mo shi."),
+                "OK",
+                AlertType.Info);
+            return;
         }
-    }
 
-    private void OnGpsTestModeToggled(object sender, ToggledEventArgs e)
-    {
-        if (_isApplyingControls || _isLoadingGpsTestModeSwitch)
+        if (string.Equals(selectedMode, _pendingLocationSourceMode, StringComparison.OrdinalIgnoreCase))
             return;
 
+        _pendingLocationSourceMode = selectedMode;
+        RefreshLocationSourceSelectionLabel();
         _hasPendingChanges = true;
-        UpdateGpsTestModeActionButtonText();
+        FooterPolicyLabel.Text = BuildDataSourceFooterText();
     }
 
-    private async void OnGpsTestModeActionClicked(object sender, EventArgs e)
+    private async void OnGpsTestModeToggled(object sender, ToggledEventArgs e)
     {
-        GpsTestModeActionButton.IsEnabled = false;
-        GpsTestModeActionButton.Text = "...";
+        if (_isApplyingControls || _isLoadingGpsTestModeSwitch || _isApplyingGpsTestModeToggle)
+            return;
+
+        _isApplyingGpsTestModeToggle = true;
+        GpsTestModeSwitch.IsEnabled = false;
 
         try
         {
-            await MovementFileLogger.LogEventAsync(
-                "gps-test",
-                "activate-clicked");
-
-            if (!GpsTestModeSwitch.IsToggled)
+            if (e.Value)
             {
-                _isLoadingGpsTestModeSwitch = true;
-                GpsTestModeSwitch.IsToggled = true;
-                _isLoadingGpsTestModeSwitch = false;
+                _pendingLocationSourceMode = AppConfig.LocationSourceReal;
+                RefreshLocationSourceSelectionLabel();
+                FooterPolicyLabel.Text = BuildDataSourceFooterText();
+
+                Preferences.Set(AppConfig.LocationSourceModePrefKey, _pendingLocationSourceMode);
+                if (_mainViewModel != null)
+                    await _mainViewModel.ApplyLocationSourceModeAsync(useSimulatedGps: false);
+
+                await EnableGpsTestModeAsync();
+            }
+            else
+            {
+                await DisableGpsTestModeAsync();
             }
 
-            var realIndex = _locationSourceOptions.FindIndex(x =>
-                string.Equals(x.Mode, AppConfig.LocationSourceReal, StringComparison.OrdinalIgnoreCase));
-            if (realIndex >= 0)
-            {
-                _isLoadingLocationSourcePicker = true;
-                LocationSourcePicker.SelectedIndex = realIndex;
-                _isLoadingLocationSourcePicker = false;
-            }
-
-            _pendingLocationSourceMode = AppConfig.LocationSourceReal;
-            _hasPendingChanges = true;
-
-            await SaveAllPreferencesFromControlsAsync();
-            await MovementFileLogger.LogEventAsync("gps-test", "saved-settings;source=real");
-
-            var poiId = await EnsureGpsTestPoiAsync();
-            await MovementFileLogger.LogEventAsync(
-                "gps-test",
-                $"ensure-poi-success;poiId={(poiId?.ToString() ?? "na")}");
-
-            if (_mainViewModel != null)
-            {
-                await _mainViewModel.LoadAllPoisAsync(forceSyncNow: true);
-                _mainViewModel.RefreshExploreState();
-            }
-
-            await MovementFileLogger.LogEventAsync(
-                "gps-test",
-                $"sync-finished;lat={AppConfig.GpsTestLatitude:F7};lon={AppConfig.GpsTestLongitude:F7}");
-
-            await CustomAlert.ShowAsync(
-                Localize("GPS test mode da san sang", "GPS test mode is ready", "GPS ce shi mo shi yi jiu xu"),
-                Localize(
-                    $"Da tao/cap nhat POI test #{poiId?.ToString() ?? "N/A"} gan toa do that. Hay ra vi tri test de kiem tra geofence.",
-                    $"Test POI #{poiId?.ToString() ?? "N/A"} is ready near your real coordinate. Move to that location to verify geofence.",
-                    $"ce shi dian #{poiId?.ToString() ?? "N/A"} yi jiu xu, qing yi dong dao gai wei zhi yan zheng geofence."),
-                "OK",
-                AlertType.Success);
+            Preferences.Set(AppConfig.GpsTestModeEnabledPrefKey, e.Value);
+            _initialGpsTestModeEnabled = e.Value;
         }
         catch (Exception ex)
         {
-            await MovementFileLogger.LogEventAsync("gps-test-error", ex.Message);
+            await MovementFileLogger.LogEventAsync("gps-test-error", $"toggle-failed:{ex.Message}");
+
+            _isLoadingGpsTestModeSwitch = true;
+            GpsTestModeSwitch.IsToggled = !e.Value;
+            _isLoadingGpsTestModeSwitch = false;
+
             await CustomAlert.ShowAsync(
-                Localize("Loi GPS test mode", "GPS test mode error", "GPS ce shi mo shi cuo wu"),
-                ex.Message,
+                Localize("Lỗi", "Error", "错误"),
+                Localize("Không thể cập nhật GPS test mode", "Unable to update GPS test mode", "无法更新 GPS 测试模式") + $": {ex.Message}",
                 "OK",
                 AlertType.Error);
         }
         finally
         {
-            UpdateGpsTestModeActionButtonText();
-            GpsTestModeActionButton.IsEnabled = true;
+            GpsTestModeSwitch.IsEnabled = true;
+            _isApplyingGpsTestModeToggle = false;
         }
     }
 
-    private async Task<int?> EnsureGpsTestPoiAsync()
+    private void OnSimulationToolsToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isApplyingControls)
+            return;
+
+        _hasPendingChanges = true;
+    }
+
+    private async Task EnableGpsTestModeAsync()
+    {
+        await MovementFileLogger.LogEventAsync("gps-test", "enable-requested-via-toggle");
+
+        var poiIds = await EnsureGpsTestPoisAsync();
+
+        await MovementFileLogger.LogEventAsync(
+            "gps-test",
+            $"ensure-pois-success;count={poiIds.Count};ids={string.Join(',', poiIds)}");
+
+        await SyncGpsTestPoisToMainViewModelAsync();
+        Preferences.Set(AppConfig.AutoOpenExploreMapOnNextMainPageKey, true);
+    }
+
+    private async Task DisableGpsTestModeAsync()
+    {
+        await MovementFileLogger.LogEventAsync("gps-test", "disable-requested-via-toggle");
+
+        var deletedCount = await CleanupGpsTestPoisAsync();
+        await MovementFileLogger.LogEventAsync("gps-test", $"cleanup-success;deleted={deletedCount}");
+
+        await SyncGpsTestPoisToMainViewModelAsync();
+        Preferences.Set(AppConfig.AutoOpenExploreMapOnNextMainPageKey, false);
+    }
+
+    private async Task SyncGpsTestPoisToMainViewModelAsync()
+    {
+        if (_mainViewModel == null)
+            return;
+
+        await _mainViewModel.LoadAllPoisAsync(forceSyncNow: true);
+        _mainViewModel.RefreshExploreState();
+    }
+
+    private async Task<IReadOnlyList<int>> EnsureGpsTestPoisAsync()
     {
         var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
         var url = $"{baseUrl}/{AppConfig.GpsTestEnsurePoiApiPath}";
+
+        var points = FixedGpsTestPoiPoints
+            .Select(p => new GpsTestPoiPointMobileRequest
+            {
+                Latitude = p.Latitude,
+                Longitude = p.Longitude,
+                Priority = p.Priority
+            })
+            .ToList();
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds) };
         using var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
             Content = JsonContent.Create(new EnsureGpsTestPoiMobileRequest
             {
-                Latitude = AppConfig.GpsTestLatitude,
-                Longitude = AppConfig.GpsTestLongitude,
-                Address = AppConfig.GpsTestAddress
+                Address = "GPS test fixed coordinates (3 POIs)",
+                Points = points
             })
         };
         request.Headers.Add("X-Gps-Test-Key", AppConfig.GpsTestApiKey);
@@ -568,26 +593,99 @@ public partial class SettingsPage : ContentPage
         using var response = await http.SendAsync(request);
         var payload = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Cannot ensure GPS test POI ({(int)response.StatusCode}): {payload}");
+            throw new InvalidOperationException($"Cannot ensure GPS test POIs ({(int)response.StatusCode}): {payload}");
+
+        return ParseGpsTestPoiIds(payload);
+    }
+
+    private async Task<int> CleanupGpsTestPoisAsync()
+    {
+        var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+        var url = $"{baseUrl}/{AppConfig.GpsTestCleanupPoiApiPath}";
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds) };
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.Add("X-Gps-Test-Key", AppConfig.GpsTestApiKey);
+
+        using var response = await http.SendAsync(request);
+        var payload = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Cannot cleanup GPS test POIs ({(int)response.StatusCode}): {payload}");
 
         try
         {
             using var doc = JsonDocument.Parse(payload);
-            foreach (var prop in doc.RootElement.EnumerateObject())
-            {
-                if (!string.Equals(prop.Name, "POI_ID", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetInt32(out var parsed))
-                    return parsed;
-            }
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("deletedCount", out var deletedCountValue) &&
+                deletedCountValue.ValueKind == JsonValueKind.Number &&
+                deletedCountValue.TryGetInt32(out var parsed))
+                return parsed;
         }
         catch
         {
-            // Ignore parse errors; endpoint succeeded and sync will still pull data.
+            // Ignore parse errors for best-effort log details.
         }
 
-        return null;
+        return 0;
+    }
+
+    private static IReadOnlyList<int> ParseGpsTestPoiIds(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+            return Array.Empty<int>();
+
+        try
+        {
+            using var doc = JsonDocument.Parse(payload);
+            var ids = new HashSet<int>();
+
+            void AddPoiIdIfPresent(JsonElement element)
+            {
+                if (element.ValueKind != JsonValueKind.Object)
+                    return;
+
+                foreach (var prop in element.EnumerateObject())
+                {
+                    if (!string.Equals(prop.Name, "POI_ID", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetInt32(out var parsed) && parsed > 0)
+                        ids.Add(parsed);
+                }
+            }
+
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in doc.RootElement.EnumerateArray())
+                    AddPoiIdIfPresent(item);
+            }
+            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                AddPoiIdIfPresent(doc.RootElement);
+
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    if (!string.Equals(prop.Name, "data", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (prop.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in prop.Value.EnumerateArray())
+                            AddPoiIdIfPresent(item);
+                    }
+                    else
+                    {
+                        AddPoiIdIfPresent(prop.Value);
+                    }
+                }
+            }
+
+            return ids.ToList();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<int>();
+        }
     }
 
     private void SwitchVoiceForLanguage(string lang)
@@ -624,6 +722,13 @@ public partial class SettingsPage : ContentPage
     {
         try
         {
+            var shouldOpenExploreMap = Preferences.Get(AppConfig.AutoOpenExploreMapOnNextMainPageKey, false);
+            if (shouldOpenExploreMap && Shell.Current != null)
+            {
+                await Shell.Current.GoToAsync("//MapPage", false);
+                return;
+            }
+
             if (Navigation?.ModalStack?.Count > 0)
             {
                 await Navigation.PopModalAsync(false);
@@ -747,6 +852,7 @@ public partial class SettingsPage : ContentPage
             Preferences.Remove(HasOnboardedPreferenceKey);
             Preferences.Remove("hasSeenOnboarding"); // legacy key
             Preferences.Remove(AutoOpenInZoneOnNextMainPageKey);
+            Preferences.Set(AppConfig.AutoOpenExploreMapOnNextMainPageKey, false);
             QuitApplication();
         }
         catch (Exception ex)
@@ -780,6 +886,8 @@ public partial class SettingsPage : ContentPage
 
             Preferences.Set(AppConfig.LocationSourceModePrefKey, AppConfig.LocationSourceReal);
             Preferences.Set(AppConfig.GpsTestModeEnabledPrefKey, false);
+            Preferences.Set(AppConfig.AutoOpenExploreMapOnNextMainPageKey, false);
+            Preferences.Set(AppConfig.ShowExploreSimulationControlsPrefKey, AppConfig.DefaultShowExploreSimulationControls);
             Preferences.Set(PrefHapticFeedback, true);
             Preferences.Set(PrefKeepScreenOn, false);
             Preferences.Set(PrefLargeText, false);
@@ -789,13 +897,13 @@ public partial class SettingsPage : ContentPage
 
             _languageService.ApplyLanguage(_pendingLanguageCode);
 
-            SetupLanguagePicker();
-            RefreshPlaybackModeOptions();
             RefreshLocationSourceOptions();
-            SetupLocationSourcePicker();
+            RefreshLanguageSelectionLabel();
+            RefreshLocationSourceSelectionLabel();
             ApplySettingsToControls();
             ApplyUserPreferencesToControls();
             SetupGpsTestModeControls();
+            SetupSimulationToolsControls();
 
             foreach (var voice in _allVoices)
                 voice.IsSelected = voice.Voice == _settings.TTS.Voice;
@@ -862,21 +970,16 @@ public partial class SettingsPage : ContentPage
         AutoPlayTitleLabel.Text = AppStrings.Settings_AutoPlay;
         AutoPlaySubtitleLabel.Text = AppStrings.Settings_AutoPlayDesc;
         VolumeTitleLabel.Text = AppStrings.Settings_VolumeShort;
-        SensitivityTitleLabel.Text = AppStrings.Settings_SensitivityShort;
-        SensitivityLeftLabel.Text = Localize("Mượt hơn", "Smoother", "更平滑");
-        SensitivityRightLabel.Text = Localize("Chính xác hơn", "More precise", "更精准");
         HapticTitleLabel.Text = Localize("Rung phản hồi", "Haptic feedback", "触觉反馈");
         HapticSubtitleLabel.Text = Localize("Rung nhẹ khi thao tác chính", "Light vibration for key actions", "关键操作时轻微振动");
         KeepScreenOnTitleLabel.Text = Localize("Giữ màn hình sáng", "Keep screen on", "保持屏幕常亮");
         KeepScreenOnSubtitleLabel.Text = Localize("Không tắt màn hình khi đang dùng app", "Prevent screen sleep while using app", "使用应用时不自动熄屏");
         LargeTextTitleLabel.Text = Localize("Văn bản lớn", "Large text", "大号文字");
         LargeTextSubtitleLabel.Text = Localize("Ưu tiên cỡ chữ lớn hơn cho dễ đọc", "Prefer larger text for readability", "优先使用更大字号便于阅读");
-        AudioPlaybackTitleLabel.Text = Localize("Chế độ phát audio", "Audio playback mode", "音频播放模式");
-        AudioPlaybackSubtitleLabel.Text = Localize("Tự động hoặc phát trực tuyến", "Automatic or streaming playback", "自动或流式播放");
         LogoutTitleLabel.Text = Localize("Đăng xuất", "Log out", "退出登录");
         LogoutSubtitleLabel.Text = Localize("Thoát khỏi phiên hiện tại và đóng ứng dụng", "Exit current session and close app", "退出当前会话并关闭应用");
         LogoutButton.Text = Localize("Đăng xuất", "Log out", "退出登录");
-        FooterPolicyLabel.Text = AppStrings.Settings_PrivacyTerms;
+        FooterPolicyLabel.Text = BuildDataSourceFooterText();
         FooterVersionLabel.Text = $"{Localize("Phiên bản", "Version", "版本")} 1.0.0";
         LocationSourceTitleLabel.Text = Localize("Nguồn vị trí", "Location source", "位置来源");
         LocationSourceSubtitleLabel.Text = Localize(
@@ -885,17 +988,23 @@ public partial class SettingsPage : ContentPage
             "测试时可选择真实 GPS 或模拟 GPS");
         GpsTestModeTitleLabel.Text = Localize("GPS test mode", "GPS test mode", "GPS ce shi mo shi");
         GpsTestModeSubtitleLabel.Text = Localize(
-            "Bat mode rieng de test GPS that ngoai hien truong",
-            "Use dedicated mode for real-world GPS testing",
-            "shi yong zhuan yong mo shi jin xing shi di GPS ce shi");
+            "Bật để tạo ngay 3 POI test theo tọa độ cố định",
+            "Turn on to create 3 fixed-coordinate test POIs immediately",
+            "kai qi hou li ji chuang jian 3 ge gu ding zuo biao ce shi dian");
         GpsTestCoordinateLabel.Text = Localize(
-            "Toa do test: 10.842598, 106.608742",
-            "Test coordinate: 10.842598, 106.608742",
-            "ce shi zuo biao: 10.842598, 106.608742");
-        UpdateGpsTestModeActionButtonText();
-        LanguagePicker.Title = Localize("Chọn ngôn ngữ", "Choose language", "选择语言");
-        LocationSourcePicker.Title = Localize("Chọn nguồn vị trí", "Choose location source", "选择定位来源");
-        AudioPlaybackModePicker.Title = Localize("Chọn chế độ", "Choose mode", "选择模式");
+            "Tạo đúng 3 điểm GPS test với priority lần lượt 10, 9, 8 để ưu tiên phát audio.",
+            "Creates exactly 3 GPS test points with priorities 10, 9, 8 for audio playback order.",
+            "jing que chuang jian 3 ge ce shi dian, you xian ji yi ci wei 10, 9, 8.");
+        SimulationToolsTitleLabel.Text = Localize(
+            "Hien nut gia lap ExploreMap",
+            "Show ExploreMap simulation buttons",
+            "xian shi ExploreMap mo ni gong neng an niu");
+        SimulationToolsSubtitleLabel.Text = Localize(
+            "Bat de hien bo nut mo phong test nhanh tren ExploreMap",
+            "Enable to show quick simulation controls on ExploreMap",
+            "kai qi hou zai ExploreMap xian shi kuai su mo ni ce shi an niu");
+        RefreshLanguageSelectionLabel();
+        RefreshLocationSourceSelectionLabel();
         DefaultBackButton.Text = Localize("Khôi phục mặc định", "Restore defaults", "恢复默认设置");
         SaveSettingsButton.Text = Localize("Lưu thay đổi", "Save changes", "保存更改");
     }
@@ -974,19 +1083,6 @@ public partial class SettingsPage : ContentPage
         _hasPendingChanges = true;
     }
 
-    private void OnAudioPlaybackModeChanged(object sender, EventArgs e)
-    {
-        if (_isApplyingControls || _isLoadingPlaybackMode || _settings == null)
-            return;
-
-        var idx = AudioPlaybackModePicker.SelectedIndex;
-        if (idx < 0 || idx >= _audioPlaybackOptions.Count)
-            return;
-
-        _settings.TTS.AudioPlaybackMode = _audioPlaybackOptions[idx].Mode;
-        _hasPendingChanges = true;
-    }
-
     private void OnVolumeChanged(object sender, ValueChangedEventArgs e)
     {
         if (_isApplyingControls || _settings == null)
@@ -995,17 +1091,6 @@ public partial class SettingsPage : ContentPage
         var value = (int)e.NewValue;
         VolumeValueLabel.Text = $"{value}%";
         _settings.TTS.Volume = value;
-        _hasPendingChanges = true;
-    }
-
-    private void OnSensitivityChanged(object sender, ValueChangedEventArgs e)
-    {
-        if (_isApplyingControls || _settings == null)
-            return;
-
-        var value = (int)e.NewValue;
-        SensitivityValueLabel.Text = $"{value}m";
-        _settings.Location.SensitivityRadius = value;
         _hasPendingChanges = true;
     }
 
@@ -1169,18 +1254,6 @@ public class VoiceItemViewModel : System.ComponentModel.INotifyPropertyChanged
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 }
 
-public class AudioPlaybackOption
-{
-    public string Mode { get; }
-    public string Label { get; }
-
-    public AudioPlaybackOption(string mode, string label)
-    {
-        Mode = mode;
-        Label = label;
-    }
-}
-
 public class LocationSourceOption
 {
     public string Mode { get; }
@@ -1195,7 +1268,18 @@ public class LocationSourceOption
 
 public sealed class EnsureGpsTestPoiMobileRequest
 {
+    public string Address { get; set; } = string.Empty;
+    public List<GpsTestPoiPointMobileRequest> Points { get; set; } = new();
+}
+
+public sealed class GpsTestPoiPointMobileRequest
+{
     public double Latitude { get; set; }
     public double Longitude { get; set; }
-    public string Address { get; set; } = string.Empty;
+    public int Priority { get; set; }
+}
+
+public sealed class GpsTestPoiMobileDto
+{
+    public int POI_ID { get; set; }
 }

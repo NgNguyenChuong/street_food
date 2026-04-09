@@ -414,7 +414,7 @@ public partial class MainPage
         return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
-    private static Task<bool> DisplayAlertAsync(string title, string msg, string accept, string cancel)
+    private new static Task<bool> DisplayAlertAsync(string title, string msg, string accept, string cancel)
         => CustomAlert.ShowConfirmAsync(title, msg, accept, cancel, AlertType.Warning);
 
     private static Task DisplayInfoAsync(string title, string msg, string accept)
@@ -425,11 +425,13 @@ public partial class MainPage
         if (_vm.CurrentAppMode != MainViewModel.AppMode.Virtual)
             return;
 
+        _vm.SetJournalCurrentlyPlayingFromPoi(poi);
+        _vm.RefreshJournalQueueOnly();
+
         var added = _vm.MarkJournalPoiCompleted(poi);
         if (!added)
             return;
 
-        _vm.RefreshJournalState();
         _virtualTourVm.OnPoiViewed(poi.Id);
         await MaybeShowVirtualToRealSuggestionAsync();
     }

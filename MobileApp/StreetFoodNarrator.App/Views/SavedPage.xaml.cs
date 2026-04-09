@@ -65,9 +65,9 @@ public partial class SavedPage : ContentPage
         OfflineBannerLabel.Text = AppStrings.Get("Offline_Banner_Short");
     }
 
-    private void OnHeaderLanguageClicked(object sender, EventArgs e)
+    private async void OnHeaderLanguageClicked(object sender, EventArgs e)
     {
-        LanguageSwitcher.CycleLanguage(_languageService);
+        await LanguageSwitcher.ShowLanguagePickerAsync(this, _languageService);
     }
 
     private void OnSegmentBrowseTapped(object sender, EventArgs e)

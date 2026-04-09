@@ -6,10 +6,17 @@ using Microsoft.Extensions.FileProviders;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
+using System.Globalization;
+using System.Net;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
+const int QrCodeExpiryDays = 5;
+var configuredAndroidApkDownloadUrl = builder.Configuration["AppDownload:AndroidApkUrl"]?.Trim();
+var androidApkDownloadUrl = string.IsNullOrWhiteSpace(configuredAndroidApkDownloadUrl)
+    ? "/uploads/streetfood-narrator.apk"
+    : configuredAndroidApkDownloadUrl;
 
 // Add services to the container
 builder.Services.AddControllers()
@@ -155,7 +162,7 @@ if (!app.Environment.IsDevelopment())
 // URL Rewriting - Remove .html extension from URLs
 // MUST be BEFORE authentication check and UseStaticFiles
 var rewriteOptions = new RewriteOptions()
-    .AddRewrite(@"^(?!api|swagger|uploads)([a-zA-Z0-9\-_/]+)(?<!\.(js|css|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|html))(\?.*)?$", "$1.html$2", skipRemainingRules: true);
+    .AddRewrite(@"^(?!api|swagger|uploads|qr)([a-zA-Z0-9\-_/]+)(?<!\.(js|css|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|html))(\?.*)?$", "$1.html$2", skipRemainingRules: true);
 
 app.UseRewriter(rewriteOptions);
 
@@ -240,4 +247,278 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+app.MapGet("/qr/{**deepPath}", (HttpContext context, string? deepPath) =>
+{
+    var normalizedPath = string.IsNullOrWhiteSpace(deepPath)
+        ? "main"
+        : deepPath.Trim('/');
+
+    var queryPart = context.Request.QueryString.HasValue
+        ? context.Request.QueryString.Value
+        : string.Empty;
+
+    var appDeepLink = $"streetfood://qr/{normalizedPath}{queryPart}";
+    var expiresAtUtc = TryParseQrExpiry(context.Request.Query);
+    var isExpired = expiresAtUtc.HasValue && DateTimeOffset.UtcNow > expiresAtUtc.Value;
+
+    var expiryText = expiresAtUtc.HasValue
+        ? $"Mã QR có hiệu lực đến: {expiresAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)}"
+        : $"Mã QR được làm mới định kỳ mỗi {QrCodeExpiryDays} ngày.";
+
+    var safeAppDeepLink = WebUtility.HtmlEncode(appDeepLink);
+    var safeApkDownloadUrl = WebUtility.HtmlEncode(androidApkDownloadUrl);
+    var safeExpiryText = WebUtility.HtmlEncode(expiryText);
+
+    var htmlTemplate = """
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Street Food Narrator QR</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg-a: #fff8ed;
+            --bg-b: #f2fff3;
+            --ink: #153124;
+            --muted: #486357;
+            --primary: #0f8f52;
+            --primary-dark: #0b6d3f;
+            --secondary: #fff;
+            --secondary-border: #bfd8c9;
+            --warn-bg: #fff2e2;
+            --warn-border: #ffc98a;
+            --warn-ink: #8a4800;
+            --danger-bg: #ffe8e8;
+            --danger-border: #ffb5b5;
+            --danger-ink: #9f1d1d;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", "Noto Sans", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 20% 10%, #ffe7c2 0%, transparent 40%),
+                radial-gradient(circle at 80% 90%, #cbf4d4 0%, transparent 35%),
+                linear-gradient(140deg, var(--bg-a), var(--bg-b));
+            display: grid;
+            place-items: center;
+            padding: 20px;
+        }
+
+        .card {
+            width: min(560px, 100%);
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #d6eadb;
+            border-radius: 18px;
+            box-shadow: 0 18px 50px rgba(19, 60, 42, 0.14);
+            padding: 24px;
+            backdrop-filter: blur(4px);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: clamp(1.3rem, 1.1rem + 1vw, 2rem);
+            line-height: 1.2;
+        }
+
+        .sub {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .meta {
+            margin-top: 14px;
+            font-size: 0.95rem;
+            color: var(--muted);
+        }
+
+        .actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            appearance: none;
+            border: 0;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            padding: 12px 18px;
+            text-decoration: none;
+            transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 170px;
+        }
+
+        .btn:active { transform: translateY(1px); }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: var(--ink);
+            border: 1px solid var(--secondary-border);
+        }
+
+        .btn.disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .hint {
+            margin-top: 14px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--warn-border);
+            background: var(--warn-bg);
+            color: var(--warn-ink);
+            font-size: 0.92rem;
+            line-height: 1.45;
+            display: none;
+        }
+
+        .hint.visible { display: block; }
+
+        .expired {
+            margin-top: 14px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--danger-border);
+            background: var(--danger-bg);
+            color: var(--danger-ink);
+            font-size: 0.95rem;
+            line-height: 1.45;
+            display: none;
+        }
+
+        .expired.visible { display: block; }
+
+        @media (max-width: 560px) {
+            .card { padding: 18px; border-radius: 14px; }
+            .btn { width: 100%; min-width: 0; }
+        }
+    </style>
+</head>
+<body data-app-link="__APP_LINK__" data-apk-link="__APK_LINK__" data-is-expired="__IS_EXPIRED__">
+    <main class="card">
+        <h1 id="title">Đang mở Street Food Narrator...</h1>
+        <p class="sub" id="subtitle">Nếu điện thoại đã cài app, ứng dụng sẽ tự mở tại quán bạn vừa quét QR.</p>
+        <p class="meta" id="expiryInfo">__EXPIRY_TEXT__</p>
+
+        <div class="actions">
+            <button class="btn btn-primary" id="openAppBtn" type="button">Mở ứng dụng</button>
+            <a class="btn btn-secondary" id="downloadApkBtn" href="__APK_LINK__" target="_blank" rel="noopener noreferrer">Tải APK Android</a>
+        </div>
+
+        <p class="hint" id="fallbackHint">Nếu app chưa mở sau vài giây, hãy bấm <b>Tải APK Android</b> để cài đặt rồi quét lại QR này.</p>
+        <p class="expired" id="expiredHint">QR này đã hết hạn. Vui lòng lấy mã mới tại điểm đến trước khi mở app.</p>
+    </main>
+
+    <script>
+        (() => {
+            const appLink = document.body.dataset.appLink || "";
+            const apkLink = document.body.dataset.apkLink || "";
+            const isExpired = (document.body.dataset.isExpired || "false") === "true";
+
+            const openBtn = document.getElementById("openAppBtn");
+            const downloadBtn = document.getElementById("downloadApkBtn");
+            const title = document.getElementById("title");
+            const subtitle = document.getElementById("subtitle");
+            const hint = document.getElementById("fallbackHint");
+            const expiredHint = document.getElementById("expiredHint");
+
+            const openApp = () => {
+                if (!appLink || isExpired) return;
+                window.location.href = appLink;
+            };
+
+            openBtn.addEventListener("click", openApp);
+
+            if (!apkLink || apkLink === "#") {
+                downloadBtn.classList.add("disabled");
+                downloadBtn.removeAttribute("href");
+            }
+
+            if (isExpired) {
+                title.textContent = "QR đã hết hạn";
+                subtitle.textContent = "Mỗi mã QR chỉ có hiệu lực trong __QR_DAYS__ ngày. Hãy dùng mã mới để tiếp tục.";
+                openBtn.classList.add("disabled");
+                openBtn.disabled = true;
+                expiredHint.classList.add("visible");
+                return;
+            }
+
+            window.setTimeout(openApp, 120);
+            window.setTimeout(() => hint.classList.add("visible"), 1400);
+        })();
+    </script>
+</body>
+</html>
+""";
+
+    var html = htmlTemplate
+        .Replace("__APP_LINK__", safeAppDeepLink, StringComparison.Ordinal)
+        .Replace("__APK_LINK__", safeApkDownloadUrl, StringComparison.Ordinal)
+        .Replace("__IS_EXPIRED__", isExpired ? "true" : "false", StringComparison.Ordinal)
+        .Replace("__EXPIRY_TEXT__", safeExpiryText, StringComparison.Ordinal)
+        .Replace("__QR_DAYS__", QrCodeExpiryDays.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+
+    return Results.Content(html, "text/html; charset=utf-8");
+});
+
 app.Run();
+
+static DateTimeOffset? TryParseQrExpiry(IQueryCollection query)
+{
+        static string? GetFirstValue(IQueryCollection source, params string[] keys)
+        {
+                foreach (var key in keys)
+                {
+                        if (source.TryGetValue(key, out var values))
+                        {
+                                var value = values.ToString();
+                                if (!string.IsNullOrWhiteSpace(value))
+                                        return value.Trim();
+                        }
+                }
+
+                return null;
+        }
+
+        var rawValue = GetFirstValue(query, "exp", "expires", "expiry", "expiresAt", "expires_at");
+        if (string.IsNullOrWhiteSpace(rawValue))
+                return null;
+
+        if (long.TryParse(rawValue, out var epochSeconds) && epochSeconds > 0)
+        {
+                try
+                {
+                        return DateTimeOffset.FromUnixTimeSeconds(epochSeconds);
+                }
+                catch
+                {
+                        return null;
+                }
+        }
+
+        if (DateTimeOffset.TryParse(rawValue, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed))
+                return parsed.ToUniversalTime();
+
+        return null;
+}

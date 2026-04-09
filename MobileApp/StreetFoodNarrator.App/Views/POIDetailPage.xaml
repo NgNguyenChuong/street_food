@@ -263,12 +263,12 @@
                                     TextColor="{StaticResource OnSurfaceVariant}"
                                     Clicked="OnTabMenuClicked"/>
 
-                                <Button Grid.Column="2" x:Name="TabMapBtn"
-                                    Text="Bản đồ" FontSize="13" FontAttributes="Bold"
+                                <Button Grid.Column="2" x:Name="TabFunFactBtn"
+                                    Text="Mẹo hay" FontSize="13" FontAttributes="Bold"
                                     CornerRadius="8" HeightRequest="44"
                                     BackgroundColor="{StaticResource SurfaceContainer}"
                                     TextColor="{StaticResource OnSurfaceVariant}"
-                                    Clicked="OnTabMapClicked"/>
+                                    Clicked="OnTabFunFactClicked"/>
                         </Grid>
 
                         <!-- ── TAB CONTENT ───────────────────────────────── -->
@@ -491,27 +491,46 @@
                             </Border>
                         </VerticalStackLayout><!-- end TabMenuContent -->
 
-                        <!-- MAP TAB -->
-                        <VerticalStackLayout x:Name="TabMapContent"
+                        <!-- FUN FACT TAB -->
+                        <VerticalStackLayout x:Name="TabFunFactContent"
                                              Margin="16,20,16,0"
-                                             Spacing="12"
+                                             Spacing="16"
                                              IsVisible="False">
 
-                            <Label x:Name="MapSectionTitleLabel" Text="Vị trí trên bản đồ"
+                            <Label x:Name="FunFactSectionTitleLabel" Text="Khám phá thêm"
                                    FontSize="18" FontAttributes="Bold"
                                    TextColor="{StaticResource OnSurface}"/>
 
-                            <Border StrokeShape="RoundRectangle 24"
-                                    BackgroundColor="{StaticResource SurfaceLowest}"
-                                    Stroke="Transparent"
-                                    HeightRequest="360">
-                                <mapsui:MapControl x:Name="MiniMapView"
-                                                   HorizontalOptions="Fill"
-                                                   VerticalOptions="Fill"
-                                                   BackgroundColor="{StaticResource SurfaceLowest}"/>
+                            <Border StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="{StaticResource SurfaceLow}"
+                                    Padding="20">
+                                <VerticalStackLayout Spacing="16">
+                                    <Label Text="&#xF033A;" FontFamily="MDI" FontSize="36"
+                                           TextColor="{StaticResource Primary}" HorizontalOptions="Center"/>
+                                    <Label Text="{Binding Poi.FunFact, TargetNullValue='Hãy đến và tự mình khám phá những điều thú vị tại đây nhé!'}"
+                                           FontSize="15"
+                                           TextColor="{StaticResource OnSurface}"
+                                           LineHeight="1.5"
+                                           HorizontalTextAlignment="Center"/>
+                                </VerticalStackLayout>
                             </Border>
 
-                        </VerticalStackLayout><!-- end TabMapContent -->
+                            <Border StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="{StaticResource SurfaceLow}"
+                                    Padding="16"
+                                    Margin="0,8,0,0">
+                                <Grid ColumnDefinitions="40,*" RowDefinitions="Auto,12,Auto,12,Auto">
+                                    <Label Grid.Row="0" Grid.Column="0" Text="&#xF034E;" FontFamily="MDI" FontSize="20" TextColor="{StaticResource Secondary}" VerticalOptions="Center"/>
+                                    <Label Grid.Row="0" Grid.Column="1" Text="{Binding Poi.Address, TargetNullValue='Chưa cập nhật'}" FontSize="14" TextColor="{StaticResource OnSurfaceVariant}" VerticalOptions="Center"/>
+                                    
+                                    <Label Grid.Row="2" Grid.Column="0" Text="&#xF03F2;" FontFamily="MDI" FontSize="20" TextColor="{StaticResource Tertiary}" VerticalOptions="Center"/>
+                                    <Label Grid.Row="2" Grid.Column="1" Text="{Binding Poi.PhoneNumber, TargetNullValue='Chưa cập nhật'}" FontSize="14" TextColor="{StaticResource OnSurfaceVariant}" VerticalOptions="Center"/>
+                                    
+                                    <Label Grid.Row="4" Grid.Column="0" Text="&#xF014E;" FontFamily="MDI" FontSize="20" TextColor="{StaticResource Primary}" VerticalOptions="Center"/>
+                                    <Label Grid.Row="4" Grid.Column="1" Text="{Binding Poi.AveragePrice, TargetNullValue='Chưa cập nhật'}" FontSize="14" TextColor="{StaticResource OnSurfaceVariant}" VerticalOptions="Center"/>
+                                </Grid>
+                            </Border>
+                        </VerticalStackLayout><!-- end TabFunFactContent -->
 
                         <!-- Bottom padding for fixed audio bar + CTA -->
                         <BoxView HeightRequest="110" BackgroundColor="Transparent"/>

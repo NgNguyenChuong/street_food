@@ -22,7 +22,6 @@ public partial class POIDetailPage : ContentPage
     private readonly POI _poi;
     private readonly POIDetailViewModel _vm;
     private readonly LanguageService _langService;
-    private bool _mapInitialized = false;
 
     // Cache track width ONCE when layout is ready — avoid repeated Width reads
     private double _cachedTrackWidth = -1;
@@ -69,8 +68,7 @@ public partial class POIDetailPage : ContentPage
             MainThread.BeginInvokeOnMainThread(CacheTrackWidth);
         });
 
-        // Initialize map once page is loaded (not lazily on tab click)
-        InitializeMap();
+        // Maps initialization removed
         _ = _vm.LoadMenuItemsAsync();
     }
 
@@ -115,12 +113,7 @@ public partial class POIDetailPage : ContentPage
             ApplyLocalizedStaticTexts();
             RefreshMenuBindings();
 
-            if (_mapInitialized)
-            {
-                _mapInitialized = false;
-                MiniMapView?.Map?.Layers?.Clear();
-                InitializeMap();
-            }
+            RefreshMenuBindings();
         });
     }
 
@@ -158,7 +151,7 @@ public partial class POIDetailPage : ContentPage
 
         TabInfoBtn.Text = Ui("Thông tin", "Info", "信息");
         TabMenuBtn.Text = Ui("Menu", "Menu", "菜单");
-        TabMapBtn.Text = Ui("Bản đồ", "Map", "地图");
+        TabFunFactBtn.Text = Ui("Mẹo hay", "Tips", "温馨提示");
 
         StoryTitleLabel.Text = Ui("Câu chuyện", "Story", "故事");
         AudioGuideTitleLabel.Text = Ui("Hướng dẫn âm thanh", "Audio guide", "语音导览");
@@ -175,7 +168,7 @@ public partial class POIDetailPage : ContentPage
         MenuSectionTitleLabel.Text = Ui("Danh sách món", "Menu list", "菜单列表");
         MenuEmptyTitleLabel.Text = Ui("Menu đang cập nhật", "Menu is being updated", "菜单更新中");
 
-        MapSectionTitleLabel.Text = Ui("Vị trí trên bản đồ", "Location on map", "地图位置");
+        FunFactSectionTitleLabel.Text = Ui("Khám phá thêm", "Explore more", "探索更多");
         NavigateCtaLabel.Text = Ui("Chỉ đường ngay", "Navigate now", "立即导航");
     }
 
@@ -223,16 +216,14 @@ public partial class POIDetailPage : ContentPage
     // ── Tab navigation ───────────────────────────────────────────
     private void OnTabInfoClicked(object? sender, EventArgs e) => SwitchTab(0);
     private void OnTabMenuClicked(object? sender, EventArgs e) => SwitchTab(1);
-    private void OnTabMapClicked(object? sender, EventArgs e)
+    private void OnTabFunFactClicked(object? sender, EventArgs e)
     {
         SwitchTab(2);
-        if (!_mapInitialized)
-            InitializeMap();
     }
 
-    private void OnHeaderLanguageTapped(object? sender, EventArgs e)
+    private async void OnHeaderLanguageTapped(object? sender, EventArgs e)
     {
-        LanguageSwitcher.CycleLanguage(_langService);
+        await LanguageSwitcher.ShowLanguagePickerAsync(this, _langService);
     }
 
     private void SwitchTab(int idx)
@@ -245,13 +236,13 @@ public partial class POIDetailPage : ContentPage
         TabInfoBtn.TextColor        = idx == 0 ? MauiColor.FromArgb("#004b1e") : MauiColor.FromArgb("#bccbb9");
         TabMenuBtn.BackgroundColor  = idx == 1 ? MauiColor.FromArgb("#22c55e") : MauiColor.FromArgb("#16221e");
         TabMenuBtn.TextColor        = idx == 1 ? MauiColor.FromArgb("#004b1e") : MauiColor.FromArgb("#bccbb9");
-        TabMapBtn.BackgroundColor   = idx == 2 ? MauiColor.FromArgb("#22c55e") : MauiColor.FromArgb("#16221e");
-        TabMapBtn.TextColor          = idx == 2 ? MauiColor.FromArgb("#004b1e") : MauiColor.FromArgb("#bccbb9");
+        TabFunFactBtn.BackgroundColor   = idx == 2 ? MauiColor.FromArgb("#22c55e") : MauiColor.FromArgb("#16221e");
+        TabFunFactBtn.TextColor          = idx == 2 ? MauiColor.FromArgb("#004b1e") : MauiColor.FromArgb("#bccbb9");
 
         // Content visibility
         TabInfoContent.IsVisible = idx == 0;
         TabMenuContent.IsVisible = idx == 1;
-        TabMapContent.IsVisible  = idx == 2;
+        TabFunFactContent.IsVisible  = idx == 2;
 
         // Scroll to top only when leaving info tab
         if (idx != 0)
@@ -414,64 +405,5 @@ public partial class POIDetailPage : ContentPage
         }
     }
 
-    // ── Map ───────────────────────────────────────────────────────
-    private void InitializeMap()
-    {
-        if (_mapInitialized || MiniMapView?.Map == null) return;
-        _mapInitialized = true;
-
-        try
-        {
-            var cacheDb = Path.Combine(FileSystem.AppDataDirectory, "map_cache", "tiles.db");
-            Directory.CreateDirectory(Path.GetDirectoryName(cacheDb)!);
-            var tileCache = new Services.SimpleTileCache(cacheDb);
-
-            var tileSource = new HttpTileSource(
-                new GlobalSphericalMercator(),
-                "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-                name: "Carto",
-                persistentCache: tileCache
-            );
-
-            var baseLayer = new TileLayer(tileSource) { Name = "BaseMap", Opacity = 0.9 };
-            MiniMapView.Map.BackColor = new MapsColor(5, 16, 13);
-            MiniMapView.Map.Layers.Add(baseLayer);
-
-            // POI marker
-            var poiLoc = SphericalMercator.FromLonLat(_poi.Longitude, _poi.Latitude);
-            var feature = new PointFeature(new MPoint(poiLoc.x, poiLoc.y));
-            feature.Styles = new IStyle[]
-            {
-                new SymbolStyle
-                {
-                    Fill = new MapsBrush(new MapsColor(34, 197, 94)),
-                    Outline = new Pen(new MapsColor(255, 255, 255), 2),
-                    SymbolScale = 0.9,
-                    SymbolType = SymbolType.Ellipse
-                },
-                new LabelStyle
-                {
-                    Text = _poi.GetName(_langService.CurrentLanguage),
-                    BackColor = new MapsBrush(new MapsColor(0, 0, 0, 180)),
-                    ForeColor = new MapsColor(255, 255, 255),
-                    Halo = new Pen(new MapsColor(5, 16, 13), 2),
-                    Offset = new Offset(0, 18)
-                }
-            };
-
-            var markerLayer = new MemoryLayer("POIMarker")
-            {
-                Features = new[] { feature }
-            };
-            MiniMapView.Map.Layers.Add(markerLayer);
-
-            MiniMapView.Map.Navigator.CenterOn(poiLoc.x, poiLoc.y);
-            MiniMapView.Map.Navigator.ZoomTo(18.5);
-            MiniMapView.Map.Widgets.Clear();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[POIDetail] Map init error: {ex}");
-        }
-    }
+    // Map specific methods removed
 }

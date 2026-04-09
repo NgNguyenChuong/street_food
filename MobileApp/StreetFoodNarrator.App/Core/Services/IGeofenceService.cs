@@ -245,7 +245,10 @@ public class GeofenceService : IGeofenceService
     private async Task PlayZoneAsync(POI zone)
     {
         OnStatusMessage?.Invoke($"▶️ Phát: {zone.Name_Vi}");
-        await _audio.PlayAsync(zone.Id, zone.AudioUrl_Vi ?? "", 45); // Mock 45s duration
+        var fallbackText = !string.IsNullOrWhiteSpace(zone.Description_Vi) 
+            ? zone.Description_Vi 
+            : (zone.Name_Vi ?? "");
+        await _audio.PlayAsync(zone.Id, zone.AudioUrl_Vi ?? "", 45, fallbackText); // Mock 45s duration
 
         await UploadMobileLogAsync(zone, _lastLocation, "NarrationPlayed", "GeofenceEnter", true, null);
 

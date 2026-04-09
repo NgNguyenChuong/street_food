@@ -64,8 +64,10 @@ AudioCache/
 *.m4a
 
 # Uploads
-wwwroot/uploads
-API\StreetFoodNarrator.API\wwwroot\uploads\
+API/StreetFoodNarrator.API/Uploads/
+API/StreetFoodNarrator.API/wwwroot/uploads/
+API/StreetFoodNarrator.API/wwwroot/uploads/images/
+
 # NuGet
 *.nupkg
 *.snupkg
