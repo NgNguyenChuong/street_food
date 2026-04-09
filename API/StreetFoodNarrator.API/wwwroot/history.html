@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ngu?i dùng & L?ch s? - Street Food Narrator</title>
+    <title>Ngu?i dï¿½ng & L?ch s? - Street Food Narrator</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="sidebar.js?v=20260406"></script>
@@ -90,7 +90,7 @@
 <body>
 <main class="main-content" id="mainContent">
     <header class="header">
-        <h1 class="page-title">Ngu?i dùng & L?ch s?</h1>
+        <h1 class="page-title">Ngu?i dï¿½ng & L?ch s?</h1>
     </header>
 
     <!-- ===== OVERVIEW STATS ===== -->
@@ -103,7 +103,7 @@
         <div class="stat-card">
             <div class="stat-icon success"><i class="fas fa-volume-up"></i></div>
             <div class="stat-value" id="stat-audio">&#8212;</div>
-            <div class="stat-label">Audio du?c phát</div>
+            <div class="stat-label">Audio du?c phï¿½t</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon secondary"><i class="fas fa-mobile-alt"></i></div>
@@ -113,7 +113,7 @@
         <div class="stat-card">
             <div class="stat-icon accent"><i class="fas fa-chart-line"></i></div>
             <div class="stat-value" id="stat-active7d">&#8212;</div>
-            <div class="stat-label">Thi?t b? HÐ 7 ngày</div>
+            <div class="stat-label">Thi?t b? Hï¿½ 7 ngï¿½y</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon secondary"><i class="fab fa-apple"></i></div>
@@ -136,15 +136,15 @@
     </div>
 
     <!-- ===== DEVICE TABLE ===== -->
-    <h2 class="section-title"><i class="fas fa-mobile-alt"></i> Danh sách thi?t b?</h2>
+    <h2 class="section-title"><i class="fas fa-mobile-alt"></i> Danh sï¿½ch thi?t b?</h2>
     <div class="card">
         <div class="toolbar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
-                <input type="text" id="devSearchInput" placeholder="Tìm ki?m theo Device ID, Model..." oninput="filterDevices()">
+                <input type="text" id="devSearchInput" placeholder="Tï¿½m ki?m theo Device ID, Model..." oninput="filterDevices()">
             </div>
             <select id="osFilter" class="filter-select" onchange="filterDevices()">
-                <option value="">T?t c? H? di?u hành</option>
+                <option value="">T?t c? H? di?u hï¿½nh</option>
                 <option value="iOS">iOS</option>
                 <option value="Android">Android</option>
             </select>
@@ -153,16 +153,16 @@
         <table id="devTable">
             <thead>
                 <tr>
-                    <th>H? di?u hành</th>
+                    <th>H? di?u hï¿½nh</th>
                     <th>Model</th>
-                    <th>Phiên b?n OS</th>
-                    <th>Phiên b?n App</th>
+                    <th>Phiï¿½n b?n OS</th>
+                    <th>Phiï¿½n b?n App</th>
                     <th>Sessions</th>
                     <th>L?n dang nh?p cu?i</th>
                 </tr>
             </thead>
             <tbody id="devBody">
-                <tr><td colspan="6" style="text-align:center;padding:3rem;color:#999"><i class="fas fa-spinner fa-spin"></i> Ðang t?i...</td></tr>
+                <tr><td colspan="6" style="text-align:center;padding:3rem;color:#999"><i class="fas fa-spinner fa-spin"></i> ï¿½ang t?i...</td></tr>
             </tbody>
         </table>
         <div class="pagination" id="devPagination"></div>
@@ -212,7 +212,7 @@
 
     function renderTopPois(pois) {
         const container = document.getElementById('top-pois');
-        if (!pois.length) { container.innerHTML = '<div style="color:#999;font-style:italic">Chua có d? li?u</div>'; return; }
+        if (!pois.length) { container.innerHTML = '<div style="color:#999;font-style:italic">Chua cï¿½ d? li?u</div>'; return; }
         container.innerHTML = '<ul style="list-style:none;padding:0;margin:0">' + pois.map(function(p, i) {
             return '<li style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid var(--border)">' +
                 '<div style="display:flex;align-items:center;gap:1rem">' +
@@ -230,17 +230,17 @@
         var seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);
         if(seconds < 60) return seconds + 's tru?c';
         var minutes = Math.floor(seconds / 60);
-        if(minutes < 60) return minutes + ' phút tru?c';
+        if(minutes < 60) return minutes + ' phï¿½t tru?c';
         var hours = Math.floor(minutes / 60);
         if(hours < 24) return hours + ' gi? tru?c';
         var days = Math.floor(hours / 24);
-        return days + ' ngày tru?c';
+        return days + ' ngï¿½y tru?c';
     }
 
     function renderDevTable(data) {
         var tbody = document.getElementById('devBody');
         if (!data.length) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999">Không tìm th?y thi?t b? nào.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999">Khï¿½ng tï¿½m th?y thi?t b? nï¿½o.</td></tr>';
             renderDevPagination(1);
             return;
         }
@@ -319,10 +319,45 @@
         renderDevTable(filteredDevices);
     }
 
+    function showToast(message, type, timeout) {
+        if (window.UiFeedback && window.UiFeedback.toast) {
+            window.UiFeedback.toast(message, type || 'info', timeout || 4200);
+            return;
+        }
+        if (!message) return;
+        var kind = type || 'info';
+        var delay = timeout || 4200;
+        var wrap = document.getElementById('toastWrap');
+        if (!wrap) {
+            wrap = document.createElement('div');
+            wrap.id = 'toastWrap';
+            wrap.style.position = 'fixed';
+            wrap.style.top = '1rem';
+            wrap.style.right = '1rem';
+            wrap.style.zIndex = '12000';
+            wrap.style.display = 'flex';
+            wrap.style.flexDirection = 'column';
+            wrap.style.gap = '.5rem';
+            document.body.appendChild(wrap);
+        }
+        var item = document.createElement('div');
+        item.style.background = kind === 'error' ? '#b42318' : '#1f2937';
+        item.style.color = '#fff';
+        item.style.padding = '.8rem 1rem';
+        item.style.borderRadius = '10px';
+        item.style.fontWeight = '600';
+        item.style.maxWidth = '540px';
+        item.style.whiteSpace = 'pre-line';
+        item.style.boxShadow = '0 10px 26px rgba(0,0,0,.18)';
+        item.textContent = String(message);
+        wrap.appendChild(item);
+        setTimeout(function() { item.remove(); }, delay);
+    }
+
     function showDeviceDetails(id) {
         var device = allDevices.find(function(d) { return d.id === id; });
         if(!device) return;
-        alert('Device ID: ' + device.deviceId + '\nPlatform: ' + device.platform + '\nModel: ' + device.model + '\nOS Version: ' + device.osVersion + '\nApp Version: ' + device.appVersion + '\nTotal Sessions: ' + device.totalSessions + '\nPOIs Viewed: ' + device.totalPOIsViewed + '\nAudio Played: ' + device.totalAudioPlayed + '\nFirst Seen: ' + new Date(device.firstSeen).toLocaleString('vi-VN') + '\nLast Seen: ' + new Date(device.lastSeen).toLocaleString('vi-VN'));
+        showToast('Device ID: ' + device.deviceId + '\nPlatform: ' + device.platform + '\nModel: ' + device.model + '\nOS Version: ' + device.osVersion + '\nApp Version: ' + device.appVersion + '\nTotal Sessions: ' + device.totalSessions + '\nPOIs Viewed: ' + device.totalPOIsViewed + '\nAudio Played: ' + device.totalAudioPlayed + '\nFirst Seen: ' + new Date(device.firstSeen).toLocaleString('vi-VN') + '\nLast Seen: ' + new Date(device.lastSeen).toLocaleString('vi-VN'));
     }
 
     document.addEventListener('DOMContentLoaded', function() {

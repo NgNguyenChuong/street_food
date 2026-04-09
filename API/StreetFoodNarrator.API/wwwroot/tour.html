@@ -911,9 +911,39 @@ async function buildTourTranslationPayload(nameVi, descVi, existingTour) {
 
 /* --- DELETE --- */
 async function delTour(id) {
-    if (!confirm('Bạn có chắc muốn xóa tour này?')) return;
+    const ok = await showConfirmPopup('Bạn có chắc muốn xóa tour này?');
+    if (!ok) return;
     try { await ToursApi.delete(id); toast('Đã xóa tour.','ok'); loadTours(); }
     catch(e) { toast('Lỗi xóa: '+e.message,'err'); }
+}
+
+function showConfirmPopup(message) {
+    if (window.UiFeedback?.confirm) {
+        return window.UiFeedback.confirm(message || '', {
+            title: 'Xác nhận',
+            confirmText: 'Đồng ý',
+            cancelText: 'Hủy'
+        });
+    }
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay active';
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:420px;border-radius:16px;">
+                <div class="modal-header"><h3 class="modal-title" style="font-size:1.05rem;">Xác nhận</h3></div>
+                <div class="modal-body" style="padding:1rem 1.4rem;">${esc(message || '')}</div>
+                <div class="modal-footer" style="justify-content:flex-end;gap:.6rem;">
+                    <button class="btn btn-outline" id="cfNo">Hủy</button>
+                    <button class="btn btn-primary" id="cfYes">Đồng ý</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const cleanup = (val) => { overlay.remove(); resolve(val); };
+        overlay.querySelector('#cfNo')?.addEventListener('click', () => cleanup(false));
+        overlay.querySelector('#cfYes')?.addEventListener('click', () => cleanup(true));
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+    });
 }
 
 /* --- UTILS --- */
@@ -924,6 +954,10 @@ function set(id,v){ document.getElementById(id).textContent=v; }
 function set2(id,v){ document.getElementById(id).textContent=v; }
 function val(id,v){ document.getElementById(id).value=v; }
 function toast(msg,type='info'){
+    if (window.UiFeedback?.toast) {
+        window.UiFeedback.toast(msg, type === 'ok' ? 'success' : (type === 'err' ? 'error' : type));
+        return;
+    }
     const w=document.getElementById('toastWrap');
     const t=document.createElement('div');
     t.className=`toast ${type}`;

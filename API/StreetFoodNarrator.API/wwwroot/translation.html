@@ -339,6 +339,34 @@
         renderCurrentTransPage();
     }
 
+    function showToast(message, type = 'error', timeout = 3200) {
+        if (!message) return;
+        let wrap = document.getElementById('toastWrap');
+        if (!wrap) {
+            wrap = document.createElement('div');
+            wrap.id = 'toastWrap';
+            wrap.style.position = 'fixed';
+            wrap.style.top = '1rem';
+            wrap.style.right = '1rem';
+            wrap.style.zIndex = '12000';
+            wrap.style.display = 'flex';
+            wrap.style.flexDirection = 'column';
+            wrap.style.gap = '.5rem';
+            document.body.appendChild(wrap);
+        }
+        const bg = type === 'success' ? '#0f766e' : type === 'warning' ? '#a16207' : '#b42318';
+        const item = document.createElement('div');
+        item.style.background = bg;
+        item.style.color = '#fff';
+        item.style.padding = '.7rem .95rem';
+        item.style.borderRadius = '10px';
+        item.style.fontWeight = '600';
+        item.style.boxShadow = '0 10px 26px rgba(0,0,0,.18)';
+        item.textContent = String(message);
+        wrap.appendChild(item);
+        setTimeout(() => item.remove(), timeout);
+    }
+
     function openModal(id) {
         document.getElementById(id).classList.add('active');
     }
@@ -363,7 +391,10 @@
         document.getElementById('poiDescEn').value = p.description_En || '';
         document.getElementById('poiNameZh').value = p.name_Zh || '';
         document.getElementById('poiDescZh').value = p.description_Zh || '';
-        
+            if (window.UiFeedback?.toast) {
+                window.UiFeedback.toast(message, type, timeout);
+                return;
+            }
         openModal('transModal');
     }
 
@@ -381,7 +412,7 @@
             closeModal('transModal');
             loadData(); // reload bảng
         } catch(err) {
-            alert("Lỗi cập nhật: " + err.message);
+            showToast('Lỗi cập nhật: ' + err.message, 'error');
         }
     }
 

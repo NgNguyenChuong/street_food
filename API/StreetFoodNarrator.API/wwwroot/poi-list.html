@@ -319,6 +319,12 @@
         .app-confirm-btn { padding: .55rem .9rem; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-weight: 600; }
         .app-confirm-btn.primary { background: linear-gradient(135deg,#FF6B35 0%,#004E89 100%); border: none; color: #fff; }
 
+        .toast-wrap { position: fixed; top: 1rem; right: 1rem; z-index: 10020; display: flex; flex-direction: column; gap: .5rem; pointer-events: none; }
+        .toast-item { pointer-events: all; display: inline-flex; align-items: center; gap: .45rem; padding: .7rem .95rem; border-radius: 10px; color: #fff; font-weight: 600; box-shadow: 0 10px 26px rgba(0,0,0,.18); }
+        .toast-item.success { background: #0f766e; }
+        .toast-item.error { background: #b42318; }
+        .toast-item.info { background: #1f2937; }
+
         @media (max-width: 1024px) {
             .filter-grid { grid-template-columns: 1fr 1fr; }
             .stats-bar { grid-template-columns: repeat(2, 1fr); }
@@ -444,6 +450,7 @@
         </div>
     </div>
 </div>
+<div class="toast-wrap" id="toastWrap"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="api.js"></script>
@@ -751,7 +758,7 @@
         });
     }
     async function rejectPOI(id) {
-        const note = prompt('Lý do từ chối (tùy chọn):');
+        const note = await showPrompt('Lý do từ chối (tùy chọn):');
         if (note === null) return;
         try { await api.reviewPOI(id, { status: 'rejected', note }); showAlert('Đã từ chối.'); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
     }
@@ -774,6 +781,11 @@
         document.body.appendChild(el);
     }
     function showConfirm(msg, onOk) {
+        if (window.UiFeedback?.confirm) {
+            window.UiFeedback.confirm(msg || '', { title: 'Xác nhận', confirmText: 'Đồng ý', cancelText: 'Hủy' })
+                .then(ok => { if (ok) onOk && onOk(); });
+            return;
+        }
         ensureConfirmModal();
         const overlay = document.getElementById('appConfirmModal');
         document.getElementById('appConfirmMessage').textContent = msg || '';
@@ -787,9 +799,44 @@
         overlay.classList.add('active');
     }
     function showAlert(msg) {
-        showConfirm(msg, null);
-        document.getElementById('appConfirmCancel').style.display = 'none';
-        document.getElementById('appConfirmOk').textContent = 'OK';
+        showToast(msg, /^lỗi/i.test(String(msg || '')) ? 'error' : 'success');
+    }
+
+    function showPrompt(message) {
+        if (window.UiFeedback?.prompt) {
+            return window.UiFeedback.prompt(message || '', '', { title: 'Nhập thông tin', confirmText: 'Xác nhận', cancelText: 'Hủy' });
+        }
+        ensureConfirmModal();
+        const overlay = document.getElementById('appConfirmModal');
+        document.getElementById('appConfirmMessage').innerHTML = `${message || ''}<div style="margin-top:.75rem;"><input id="appPromptInput" class="filter-input" style="width:100%;" /></div>`;
+        return new Promise(resolve => {
+            const close = (val) => {
+                overlay.classList.remove('active');
+                resolve(val);
+            };
+            document.getElementById('appConfirmCancel').style.display = '';
+            document.getElementById('appConfirmOk').textContent = 'Xác nhận';
+            document.getElementById('appConfirmCancel').onclick = () => close(null);
+            document.getElementById('appConfirmOk').onclick = () => close(document.getElementById('appPromptInput')?.value || '');
+            overlay.onclick = e => { if (e.target === overlay) close(null); };
+            overlay.classList.add('active');
+            setTimeout(() => document.getElementById('appPromptInput')?.focus(), 0);
+        });
+    }
+
+    function showToast(message, type = 'info', timeout = 3200) {
+        if (window.UiFeedback?.toast) {
+            window.UiFeedback.toast(message, type, timeout);
+            return;
+        }
+        const wrap = document.getElementById('toastWrap');
+        if (!wrap || !message) return;
+        const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info';
+        const item = document.createElement('div');
+        item.className = `toast-item ${type}`;
+        item.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
+        wrap.appendChild(item);
+        setTimeout(() => item.remove(), timeout);
     }
 
     if (typeof api !== 'undefined') loadPOIs();

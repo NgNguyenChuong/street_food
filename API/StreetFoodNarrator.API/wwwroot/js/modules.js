@@ -51,8 +51,13 @@ function filterTrans() {
   renderTrans(filtered);
 }
 function editTrans(id) { toast('Chỉnh sửa bản dịch (đang phát triển)','info'); }
-function deleteTrans(id, btn) {
-  if(!confirm('Xác nhận xóa chuỗi dịch này?')) return;
+async function deleteTrans(id, btn) {
+  if (typeof showConfirmDialog !== 'function') {
+    toast('Chưa sẵn sàng hộp thoại xác nhận.', 'error');
+    return;
+  }
+  const ok = await showConfirmDialog('Xác nhận xóa chuỗi dịch này?', { title: 'Xác nhận', confirmText: 'Xóa', cancelText: 'Hủy', danger: true });
+  if(!ok) return;
   btn.closest('tr').remove();
   toast('Đã xóa chuỗi dịch','success');
 }
@@ -102,8 +107,12 @@ function renderTours(data) {
     : `<div class="empty-state"><div class="icon">🚶</div><p>Chưa có tour nào</p></div>`;
 }
 
-function filterTours() {
-  const status = prompt('Filter by status (active/draft):', 'active');
+async function filterTours() {
+  if (typeof showPromptDialog !== 'function') {
+    toast('Chưa sẵn sàng hộp thoại nhập liệu.', 'error');
+    return;
+  }
+  const status = await showPromptDialog('Filter theo trạng thái (active/draft):', 'active', { title: 'Bộ lọc Tour', confirmText: 'Lọc', cancelText: 'Hủy' });
   if(!status) return;
   const filtered = TOUR_DATA.filter(t => t.status === status);
   renderTours(filtered);
@@ -303,7 +312,12 @@ function viewDevice(id) {
   `;
   openModal('device-detail');
 }
-function blockDevice(id, btn) {
-  if(!confirm('Chặn thiết bị này?')) return;
+async function blockDevice(id, btn) {
+  if (typeof showConfirmDialog !== 'function') {
+    toast('Chưa sẵn sàng hộp thoại xác nhận.', 'error');
+    return;
+  }
+  const ok = await showConfirmDialog('Chặn thiết bị này?', { title: 'Xác nhận thao tác', confirmText: 'Chặn', cancelText: 'Hủy', danger: true });
+  if(!ok) return;
   toast('Đã chặn thiết bị','success');
 }

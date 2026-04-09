@@ -1149,6 +1149,38 @@
 
     <script src="api.js"></script>
     <script>
+        function showToast(message, type = 'info', timeout = 3200) {
+            if (window.UiFeedback?.toast) {
+                window.UiFeedback.toast(message, type, timeout);
+                return;
+            }
+            if (!message) return;
+            let wrap = document.getElementById('appToastWrap');
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.id = 'appToastWrap';
+                wrap.style.position = 'fixed';
+                wrap.style.top = '1rem';
+                wrap.style.right = '1rem';
+                wrap.style.zIndex = '12000';
+                wrap.style.display = 'flex';
+                wrap.style.flexDirection = 'column';
+                wrap.style.gap = '.5rem';
+                document.body.appendChild(wrap);
+            }
+            const bg = type === 'success' ? '#0f766e' : type === 'error' ? '#b42318' : type === 'warning' ? '#a16207' : '#1f2937';
+            const item = document.createElement('div');
+            item.style.background = bg;
+            item.style.color = '#fff';
+            item.style.padding = '.75rem .95rem';
+            item.style.borderRadius = '10px';
+            item.style.fontWeight = '600';
+            item.style.boxShadow = '0 10px 26px rgba(0,0,0,.18)';
+            item.textContent = message;
+            wrap.appendChild(item);
+            setTimeout(() => item.remove(), timeout);
+        }
+
         // Check authentication
         const user = TokenManager.getUser();
         if (!user) {
@@ -1657,12 +1689,12 @@
 
             try {
                 const result = await api.createPOI(poiData);
-                alert('✅ Tạo gian hàng thành công!\n\nBạn có thể thêm file thuyết minh tại trang Quản lý Audio.');
+                showToast('Tạo gian hàng thành công! Bạn có thể thêm file thuyết minh tại trang Quản lý Audio.', 'success', 2500);
 
                 if (isVendor) {
-                    window.location.href = 'dashboard';
+                    setTimeout(() => { window.location.href = 'dashboard'; }, 350);
                 } else {
-                    window.location.href = 'poi-list';
+                    setTimeout(() => { window.location.href = 'poi-list'; }, 350);
                 }
             } catch (error) {
                 errorDiv.textContent = '❌ Lỗi: ' + error.message;
@@ -1735,7 +1767,7 @@
                 document.getElementById('imageUrl').value = result.imageUrl;
                 overlay.style.display = 'none';
             } catch (error) {
-                alert('Lỗi upload ảnh: ' + error.message);
+                showToast('Lỗi upload ảnh: ' + error.message, 'error');
                 previewImg.style.display = 'none';
                 placeholder.style.display = 'block';
                 overlay.style.display = 'none';
@@ -1753,7 +1785,7 @@
             const url = urlInput.value.trim();
 
             if (!url) {
-                alert('Vui lòng nhập link Google Maps');
+                showToast('Vui lòng nhập link Google Maps', 'warning');
                 return;
             }
 

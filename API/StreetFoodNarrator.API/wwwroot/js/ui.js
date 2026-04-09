@@ -4,6 +4,10 @@
 
 /* ── TOAST ── */
 function toast(msg, type='info', duration=3000) {
+  if (window.UiFeedback?.toast) {
+    window.UiFeedback.toast(msg, type, duration);
+    return;
+  }
   const icons = { success:'✅', error:'❌', info:'ℹ️', warn:'⚠️' };
   const el = document.createElement('div');
   el.className = `toast toast-${type}`;
@@ -23,6 +27,172 @@ function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   setTimeout(() => document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'), 200);
 }
+
+function _ensureActionDialogStyles() {
+  if (document.getElementById('global-action-dialog-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'global-action-dialog-styles';
+  style.textContent = `
+    .global-action-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.46);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      padding: 16px;
+      backdrop-filter: blur(2px);
+    }
+    .global-action-dialog {
+      width: min(480px, 100%);
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+      padding: 16px;
+      color: #0f172a;
+      font-family: inherit;
+    }
+    .global-action-title {
+      font-size: 1.03rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .global-action-msg {
+      line-height: 1.45;
+      margin-bottom: 12px;
+      white-space: pre-wrap;
+    }
+    .global-action-input {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 0.62rem 0.72rem;
+      font-size: 0.95rem;
+      outline: none;
+      margin-bottom: 12px;
+    }
+    .global-action-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+    }
+    .global-action-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .global-action-btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 0.55rem 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .global-action-btn.cancel {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .global-action-btn.confirm {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .global-action-btn.confirm.danger {
+      background: #b91c1c;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function showConfirmDialog(message, options = {}) {
+  if (window.UiFeedback?.confirm) {
+    return window.UiFeedback.confirm(message, options);
+  }
+  return new Promise(resolve => {
+    _ensureActionDialogStyles();
+    const {
+      title = 'Xác nhận',
+      confirmText = 'Đồng ý',
+      cancelText = 'Hủy',
+      danger = false
+    } = options;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'global-action-overlay';
+    overlay.innerHTML = `
+      <div class="global-action-dialog" role="dialog" aria-modal="true">
+        <div class="global-action-title">${title}</div>
+        <div class="global-action-msg">${message || ''}</div>
+        <div class="global-action-buttons">
+          <button type="button" class="global-action-btn cancel">${cancelText}</button>
+          <button type="button" class="global-action-btn confirm ${danger ? 'danger' : ''}">${confirmText}</button>
+        </div>
+      </div>
+    `;
+
+    const finish = (ok) => {
+      overlay.remove();
+      resolve(ok);
+    };
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) finish(false);
+    });
+    overlay.querySelector('.cancel')?.addEventListener('click', () => finish(false));
+    overlay.querySelector('.confirm')?.addEventListener('click', () => finish(true));
+    document.body.appendChild(overlay);
+  });
+}
+
+function showPromptDialog(message, defaultValue = '', options = {}) {
+  if (window.UiFeedback?.prompt) {
+    return window.UiFeedback.prompt(message, defaultValue, options);
+  }
+  return new Promise(resolve => {
+    _ensureActionDialogStyles();
+    const {
+      title = 'Nhập thông tin',
+      confirmText = 'Xác nhận',
+      cancelText = 'Hủy',
+      placeholder = ''
+    } = options;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'global-action-overlay';
+    overlay.innerHTML = `
+      <div class="global-action-dialog" role="dialog" aria-modal="true">
+        <div class="global-action-title">${title}</div>
+        <div class="global-action-msg">${message || ''}</div>
+        <input class="global-action-input" value="${String(defaultValue || '').replace(/"/g, '&quot;')}" placeholder="${String(placeholder || '').replace(/"/g, '&quot;')}" />
+        <div class="global-action-buttons">
+          <button type="button" class="global-action-btn cancel">${cancelText}</button>
+          <button type="button" class="global-action-btn confirm">${confirmText}</button>
+        </div>
+      </div>
+    `;
+
+    const input = overlay.querySelector('.global-action-input');
+    const finish = (result) => {
+      overlay.remove();
+      resolve(result);
+    };
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) finish(null);
+    });
+    overlay.querySelector('.cancel')?.addEventListener('click', () => finish(null));
+    overlay.querySelector('.confirm')?.addEventListener('click', () => finish((input?.value ?? '').trim()));
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') finish((input.value || '').trim());
+      if (e.key === 'Escape') finish(null);
+    });
+
+    document.body.appendChild(overlay);
+    setTimeout(() => input?.focus(), 0);
+  });
+}
+
+window.showConfirmDialog = showConfirmDialog;
+window.showPromptDialog = showPromptDialog;
 // Close on overlay click (not on modal itself)
 document.addEventListener('DOMContentLoaded', () => {
   const overlay = document.getElementById('overlay');
@@ -40,11 +210,16 @@ function go(page) {
 }
 
 /* ── CONFIRM DELETE ── */
-function delRow(btn, label='mục này') {
-  if (confirm(`Xác nhận xóa ${label}?`)) {
-    btn.closest('tr').remove();
-    toast('Đã xóa thành công', 'success');
-  }
+async function delRow(btn, label='mục này') {
+  const ok = await showConfirmDialog(`Xác nhận xóa ${label}?`, {
+    title: 'Xác nhận xóa',
+    confirmText: 'Xóa',
+    cancelText: 'Hủy',
+    danger: true
+  });
+  if (!ok) return;
+  btn.closest('tr')?.remove();
+  toast('Đã xóa thành công', 'success');
 }
 
 /* ── WAVEFORM GENERATOR ── */

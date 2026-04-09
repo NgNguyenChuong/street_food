@@ -186,7 +186,18 @@ function _deletePOI(poiId, btn) {
 
 // ── AUDIO inline approve/reject ──
 async function _approveAudioInline(id){ try{await AudioApi.approve(id); showToast('Đã duyệt','success'); _openPOIDetail(document.getElementById('edit-poi-id')?.value); }catch(e){showToast(e.message,'error');} }
-function _rejectAudioInline(id){ const r=prompt('Lý do từ chối:'); if(r){ AudioApi.reject(id,r).then(()=>{showToast('Đã từ chối','success'); _openPOIDetail(document.getElementById('edit-poi-id')?.value);}).catch(e=>showToast(e.message,'error')); } }
+async function _rejectAudioInline(id){
+  if (typeof showPromptDialog !== 'function') {
+    showToast('Chưa sẵn sàng hộp thoại nhập liệu.', 'error');
+    return;
+  }
+  const reason = await showPromptDialog('Nhập lý do từ chối:', '', { title: 'Từ chối Audio', confirmText: 'Xác nhận', cancelText: 'Hủy', placeholder: 'Lý do (tùy chọn)' });
+  const r = (reason || '').trim();
+  if(!r) return;
+  AudioApi.reject(id,r)
+    .then(()=>{showToast('Đã từ chối','success'); _openPOIDetail(document.getElementById('edit-poi-id')?.value);})
+    .catch(e=>showToast(e.message,'error'));
+}
 
 // ── AUDIO PLAYER ──
 let _currAudio=null;

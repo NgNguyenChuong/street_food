@@ -747,6 +747,74 @@
 
         .toast-close:hover { background: rgba(255,255,255,0.4); }
 
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26, 26, 46, 0.58);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 1rem;
+        }
+
+        .confirm-overlay.active {
+            display: flex;
+        }
+
+        .confirm-modal {
+            width: 100%;
+            max-width: 460px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            animation: fadeInDown 0.2s ease;
+        }
+
+        .confirm-head {
+            padding: 1rem 1.2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-weight: 700;
+            color: #991b1b;
+        }
+
+        .confirm-body {
+            padding: 1rem 1.2rem;
+            color: #374151;
+            line-height: 1.55;
+            font-size: 0.95rem;
+        }
+
+        .confirm-actions {
+            padding: 0.9rem 1.2rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.6rem;
+            background: #fafafa;
+        }
+
+        .dialog-input {
+            width: 100%;
+            margin-top: 0.75rem;
+            padding: 0.72rem 0.9rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .dialog-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+
         /* Animations */
         @keyframes toastIn {
             from { opacity: 0; transform: translateX(100%); }
@@ -858,6 +926,37 @@
 <body>
 <!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
+<div class="confirm-overlay" id="closePoiConfirm">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="closePoiConfirmTitle">
+        <div class="confirm-head" id="closePoiConfirmTitle">
+            <i class="fas fa-triangle-exclamation"></i>
+            Xác nhận đóng cửa vĩnh viễn
+        </div>
+        <div class="confirm-body" id="closePoiConfirmMessage">
+            POI sẽ bị gỡ khỏi tất cả tour và không thể khôi phục từ màn hình này. Bạn có chắc muốn tiếp tục?
+        </div>
+        <div class="confirm-actions">
+            <button type="button" class="btn btn-outline" id="closePoiCancelBtn">Hủy</button>
+            <button type="button" class="btn btn-danger" id="closePoiConfirmBtn">Đóng cửa vĩnh viễn</button>
+        </div>
+    </div>
+</div>
+<div class="confirm-overlay" id="actionDialog">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="actionDialogTitle">
+        <div class="confirm-head" id="actionDialogTitle">
+            <i class="fas fa-circle-question"></i>
+            Xác nhận thao tác
+        </div>
+        <div class="confirm-body">
+            <div id="actionDialogMessage"></div>
+            <input id="actionDialogInput" class="dialog-input" type="text" style="display:none;" />
+        </div>
+        <div class="confirm-actions">
+            <button type="button" class="btn btn-outline" id="actionDialogCancelBtn">Hủy</button>
+            <button type="button" class="btn btn-primary" id="actionDialogOkBtn">Đồng ý</button>
+        </div>
+    </div>
+</div>
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
@@ -1402,7 +1501,8 @@
 
         async function approvePOIQuick() {
             if (!currentPoiId) return;
-            if (!confirm('Bạn có chắc muốn duyệt POI này cho phép hiển thị?')) return;
+            const ok = await showActionConfirmPopup('Bạn có chắc muốn duyệt POI này cho phép hiển thị?');
+            if (!ok) return;
             try {
                 await api.reviewPOI(currentPoiId, { status: 'approved', note: '' });
                 showToast('Đã duyệt POI thành công!', 'success');
@@ -1414,7 +1514,7 @@
 
         async function rejectPOIQuick() {
             if (!currentPoiId) return;
-            const note = prompt('Nhập lý do từ chối (tùy chọn):');
+            const note = await showActionPromptPopup('Nhập lý do từ chối (tùy chọn):', 'Lý do từ chối...');
             if (note === null) return;
             try {
                 await api.reviewPOI(currentPoiId, { status: 'rejected', note: note });
@@ -1725,7 +1825,7 @@
                     const myVendorId = parseInt((currentVendorProfile?.vendorId ?? currentVendorProfile?.VendorId ?? ''), 10);
 
                     if (Number.isNaN(myVendorId) || Number.isNaN(poiVendorId) || poiVendorId !== myVendorId) {
-                        alert('Bạn không có quyền chỉnh sửa POI này.');
+                        showToast('Bạn không có quyền chỉnh sửa POI này.', 'error');
                         window.location.href = 'poi-list';
                         return;
                     }
@@ -1843,7 +1943,7 @@
                 await loadVendors(poi.vendorId || null);
                 await loadPoiAudioStats();
             } catch (error) {
-                alert('Không thể tải POI: ' + error.message);
+                showToast('Không thể tải POI: ' + error.message, 'error');
                 window.location.href = 'poi-list';
             }
         }
@@ -1872,7 +1972,7 @@
             if (isAdmin) {
                 const selectedVendorId = parseInt(document.getElementById('vendorSelect')?.value || '', 10);
                 if (Number.isNaN(selectedVendorId)) {
-                    alert('Admin bắt buộc chọn Vendor trước khi lưu POI.');
+                    showToast('Admin bắt buộc chọn Vendor trước khi lưu POI.', 'warning');
                     return;
                 }
             }
@@ -2007,7 +2107,7 @@
 
         async function closePOIPermanently() {
             if (!currentPoiId) return;
-            const ok = confirm('Xác nhận đóng cửa vĩnh viễn POI này? POI sẽ bị gỡ khỏi tất cả tour và không thể khôi phục từ màn hình này.');
+            const ok = await showClosePoiConfirmPopup();
             if (!ok) return;
 
             try {
@@ -2019,6 +2119,47 @@
             } catch (error) {
                 showToast('Lỗi khi đóng cửa vĩnh viễn POI: ' + error.message, 'error');
             }
+        }
+
+        function showClosePoiConfirmPopup() {
+            const overlay = document.getElementById('closePoiConfirm');
+            const okBtn = document.getElementById('closePoiConfirmBtn');
+            const cancelBtn = document.getElementById('closePoiCancelBtn');
+            const messageEl = document.getElementById('closePoiConfirmMessage');
+            if (!overlay || !okBtn || !cancelBtn) {
+                return Promise.resolve(false);
+            }
+
+            if (messageEl) {
+                if (isVendor) {
+                    messageEl.textContent = 'Bạn có muốn đóng cửa vĩnh viễn?';
+                } else if (isAdmin) {
+                    messageEl.textContent = 'Bạn có muốn đóng cửa vĩnh viễn POI và gỡ khỏi các tour liên quan?';
+                } else {
+                    messageEl.textContent = 'Bạn có muốn đóng cửa vĩnh viễn POI này?';
+                }
+            }
+
+            return new Promise(resolve => {
+                const close = (result) => {
+                    overlay.classList.remove('active');
+                    okBtn.removeEventListener('click', onOk);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    overlay.removeEventListener('click', onOverlay);
+                    resolve(result);
+                };
+
+                const onOk = () => close(true);
+                const onCancel = () => close(false);
+                const onOverlay = (e) => {
+                    if (e.target === overlay) close(false);
+                };
+
+                okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+                overlay.addEventListener('click', onOverlay);
+                overlay.classList.add('active');
+            });
         }
 
         const zoneTypeSelect = document.getElementById('zoneType');
@@ -2042,7 +2183,7 @@
             const url = urlInput.value.trim();
 
             if (!url) {
-                alert('Vui lòng nhập link Google Maps');
+                showToast('Vui lòng nhập link Google Maps', 'warning');
                 return;
             }
 
@@ -2131,7 +2272,7 @@
                 document.getElementById('imageUrl').value = result.imageUrl;
                 uploadingIndicator.style.display = 'none';
             } catch (error) {
-                alert('Lỗi upload ảnh: ' + error.message);
+                showToast('Lỗi upload ảnh: ' + error.message, 'error');
                 uploadingIndicator.style.display = 'none';
                 document.getElementById('imageInput').value = '';
 
@@ -2178,6 +2319,138 @@
         function clearPendingChangesHighlight() {
             document.querySelectorAll('.changed-field').forEach(el => el.classList.remove('changed-field'));
             document.querySelectorAll('.pending-change-hint').forEach(el => el.remove());
+        }
+
+        function showToast(message, type = 'info', timeout = 3200) {
+            if (window.UiFeedback?.toast) {
+                window.UiFeedback.toast(message, type, timeout);
+                return;
+            }
+            const container = document.getElementById('toastContainer');
+            if (!container || !message) return;
+
+            const iconMap = {
+                success: 'fa-check-circle',
+                error: 'fa-circle-exclamation',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <i class="fas ${iconMap[type] || iconMap.info} toast-icon"></i>
+                <span class="toast-msg">${message}</span>
+                <button type="button" class="toast-close" aria-label="Đóng"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(toast);
+
+            const removeToast = () => {
+                toast.classList.add('toast-hide');
+                setTimeout(() => toast.remove(), 280);
+            };
+
+            toast.querySelector('.toast-close')?.addEventListener('click', removeToast);
+            setTimeout(removeToast, timeout);
+        }
+
+        function showActionConfirmPopup(message) {
+            if (window.UiFeedback?.confirm) {
+                return window.UiFeedback.confirm(message || 'Bạn có chắc muốn tiếp tục?', {
+                    title: 'Xác nhận thao tác',
+                    confirmText: 'Đồng ý',
+                    cancelText: 'Hủy'
+                });
+            }
+            const overlay = document.getElementById('actionDialog');
+            const titleEl = document.getElementById('actionDialogTitle');
+            const msgEl = document.getElementById('actionDialogMessage');
+            const inputEl = document.getElementById('actionDialogInput');
+            const okBtn = document.getElementById('actionDialogOkBtn');
+            const cancelBtn = document.getElementById('actionDialogCancelBtn');
+            if (!overlay || !titleEl || !msgEl || !okBtn || !cancelBtn || !inputEl) return Promise.resolve(false);
+
+            titleEl.innerHTML = '<i class="fas fa-circle-question"></i> Xác nhận thao tác';
+            msgEl.textContent = message || 'Bạn có chắc muốn tiếp tục?';
+            inputEl.style.display = 'none';
+            inputEl.value = '';
+
+            return new Promise(resolve => {
+                const close = (result) => {
+                    overlay.classList.remove('active');
+                    okBtn.removeEventListener('click', onOk);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    overlay.removeEventListener('click', onOverlay);
+                    resolve(result);
+                };
+
+                const onOk = () => close(true);
+                const onCancel = () => close(false);
+                const onOverlay = (e) => { if (e.target === overlay) close(false); };
+
+                okBtn.textContent = 'Đồng ý';
+                cancelBtn.style.display = '';
+                okBtn.classList.remove('btn-danger');
+                okBtn.classList.add('btn-primary');
+                okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+                overlay.addEventListener('click', onOverlay);
+                overlay.classList.add('active');
+            });
+        }
+
+        function showActionPromptPopup(message, placeholder = '') {
+            if (window.UiFeedback?.prompt) {
+                return window.UiFeedback.prompt(message || '', '', {
+                    title: 'Nhập thông tin',
+                    confirmText: 'Xác nhận',
+                    cancelText: 'Hủy',
+                    placeholder: placeholder || ''
+                });
+            }
+            const overlay = document.getElementById('actionDialog');
+            const titleEl = document.getElementById('actionDialogTitle');
+            const msgEl = document.getElementById('actionDialogMessage');
+            const inputEl = document.getElementById('actionDialogInput');
+            const okBtn = document.getElementById('actionDialogOkBtn');
+            const cancelBtn = document.getElementById('actionDialogCancelBtn');
+            if (!overlay || !titleEl || !msgEl || !okBtn || !cancelBtn || !inputEl) return Promise.resolve(null);
+
+            titleEl.innerHTML = '<i class="fas fa-pen-to-square"></i> Nhập thông tin';
+            msgEl.textContent = message || '';
+            inputEl.placeholder = placeholder;
+            inputEl.style.display = '';
+            inputEl.value = '';
+
+            return new Promise(resolve => {
+                const close = (result) => {
+                    overlay.classList.remove('active');
+                    okBtn.removeEventListener('click', onOk);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    overlay.removeEventListener('click', onOverlay);
+                    inputEl.removeEventListener('keydown', onKeyDown);
+                    resolve(result);
+                };
+
+                const onOk = () => close(inputEl.value || '');
+                const onCancel = () => close(null);
+                const onOverlay = (e) => { if (e.target === overlay) close(null); };
+                const onKeyDown = (e) => {
+                    if (e.key === 'Enter') onOk();
+                    if (e.key === 'Escape') onCancel();
+                };
+
+                okBtn.textContent = 'Xác nhận';
+                cancelBtn.style.display = '';
+                okBtn.classList.remove('btn-danger');
+                okBtn.classList.add('btn-primary');
+                okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+                overlay.addEventListener('click', onOverlay);
+                inputEl.addEventListener('keydown', onKeyDown);
+                overlay.classList.add('active');
+                setTimeout(() => inputEl.focus(), 0);
+            });
         }
 
         initOpeningHoursEditor();
