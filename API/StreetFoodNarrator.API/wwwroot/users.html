@@ -360,9 +360,9 @@
       width: 100%;
       height: 280px;
       overflow: auto;
-      border: 1px solid var(--line);
+      border: 1px solid var(--border);
       border-radius: 12px;
-      background: rgba(255, 255, 255, 0.02);
+      background: #fff;
     }
     .avg-listen-table {
       width: 100%;
@@ -372,7 +372,7 @@
     .avg-listen-table th,
     .avg-listen-table td {
       padding: .55rem .7rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      border-bottom: 1px solid var(--border);
       text-align: left;
       white-space: nowrap;
     }
@@ -380,23 +380,69 @@
       position: sticky;
       top: 0;
       z-index: 1;
-      background: #151827;
-      color: #B9C0D0;
+      background: #F6F8FB;
+      color: #334155;
       font-size: .72rem;
       text-transform: uppercase;
       letter-spacing: .03em;
+    }
+    .avg-listen-table tbody tr:hover {
+      background: rgba(255, 107, 53, 0.04);
     }
     .avg-listen-table td:nth-child(1),
     .avg-listen-table td:nth-child(3),
     .avg-listen-table td:nth-child(4),
     .avg-listen-table td:nth-child(5) {
-      color: #C5CCD9;
+      color: #475569;
     }
     .avg-listen-table td:nth-child(2) {
-      color: #F4F7FF;
+      color: #0f172a;
+      font-weight: 600;
       max-width: 240px;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .avg-listen-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .6rem;
+      margin-top: .65rem;
+      flex-wrap: wrap;
+    }
+    .avg-listen-page-info {
+      font-size: .74rem;
+      color: #64748b;
+    }
+    .avg-listen-pagination-buttons {
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+    }
+    .avg-listen-page-btn {
+      min-width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid var(--border2);
+      background: #fff;
+      color: #334155;
+      font-size: .75rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0 .45rem;
+    }
+    .avg-listen-page-btn:hover:not(:disabled) {
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+    .avg-listen-page-btn.active {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: #fff;
+    }
+    .avg-listen-page-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
     }
     .card-head {
       display: flex;
@@ -1196,15 +1242,11 @@
               <span class="badge badge-orange" id="topPoiBadge">Top 10</span>
             </div>
             <div class="chart-box" style="height:280px"><canvas id="topPoisChart"></canvas></div>
-            <div style="margin-top:.6rem;font-size:.68rem;color:var(--muted)">
-              Bao gồm dữ liệu thực tế và mẫu bổ sung để thể hiện xu hướng rõ hơn.
-            </div>
           </div>
           <!-- AVG LISTEN -->
           <div class="card">
             <div class="card-head">
               <div class="card-title"><i class="fas fa-hourglass-half"></i>Thời gian nghe TB</div>
-              <span class="badge badge-blue" id="avgListenBadge">—</span>
             </div>
             <div class="avg-listen-table-wrap">
               <table class="avg-listen-table">
@@ -1213,7 +1255,7 @@
                     <th>#</th>
                     <th>POI</th>
                     <th>Lượt nghe</th>
-                    <th>TB/lượt</th>
+                    <th>Trung bình</th>
                     <th>Tổng thời gian</th>
                   </tr>
                 </thead>
@@ -1222,8 +1264,9 @@
                 </tbody>
               </table>
             </div>
-            <div style="margin-top:.6rem;font-size:.68rem;color:var(--muted)">
-              Ước tính từ audio đã publish × số lần nghe thành công.
+            <div class="avg-listen-pagination" id="avgListenPaginationWrap">
+              <span class="avg-listen-page-info" id="avgListenPageInfo"></span>
+              <div class="avg-listen-pagination-buttons" id="avgListenPagination"></div>
             </div>
           </div>
         </div>
@@ -1398,7 +1441,7 @@
     const MOCK_DEVICES = Array.from({ length: 342 }, (_, i) => (
       {
         deviceId: `dev-${i}`,
-        platform: i % 3 === 0 ? 'Android' : i % 3 === 1 ? 'iOS' : 'Web',
+        platform: 'Android',
         totalSessions: Math.floor(Math.random() * 8) + 1
       }
     ));
@@ -1446,6 +1489,9 @@
     let globalPois = [];
     let movementPage = 1;
     let movementPageSize = 7;
+    let avgListenRowsCache = [];
+    let avgListenPage = 1;
+    const AVG_LISTEN_PAGE_SIZE = 6;
     let globalAudioMap = new Map();
     const chartInst = {};
 
@@ -1456,6 +1502,11 @@
     function esc(str) { return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function anonId(raw) { let h = 0; for (let c of String(raw)) { h = ((h << 5) - h) + c.charCodeAt(0); h |= 0; } return `U-${Math.abs(h).toString(36).toUpperCase().padStart(6, '0').slice(0, 6)}`; }
     function removeAccents(str) { return String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+    function normalizePlatformName(raw) {
+      const value = String(raw || '').trim().toLowerCase();
+      if (!value) return '';
+      return value.includes('android') ? 'Android' : '';
+    }
 
     function showToast(msg, type = 'info') {
       const area = document.getElementById('toastArea');
@@ -1477,12 +1528,21 @@
       const played = Number(overview.totalAudioPlayed || 0);
       const narr = Number(overview.totalNarrations || 0);
       const compRate = narr > 0 ? Math.round(played / narr * 100) : 0;
+      const androidDevices = (devices || []).filter(d => normalizePlatformName(d.platform ?? d.Platform) === 'Android');
+      const hasLastSeen = androidDevices.some(d => !!(d.lastSeen ?? d.LastSeen));
+      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      const activeAndroidDevices = hasLastSeen
+        ? androidDevices.filter(d => {
+          const ts = new Date(d.lastSeen ?? d.LastSeen).getTime();
+          return Number.isFinite(ts) && ts >= sevenDaysAgo;
+        }).length
+        : Number(overview.activeDevicesLast7Days || 0);
 
       const cards = [
         {
           icon: 'fas fa-mobile-screen-button', color: '#4A9EFF', bg: 'rgba(74,158,255,.1)',
-          val: num(overview.totalDevices), label: 'Tổng thiết bị',
-          sub: `${num(overview.activeDevicesLast7Days)} hoạt động 7 ngày qua`
+          val: num(androidDevices.length), label: 'Tổng thiết bị',
+          sub: `${num(activeAndroidDevices)} hoạt động 7 ngày qua`
         },
         {
           icon: 'fas fa-headphones', color: '#FF6B35', bg: 'rgba(255,107,53,.1)',
@@ -1491,7 +1551,7 @@
         },
         {
           icon: 'fas fa-clock', color: '#2DD4BF', bg: 'rgba(45,212,191,.1)',
-          val: avgRows.length ? fmt(avgListen) : '-', label: 'Thời gian nghe TB / địa điểm',
+          val: avgRows.length ? fmt(avgListen) : '-', label: 'Thời gian nghe trung bình /POI  ',
           sub: 'Trung bình toàn bộ POI có audio'
         },
         {
@@ -1518,10 +1578,26 @@
     }
 
     /* ── TOP POIs CHART ─────────────────────────────────────────── */
+    function normalizeTopPoiRows(rows, limit = 10) {
+      return (rows || [])
+        .map(r => {
+          const id = Number(r.poiId || r.poI_ID || r.POI_ID || r.poi_ID || 0);
+          const count = Number(r.count || r.viewCount || r.ViewCount || r.playCount || r.PlayCount || 0);
+          return {
+            poiId: id,
+            poiName: r.poiName || r.poiName_Vi || r.POIName || r.name_Vi || r.Name_Vi || `POI ${id || '?'}`,
+            count: Math.max(0, Math.round(count))
+          };
+        })
+        .filter(r => r.poiId > 0 && r.count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+    }
+
     function buildTopPoiRows(logs, limit = 10) {
       const m = new Map();
       for (const l of logs) {
-        const id = Number(l.poI_ID || 0); if (!id) continue;
+        const id = Number(l.poI_ID || l.poiId || l.poi_ID || 0); if (!id) continue;
         if (!m.has(id)) m.set(id, { poiId: id, poiName: l.poiName || `POI ${id}`, count: 0 });
         m.get(id).count++;
       }
@@ -1559,9 +1635,43 @@
     }
 
     /* ── AVG LISTEN CHART ─────────────────────────────────────────── */
-    function buildAvgListenRows(logs, audioMap, pois) {
-      const m = new Map();
+    function readPoiListenMetrics(poi) {
+      const playsRaw = Number(poi.playCount ?? poi.PlayCount ?? 0);
+      const meanRaw = Number(poi.meanPlay ?? poi.MeanPlay ?? 0);
+      const totalRaw = Number(poi.totalListenSeconds ?? poi.TotalListenSeconds ?? 0);
 
+      const plays = Math.max(0, Math.round(playsRaw));
+      const mean = Math.max(0, meanRaw);
+      const total = totalRaw > 0 ? Math.max(0, totalRaw) : (plays * mean);
+
+      return { plays, mean, total };
+    }
+
+    function buildAvgListenRows(logs, audioMap, pois) {
+      const persistedRows = (pois || []).map(p => {
+        const id = Number(p.poiId || p.poI_ID || p.POI_ID || p.poi_ID || 0);
+        if (!id) return null;
+        const metrics = readPoiListenMetrics(p);
+        return {
+          poiId: id,
+          poiName: p.poiName || p.name_Vi || p.nameVi || p.Name_Vi || `POI ${id}`,
+          plays: metrics.plays,
+          avgDuration: metrics.mean,
+          totalDuration: metrics.total
+        };
+      }).filter(Boolean);
+
+      const hasPersistedStats = persistedRows.some(r => r.plays > 0 || r.avgDuration > 0);
+      if (hasPersistedStats) {
+        return persistedRows.sort((a, b) => {
+          if (b.totalDuration !== a.totalDuration) return b.totalDuration - a.totalDuration;
+          if (b.plays !== a.plays) return b.plays - a.plays;
+          return String(a.poiName).localeCompare(String(b.poiName), 'vi');
+        });
+      }
+
+      // Legacy fallback (when POI stats have not been persisted yet): use logs + full audio duration.
+      const m = new Map();
       for (const p of (pois || [])) {
         const id = Number(p.poiId || p.poI_ID || p.POI_ID || p.poi_ID || 0);
         if (!id) continue;
@@ -1574,15 +1684,15 @@
 
       for (const l of logs) {
         if (l.actionType !== 'NarrationPlayed' && !l.wasPlayed) continue;
-        const id = Number(l.poI_ID || l.poiId || l.poi_ID || 0); if (!id) continue;
+        const id = Number(l.poI_ID || l.poiId || l.poi_ID || 0);
+        if (!id) continue;
         if (!m.has(id)) m.set(id, { poiId: id, poiName: l.poiName || `POI ${id}`, plays: 0 });
         m.get(id).plays++;
       }
 
       return [...m.values()].map(x => {
         const fullDur = Number(audioMap.get(x.poiId) || 0);
-        const factor = 0.65 + ((x.poiId * 37) % 31) / 100; // deterministic 0.65..0.95
-        const avg = (x.plays > 0 && fullDur > 0) ? Math.max(1, Math.floor(fullDur * factor)) : 0;
+        const avg = (x.plays > 0 && fullDur > 0) ? fullDur : 0;
         return {
           ...x,
           avgDuration: avg,
@@ -1597,24 +1707,32 @@
 
     function renderAvgListenChart(rows) {
       const body = document.getElementById('avgListenBody');
+      const pageInfo = document.getElementById('avgListenPageInfo');
+      const pageNav = document.getElementById('avgListenPagination');
       if (!body) return;
 
-      if (!rows.length) {
-        document.getElementById('avgListenBadge').textContent = '—';
+      avgListenRowsCache = Array.isArray(rows) ? rows : [];
+
+      if (!avgListenRowsCache.length) {
         body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.25rem">Chưa có dữ liệu POI.</td></tr>';
+        if (pageInfo) pageInfo.textContent = '';
+        if (pageNav) pageNav.innerHTML = '';
         return;
       }
 
-      const listened = rows.filter(r => r.plays > 0 && r.avgDuration > 0);
-      const avg = listened.length ? listened.reduce((s, r) => s + r.avgDuration, 0) / listened.length : 0;
-      document.getElementById('avgListenBadge').textContent = `TB ${fmt(avg)} • ${num(rows.length)} POI`;
+      const totalPages = Math.max(1, Math.ceil(avgListenRowsCache.length / AVG_LISTEN_PAGE_SIZE));
+      if (avgListenPage > totalPages) avgListenPage = totalPages;
+      if (avgListenPage < 1) avgListenPage = 1;
 
-      body.innerHTML = rows.map((r, i) => {
+      const start = (avgListenPage - 1) * AVG_LISTEN_PAGE_SIZE;
+      const pageRows = avgListenRowsCache.slice(start, start + AVG_LISTEN_PAGE_SIZE);
+
+      body.innerHTML = pageRows.map((r, i) => {
         const avgText = r.plays > 0 ? fmt(r.avgDuration) : '—';
         const totalText = r.totalDuration > 0 ? fmt(r.totalDuration) : '—';
         return `
           <tr>
-            <td>${i + 1}</td>
+            <td>${start + i + 1}</td>
             <td title="${esc(r.poiName)}">${esc(r.poiName)}</td>
             <td>${num(r.plays)}</td>
             <td>${avgText}</td>
@@ -1622,6 +1740,37 @@
           </tr>
         `;
       }).join('');
+
+      if (pageInfo) {
+        pageInfo.textContent = `Hiển thị ${start + 1} - ${Math.min(start + AVG_LISTEN_PAGE_SIZE, avgListenRowsCache.length)} trên ${avgListenRowsCache.length} POI`;
+      }
+
+      if (pageNav) {
+        let navHtml = '';
+        navHtml += `<button class="avg-listen-page-btn" onclick="changeAvgListenPage(-1)" ${avgListenPage === 1 ? 'disabled' : ''}>‹</button>`;
+
+        const maxPages = Math.min(totalPages, 5);
+        for (let p = 1; p <= maxPages; p++) {
+          navHtml += `<button class="avg-listen-page-btn ${p === avgListenPage ? 'active' : ''}" onclick="setAvgListenPage(${p})">${p}</button>`;
+        }
+
+        if (totalPages > 5) {
+          navHtml += `<span class="avg-listen-page-info">... ${totalPages}</span>`;
+        }
+
+        navHtml += `<button class="avg-listen-page-btn" onclick="changeAvgListenPage(1)" ${avgListenPage === totalPages ? 'disabled' : ''}>›</button>`;
+        pageNav.innerHTML = navHtml;
+      }
+    }
+
+    function setAvgListenPage(page) {
+      avgListenPage = Number(page) || 1;
+      renderAvgListenChart(avgListenRowsCache);
+    }
+
+    function changeAvgListenPage(delta) {
+      avgListenPage += Number(delta) || 0;
+      renderAvgListenChart(avgListenRowsCache);
     }
 
     /* ── HOURLY CHART ─────────────────────────────────────────────── */
@@ -2161,12 +2310,17 @@
         const lat = Number(p.latitude ?? p.Latitude ?? p.location?.latitude ?? p.Location?.Latitude);
         const lon = Number(p.longitude ?? p.Longitude ?? p.location?.longitude ?? p.Location?.Longitude);
         const poiId = Number(p.poiId ?? p.POI_ID ?? p.poi_ID ?? p.poI_ID ?? 0);
+        const playCount = Number(p.playCount ?? p.PlayCount ?? 0);
+        const meanPlay = Number(p.meanPlay ?? p.MeanPlay ?? 0);
         return {
           poiId,
           poiName: p.name_Vi || p.name_En || p.Name_Vi || p.Name_En || `POI ${poiId || '?'}`,
           lat,
           lon,
-          address: p.address || p.Address || 'Không rõ địa chỉ'
+          address: p.address || p.Address || 'Không rõ địa chỉ',
+          playCount,
+          meanPlay,
+          totalListenSeconds: Number((p.totalListenSeconds ?? p.TotalListenSeconds ?? (playCount * meanPlay)) || 0)
         };
       }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
     }
@@ -2184,7 +2338,9 @@
         rows.push(...(next?.data || []));
       }
 
-      return rows;
+      return rows
+        .map(d => ({ ...d, platform: normalizePlatformName(d.platform ?? d.Platform) }))
+        .filter(d => d.platform === 'Android');
     }
 
     async function fetchAllAudiosForDashboard() {
@@ -2204,15 +2360,16 @@
     }
 
     async function loadDashboardDataFromApi(from, to) {
-      const [overview, realLogs, pois, devices, audios] = await Promise.all([
+      const [overview, realLogs, pois, devices, audios, topPois] = await Promise.all([
         AnalyticsApi.overview(),
         fetchAllNarrationLogs(from, to),
         fetchAllPoisForDashboard(),
         fetchAllDevicesForDashboard(),
-        fetchAllAudiosForDashboard()
+        fetchAllAudiosForDashboard(),
+        AnalyticsApi.topPOIs(10)
       ]);
 
-      return { overview, realLogs, pois, devices, audios };
+      return { overview, realLogs, pois, devices, audios, topPois };
     }
 
     /* ── MAIN REFRESH ─────────────────────────────────────────────── */
@@ -2228,6 +2385,7 @@
         let pois;
         let realLogs;
         let audios;
+        let topPois = [];
         let source = 'database';
 
         try {
@@ -2244,6 +2402,7 @@
           pois = apiData.pois;
           realLogs = apiData.realLogs;
           audios = apiData.audios;
+          topPois = apiData.topPois || [];
         } catch (apiErr) {
           console.warn('Fallback to mock data:', apiErr);
           source = 'mock';
@@ -2252,6 +2411,7 @@
           pois = MOCK_POIS;
           realLogs = genLogs(days);
           audios = MOCK_AUDIOS;
+          topPois = buildTopPoiRows(realLogs, 10);
         }
 
         // Thống kê thời gian Audio
@@ -2269,7 +2429,8 @@
         const allLogs = [...realLogs, ...synLogs];
 
         // Build data
-        const topRows = buildTopPoiRows(allLogs, 10);
+        const apiTopRows = normalizeTopPoiRows(topPois, 10);
+        const topRows = apiTopRows.length ? apiTopRows : buildTopPoiRows(allLogs, 10);
         const avgRows = buildAvgListenRows(allLogs, audioMap, pois);
         allRoutes = buildRoutes(allLogs);
 

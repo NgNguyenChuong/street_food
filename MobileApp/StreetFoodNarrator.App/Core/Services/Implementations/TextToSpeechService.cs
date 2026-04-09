@@ -27,6 +27,7 @@ public class TextToSpeechService : ITTSService
     private readonly string _baseUrl;
     private readonly IAudioManager _audioManager;
     private readonly IAudioCacheService? _audioCache;
+    private readonly UserSession _session;
     private IAudioPlayer? _currentPlayer;
     private double _lastKnownDuration;
 
@@ -39,13 +40,19 @@ public class TextToSpeechService : ITTSService
     private double _nativeTtsDuration;
     private DateTime _nativeTtsStartTime;
 
+    // Track one listening sample per active POI session.
+    private int? _activePoiProgressId;
+    private string? _activePoiPlaybackSessionId;
+    private double _activePoiMaxPositionSeconds;
+
     public event Action? OnPlaybackEnded;
 
     public bool IsAvailable => true;
 
-    public TextToSpeechService(HttpClient httpClient, IAudioCacheService? audioCache = null)
+    public TextToSpeechService(HttpClient httpClient, UserSession session, IAudioCacheService? audioCache = null)
     {
         _httpClient = httpClient;
+        _session = session;
         _audioCache = audioCache;
         _baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
         _audioManager = AudioManager.Current;
@@ -113,6 +120,8 @@ public class TextToSpeechService : ITTSService
     {
         try
         {
+            CaptureCurrentPoiProgress();
+
             if (_currentPlayer != null && _currentPlayer.IsPlaying)
             {
                 _currentPlayer.Pause();
@@ -123,6 +132,10 @@ public class TextToSpeechService : ITTSService
             // Treat pause as stop so UI and POI switching stay responsive.
             if (_isNativeTts)
             {
+                CaptureCurrentPoiProgress(_nativeTtsDuration > 0
+                    ? Math.Min((DateTime.Now - _nativeTtsStartTime).TotalSeconds, _nativeTtsDuration)
+                    : null);
+
                 _manualStop = true;
                 _nativeTtsCts?.Cancel();
                 _nativeTtsCts = null;
@@ -173,6 +186,86 @@ public class TextToSpeechService : ITTSService
         }
     }
 
+    private void EnsurePoiProgressSession(int? poiId)
+    {
+        if (!poiId.HasValue || poiId.Value <= 0)
+            return;
+
+        if (_activePoiProgressId == poiId.Value)
+            return;
+
+        _activePoiProgressId = poiId.Value;
+        _activePoiPlaybackSessionId = Guid.NewGuid().ToString("N");
+        _activePoiMaxPositionSeconds = 0;
+    }
+
+    private void CaptureCurrentPoiProgress(double? overridePositionSeconds = null)
+    {
+        if (!_activePoiProgressId.HasValue)
+            return;
+
+        var current = overridePositionSeconds ?? GetCurrentPosition();
+        if (double.IsNaN(current) || double.IsInfinity(current))
+            return;
+
+        if (current > _activePoiMaxPositionSeconds)
+            _activePoiMaxPositionSeconds = current;
+    }
+
+    private async Task FinalizeCurrentPoiProgressAsync(string source)
+    {
+        if (!_activePoiProgressId.HasValue)
+            return;
+
+        CaptureCurrentPoiProgress();
+
+        var poiId = _activePoiProgressId.Value;
+        var listenedSeconds = Math.Round(Math.Max(0, _activePoiMaxPositionSeconds), 2);
+        var playbackSessionId = _activePoiPlaybackSessionId;
+
+        _activePoiProgressId = null;
+        _activePoiPlaybackSessionId = null;
+        _activePoiMaxPositionSeconds = 0;
+
+        if (listenedSeconds <= 0)
+            return;
+
+        try
+        {
+            var payload = new PoiListenProgressPayload
+            {
+                POI_ID = poiId,
+                ListenSeconds = listenedSeconds,
+                SessionId = _session.SessionId,
+                DeviceId = GetOrCreateAnonymousDeviceId(),
+                PlaybackSessionId = playbackSessionId,
+                Source = source
+            };
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+            await _httpClient.PostAsJsonAsync(
+                $"{_baseUrl}/api/Analytics/poi-listen-progress",
+                payload,
+                cts.Token);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Finalize POI listen progress failed: {ex.Message}");
+        }
+    }
+
+    private static string GetOrCreateAnonymousDeviceId()
+    {
+        const string key = "analytics_anonymous_device_id";
+        var current = Preferences.Get(key, string.Empty);
+        if (!string.IsNullOrWhiteSpace(current))
+            return current;
+
+        var created = $"m-{Guid.NewGuid():N}";
+        Preferences.Set(key, created);
+        return created;
+    }
+
     public async Task<bool> SpeakNativeFallbackAsync(
         string text,
         string languageCode,
@@ -194,7 +287,11 @@ public class TextToSpeechService : ITTSService
             text = EnsureNarrationText(text, languageCode);
             var preferredVoice = ResolvePreferredVoice(voiceName, languageCode);
 
-            await StopAsync();
+            var shouldFinalizeCurrentPoi = _activePoiProgressId.HasValue &&
+                                           (_activePoiProgressId != poiId || !poiId.HasValue);
+
+            await StopPlaybackCoreAsync(finalizeCurrentPoiProgress: shouldFinalizeCurrentPoi);
+            EnsurePoiProgressSession(poiId);
 
             var playbackMode = GetPlaybackMode();
             var networkAccess = Connectivity.Current.NetworkAccess;
@@ -359,9 +456,17 @@ public class TextToSpeechService : ITTSService
     }
 
     public async Task StopAsync()
+        // User stop/back should not finalize; finalize happens when switching POI.
+        => await StopPlaybackCoreAsync(finalizeCurrentPoiProgress: false);
+
+    private async Task StopPlaybackCoreAsync(bool finalizeCurrentPoiProgress)
     {
         try
         {
+            CaptureCurrentPoiProgress();
+            if (finalizeCurrentPoiProgress)
+                await FinalizeCurrentPoiProgressAsync("tts");
+
             _manualStop = true;
 
             if (_currentPlayer != null)
@@ -392,6 +497,12 @@ public class TextToSpeechService : ITTSService
             var duration = player.Duration;
             if (duration > 0)
                 _lastKnownDuration = duration;
+
+            CaptureCurrentPoiProgress(duration > 0 ? duration : null);
+            _ = Task.Run(async () =>
+            {
+                await FinalizeCurrentPoiProgressAsync("tts-complete");
+            });
 
             if (!_manualStop)
                 OnPlaybackEnded?.Invoke();
@@ -502,6 +613,8 @@ public class TextToSpeechService : ITTSService
             await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(text, settings, cancellationToken);
             System.Diagnostics.Debug.WriteLine($"[TTS] Voice package playback complete: {voiceName}");
 
+            CaptureCurrentPoiProgress(_nativeTtsDuration);
+            await FinalizeCurrentPoiProgressAsync("tts-native-complete");
             if (!_manualStop)
                 OnPlaybackEnded?.Invoke();
 
@@ -548,6 +661,8 @@ public class TextToSpeechService : ITTSService
                 cts.Token);
             if (androidOfflineOk)
             {
+                CaptureCurrentPoiProgress(_nativeTtsDuration);
+                await FinalizeCurrentPoiProgressAsync("tts-android-offline-complete");
                 if (!_manualStop)
                     OnPlaybackEnded?.Invoke();
                 return true;
@@ -596,6 +711,8 @@ public class TextToSpeechService : ITTSService
             await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(text, settings, cts.Token);
             System.Diagnostics.Debug.WriteLine("[TTS] Native MAUI fallback playback complete.");
 
+            CaptureCurrentPoiProgress(_nativeTtsDuration);
+            await FinalizeCurrentPoiProgressAsync("tts-native-complete");
             if (!_manualStop && !cts.IsCancellationRequested)
                 OnPlaybackEnded?.Invoke();
         }
@@ -643,6 +760,8 @@ public class TextToSpeechService : ITTSService
                 fallbackSettings,
                 cancellationToken);
 
+            CaptureCurrentPoiProgress(_nativeTtsDuration);
+            await FinalizeCurrentPoiProgressAsync("tts-resilient-complete");
             if (!_manualStop)
                 OnPlaybackEnded?.Invoke();
 
@@ -755,6 +874,16 @@ public class TextToSpeechService : ITTSService
     // Use MAUI TTS fallback (Microsoft.Maui.Media.TextToSpeech) instead
     // private static class AndroidOfflineTtsBridge
 #endif
+
+    private sealed class PoiListenProgressPayload
+    {
+        public int POI_ID { get; set; }
+        public double ListenSeconds { get; set; }
+        public string? SessionId { get; set; }
+        public string? DeviceId { get; set; }
+        public string? PlaybackSessionId { get; set; }
+        public string? Source { get; set; }
+    }
 
     private class TtsGenerateResponse
     {

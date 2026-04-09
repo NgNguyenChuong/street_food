@@ -101,6 +101,18 @@ public class POI
     
     public int NumReviews { get; set; } = 0;
 
+    /// <summary>
+    /// Number of finalized listening sessions for this POI.
+    /// Updated when a user leaves the POI / switches to another POI.
+    /// </summary>
+    public long PlayCount { get; set; } = 0;
+
+    /// <summary>
+    /// Running mean of listened duration (seconds) per finalized listening session.
+    /// Formula: mean_new = (n * mean_old + x_new) / (n + 1)
+    /// </summary>
+    public double MeanPlay { get; set; } = 0;
+
     public List<string>? Tags { get; set; }
 
     [MaxLength(100)]

@@ -251,14 +251,51 @@ public class AnalyticsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<List<TopPOIDto>>> GetTopPOIs([FromQuery] int limit = 10)
     {
-        var logs = await _db.NarrationLogs
-            .Find(Builders<NarrationLog>.Filter.Empty)
+        var safeLimit = Math.Clamp(limit, 1, 100);
+
+        // Primary source: persisted POI-level listen stats (PlayCount/MeanPlay).
+        var poiStats = await _db.POIs
+            .Find(p => p.DeletedAt == null && p.PlayCount > 0)
+            .Project(p => new
+            {
+                p.POI_ID,
+                p.Name_Vi,
+                p.Name_En,
+                p.PlayCount,
+                p.MeanPlay
+            })
             .ToListAsync();
 
-        var topPoiIds = logs
+        if (poiStats.Count > 0)
+        {
+            var ranked = poiStats
+                .Select(p => new TopPOIDto
+                {
+                    POI_ID = p.POI_ID,
+                    POIName = p.Name_Vi ?? p.Name_En ?? "Unknown",
+                    ViewCount = (int)Math.Min(int.MaxValue, Math.Max(0, p.PlayCount)),
+                    PlayCount = Math.Max(0, p.PlayCount),
+                    MeanPlay = Math.Max(0, p.MeanPlay),
+                    TotalListenSeconds = Math.Max(0, p.PlayCount) * Math.Max(0, p.MeanPlay)
+                })
+                .OrderByDescending(x => x.TotalListenSeconds)
+                .ThenByDescending(x => x.PlayCount)
+                .ThenBy(x => x.POIName)
+                .Take(safeLimit)
+                .ToList();
+
+            return Ok(ranked);
+        }
+
+        // Backward-compatible fallback for legacy datasets where POI stats are still empty.
+        var playedLogs = await _db.NarrationLogs
+            .Find(l => l.WasPlayed)
+            .ToListAsync();
+
+        var topPoiIds = playedLogs
             .GroupBy(l => l.POI_ID)
             .OrderByDescending(g => g.Count())
-            .Take(limit)
+            .Take(safeLimit)
             .Select(g => new { POI_ID = g.Key, ViewCount = g.Count() })
             .ToList();
 
@@ -267,18 +304,102 @@ public class AnalyticsController : ControllerBase
             .Find(p => poiIds.Contains(p.POI_ID))
             .ToListAsync();
 
-        var result = topPoiIds.Select(x =>
+        var fallback = topPoiIds.Select(x =>
         {
             var poi = pois.FirstOrDefault(p => p.POI_ID == x.POI_ID);
             return new TopPOIDto
             {
                 POI_ID = x.POI_ID,
                 POIName = poi?.Name_Vi ?? poi?.Name_En ?? "Unknown",
-                ViewCount = x.ViewCount
+                ViewCount = x.ViewCount,
+                PlayCount = x.ViewCount,
+                MeanPlay = 0,
+                TotalListenSeconds = 0
             };
         }).ToList();
 
-        return Ok(result);
+        return Ok(fallback);
+    }
+
+    /// <summary>
+    /// Finalize listened progress for a POI and update running average metrics.
+    /// mean_new = (n * mean_old + x_new) / (n + 1)
+    /// </summary>
+    [HttpPost("poi-listen-progress")]
+    [AllowAnonymous]
+    public async Task<ActionResult> UpdatePoiListenProgress([FromBody] PoiListenProgressRequest request)
+    {
+        if (request.POI_ID <= 0)
+            return BadRequest(new { message = "POI_ID must be greater than 0." });
+
+        var listenSeconds = Math.Round(Math.Max(0, request.ListenSeconds), 2);
+        if (listenSeconds <= 0)
+            return Ok(new { success = true, skipped = true, reason = "listen_seconds_non_positive" });
+
+        var playbackSessionId = request.PlaybackSessionId?.Trim();
+        if (!string.IsNullOrWhiteSpace(playbackSessionId))
+        {
+            var actorUserId =
+                !string.IsNullOrWhiteSpace(request.SessionId) ? request.SessionId!.Trim() :
+                !string.IsNullOrWhiteSpace(request.DeviceId) ? request.DeviceId!.Trim() :
+                "anonymous";
+
+            var idempotencyKey = $"poi-listen-progress:{playbackSessionId}";
+            var idempotency = new SubmissionIdempotency
+            {
+                IdempotencyKey = idempotencyKey,
+                ActorUserId = actorUserId,
+                TargetType = "poi_listen_progress",
+                TargetHash = $"{request.POI_ID}:{listenSeconds:0.00}",
+                ResponsePoiId = request.POI_ID,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            try
+            {
+                await _db.SubmissionIdempotencies.InsertOneAsync(idempotency);
+            }
+            catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    duplicate = true,
+                    poiId = request.POI_ID,
+                    listenedSeconds = listenSeconds
+                });
+            }
+        }
+
+        var poi = await _db.POIs
+            .Find(p => p.POI_ID == request.POI_ID && p.DeletedAt == null)
+            .FirstOrDefaultAsync();
+
+        if (poi == null)
+            return NotFound(new { message = "POI not found" });
+
+        var oldCount = Math.Max(0, poi.PlayCount);
+        var oldMean = Math.Max(0, poi.MeanPlay);
+        var newCount = oldCount + 1;
+        var newMean = ((oldCount * oldMean) + listenSeconds) / newCount;
+
+        var update = Builders<POI>.Update
+            .Set(p => p.PlayCount, newCount)
+            .Set(p => p.MeanPlay, newMean)
+            .Set(p => p.UpdatedAt, DateTime.UtcNow);
+
+        await _db.POIs.UpdateOneAsync(p => p.POI_ID == request.POI_ID && p.DeletedAt == null, update);
+
+        return Ok(new
+        {
+            success = true,
+            poiId = request.POI_ID,
+            playCount = newCount,
+            meanPlay = Math.Round(newMean, 2),
+            totalListenSeconds = Math.Round(newCount * newMean, 2),
+            listenedSeconds = listenSeconds,
+            source = string.IsNullOrWhiteSpace(request.Source) ? "unknown" : request.Source
+        });
     }
 
     /// <summary>
@@ -481,4 +602,28 @@ public class TopPOIDto
     public int POI_ID { get; set; }
     public string POIName { get; set; } = string.Empty;
     public int ViewCount { get; set; }
+    public long PlayCount { get; set; }
+    public double MeanPlay { get; set; }
+    public double TotalListenSeconds { get; set; }
+}
+
+public class PoiListenProgressRequest
+{
+    [Required]
+    public int POI_ID { get; set; }
+
+    [Range(0, 60 * 60 * 6)]
+    public double ListenSeconds { get; set; }
+
+    [MaxLength(120)]
+    public string? SessionId { get; set; }
+
+    [MaxLength(120)]
+    public string? DeviceId { get; set; }
+
+    [MaxLength(120)]
+    public string? PlaybackSessionId { get; set; }
+
+    [MaxLength(40)]
+    public string? Source { get; set; }
 }

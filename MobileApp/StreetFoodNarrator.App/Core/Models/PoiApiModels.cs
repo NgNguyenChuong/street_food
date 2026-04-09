@@ -44,6 +44,8 @@ public class PoiDto
     public string? PhoneNumber { get; set; }
     public decimal? AveragePrice { get; set; }
     public double? Rating { get; set; }
+    public long PlayCount { get; set; }
+    public double MeanPlay { get; set; }
     public int? PriceLevel { get; set; }
     public string? ImageUrl { get; set; }
     public string? FunFact { get; set; }

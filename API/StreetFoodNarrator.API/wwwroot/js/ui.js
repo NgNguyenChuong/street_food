@@ -102,9 +102,9 @@ function deviceStatusBadge(s) {
 }
 
 function platformBadge(p) {
-  if (p==='android') return '<span class="badge b-green">🤖 Android</span>';
-  if (p==='ios') return '<span class="badge b-blue">🍎 iOS</span>';
-  return '<span class="badge b-gray">—</span>';
+  const platform = String(p || '').toLowerCase();
+  if (platform.includes('android')) return '<span class="badge b-green">🤖 Android</span>';
+  return '<span class="badge b-green">🤖 Android</span>';
 }
 
 function langFlag(l) {
