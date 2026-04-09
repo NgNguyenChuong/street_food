@@ -1,5 +1,6 @@
 using StreetFoodNarrator.App.ViewModels;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Core.Utils;
 using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 
@@ -8,12 +9,14 @@ namespace StreetFoodNarrator.App.Views;
 public partial class SavedPage : ContentPage
 {
     public const string OpenBrowseSegmentOnNextAppearKey = "saved_open_browse_segment_once";
+    public const string PendingQrTourIdOnNextAppearKey = "saved_pending_qr_tour_id_once";
 
     private readonly MainViewModel _vm;
     private readonly LanguageService _languageService;
     private bool _isBrowseSegment = false;
     private StreetFoodNarrator.App.Views.Components.TabMenuView? _browseContent;
     private bool _isDataWarmupRunning;
+    private bool _isOpeningPendingQrTour;
     private DateTime _lastDataWarmupUtc = DateTime.MinValue;
     private static readonly TimeSpan DataWarmupCooldown = TimeSpan.FromSeconds(8);
 
@@ -43,6 +46,8 @@ public partial class SavedPage : ContentPage
             SwitchToBrowseSegment();
         }
 
+        _ = HandlePendingQrTourOpenAsync();
+
         ApplyLocalizedTexts();
     }
 
@@ -64,6 +69,14 @@ public partial class SavedPage : ContentPage
         HeaderLanguageButton.Text = LanguageSwitcher.GetHeaderLabel(_languageService.CurrentLanguage);
         OfflineBannerLabel.Text = AppStrings.Get("Offline_Banner_Short");
     }
+
+    private string Ui(string vi, string en, string? zh = null)
+        => _languageService.CurrentLanguage switch
+        {
+            "en" => en,
+            "zh" => zh ?? en,
+            _ => vi
+        };
 
     private async void OnHeaderLanguageClicked(object sender, EventArgs e)
     {
@@ -170,6 +183,76 @@ public partial class SavedPage : ContentPage
         {
             _lastDataWarmupUtc = DateTime.UtcNow;
             _isDataWarmupRunning = false;
+        }
+    }
+
+    private async Task HandlePendingQrTourOpenAsync()
+    {
+        if (_isOpeningPendingQrTour)
+            return;
+
+        var pendingTourId = Preferences.Get(PendingQrTourIdOnNextAppearKey, string.Empty)?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(pendingTourId))
+        {
+            var rawUrl = QrDeepLinkManager.ConsumePending();
+            if (!string.IsNullOrWhiteSpace(rawUrl) &&
+                QrDeepLinkManager.TryParse(rawUrl, out var payload, out _))
+            {
+                if (!string.IsNullOrWhiteSpace(payload.TourId))
+                {
+                    pendingTourId = payload.TourId.Trim();
+                }
+                else
+                {
+                    // Not a tour QR: put it back so MainPage can process its own flow.
+                    QrDeepLinkManager.SavePending(rawUrl);
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(pendingTourId))
+            return;
+
+        _isOpeningPendingQrTour = true;
+        Preferences.Remove(PendingQrTourIdOnNextAppearKey);
+
+        try
+        {
+            SwitchToBrowseSegment();
+            await EnsureSavedDataWarmupAsync();
+
+            // Force refresh so activation state from admin is respected for scanned QR.
+            await _vm.LoadToursAsync(forceSyncNow: true);
+
+            var tour = (_vm.AllTours ?? new()).FirstOrDefault(t =>
+                !string.IsNullOrWhiteSpace(t.Id) &&
+                string.Equals(t.Id.Trim(), pendingTourId, StringComparison.OrdinalIgnoreCase));
+
+            if (tour == null)
+            {
+                await CustomAlert.ShowAsync(
+                    Ui("Không có tour hoạt động", "No active tour", "没有可用行程"),
+                    Ui(
+                        "QR này không còn tour hoạt động. Có thể tour đã bị tắt hoặc chưa được phát hành.",
+                        "This QR no longer has an active tour. The tour may be disabled or not published.",
+                        "此二维码对应的行程当前不可用，可能已被停用或尚未发布。"),
+                    AppStrings.Get("Common_OK"),
+                    AlertType.Warning);
+                return;
+            }
+
+            if (Navigation.ModalStack.Any(p => p is TourDetailPopupPage))
+                return;
+
+            await Navigation.PushModalAsync(new TourDetailPopupPage(_vm, tour), false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SavedPage] HandlePendingQrTourOpenAsync error: {ex.Message}");
+        }
+        finally
+        {
+            _isOpeningPendingQrTour = false;
         }
     }
 }
