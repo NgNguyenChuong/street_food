@@ -88,6 +88,7 @@ public class ToursController : ControllerBase
                     Name     = p.Name_Vi,
                     Category = p.Category,
                     Address  = p.Address,
+                    IsActive = p.IsActive,
                     Latitude  = p.Location?.Latitude,
                     Longitude = p.Location?.Longitude
                 } : null)
@@ -361,6 +362,7 @@ public class TourPoiDto
     public string Name { get; set; } = string.Empty;
     public string? Category { get; set; }
     public string? Address { get; set; }
+    public bool IsActive { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
 }

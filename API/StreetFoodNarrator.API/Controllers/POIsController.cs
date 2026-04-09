@@ -52,7 +52,14 @@ public class POIsController : ControllerBase
         [FromQuery] string? category = null,
         [FromQuery] string? reviewStatus = null)
     {
-        var filter = Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
+        var isAuthenticated = User.Identity?.IsAuthenticated == true;
+        var isAdminRole = isAuthenticated && User.IsInRole("Admin");
+        var isVendorRole = isAuthenticated && User.IsInRole("Vendor");
+
+        // Admin can see permanently closed POIs; other roles only see non-deleted rows.
+        var filter = isAdminRole
+            ? Builders<POI>.Filter.Empty
+            : Builders<POI>.Filter.Eq(p => p.DeletedAt, null);
 
         // Search filter
         if (!string.IsNullOrEmpty(search))
@@ -81,7 +88,7 @@ public class POIsController : ControllerBase
         }
 
         // Vendor scoping: authenticated vendor only sees their own POIs
-        if (User.Identity?.IsAuthenticated == true && User.IsInRole("Vendor"))
+        if (isVendorRole)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
@@ -105,7 +112,7 @@ public class POIsController : ControllerBase
                 filter &= Builders<POI>.Filter.Eq(p => p.VendorId, vendor.VendorId);
             }
         }
-        else if (User.Identity?.IsAuthenticated != true)
+        else if (!isAuthenticated)
         {
             // Public users can only see approved and active POIs.
             filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
@@ -380,6 +387,8 @@ public class POIsController : ControllerBase
             Latitude = (decimal)(p.Location?.Latitude ?? 0),
             Longitude = (decimal)(p.Location?.Longitude ?? 0),
             IsActive = p.IsActive,
+            IsDeleted = p.IsDeleted,
+            DeletedAt = p.DeletedAt,
             CreatedAt = p.CreatedAt,
             AudioCount = audioCountMap.TryGetValue(p.POI_ID, out var count) ? (int)count : 0,
             VendorId = p.VendorId,
@@ -416,7 +425,12 @@ public class POIsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<POI>> GetPOI(int id)
     {
-        var poi = await _db.POIs.Find(p => p.POI_ID == id && p.DeletedAt == null).FirstOrDefaultAsync();
+        var isAuthenticated = User.Identity?.IsAuthenticated == true;
+        var isAdmin = isAuthenticated && User.IsInRole("Admin");
+
+        var poi = isAdmin
+            ? await _db.POIs.Find(p => p.POI_ID == id).FirstOrDefaultAsync()
+            : await _db.POIs.Find(p => p.POI_ID == id && p.DeletedAt == null).FirstOrDefaultAsync();
 
         if (poi == null)
         {
@@ -1381,6 +1395,8 @@ public class POIDto
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
     public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public int AudioCount { get; set; }
     public int? VendorId { get; set; }

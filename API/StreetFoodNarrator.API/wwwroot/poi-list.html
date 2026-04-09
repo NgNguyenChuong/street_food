@@ -465,6 +465,10 @@
 
     if (isVendor) document.body.classList.add('is-vendor');
     if (isAdmin) document.body.classList.add('is-admin');
+    const statusFilterEl = document.getElementById('statusFilter');
+    if (statusFilterEl && isAdmin) {
+        statusFilterEl.insertAdjacentHTML('beforeend', '<option value="closed">Đóng cửa vĩnh viễn</option>');
+    }
     const scoreOrAudioHeader = document.getElementById('scoreOrAudioHeader');
     if (scoreOrAudioHeader && isVendor) scoreOrAudioHeader.textContent = 'AUDIO';
 
@@ -529,10 +533,26 @@
 
     function formatReviewBadge(poi) {
         const review = (poi.reviewStatus || poi.ReviewStatus || 'approved').toLowerCase();
+        const isDeleted = !!(poi.isDeleted ?? poi.IsDeleted ?? poi.deletedAt ?? poi.DeletedAt);
         const isActive = !!(poi.isActive ?? poi.IsActive);
+        if (isDeleted) {
+            return `<span class="status-badge inactive" style="background:rgba(127,29,29,0.12);color:#991B1B;border:1px solid rgba(127,29,29,0.35);"><span class="status-dot inactive" style="background:#991B1B;"></span>Đóng cửa vĩnh viễn</span>`;
+        }
         if (review === 'pending') return `<span class="status-badge" style="background:rgba(249,115,22,0.12);color:#C2410C;border:1px solid rgba(249,115,22,0.4);"><span class="status-dot" style="background:#F97316;animation:none;"></span>Chờ duyệt</span>`;
         if (review === 'rejected') return `<span class="status-badge inactive"><span class="status-dot inactive"></span>Từ chối</span>`;
         return `<span class="status-badge ${isActive ? 'active' : 'inactive'}"><span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>${isActive ? 'Hoạt động' : '⏸ Tạm dừng'}</span>`;
+    }
+
+    function isPermanentlyClosed(poi) {
+        return !!(poi?.isDeleted ?? poi?.IsDeleted ?? poi?.deletedAt ?? poi?.DeletedAt);
+    }
+
+    function applyStatusClientFilter(list, status) {
+        const src = Array.isArray(list) ? list : [];
+        if (status === 'closed') return src.filter(isPermanentlyClosed);
+        if (status === 'active') return src.filter(p => !isPermanentlyClosed(p) && !!(p.isActive ?? p.IsActive));
+        if (status === 'inactive') return src.filter(p => !isPermanentlyClosed(p) && !(p.isActive ?? p.IsActive));
+        return src;
     }
 
     function sortPois(list, key) {
@@ -593,7 +613,7 @@
                         <div style="width:1px;background:var(--border);margin:0 2px;height:20px;"></div>
                         ` : ''}
                         <button class="btn-icon view" onclick="viewPOI(${poi.poI_ID})" title="Xem"><i class="fas fa-eye"></i></button>
-                        <button class="btn-icon edit" onclick="editPOI(${poi.poI_ID})" title="Sửa"><i class="fas fa-edit"></i></button>
+                        ${isPermanentlyClosed(poi) ? '' : `<button class="btn-icon edit" onclick="editPOI(${poi.poI_ID})" title="Sửa"><i class="fas fa-edit"></i></button>`}
                     </div>
                 </td>
             </tr>
@@ -625,8 +645,10 @@
         if (typeof api === 'undefined') return;
         try {
             document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i><p style="margin-top:1rem;color:#999;">Đang tải...</p></td></tr>`;
-            const raw = await api.getPOIs(1, 5000, currentSearch, currentStatus, currentCategory, currentReviewStatus);
-            const sorted = sortPois(raw.data || [], currentSort);
+            const statusApiParam = currentStatus === 'active' ? true : currentStatus === 'inactive' ? false : null;
+            const raw = await api.getPOIs(1, 5000, currentSearch, statusApiParam, currentCategory, currentReviewStatus);
+            const statusFiltered = applyStatusClientFilter(raw.data || [], currentStatus);
+            const sorted = sortPois(statusFiltered, currentSort);
             const total = sorted.length;
             const totalPages = Math.max(1, Math.ceil(total / currentPageSize));
             currentPage = Math.min(Math.max(1, currentPage), totalPages);
@@ -667,7 +689,7 @@
         currentCategory = document.getElementById('categoryFilter').value || null;
         currentSort = document.getElementById('sortFilter').value || 'newest';
         currentReviewStatus = document.getElementById('reviewFilter')?.value || null;
-        currentStatus = sv === 'active' ? true : sv === 'inactive' ? false : null;
+        currentStatus = sv || null;
         currentPage = 1;
         loadPOIs();
     }
@@ -680,7 +702,7 @@
     }
 
     function filterByActive(status) {
-        currentStatus = status === 'active' ? true : status === 'inactive' ? false : null;
+        currentStatus = status || null;
         const el = document.getElementById('statusFilter');
         if (el) el.value = status || '';
         currentPage = 1; loadPOIs();
