@@ -47,11 +47,22 @@
                            TextColor="#D8E6DF"
                            CharacterSpacing="0.3"/>
 
-                    <BoxView Grid.Column="2"
-                             WidthRequest="44"
-                             HeightRequest="44"
-                             Opacity="0"
-                             InputTransparent="True"/>
+                    <Border Grid.Column="2"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            StrokeThickness="0"
+                            BackgroundColor="#16221E"
+                            StrokeShape="RoundRectangle 22">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHeaderLanguageTapped"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="{Binding Source={x:Reference Root}, Path=HeaderLanguageText}"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#4BE277"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"/>
+                    </Border>
                 </Grid>
 
                 <!-- SECTION 1b: Proximity Banner — shown when user is near / in food area -->

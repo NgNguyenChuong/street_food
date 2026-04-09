@@ -391,14 +391,12 @@ public class DataSyncService
 
     private async Task SyncMenusAsync(IEnumerable<int> poiIds)
     {
-        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-
         foreach (var id in poiIds)
         {
             try
             {
                 var menuUrl = AppConfig.BuildApiUrl($"api/MenuItems?poiId={id}&page=1&pageSize=50");
-                var resp = await client.GetAsync(menuUrl);
+                var resp = await _http.GetAsync(menuUrl);
                 if (!resp.IsSuccessStatusCode)
                 {
                     System.Diagnostics.Debug.WriteLine($"[DataSync] Menu sync failed for POI {id}: {(int)resp.StatusCode}");

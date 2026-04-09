@@ -45,8 +45,8 @@ public static class AppConfig
       public static string EmulatorApiBaseUrl { get; set; } = "https://vexed-unsaturated-jovanni.ngrok-free.dev/";
 
         // ── Máy thật (Real Device): dùng IP LAN của PC chạy API
-        public static string DefaultRealDeviceApiUrl { get; set; } = "http://192.168.100.9:5004/";
-
+      //  public static string DefaultRealDeviceApiUrl { get; set; } = "http://192.168.100.9:5004/";
+    public static string DefaultRealDeviceApiUrl { get; set; } = "https://vexed-unsaturated-jovanni.ngrok-free.dev/";
     public const int NetworkTimeoutSeconds = 30;
     public static bool UseBackendApi { get; set; } = true;
     public const string DataVersionKey = "pois_data_version";

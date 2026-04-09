@@ -38,11 +38,12 @@
                                CascadeInputTransparent="False" />
 
         <Border x:Name="ExploreFarStateAdvanceButton"
-                AbsoluteLayout.LayoutBounds="1,0.62,-1,-1"
+                AbsoluteLayout.LayoutBounds="1,0.52,-1,-1"
                 AbsoluteLayout.LayoutFlags="PositionProportional"
                 Margin="0,0,14,0"
                 WidthRequest="50"
                 HeightRequest="50"
+                ZIndex="9400"
                 IsVisible="False"
                 BackgroundColor="#173326"
                 Stroke="#2A5A44"

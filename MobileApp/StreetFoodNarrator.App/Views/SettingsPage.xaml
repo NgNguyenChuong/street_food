@@ -76,15 +76,26 @@
                                    FontSize="12"
                                    TextColor="#64748B"
                                    CharacterSpacing="1" />
-                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,2">
+                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,10">
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="10" />
                                 </Border.StrokeShape>
-                                <Picker x:Name="LanguagePicker"
-                                        Title="Chọn ngôn ngữ"
-                                        TextColor="White"
-                                        TitleColor="#64748B"
-                                        SelectedIndexChanged="OnLanguagePickerChanged" />
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label x:Name="LanguageValueLabel"
+                                           Text="VI - Tiếng Việt"
+                                           FontSize="14"
+                                           TextColor="White"
+                                           VerticalTextAlignment="Center" />
+                                    <Label Grid.Column="1"
+                                           Text="&#xF0142;"
+                                           FontFamily="MDI"
+                                           FontSize="16"
+                                           TextColor="#64748B"
+                                           VerticalTextAlignment="Center" />
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnLanguageSelectionTapped" />
+                                </Border.GestureRecognizers>
                             </Border>
                         </VerticalStackLayout>
 
@@ -100,15 +111,26 @@
                                    Text="Chọn GPS thật hoặc GPS giả lập khi test"
                                    FontSize="12"
                                    TextColor="#64748B" />
-                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,2">
+                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,10">
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="10" />
                                 </Border.StrokeShape>
-                                <Picker x:Name="LocationSourcePicker"
-                                        Title="Chọn nguồn vị trí"
-                                        TextColor="White"
-                                        TitleColor="#64748B"
-                                        SelectedIndexChanged="OnLocationSourceChanged" />
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label x:Name="LocationSourceValueLabel"
+                                           Text="GPS thật (mặc định)"
+                                           FontSize="14"
+                                           TextColor="White"
+                                           VerticalTextAlignment="Center" />
+                                    <Label Grid.Column="1"
+                                           Text="&#xF0142;"
+                                           FontFamily="MDI"
+                                           FontSize="16"
+                                           TextColor="#64748B"
+                                           VerticalTextAlignment="Center" />
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnLocationSourceSelectionTapped" />
+                                </Border.GestureRecognizers>
                             </Border>
                         </VerticalStackLayout>
 
@@ -367,32 +389,6 @@
                                     VerticalOptions="Center" />
                         </Grid>
 
-                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
-
-                        <VerticalStackLayout Spacing="8">
-                            <Label x:Name="AudioPlaybackTitleLabel"
-                                Text="Chế độ phát audio"
-                                   FontSize="14"
-                                   FontAttributes="Bold"
-                                   TextColor="White" />
-                            <Label x:Name="AudioPlaybackSubtitleLabel"
-                                Text="Tự động hoặc phát trực tuyến"
-                                   FontSize="12"
-                                   TextColor="#64748B" />
-                            <Border Stroke="#1E3D2A" StrokeThickness="1" BackgroundColor="#1A2925" Padding="12,2">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="10" />
-                                </Border.StrokeShape>
-                                <Picker x:Name="AudioPlaybackModePicker"
-                                        Title="Chọn chế độ"
-                                        TextColor="White"
-                                        TitleColor="#64748B"
-                                        SelectedIndexChanged="OnAudioPlaybackModeChanged" />
-                            </Border>
-                        </VerticalStackLayout>
-
-                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
-
                         <VerticalStackLayout Spacing="8">
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label x:Name="VolumeTitleLabel"
@@ -418,44 +414,6 @@
                                     ValueChanged="OnVolumeChanged" />
                         </VerticalStackLayout>
 
-                        <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />
-
-                        <VerticalStackLayout Spacing="8">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label x:Name="SensitivityTitleLabel"
-                                       Text="Độ nhạy vị trí"
-                                       FontSize="14"
-                                       FontAttributes="Bold"
-                                       TextColor="White" />
-                                <Label x:Name="SensitivityValueLabel"
-                                       Grid.Column="1"
-                                       Text="40m"
-                                       FontSize="13"
-                                       FontAttributes="Bold"
-                                       TextColor="#22C55E"
-                                       VerticalTextAlignment="Center" />
-                            </Grid>
-                            <Slider x:Name="SensitivitySlider"
-                                    Minimum="0"
-                                    Maximum="100"
-                                    Value="40"
-                                    MinimumTrackColor="#22C55E"
-                                    MaximumTrackColor="#1E3D2A"
-                                    ThumbColor="#22C55E"
-                                    ValueChanged="OnSensitivityChanged" />
-                            <Grid ColumnDefinitions="*,*">
-                                <Label x:Name="SensitivityLeftLabel"
-                                       Text="Mượt hơn"
-                                       FontSize="11"
-                                       TextColor="#64748B" />
-                                <Label Grid.Column="1"
-                                       x:Name="SensitivityRightLabel"
-                                       Text="Chính xác hơn"
-                                       FontSize="11"
-                                       TextColor="#64748B"
-                                       HorizontalTextAlignment="End" />
-                            </Grid>
-                        </VerticalStackLayout>
                     </VerticalStackLayout>
                 </Border>
 

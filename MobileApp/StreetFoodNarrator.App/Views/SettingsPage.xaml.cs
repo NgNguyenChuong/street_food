@@ -23,9 +23,6 @@ public partial class SettingsPage : ContentPage
 
     private UserSettings? _settings;
     private bool _isVoicePickerExpanded;
-    private bool _isLoadingPlaybackMode;
-    private bool _isLoadingLanguagePicker;
-    private bool _isLoadingLocationSourcePicker;
     private bool _isLoadingGpsTestModeSwitch;
     private bool _isApplyingControls;
     private bool _hasPendingChanges;
@@ -53,7 +50,6 @@ public partial class SettingsPage : ContentPage
         { "zh-CN-XiaoxiaoNeural", "zh-CN-XiaoxiaoNeural_welcome.mp3" }
     };
 
-    private readonly List<AudioPlaybackOption> _audioPlaybackOptions = new();
     private readonly List<LocationSourceOption> _locationSourceOptions = new();
 
     private IAudioPlayer? _demoPlayer;
@@ -65,7 +61,6 @@ public partial class SettingsPage : ContentPage
         _ttsService = MauiProgram.Services.GetRequiredService<ITTSService>();
         _mainViewModel = MauiProgram.Services.GetService<MainViewModel>();
 
-        RefreshPlaybackModeOptions();
         RefreshLocationSourceOptions();
 
         LoadSettingsAndControls();
@@ -91,10 +86,11 @@ public partial class SettingsPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             _pendingLanguageCode = languageCode;
-            SetupLanguagePicker();
             ReloadUIStrings();
-            RefreshPlaybackModeOptions();
             RefreshLocationSourceOptions();
+            FilterVoicesByLanguage(_pendingLanguageCode);
+            VoiceListView.ItemsSource = _voices;
+            UpdateSelectedVoiceDisplay();
         });
     }
 
@@ -119,25 +115,6 @@ public partial class SettingsPage : ContentPage
             $"shu ju lai yuan: API ({resolvedBaseUrl}) | {locationSourceLabel}");
     }
 
-    private void RefreshPlaybackModeOptions()
-    {
-        var selectedMode = _settings?.TTS.AudioPlaybackMode?.Trim().ToLowerInvariant() ?? AudioPlaybackModes.Auto;
-
-        _audioPlaybackOptions.Clear();
-        _audioPlaybackOptions.Add(new AudioPlaybackOption(
-            AudioPlaybackModes.Auto,
-            Localize("Tự động (khuyên dùng)", "Auto (recommended)", "自动（推荐）")));
-        _audioPlaybackOptions.Add(new AudioPlaybackOption(
-            AudioPlaybackModes.Stream,
-            Localize("Phát trực tuyến khi có mạng", "Stream when online", "联网时在线播放")));
-
-        _isLoadingPlaybackMode = true;
-        AudioPlaybackModePicker.ItemsSource = _audioPlaybackOptions.Select(o => o.Label).ToList();
-        var selectedIndex = _audioPlaybackOptions.FindIndex(o => o.Mode == selectedMode);
-        AudioPlaybackModePicker.SelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
-        _isLoadingPlaybackMode = false;
-    }
-
     private void LoadSettingsAndControls()
     {
         _isApplyingControls = true;
@@ -147,8 +124,9 @@ public partial class SettingsPage : ContentPage
         if (!string.Equals(_pendingLocationSourceMode, AppConfig.LocationSourceSimulated, StringComparison.OrdinalIgnoreCase))
             _pendingLocationSourceMode = AppConfig.LocationSourceReal;
 
-        SetupLanguagePicker();
-        SetupLocationSourcePicker();
+        RefreshLocationSourceOptions();
+        RefreshLanguageSelectionLabel();
+        RefreshLocationSourceSelectionLabel();
         ApplySettingsToControls();
         ApplyUserPreferencesToControls();
         SetupGpsTestModeControls();
@@ -225,23 +203,17 @@ public partial class SettingsPage : ContentPage
         };
     }
 
-    private void SetupLanguagePicker()
+    private void RefreshLanguageSelectionLabel()
     {
-        _isLoadingLanguagePicker = true;
-        LanguagePicker.ItemsSource = new List<string>
-        {
-            "Tiếng Việt",
-            "English",
-            "中文"
-        };
+        if (LanguageValueLabel == null)
+            return;
 
-        LanguagePicker.SelectedIndex = _pendingLanguageCode switch
+        LanguageValueLabel.Text = _pendingLanguageCode switch
         {
-            "en" => 1,
-            "zh" => 2,
-            _ => 0
+            "en" => "EN - English",
+            "zh" => "中 - 中文",
+            _ => "VI - Tiếng Việt"
         };
-        _isLoadingLanguagePicker = false;
     }
 
     private void RefreshLocationSourceOptions()
@@ -255,16 +227,17 @@ public partial class SettingsPage : ContentPage
             Localize("GPS giả lập", "Simulated GPS", "模拟 GPS")));
     }
 
-    private void SetupLocationSourcePicker()
+    private void RefreshLocationSourceSelectionLabel()
     {
-        RefreshLocationSourceOptions();
-        _isLoadingLocationSourcePicker = true;
-        LocationSourcePicker.ItemsSource = _locationSourceOptions.Select(x => x.Label).ToList();
+        if (LocationSourceValueLabel == null)
+            return;
 
-        var selectedIndex = _locationSourceOptions.FindIndex(x =>
+        var selected = _locationSourceOptions.FirstOrDefault(x =>
             string.Equals(x.Mode, _pendingLocationSourceMode, StringComparison.OrdinalIgnoreCase));
-        LocationSourcePicker.SelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
-        _isLoadingLocationSourcePicker = false;
+
+        LocationSourceValueLabel.Text = selected?.Label
+            ?? _locationSourceOptions.FirstOrDefault()?.Label
+            ?? Localize("GPS thật", "Real GPS", "真实 GPS");
     }
 
     private void ApplySettingsToControls()
@@ -275,21 +248,7 @@ public partial class SettingsPage : ContentPage
         VolumeSlider.Value = _settings.TTS.Volume;
         VolumeValueLabel.Text = $"{_settings.TTS.Volume}%";
 
-        SensitivitySlider.Value = _settings.Location.SensitivityRadius;
-        SensitivityValueLabel.Text = $"{_settings.Location.SensitivityRadius}m";
-
         AutoPlaySwitch.IsToggled = _settings.TTS.AutoPlay;
-
-        var mode = string.IsNullOrWhiteSpace(_settings.TTS.AudioPlaybackMode)
-            ? AudioPlaybackModes.Auto
-            : _settings.TTS.AudioPlaybackMode.Trim().ToLowerInvariant();
-
-        var idx = _audioPlaybackOptions.FindIndex(x => x.Mode == mode);
-        if (idx < 0) idx = 0;
-
-        _isLoadingPlaybackMode = true;
-        AudioPlaybackModePicker.SelectedIndex = idx;
-        _isLoadingPlaybackMode = false;
     }
 
     private void ApplyUserPreferencesToControls()
@@ -391,29 +350,14 @@ public partial class SettingsPage : ContentPage
 
         _settings.TTS.AutoPlay = AutoPlaySwitch.IsToggled;
         _settings.TTS.Volume = (int)Math.Round(VolumeSlider.Value);
-        _settings.Location.SensitivityRadius = (int)Math.Round(SensitivitySlider.Value);
-
-        var modeIndex = AudioPlaybackModePicker.SelectedIndex;
-        if (modeIndex >= 0 && modeIndex < _audioPlaybackOptions.Count)
-            _settings.TTS.AudioPlaybackMode = _audioPlaybackOptions[modeIndex].Mode;
-
-        if (LanguagePicker.SelectedIndex >= 0)
-        {
-            _pendingLanguageCode = LanguagePicker.SelectedIndex switch
-            {
-                1 => "en",
-                2 => "zh",
-                _ => "vi"
-            };
-        }
 
         _languageService.ApplyLanguage(_pendingLanguageCode);
-        var sourceIndex = LocationSourcePicker.SelectedIndex;
-        if (sourceIndex >= 0 && sourceIndex < _locationSourceOptions.Count)
-            _pendingLocationSourceMode = _locationSourceOptions[sourceIndex].Mode;
 
         if (GpsTestModeSwitch.IsToggled)
+        {
             _pendingLocationSourceMode = AppConfig.LocationSourceReal;
+            RefreshLocationSourceSelectionLabel();
+        }
 
         Preferences.Set(AppConfig.LocationSourceModePrefKey, _pendingLocationSourceMode);
         Preferences.Set(AppConfig.GpsTestModeEnabledPrefKey, GpsTestModeSwitch.IsToggled);
@@ -432,52 +376,60 @@ public partial class SettingsPage : ContentPage
         _hasPendingChanges = false;
     }
 
-    private void OnLanguagePickerChanged(object sender, EventArgs e)
+    private async void OnHeaderLanguageClicked(object sender, EventArgs e)
     {
-        if (_isApplyingControls || _isLoadingLanguagePicker || LanguagePicker.SelectedIndex < 0)
+        await ApplyLanguageSelectionAsync();
+    }
+
+    private async void OnLanguageSelectionTapped(object sender, EventArgs e)
+    {
+        await ApplyLanguageSelectionAsync();
+    }
+
+    private async Task ApplyLanguageSelectionAsync()
+    {
+        if (_isApplyingControls)
             return;
 
-        _pendingLanguageCode = LanguagePicker.SelectedIndex switch
-        {
-            1 => "en",
-            2 => "zh",
-            _ => "vi"
-        };
+        var selected = await LanguageSwitcher.ShowLanguagePickerAsync(this, _languageService);
+        if (string.Equals(selected, _pendingLanguageCode, StringComparison.OrdinalIgnoreCase))
+            return;
 
+        _pendingLanguageCode = selected;
         SwitchVoiceForLanguage(_pendingLanguageCode);
         _hasPendingChanges = true;
-        _languageService.ApplyLanguage(_pendingLanguageCode);
-        ReloadUIStrings();
-        RefreshPlaybackModeOptions();
         RefreshLocationSourceOptions();
-        SetupLocationSourcePicker();
+        ReloadUIStrings();
     }
 
-    private void OnHeaderLanguageClicked(object sender, EventArgs e)
+    private async void OnLocationSourceSelectionTapped(object sender, EventArgs e)
     {
-        var next = LanguageSwitcher.GetNextLanguageCode(_pendingLanguageCode);
-        var idx = next switch
-        {
-            "en" => 1,
-            "zh" => 2,
-            _ => 0
-        };
-
-        LanguagePicker.SelectedIndex = idx;
-    }
-
-    private void OnLocationSourceChanged(object sender, EventArgs e)
-    {
-        if (_isApplyingControls || _isLoadingLocationSourcePicker || LocationSourcePicker.SelectedIndex < 0)
+        if (_isApplyingControls)
             return;
 
-        var idx = LocationSourcePicker.SelectedIndex;
-        if (idx >= 0 && idx < _locationSourceOptions.Count)
-        {
-            _pendingLocationSourceMode = _locationSourceOptions[idx].Mode;
-            _hasPendingChanges = true;
-            FooterPolicyLabel.Text = BuildDataSourceFooterText();
-        }
+        var currentIndex = _locationSourceOptions.FindIndex(x =>
+            string.Equals(x.Mode, _pendingLocationSourceMode, StringComparison.OrdinalIgnoreCase));
+        if (currentIndex < 0)
+            currentIndex = 0;
+
+        var selectedIndex = await CustomAlert.ShowSelectionAsync(
+            title: Localize("Chọn nguồn vị trí", "Choose location source", "选择定位来源"),
+            options: _locationSourceOptions.Select(x => x.Label).ToList(),
+            selectedIndex: currentIndex,
+            cancelText: Localize("Hủy", "Cancel", "取消"),
+            hostPage: this);
+
+        if (!selectedIndex.HasValue || selectedIndex.Value < 0 || selectedIndex.Value >= _locationSourceOptions.Count)
+            return;
+
+        var selectedMode = _locationSourceOptions[selectedIndex.Value].Mode;
+        if (string.Equals(selectedMode, _pendingLocationSourceMode, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _pendingLocationSourceMode = selectedMode;
+        RefreshLocationSourceSelectionLabel();
+        _hasPendingChanges = true;
+        FooterPolicyLabel.Text = BuildDataSourceFooterText();
     }
 
     private void OnGpsTestModeToggled(object sender, ToggledEventArgs e)
@@ -507,16 +459,8 @@ public partial class SettingsPage : ContentPage
                 _isLoadingGpsTestModeSwitch = false;
             }
 
-            var realIndex = _locationSourceOptions.FindIndex(x =>
-                string.Equals(x.Mode, AppConfig.LocationSourceReal, StringComparison.OrdinalIgnoreCase));
-            if (realIndex >= 0)
-            {
-                _isLoadingLocationSourcePicker = true;
-                LocationSourcePicker.SelectedIndex = realIndex;
-                _isLoadingLocationSourcePicker = false;
-            }
-
             _pendingLocationSourceMode = AppConfig.LocationSourceReal;
+            RefreshLocationSourceSelectionLabel();
             _hasPendingChanges = true;
 
             await SaveAllPreferencesFromControlsAsync();
@@ -803,10 +747,9 @@ public partial class SettingsPage : ContentPage
 
             _languageService.ApplyLanguage(_pendingLanguageCode);
 
-            SetupLanguagePicker();
-            RefreshPlaybackModeOptions();
             RefreshLocationSourceOptions();
-            SetupLocationSourcePicker();
+            RefreshLanguageSelectionLabel();
+            RefreshLocationSourceSelectionLabel();
             ApplySettingsToControls();
             ApplyUserPreferencesToControls();
             SetupGpsTestModeControls();
@@ -876,17 +819,12 @@ public partial class SettingsPage : ContentPage
         AutoPlayTitleLabel.Text = AppStrings.Settings_AutoPlay;
         AutoPlaySubtitleLabel.Text = AppStrings.Settings_AutoPlayDesc;
         VolumeTitleLabel.Text = AppStrings.Settings_VolumeShort;
-        SensitivityTitleLabel.Text = AppStrings.Settings_SensitivityShort;
-        SensitivityLeftLabel.Text = Localize("Mượt hơn", "Smoother", "更平滑");
-        SensitivityRightLabel.Text = Localize("Chính xác hơn", "More precise", "更精准");
         HapticTitleLabel.Text = Localize("Rung phản hồi", "Haptic feedback", "触觉反馈");
         HapticSubtitleLabel.Text = Localize("Rung nhẹ khi thao tác chính", "Light vibration for key actions", "关键操作时轻微振动");
         KeepScreenOnTitleLabel.Text = Localize("Giữ màn hình sáng", "Keep screen on", "保持屏幕常亮");
         KeepScreenOnSubtitleLabel.Text = Localize("Không tắt màn hình khi đang dùng app", "Prevent screen sleep while using app", "使用应用时不自动熄屏");
         LargeTextTitleLabel.Text = Localize("Văn bản lớn", "Large text", "大号文字");
         LargeTextSubtitleLabel.Text = Localize("Ưu tiên cỡ chữ lớn hơn cho dễ đọc", "Prefer larger text for readability", "优先使用更大字号便于阅读");
-        AudioPlaybackTitleLabel.Text = Localize("Chế độ phát audio", "Audio playback mode", "音频播放模式");
-        AudioPlaybackSubtitleLabel.Text = Localize("Tự động hoặc phát trực tuyến", "Automatic or streaming playback", "自动或流式播放");
         LogoutTitleLabel.Text = Localize("Đăng xuất", "Log out", "退出登录");
         LogoutSubtitleLabel.Text = Localize("Thoát khỏi phiên hiện tại và đóng ứng dụng", "Exit current session and close app", "退出当前会话并关闭应用");
         LogoutButton.Text = Localize("Đăng xuất", "Log out", "退出登录");
@@ -907,9 +845,8 @@ public partial class SettingsPage : ContentPage
             "Test coordinate: 10.842598, 106.608742",
             "ce shi zuo biao: 10.842598, 106.608742");
         UpdateGpsTestModeActionButtonText();
-        LanguagePicker.Title = Localize("Chọn ngôn ngữ", "Choose language", "选择语言");
-        LocationSourcePicker.Title = Localize("Chọn nguồn vị trí", "Choose location source", "选择定位来源");
-        AudioPlaybackModePicker.Title = Localize("Chọn chế độ", "Choose mode", "选择模式");
+        RefreshLanguageSelectionLabel();
+        RefreshLocationSourceSelectionLabel();
         DefaultBackButton.Text = Localize("Khôi phục mặc định", "Restore defaults", "恢复默认设置");
         SaveSettingsButton.Text = Localize("Lưu thay đổi", "Save changes", "保存更改");
     }
@@ -988,19 +925,6 @@ public partial class SettingsPage : ContentPage
         _hasPendingChanges = true;
     }
 
-    private void OnAudioPlaybackModeChanged(object sender, EventArgs e)
-    {
-        if (_isApplyingControls || _isLoadingPlaybackMode || _settings == null)
-            return;
-
-        var idx = AudioPlaybackModePicker.SelectedIndex;
-        if (idx < 0 || idx >= _audioPlaybackOptions.Count)
-            return;
-
-        _settings.TTS.AudioPlaybackMode = _audioPlaybackOptions[idx].Mode;
-        _hasPendingChanges = true;
-    }
-
     private void OnVolumeChanged(object sender, ValueChangedEventArgs e)
     {
         if (_isApplyingControls || _settings == null)
@@ -1009,17 +933,6 @@ public partial class SettingsPage : ContentPage
         var value = (int)e.NewValue;
         VolumeValueLabel.Text = $"{value}%";
         _settings.TTS.Volume = value;
-        _hasPendingChanges = true;
-    }
-
-    private void OnSensitivityChanged(object sender, ValueChangedEventArgs e)
-    {
-        if (_isApplyingControls || _settings == null)
-            return;
-
-        var value = (int)e.NewValue;
-        SensitivityValueLabel.Text = $"{value}m";
-        _settings.Location.SensitivityRadius = value;
         _hasPendingChanges = true;
     }
 
@@ -1181,18 +1094,6 @@ public class VoiceItemViewModel : System.ComponentModel.INotifyPropertyChanged
     }
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
-}
-
-public class AudioPlaybackOption
-{
-    public string Mode { get; }
-    public string Label { get; }
-
-    public AudioPlaybackOption(string mode, string label)
-    {
-        Mode = mode;
-        Label = label;
-    }
 }
 
 public class LocationSourceOption

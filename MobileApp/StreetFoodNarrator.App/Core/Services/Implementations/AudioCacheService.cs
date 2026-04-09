@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace StreetFoodNarrator.App.Core.Services.Implementations;
@@ -10,24 +11,32 @@ namespace StreetFoodNarrator.App.Core.Services.Implementations;
 /// </summary>
 public class AudioCacheService : IAudioCacheService
 {
+    private static readonly TimeSpan CacheValidationInterval = TimeSpan.FromMinutes(2);
+
     private readonly HttpClient _http;
-    private readonly string _baseUrl;
     private readonly string _cacheDir;
+    private readonly string _metaFilePath;
 
     // Bộ nhớ trong — tránh gọi File.Exists() liên tục trên UI thread
     private readonly HashSet<string> _cachedKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _cachedSourceUrls = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _lastValidationUtc = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly object _validationSync = new();
+    private readonly HashSet<string> _validationInFlight = new(StringComparer.OrdinalIgnoreCase);
 
     public AudioCacheService(HttpClient httpClient)
     {
         _http    = httpClient;
-        _baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
         _cacheDir = Path.Combine(FileSystem.AppDataDirectory, "audio_cache");
+        _metaFilePath = Path.Combine(_cacheDir, "audio_cache_index.json");
         Directory.CreateDirectory(_cacheDir);
 
         // Lập chỉ mục file đã tồn tại lúc khởi động
         foreach (var file in Directory.EnumerateFiles(_cacheDir, "*.mp3"))
             _cachedKeys.Add(Path.GetFileNameWithoutExtension(file));
+
+        LoadCacheIndex();
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -85,12 +94,29 @@ public class AudioCacheService : IAudioCacheService
     {
         var key = CacheKey(poiId, language);
         var path = CachePath(key);
+        var hasCachedFile = File.Exists(path);
+        var networkAccess = Connectivity.Current.NetworkAccess;
 
-        if (File.Exists(path))
+        if (hasCachedFile)
+        {
+            if ((networkAccess == NetworkAccess.Internet || networkAccess == NetworkAccess.ConstrainedInternet) &&
+                ShouldValidateNow(key))
+            {
+                var refreshedNow = await TryRefreshCachedAudioNowAsync(
+                    poiId,
+                    language,
+                    key,
+                    networkAccess,
+                    ct);
+
+                if (!refreshedNow)
+                    QueueBackgroundValidation(poiId, language, key, networkAccess);
+            }
+
             return File.OpenRead(path);
+        }
 
         // Không có mạng thì không thể tải về mới.
-        var networkAccess = Connectivity.Current.NetworkAccess;
         if (networkAccess != NetworkAccess.Internet &&
             networkAccess != NetworkAccess.ConstrainedInternet)
         {
@@ -150,6 +176,10 @@ public class AudioCacheService : IAudioCacheService
             foreach (var file in Directory.EnumerateFiles(_cacheDir, "*.mp3"))
                 File.Delete(file);
             _cachedKeys.Clear();
+            _cachedSourceUrls.Clear();
+            _lastValidationUtc.Clear();
+            if (File.Exists(_metaFilePath))
+                File.Delete(_metaFilePath);
             Debug.WriteLine("[AudioCache] Đã xoá toàn bộ cache audio.");
         }
         finally { _lock.Release(); }
@@ -161,32 +191,52 @@ public class AudioCacheService : IAudioCacheService
         try
         {
             // Lấy tất cả audio đã published
-            var url = $"{_baseUrl}/api/audio?status=published&pageSize=500";
+            var url = $"{GetBaseUrl()}/api/audio?status=published&pageSize=500";
             var result = await _http.GetFromJsonAsync<AudioListResult>(url, ct);
             if (result?.Data == null) return 0;
 
             int newCount = 0;
+            var indexTouched = false;
             foreach (var audio in result.Data)
             {
                 if (string.IsNullOrWhiteSpace(audio.AudioUrl)) continue;
 
                 var lang = NormalizeLanguage(audio.Language);
+                var latestUrl = NormalizeAudioUrl(audio.AudioUrl);
 
                 // ⚠️ File cache được lưu theo poiId_lang.mp3, không phải AudioContentId_lang.mp3
                 // Nên phải dùng PoiId để build cache key cho đúng.
                 if (audio.PoiId <= 0) continue;
 
                 var key = CacheKey(audio.PoiId, lang);
-                if (!_cachedKeys.Contains(key))
+                var path = CachePath(key);
+                var hasFile = _cachedKeys.Contains(key) || File.Exists(path);
+                if (!hasFile)
                 {
-                    // Kiểm tra thêm bằng File.Exists để đảm bảo
-                    var path = CachePath(key);
-                    if (!File.Exists(path))
-                        newCount++;
-                    else
-                        _cachedKeys.Add(key); // Cập nhật lại in-memory set nếu file đã có
+                    newCount++;
+                    continue;
                 }
+
+                _cachedKeys.Add(key);
+                if (string.IsNullOrWhiteSpace(GetCachedSourceUrl(key)))
+                {
+                    // Legacy cache with no source metadata -> do not count as update yet.
+                    // The first playback/preload validation will force-refresh safely.
+                    continue;
+                }
+
+                if (!string.Equals(GetCachedSourceUrl(key), latestUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    newCount++;
+                    continue;
+                }
+
+                _lastValidationUtc[key] = DateTime.UtcNow;
+                indexTouched = true;
             }
+
+            if (indexTouched)
+                PersistCacheIndex();
 
             Debug.WriteLine($"[AudioCache] Kiểm tra cập nhật: {newCount} audio mới chưa tải.");
             return newCount;
@@ -212,7 +262,7 @@ public class AudioCacheService : IAudioCacheService
         try
         {
             // Call endpoint mới để lấy chính xác 1 audio
-            var url = $"{_baseUrl}/api/audio/poi/{poiId}/{normalizedLang}";
+            var url = $"{GetBaseUrl()}/api/audio/poi/{poiId}/{normalizedLang}";
             var audio = await _http.GetFromJsonAsync<AudioDto>(url, ct);
 
             if (audio?.AudioUrl == null)
@@ -221,7 +271,7 @@ public class AudioCacheService : IAudioCacheService
             // Convert relative path to absolute URL
             var audioUrl = audio.AudioUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? audio.AudioUrl
-                : $"{_baseUrl}{audio.AudioUrl}";
+                : $"{GetBaseUrl()}{audio.AudioUrl}";
 
             Debug.WriteLine($"[AudioCache] 🌐 URL online: POI {poiId} ({normalizedLang}) → {audioUrl}");
             return audioUrl;
@@ -258,7 +308,7 @@ public class AudioCacheService : IAudioCacheService
             try
             {
                 // Dùng endpoint mới để lấy chính xác 1 audio cho POI + Language
-                var url = $"{_baseUrl}/api/audio/poi/{poiId}/{lang}";
+                var url = $"{GetBaseUrl()}/api/audio/poi/{poiId}/{lang}";
                 var audio = await _http.GetFromJsonAsync<AudioDto>(url, ct);
                 
                 if (audio == null || string.IsNullOrWhiteSpace(audio.AudioUrl))
@@ -266,12 +316,15 @@ public class AudioCacheService : IAudioCacheService
 
                 var normalizedLang = NormalizeLanguage(lang);
                 var key = CacheKey(poiId, normalizedLang);
+                var latestUrl = NormalizeAudioUrl(audio.AudioUrl);
+                var path = CachePath(key);
                 
-                // Download nếu chưa có trong cache
-                if (!_cachedKeys.Contains(key))
+                // Download if file missing or source URL has changed.
+                if (!_cachedKeys.Contains(key) || !File.Exists(path) ||
+                    !string.Equals(GetCachedSourceUrl(key), latestUrl, StringComparison.OrdinalIgnoreCase))
                 {
-                    await DownloadAndSaveAsync(audio.AudioUrl, key, ct);
-                    Debug.WriteLine($"[AudioCache] ✅ Tải về POI {poiId} ({normalizedLang})");
+                    await DownloadAndSaveAsync(latestUrl, key, ct);
+                    Debug.WriteLine($"[AudioCache] ✅ Đồng bộ POI {poiId} ({normalizedLang})");
                 }
             }
             catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -288,9 +341,7 @@ public class AudioCacheService : IAudioCacheService
 
     private async Task DownloadAndSaveAsync(string audioUrl, string key, CancellationToken ct)
     {
-        var fileUrl = audioUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? audioUrl
-            : $"{_baseUrl}{audioUrl}";
+        var fileUrl = NormalizeAudioUrl(audioUrl);
 
         using var response = await _http.GetAsync(fileUrl, ct);
         response.EnsureSuccessStatusCode();
@@ -308,6 +359,9 @@ public class AudioCacheService : IAudioCacheService
         {
             await File.WriteAllBytesAsync(path, bytes, ct);
             _cachedKeys.Add(key);
+            _cachedSourceUrls[key] = fileUrl;
+            _lastValidationUtc[key] = DateTime.UtcNow;
+            PersistCacheIndex();
             Debug.WriteLine($"[AudioCache] ✓ Đã lưu {key}.mp3 ({bytes.Length / 1024} KB)");
         }
         finally { _lock.Release(); }
@@ -317,7 +371,7 @@ public class AudioCacheService : IAudioCacheService
     {
         try
         {
-            var url = $"{_baseUrl}/api/POIs/{poiId}";
+            var url = $"{GetBaseUrl()}/api/POIs/{poiId}";
             using var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode)
                 return null;
@@ -342,7 +396,7 @@ public class AudioCacheService : IAudioCacheService
 
             return selected.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? selected
-                : $"{_baseUrl}{selected}";
+                : $"{GetBaseUrl()}{selected}";
         }
         catch (Exception ex)
         {
@@ -370,8 +424,197 @@ public class AudioCacheService : IAudioCacheService
     private static string NormalizeLanguage(string? language)
         => (language ?? "vi").Split('-', '_')[0].ToLowerInvariant();
 
+    private bool ShouldValidateNow(string key)
+    {
+        if (!_lastValidationUtc.TryGetValue(key, out var lastChecked))
+            return true;
+
+        return (DateTime.UtcNow - lastChecked) >= CacheValidationInterval;
+    }
+
+    private void MarkValidated(string key)
+    {
+        _lastValidationUtc[key] = DateTime.UtcNow;
+    }
+
+    private string? GetCachedSourceUrl(string key)
+        => _cachedSourceUrls.TryGetValue(key, out var value) ? value : null;
+
+    private string NormalizeAudioUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return string.Empty;
+
+        var trimmed = url.Trim();
+        if (trimmed.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return trimmed;
+
+        var baseUrl = GetBaseUrl();
+        return trimmed.StartsWith("/")
+            ? $"{baseUrl}{trimmed}"
+            : $"{baseUrl}/{trimmed}";
+    }
+
+    private static string GetBaseUrl()
+        => AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+
+    private void LoadCacheIndex()
+    {
+        try
+        {
+            if (!File.Exists(_metaFilePath))
+                return;
+
+            var json = File.ReadAllText(_metaFilePath);
+            var doc = JsonSerializer.Deserialize<AudioCacheIndexDocument>(json);
+            if (doc?.Entries == null)
+                return;
+
+            foreach (var entry in doc.Entries)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Key))
+                    continue;
+
+                if (!string.IsNullOrWhiteSpace(entry.SourceUrl))
+                    _cachedSourceUrls[entry.Key] = entry.SourceUrl;
+
+                if (entry.LastCheckedUtc.HasValue)
+                    _lastValidationUtc[entry.Key] = entry.LastCheckedUtc.Value;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AudioCache] Load cache index failed: {ex.Message}");
+        }
+    }
+
+    private void PersistCacheIndex()
+    {
+        try
+        {
+            var entries = _cachedKeys
+                .Select(key => new AudioCacheIndexEntry
+                {
+                    Key = key,
+                    SourceUrl = _cachedSourceUrls.TryGetValue(key, out var source) ? source : null,
+                    LastCheckedUtc = _lastValidationUtc.TryGetValue(key, out var checkedUtc) ? checkedUtc : null
+                })
+                .ToList();
+
+            var json = JsonSerializer.Serialize(
+                new AudioCacheIndexDocument { Entries = entries },
+                new JsonSerializerOptions { WriteIndented = false });
+            File.WriteAllText(_metaFilePath, json);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AudioCache] Persist cache index failed: {ex.Message}");
+        }
+    }
+
     private static string CacheKey(int poiId, string language)
         => $"{poiId}_{NormalizeLanguage(language)}";
+
+    private void QueueBackgroundValidation(int poiId, string language, string key, NetworkAccess networkAccess)
+    {
+        lock (_validationSync)
+        {
+            if (!_validationInFlight.Add(key))
+                return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            var timeout = networkAccess == NetworkAccess.ConstrainedInternet
+                ? TimeSpan.FromSeconds(3)
+                : TimeSpan.FromSeconds(5);
+
+            using var cts = new CancellationTokenSource(timeout);
+            try
+            {
+                var latestAudioUrl = await GetAudioUrlAsync(poiId, language, cts.Token);
+                if (string.IsNullOrWhiteSpace(latestAudioUrl))
+                {
+                    MarkValidated(key);
+                    return;
+                }
+
+                var normalizedLatestUrl = NormalizeAudioUrl(latestAudioUrl);
+                if (string.Equals(GetCachedSourceUrl(key), normalizedLatestUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    MarkValidated(key);
+                    return;
+                }
+
+                await DownloadAndSaveAsync(normalizedLatestUrl, key, cts.Token);
+                MarkValidated(key);
+                Debug.WriteLine($"[AudioCache] Updated cached audio in background: {key}");
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine($"[AudioCache] Background validation timeout for {key}.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[AudioCache] Background validation failed for {key}: {ex.Message}");
+            }
+            finally
+            {
+                lock (_validationSync)
+                    _validationInFlight.Remove(key);
+            }
+        });
+    }
+
+    private async Task<bool> TryRefreshCachedAudioNowAsync(
+        int poiId,
+        string language,
+        string key,
+        NetworkAccess networkAccess,
+        CancellationToken externalToken)
+    {
+        var timeout = networkAccess == NetworkAccess.ConstrainedInternet
+            ? TimeSpan.FromSeconds(2.5)
+            : TimeSpan.FromSeconds(4);
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
+        cts.CancelAfter(timeout);
+
+        try
+        {
+            var latestAudioUrl = await GetAudioUrlAsync(poiId, language, cts.Token);
+            if (string.IsNullOrWhiteSpace(latestAudioUrl))
+            {
+                MarkValidated(key);
+                PersistCacheIndex();
+                return false;
+            }
+
+            var normalizedLatestUrl = NormalizeAudioUrl(latestAudioUrl);
+            if (string.Equals(GetCachedSourceUrl(key), normalizedLatestUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                MarkValidated(key);
+                PersistCacheIndex();
+                return false;
+            }
+
+            await DownloadAndSaveAsync(normalizedLatestUrl, key, cts.Token);
+            MarkValidated(key);
+            PersistCacheIndex();
+            Debug.WriteLine($"[AudioCache] Refreshed cached audio immediately: {key}");
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            Debug.WriteLine($"[AudioCache] Immediate refresh timeout for {key}.");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AudioCache] Immediate refresh failed for {key}: {ex.Message}");
+            return false;
+        }
+    }
 
     private string CachePath(string key)
         => Path.Combine(_cacheDir, $"{key}.mp3");
@@ -409,5 +652,23 @@ public class AudioCacheService : IAudioCacheService
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "";
+    }
+
+    private sealed class AudioCacheIndexDocument
+    {
+        [JsonPropertyName("entries")]
+        public List<AudioCacheIndexEntry> Entries { get; set; } = new();
+    }
+
+    private sealed class AudioCacheIndexEntry
+    {
+        [JsonPropertyName("key")]
+        public string Key { get; set; } = string.Empty;
+
+        [JsonPropertyName("sourceUrl")]
+        public string? SourceUrl { get; set; }
+
+        [JsonPropertyName("lastCheckedUtc")]
+        public DateTime? LastCheckedUtc { get; set; }
     }
 }

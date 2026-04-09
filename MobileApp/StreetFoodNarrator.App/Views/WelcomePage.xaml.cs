@@ -59,6 +59,22 @@ public partial class WelcomePage : ContentPage
         ApplyLanguage(lang);
     }
 
+    private static AlertType ResolveAlertType(string title)
+    {
+        var normalized = (title ?? string.Empty).Trim().ToLowerInvariant();
+        if (normalized.Contains("lỗi") || normalized.Contains("error") || normalized.Contains("không thể"))
+            return AlertType.Error;
+        if (normalized.Contains("cần quyền") || normalized.Contains("warning") || normalized.Contains("cảnh báo"))
+            return AlertType.Warning;
+        return AlertType.Info;
+    }
+
+    private new Task DisplayAlertAsync(string title, string message, string cancel)
+        => CustomAlert.ShowAsync(title, message, cancel, ResolveAlertType(title));
+
+    private new Task<bool> DisplayAlertAsync(string title, string message, string accept, string cancel)
+        => CustomAlert.ShowConfirmAsync(title, message, accept, cancel, ResolveAlertType(title));
+
     protected override async void OnAppearing()
     {
         base.OnAppearing();
@@ -1705,10 +1721,10 @@ public partial class WelcomePage : ContentPage
         }
     }
 
-    private void OnHeaderLanguageClicked(object sender, EventArgs e)
+    private async void OnHeaderLanguageClicked(object sender, EventArgs e)
     {
-        var next = LanguageSwitcher.CycleLanguage(_languageService);
-        ApplyLanguage(next);
+        var selected = await LanguageSwitcher.ShowLanguagePickerAsync(this, _languageService);
+        ApplyLanguage(selected);
     }
 
     // LANGUAGE

@@ -20,15 +20,17 @@ public class ZoneRepository : IZoneRepository
         PropertyNameCaseInsensitive = true
     };
     private readonly ILocalDatabaseService _localDb;
+    private readonly HttpClient _httpClient;
     private bool _hasData = false;
     private bool _isLoaded = false;
 
     public bool IsSeeded => _hasData;
     public DataSourceKind CurrentDataSource { get; private set; } = DataSourceKind.Unknown;
 
-    public ZoneRepository(ILocalDatabaseService localDb)
+    public ZoneRepository(ILocalDatabaseService localDb, HttpClient httpClient)
     {
         _localDb = localDb;
+        _httpClient = httpClient;
         // Load bundled default_pois.json so the app works fully offline from first launch
         if (!AppConfig.UseBackendApi)
             _ = SeedFromBundledJsonAsync();
@@ -110,9 +112,7 @@ public class ZoneRepository : IZoneRepository
             }
 
             var currentVersion = Preferences.Get(AppConfig.DataVersionKey, 0L);
-            var baseUrl = AppConfig.GetResolvedApiBaseUrl();
-            using var http = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(AppConfig.NetworkTimeoutSeconds) };
-            var response = await http.GetAsync($"api/POIs/sync?sinceVersion={currentVersion}");
+            var response = await _httpClient.GetAsync(AppConfig.BuildApiUrl($"api/POIs/sync?sinceVersion={currentVersion}"));
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
@@ -141,7 +141,7 @@ public class ZoneRepository : IZoneRepository
                 // force one full sync even when version appears unchanged.
                 if (_zones.Count <= 1 && currentVersion > 0)
                 {
-                    var fullResponse = await http.GetAsync("api/POIs/sync?sinceVersion=0");
+                    var fullResponse = await _httpClient.GetAsync(AppConfig.BuildApiUrl("api/POIs/sync?sinceVersion=0"));
                     fullResponse.EnsureSuccessStatusCode();
 
                     var fullJson = await fullResponse.Content.ReadAsStringAsync();

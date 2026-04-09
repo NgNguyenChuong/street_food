@@ -13,11 +13,12 @@ public static class CustomAlert
     private static readonly SemaphoreSlim AlertGate = new(1, 1);
     private const string OverlayClassId = "__custom_alert_overlay";
     private const string WrapperClassId = "__custom_alert_wrapper";
-    private const uint EnterAnimationMs = 90;
-    private const uint ExitAnimationMs = 80;
+    private const uint EnterAnimationMs = 70;
+    private const uint ExitAnimationMs = 60;
 
     // Android renders multiple shadows/scale effects less smoothly on mid/low-end devices.
-    private static bool UseLightweightEffects => DeviceInfo.Platform == DevicePlatform.Android;
+    private static bool UseLightweightEffects =>
+        DeviceInfo.Platform == DevicePlatform.Android || DeviceInfo.Idiom == DeviceIdiom.Phone;
 
     /// <summary>
     /// Hiện alert đơn giản với 1 nút OK
@@ -74,8 +75,186 @@ public static class CustomAlert
         string? dontShowAgainText,
         Action<bool, bool> onDismiss)
     {
-        return ShowCustomAlertAsync(title, message, confirmText, cancelText, type, dontShowAgainText)
-            .ContinueWith(t => onDismiss?.Invoke(t.Result.accepted, t.Result.dontShowAgainToday));
+        return ShowConfirmWithOptionalFlagAsync(title, message, confirmText, cancelText, type, dontShowAgainText, onDismiss);
+    }
+
+    private static async Task ShowConfirmWithOptionalFlagAsync(
+        string title,
+        string message,
+        string confirmText,
+        string cancelText,
+        AlertType type,
+        string? dontShowAgainText,
+        Action<bool, bool> onDismiss)
+    {
+        var result = await ShowCustomAlertAsync(title, message, confirmText, cancelText, type, dontShowAgainText);
+        onDismiss?.Invoke(result.accepted, result.dontShowAgainToday);
+    }
+
+    /// <summary>
+    /// Shows a single-choice list dialog and returns selected option index.
+    /// Returns null if user cancels.
+    /// </summary>
+    public static async Task<int?> ShowSelectionAsync(
+        string title,
+        IReadOnlyList<string> options,
+        int selectedIndex = -1,
+        string cancelText = "Hủy",
+        Page? hostPage = null)
+    {
+        if (options == null || options.Count == 0)
+            return null;
+
+        await AlertGate.WaitAsync();
+        try
+        {
+            var tcs = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var overlay = new Grid
+            {
+                BackgroundColor = Color.FromArgb("#66000000"),
+                ClassId = OverlayClassId
+            };
+
+            var dialog = new Border
+            {
+                BackgroundColor = Color.FromArgb("#234936"),
+                Stroke = Color.FromArgb("#1E3D2A"),
+                StrokeThickness = 2,
+                Padding = new Thickness(20, 18),
+                Margin = new Thickness(32),
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center,
+                MaximumWidthRequest = 340,
+                StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(20) }
+            };
+
+            if (!UseLightweightEffects)
+            {
+                dialog.Shadow = new Shadow
+                {
+                    Brush = Colors.Black,
+                    Opacity = 0.3f,
+                    Radius = 20,
+                    Offset = new Point(0, 10)
+                };
+            }
+
+            var content = new VerticalStackLayout { Spacing = 12 };
+            content.Add(new Label
+            {
+                Text = title,
+                FontSize = 20,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = Colors.White
+            });
+
+            var optionsStack = new VerticalStackLayout { Spacing = 8 };
+            for (var i = 0; i < options.Count; i++)
+            {
+                var idx = i;
+                var isSelected = idx == selectedIndex;
+
+                var optionBorder = new Border
+                {
+                    BackgroundColor = isSelected ? Color.FromArgb("#2A5A44") : Color.FromArgb("#1A2925"),
+                    Stroke = isSelected ? Color.FromArgb("#22C55E") : Color.FromArgb("#2A3F37"),
+                    StrokeThickness = 1,
+                    Padding = new Thickness(14, 12),
+                    StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(12) }
+                };
+
+                optionBorder.Content = new Label
+                {
+                    Text = options[idx],
+                    FontSize = 16,
+                    TextColor = isSelected ? Color.FromArgb("#EAFBF0") : Color.FromArgb("#D8E6DF")
+                };
+
+                optionBorder.GestureRecognizers.Add(new TapGestureRecognizer
+                {
+                    Command = new Command(async () =>
+                    {
+                        await CloseDialogAsync(overlay);
+                        tcs.TrySetResult(idx);
+                    })
+                });
+
+                optionsStack.Add(optionBorder);
+            }
+
+            content.Add(optionsStack);
+
+            var cancelButton = new Button
+            {
+                Text = cancelText,
+                BackgroundColor = Color.FromArgb("#1A2925"),
+                TextColor = Color.FromArgb("#94A3B8"),
+                BorderColor = Color.FromArgb("#2A3F37"),
+                BorderWidth = 1,
+                FontSize = 15,
+                HeightRequest = 46,
+                CornerRadius = 12
+            };
+            cancelButton.Clicked += async (_, _) =>
+            {
+                await CloseDialogAsync(overlay);
+                tcs.TrySetResult(null);
+            };
+            content.Add(cancelButton);
+
+            dialog.Content = content;
+            overlay.Children.Add(dialog);
+
+            Page? currentPage = hostPage;
+            if (currentPage == null && Shell.Current != null)
+                currentPage = Shell.Current.CurrentPage;
+            else if (currentPage == null && Application.Current?.Windows?.FirstOrDefault() is Window window)
+            {
+                currentPage = window.Page;
+                if (currentPage is NavigationPage navPage)
+                    currentPage = navPage.CurrentPage;
+            }
+
+            if (currentPage is ContentPage contentPage && contentPage.Content != null)
+            {
+                if (contentPage.Content is Layout rootLayout)
+                {
+                    RemoveStaleOverlays(rootLayout);
+                    AttachOverlay(rootLayout, overlay);
+                }
+                else
+                {
+                    var originalContent = contentPage.Content;
+                    var wrapper = new Grid { ClassId = WrapperClassId };
+                    contentPage.Content = null;
+                    wrapper.Children.Add(originalContent);
+                    AttachOverlay(wrapper, overlay);
+                    contentPage.Content = wrapper;
+                }
+            }
+
+            dialog.Opacity = 0;
+            if (UseLightweightEffects)
+            {
+                dialog.Scale = 1;
+                await dialog.FadeToAsync(1, EnterAnimationMs, Easing.CubicOut);
+            }
+            else
+            {
+                dialog.Scale = 0.9;
+                await Task.WhenAll(
+                    dialog.FadeToAsync(1, EnterAnimationMs, Easing.CubicOut),
+                    dialog.ScaleToAsync(1, EnterAnimationMs, Easing.CubicOut)
+                );
+            }
+
+            return await tcs.Task;
+        }
+        finally
+        {
+            AlertGate.Release();
+        }
     }
 
     // ══════════════════════════════════════════════════════════════

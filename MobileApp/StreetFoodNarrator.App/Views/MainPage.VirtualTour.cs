@@ -425,11 +425,13 @@ public partial class MainPage
         if (_vm.CurrentAppMode != MainViewModel.AppMode.Virtual)
             return;
 
+        _vm.SetJournalCurrentlyPlayingFromPoi(poi);
+        _vm.RefreshJournalQueueOnly();
+
         var added = _vm.MarkJournalPoiCompleted(poi);
         if (!added)
             return;
 
-        _vm.RefreshJournalState();
         _virtualTourVm.OnPoiViewed(poi.Id);
         await MaybeShowVirtualToRealSuggestionAsync();
     }

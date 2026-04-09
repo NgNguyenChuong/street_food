@@ -221,9 +221,9 @@ public partial class POIDetailPage : ContentPage
         SwitchTab(2);
     }
 
-    private void OnHeaderLanguageTapped(object? sender, EventArgs e)
+    private async void OnHeaderLanguageTapped(object? sender, EventArgs e)
     {
-        LanguageSwitcher.CycleLanguage(_langService);
+        await LanguageSwitcher.ShowLanguagePickerAsync(this, _langService);
     }
 
     private void SwitchTab(int idx)

@@ -1,5 +1,8 @@
-namespace StreetFoodNarrator.App.Helpers;
+﻿namespace StreetFoodNarrator.App.Helpers;
 
+using System;
+using System.Linq;
+using Microsoft.Maui.Controls;
 using StreetFoodNarrator.App.Core.Services;
 
 /// <summary>
@@ -37,27 +40,46 @@ public static class LanguageSwitcher
     public static async Task<string> ShowLanguagePickerAsync(Page page, LanguageService languageService)
     {
         var current = (languageService.CurrentLanguage ?? "vi").Trim().ToLowerInvariant();
-        var items = LanguageService.SupportedLanguages
-            .Select(lang => new
-            {
-                lang.Code,
-                Option = $"{(lang.Code == current ? "* " : string.Empty)}{GetHeaderLabel(lang.Code)} - {lang.DisplayName}"
-            })
+
+        var currentIndex = LanguageService.SupportedLanguages.FindIndex(l => l.Code == current);
+        if (currentIndex < 0)
+            currentIndex = 0;
+
+        var options = LanguageService.SupportedLanguages
+            .Select((lang, idx) =>
+                $"{(idx == currentIndex ? "* " : string.Empty)}{GetHeaderLabel(lang.Code)} - {lang.DisplayName}")
             .ToList();
 
-        var selected = await page.DisplayActionSheetAsync(
-            "Chọn ngôn ngữ",
-            "Hủy",
-            null,
-            items.Select(i => i.Option).ToArray());
+        var selectedIndex = await CustomAlert.ShowSelectionAsync(
+            title: GetPickerTitle(current),
+            options: options,
+            selectedIndex: currentIndex,
+            cancelText: GetCancelText(current),
+            hostPage: page);
 
-        if (string.IsNullOrWhiteSpace(selected) || selected == "Hủy")
+        if (!selectedIndex.HasValue)
             return current;
 
-        var chosen = items.FirstOrDefault(i => i.Option == selected)?.Code ?? current;
+        var chosen = LanguageService.SupportedLanguages[selectedIndex.Value].Code;
         if (!string.Equals(chosen, current, StringComparison.OrdinalIgnoreCase))
             languageService.ApplyLanguage(chosen);
 
         return chosen;
     }
+
+    private static string GetPickerTitle(string currentLanguageCode)
+        => currentLanguageCode switch
+        {
+            "en" => "Choose language",
+            "zh" => "选择语言",
+            _ => "Chọn ngôn ngữ"
+        };
+
+    private static string GetCancelText(string currentLanguageCode)
+        => currentLanguageCode switch
+        {
+            "en" => "Cancel",
+            "zh" => "取消",
+            _ => "Hủy"
+        };
 }

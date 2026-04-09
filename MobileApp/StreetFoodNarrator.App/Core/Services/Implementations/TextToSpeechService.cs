@@ -203,30 +203,21 @@ public class TextToSpeechService : ITTSService
 
             if (poiId.HasValue && _audioCache != null)
             {
-                var cachedStream = await _audioCache.GetCachedStreamAsync(poiId.Value, languageCode);
-                if (cachedStream != null)
+                if (playbackMode != AudioPlaybackModes.Stream)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[TTS] Using cached offline audio for POI {poiId}");
-                    _currentPlayer = CreateAndWirePlayer(cachedStream);
-                    _currentPlayer.Play();
-                    StartDurationWarmup(_currentPlayer);
-                    return true;
-                }
-
-                if (playbackMode == AudioPlaybackModes.Download)
-                {
-                    if (!isOnline)
+                    if (playbackMode == AudioPlaybackModes.Download && !isOnline)
                     {
-                        System.Diagnostics.Debug.WriteLine("[TTS] Download mode but offline, skip download and use native fallback.");
+                        System.Diagnostics.Debug.WriteLine("[TTS] Download mode but offline, trying existing cache.");
                     }
 
+                    // Always go through GetOrDownload for POI mode to trigger cache validation/update.
                     var ensuredStream = await _audioCache.GetOrDownloadCachedStreamAsync(
                         poiId.Value,
                         languageCode,
                         cancellationToken);
                     if (ensuredStream != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[TTS] Downloaded and cached POI {poiId} audio locally.");
+                        System.Diagnostics.Debug.WriteLine($"[TTS] Using cached/downloaded POI {poiId} audio.");
                         _currentPlayer = CreateAndWirePlayer(ensuredStream);
                         _currentPlayer.Play();
                         StartDurationWarmup(_currentPlayer);
@@ -234,7 +225,7 @@ public class TextToSpeechService : ITTSService
                     }
                 }
 
-                if (playbackMode != AudioPlaybackModes.Download && isOnline)
+                if (isOnline)
                 {
                     var audioUrl = await _audioCache.GetAudioUrlAsync(poiId.Value, languageCode, cancellationToken);
                     if (!string.IsNullOrEmpty(audioUrl))
@@ -250,6 +241,17 @@ public class TextToSpeechService : ITTSService
                         StartDurationWarmup(_currentPlayer);
                         return true;
                     }
+                }
+
+                // Final fallback for stream mode/offline cases: use existing cached copy if any.
+                var cachedFallbackStream = await _audioCache.GetCachedStreamAsync(poiId.Value, languageCode);
+                if (cachedFallbackStream != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[TTS] Using fallback cached audio for POI {poiId}");
+                    _currentPlayer = CreateAndWirePlayer(cachedFallbackStream);
+                    _currentPlayer.Play();
+                    StartDurationWarmup(_currentPlayer);
+                    return true;
                 }
 
                 System.Diagnostics.Debug.WriteLine($"[TTS] No published audio for POI {poiId}, falling back to TTS.");

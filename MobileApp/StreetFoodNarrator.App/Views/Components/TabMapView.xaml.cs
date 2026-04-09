@@ -247,10 +247,7 @@ private const string IconPause = "\U000F03E4";
     {
         var hostPage = ResolveHostPage();
         if (hostPage == null)
-        {
-            LanguageSwitcher.CycleLanguage(_lang);
             return;
-        }
 
         await LanguageSwitcher.ShowLanguagePickerAsync(hostPage, _lang);
     }

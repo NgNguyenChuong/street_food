@@ -41,11 +41,14 @@
             <BoxView Color="#07100D" Opacity="0.48" />
         </Grid>
 
-        <Grid x:Name="StateContentLayer"
-              IsVisible="{Binding IsExploreStateScreenVisible}"
-              AbsoluteLayout.LayoutBounds="0,0,1,1"
-              AbsoluteLayout.LayoutFlags="All"
-              RowDefinitions="Auto,*">
+          <RefreshView IsVisible="{Binding IsExploreStateScreenVisible}"
+                   IsRefreshing="{Binding IsMainDataRefreshing}"
+                   Command="{Binding RefreshMainDataCommand}"
+                   AbsoluteLayout.LayoutBounds="0,0,1,1"
+                   AbsoluteLayout.LayoutFlags="All">
+            <ScrollView VerticalScrollBarVisibility="Never">
+                <Grid x:Name="StateContentLayer"
+                    RowDefinitions="Auto,*">
 
             <Grid Grid.Row="0" Padding="20,36,20,8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                 <Button Grid.Column="0" WidthRequest="50" HeightRequest="50" CornerRadius="25"
@@ -380,7 +383,9 @@
                     </VerticalStackLayout>
                 </VerticalStackLayout>
             </Grid>
-        </Grid>
+                </Grid>
+            </ScrollView>
+        </RefreshView>
 
         <Grid x:Name="NearSuggestionPopupOverlay"
               IsVisible="False"
