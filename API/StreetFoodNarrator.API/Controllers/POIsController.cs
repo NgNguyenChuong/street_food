@@ -53,7 +53,8 @@ public class POIsController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] bool? isActive = null,
         [FromQuery] string? category = null,
-        [FromQuery] string? reviewStatus = null)
+        [FromQuery] string? reviewStatus = null,
+        [FromQuery] bool? tourEligible = null)
     {
         var isAuthenticated = User.Identity?.IsAuthenticated == true;
         var isAdminRole = isAuthenticated && User.IsInRole("Admin");
@@ -120,6 +121,22 @@ public class POIsController : ControllerBase
             // Public users can only see approved and active POIs.
             filter &= Builders<POI>.Filter.Eq(p => p.ReviewStatus, "approved") &
                       Builders<POI>.Filter.Eq(p => p.IsActive, true);
+        }
+
+        // Tour selection mode (admin UI):
+        // only active POIs, and vendor-owned POIs must belong to a vendor with active premium.
+        if (tourEligible == true)
+        {
+            filter &= Builders<POI>.Filter.Eq(p => p.IsActive, true);
+
+            var activePremiumVendorIds = await GetActivePremiumVendorIdsAsync();
+            var activePremiumVendorIdsNullable = activePremiumVendorIds.Select(id => (int?)id).ToList();
+            var noVendorFilter = Builders<POI>.Filter.Eq(p => p.VendorId, null);
+            var premiumVendorFilter = activePremiumVendorIdsNullable.Count > 0
+                ? Builders<POI>.Filter.In(p => p.VendorId, activePremiumVendorIdsNullable)
+                : Builders<POI>.Filter.Where(_ => false);
+
+            filter &= Builders<POI>.Filter.Or(noVendorFilter, premiumVendorFilter);
         }
 
         var total = await _db.POIs.CountDocumentsAsync(filter);
@@ -535,6 +552,15 @@ public class POIsController : ControllerBase
             if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
             {
                 return Forbid();
+            }
+
+            var hasActivePremium = await HasActivePremiumSubscriptionAsync(vendor);
+            if (!hasActivePremium)
+            {
+                return BadRequest(new
+                {
+                    message = "Bạn cần đăng ký gói premium (1 năm) và được admin duyệt trước khi thêm POI."
+                });
             }
 
             vendorId = vendor.VendorId;
@@ -1232,6 +1258,50 @@ public class POIsController : ControllerBase
         }
 
         return null;
+    }
+
+    private async Task<bool> HasActivePremiumSubscriptionAsync(VendorProfile vendor)
+    {
+        var now = DateTime.UtcNow;
+
+        if (string.Equals(vendor.ServicePlan, "premium", StringComparison.OrdinalIgnoreCase)
+            && vendor.PremiumExpiresAt.HasValue
+            && vendor.PremiumExpiresAt.Value > now)
+        {
+            return true;
+        }
+
+        var hasActiveSubmission = await _db.ServiceSubmissions
+            .Find(x => x.VendorId == vendor.VendorId
+                && x.Status == SubmissionStatuses.Approved
+                && x.ExpiresAt.HasValue
+                && x.ExpiresAt > now)
+            .AnyAsync();
+
+        return hasActiveSubmission;
+    }
+
+    private async Task<HashSet<int>> GetActivePremiumVendorIdsAsync()
+    {
+        var now = DateTime.UtcNow;
+
+        var activeFromProfile = await _db.VendorProfiles
+            .Find(v => v.ServicePlan == "premium"
+                && v.PremiumExpiresAt.HasValue
+                && v.PremiumExpiresAt > now)
+            .Project(v => v.VendorId)
+            .ToListAsync();
+
+        var activeFromSubmission = await _db.ServiceSubmissions
+            .Find(s => s.Status == SubmissionStatuses.Approved
+                && s.ExpiresAt.HasValue
+                && s.ExpiresAt > now)
+            .Project(s => s.VendorId)
+            .ToListAsync();
+
+        return activeFromProfile
+            .Concat(activeFromSubmission)
+            .ToHashSet();
     }
 
     private static string NormalizeForComparison(string? input)

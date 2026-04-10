@@ -29,4 +29,5 @@ public class MongoDbContext
     public IMongoCollection<PoiTranslation> PoiTranslations => Database.GetCollection<PoiTranslation>("poi_translations");
     public IMongoCollection<DeviceHistory> DeviceHistories => Database.GetCollection<DeviceHistory>("device_history");
     public IMongoCollection<SubmissionIdempotency> SubmissionIdempotencies => Database.GetCollection<SubmissionIdempotency>("submission_idempotency");
+    public IMongoCollection<ServiceSubmission> ServiceSubmissions => Database.GetCollection<ServiceSubmission>("submissions");
 }
