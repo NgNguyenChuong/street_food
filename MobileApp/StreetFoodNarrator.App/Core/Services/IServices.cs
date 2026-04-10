@@ -47,6 +47,7 @@ public interface ILocalDatabaseService
 {
     Task InitializeAsync();
     Task<List<POI>> GetAllActivePOIsAsync();
+    Task<List<POI>> GetAllPOIsAsync();
     Task SavePOIAsync(POI poi);
     Task SavePOIsAsync(List<POI> pois);
     Task DeleteAllPOIsAsync();

@@ -57,12 +57,14 @@ public partial class TourDetailPopupPage : ContentPage
 
     private PopupVm BuildVm()
     {
-        var tourPois = ResolveTourStops(_tour, _vm.AllPOIs);
+        var tourPois = ResolveTourStops(_tour, _vm.GetTourPoiCatalog(includeTemporarilyClosed: true));
         var stops = tourPois
             .Select((poi, index) => new TourStopItem
             {
                 Title = $"{index + 1}. {(string.IsNullOrWhiteSpace(poi.DisplayName) ? AppStrings.Format("PopupTour_Stop_DefaultTitleFormat", index + 1) : poi.DisplayName)}",
-                Subtitle = ResolvePoiSubtitle(poi)
+                Subtitle = ResolvePoiSubtitle(poi),
+                IsTemporarilyClosed = !poi.IsActive,
+                ClosedStatusText = "Quán tạm đóng cửa"
             })
             .ToList();
 
@@ -165,13 +167,13 @@ public partial class TourDetailPopupPage : ContentPage
 
     private static List<POI> ResolveTourStops(MainViewModel.TourListItem tour, IEnumerable<POI> allPois)
     {
-        var activeSpots = allPois.Where(p => p.ZoneType == "Spot" && p.IsActive).ToList();
-        if (activeSpots.Count == 0)
+        var spots = allPois.Where(p => p.ZoneType == "Spot").ToList();
+        if (spots.Count == 0)
             return new List<POI>();
 
         if (tour.PoiIds.Count > 0)
         {
-            var byId = activeSpots.ToDictionary(p => p.Id);
+            var byId = spots.ToDictionary(p => p.Id);
             var ordered = new List<POI>();
             foreach (var poiId in tour.PoiIds)
             {
@@ -193,7 +195,7 @@ public partial class TourDetailPopupPage : ContentPage
                 if (string.IsNullOrWhiteSpace(normalizedName))
                     continue;
 
-                var poi = activeSpots.FirstOrDefault(p =>
+                var poi = spots.FirstOrDefault(p =>
                     NormalizeTourPoiName(p.Name_Vi) == normalizedName ||
                     NormalizeTourPoiName(p.Name_En) == normalizedName ||
                     NormalizeTourPoiName(p.Name_Zh) == normalizedName);
@@ -206,7 +208,7 @@ public partial class TourDetailPopupPage : ContentPage
                 return orderedByNames;
         }
 
-        return activeSpots.Take(Math.Clamp(tour.PoiCount > 0 ? tour.PoiCount : 4, 1, Math.Min(8, activeSpots.Count))).ToList();
+        return spots.Take(Math.Clamp(tour.PoiCount > 0 ? tour.PoiCount : 4, 1, Math.Min(8, spots.Count))).ToList();
     }
 
     private static string NormalizeTourPoiName(string? rawName)
@@ -263,6 +265,8 @@ public partial class TourDetailPopupPage : ContentPage
     {
         public string Title { get; set; } = string.Empty;
         public string Subtitle { get; set; } = string.Empty;
+        public bool IsTemporarilyClosed { get; set; }
+        public string ClosedStatusText { get; set; } = string.Empty;
     }
 }
 

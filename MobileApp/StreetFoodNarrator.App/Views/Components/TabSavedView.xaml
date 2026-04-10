@@ -140,7 +140,15 @@
                                             Padding="0"
                                             BackgroundColor="#22C55E"
                                             TextColor="White"
-                                            Clicked="OnSavedTourStartClicked"/>
+                                            IsEnabled="{Binding IsStartAvailable}"
+                                            Clicked="OnSavedTourStartClicked">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsStartAvailable}" Value="False">
+                                                <Setter Property="BackgroundColor" Value="#334155"/>
+                                                <Setter Property="TextColor" Value="#CBD5E1"/>
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
                                 </Grid>
                             </VerticalStackLayout>
                         </Border>
