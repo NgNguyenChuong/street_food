@@ -1337,8 +1337,8 @@
         <div class="row" style="grid-template-columns:1fr;">
           <div class="card">
             <div class="card-head">
-              <div class="card-title"><i class="fas fa-location-arrow"></i>Tuyen di chuyen an danh</div>
-              <span class="badge badge-muted route-count-badge">0 tuyen</span>
+              <div class="card-title"><i class="fas fa-location-arrow"></i>Tuyến di chuyển ẩn danh</div>
+              <span class="badge badge-muted route-count-badge">0 tuyến</span>
             </div>
             <div id="routeMap" class="map-wrap"></div>
             <div style="display:flex;align-items:center;gap:.5rem;margin-top:.65rem">
@@ -1446,42 +1446,17 @@
       }
     ));
 
-    // Generate synthetic logs
-    function genLogs(days) {
-      const results = [];
-      const now = new Date();
-      const triggers = ['GeofenceEnter', 'Proximity', 'ManualTap'];
-      for (let i = 0; i < Math.min(180, days * 12); i++) {
-        const poi = MOCK_POIS[Math.floor(Math.random() * MOCK_POIS.length)];
-        const userId = `user-${String(Math.floor(Math.random() * 40) + 1).padStart(3, '0')}`;
-        const hoursAgo = Math.random() * days * 24;
-        const d = new Date(now - hoursAgo * 3600000);
-        // bias toward evening
-        if (Math.random() < .65) d.setHours(Math.floor(17 + Math.random() * 7));
-        else d.setHours(Math.floor(8 + Math.random() * 9));
-        results.push({
-          poI_ID: poi.poiId,
-          poiName: poi.poiName,
-          userLatitude: poi.lat + (Math.random() - .5) * .0004,
-          userLongitude: poi.lon + (Math.random() - .5) * .0004,
-          userId,
-          sessionId: `sess-${userId}`,
-          triggerType: triggers[Math.floor(Math.random() * triggers.length)],
-          actionType: Math.random() > .72 ? 'NarrationPlayed' : 'LocationPing',
-          dwellSeconds: Math.random() > .7 ? Math.floor(rand(8, 110)) : null,
-          triggeredAt: d.toISOString(),
-          wasPlayed: Math.random() > .18,
-        });
-      }
-      return results;
-    }
-
     /* ── CHART COLORS ──────────────────────────────────────────── */
     const CC = ['#FF6B35', '#4A9EFF', '#2DD4BF', '#F59E0B', '#EC4899', '#8B5CF6', '#22C55E', '#FB923C'];
 
     /* ── GLOBAL STATE ─────────────────────────────────────────── */
     const DEFAULT_CENTER = [10.762094, 106.701912];
-    const ROUTE_CACHE_KEY = 'anon_route_snapshots';
+    const VINH_KHANH_BOUNDS = Object.freeze({
+      latMin: 10.7528,
+      latMax: 10.7728,
+      lonMin: 106.6928,
+      lonMax: 106.7128
+    });
     let heatMapInst = null, routeMapInst = null, heatLayer = null;
     let routeLayerGrp = null, poiLayerGrp = null;
     let heatPoiMarkersVisible = true;
@@ -1506,6 +1481,21 @@
       const value = String(raw || '').trim().toLowerCase();
       if (!value) return '';
       return value.includes('android') ? 'Android' : '';
+    }
+
+    function isInsideVinhKhanh(lat, lon) {
+      return Number.isFinite(lat)
+        && Number.isFinite(lon)
+        && lat >= VINH_KHANH_BOUNDS.latMin
+        && lat <= VINH_KHANH_BOUNDS.latMax
+        && lon >= VINH_KHANH_BOUNDS.lonMin
+        && lon <= VINH_KHANH_BOUNDS.lonMax;
+    }
+
+    function isVinhKhanhNarrationLog(log) {
+      const lat = Number(log?.userLatitude ?? log?.UserLatitude);
+      const lon = Number(log?.userLongitude ?? log?.UserLongitude);
+      return isInsideVinhKhanh(lat, lon);
     }
 
     function showToast(msg, type = 'info') {
@@ -2050,14 +2040,16 @@
         return;
       }
 
-      sel.innerHTML = routes.map((r, i) => `<option value="${i}">${r.key} — ${r.pointCount} điểm</option>`).join('');
+      sel.innerHTML = `<option value="-1">Tất cả tuyến — ${num(logs.length)} log</option>`
+        + routes.map((r, i) => `<option value="${i}">${r.key} — ${r.pointCount} điểm</option>`).join('');
       setRouteCountBadges(`${num(routes.length)} / ${num(routes.length)} tuyến`);
-      selectRoute(0);
+      selectRoute(-1);
     }
 
     function getMovementLogsByCurrentRoute() {
       const sel = document.getElementById('routeSelect');
       const idx = Number(sel?.value || -1);
+      if (idx < 0) return movementLogs;
       const r = allRoutes[idx];
       if (!r) return movementLogs;
       const routeLogs = movementLogs.filter(l => {
@@ -2163,13 +2155,14 @@
         const sessionText = anonId(sessionRaw);
         const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
         const gpsText = (isFinite(lat) && isFinite(lon)) ? `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E` : '—';
+        const poiText = l.poiName || ((isFinite(lat) && isFinite(lon)) ? nearestPoiName(lat, lon, globalPois || []) : '—');
         const actionText = l.actionType || triggerLabel(l.triggerType) || 'LocationPing';
         const dwellText = l.dwellSeconds != null && l.dwellSeconds >= 0 ? `${l.dwellSeconds}s` : '-';
 
         html += `<div class="movement-row" style="grid-template-columns: 1.2fr 1.3fr 1.5fr .95fr .8fr;">
       <div class="movement-cell" style="font-size:.85rem">${timeText}</div>
       <div class="movement-cell mono" style="font-size:.85rem">${sessionText}</div>
-      <div class="movement-cell mono muted" style="font-size:.8rem">${gpsText}</div>
+      <div class="movement-cell mono muted" style="font-size:.8rem">${gpsText}<div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">POI: ${esc(poiText)}</div></div>
       <div class="movement-cell"><span class="action-pill" style="font-size:.7rem">${actionText === 'NarrationPlayed' ? 'Nghe Audio' : actionText}</span></div>
       <div class="movement-cell muted">${dwellText}</div>
     </div>`;
@@ -2209,11 +2202,14 @@
 
     function saveRouteSnapshot() {
       const idx = Number(document.getElementById('routeSelect').value || 0);
+      if (idx < 0) {
+        showToast('Vui lòng chọn một tuyến cụ thể để lưu snapshot', 'warning');
+        return;
+      }
       saveRouteSingle(idx);
     }
 
     function selectRoute(idx) {
-      const r = allRoutes[idx]; if (!r) return;
       const sel = document.getElementById('routeSelect');
       if (sel) sel.value = String(idx);
 
@@ -2230,6 +2226,33 @@
           .addTo(routeLayerGrp);
       });
 
+      if (idx < 0) {
+        const routeSample = allRoutes.slice(0, 80);
+        const coords = [];
+        routeSample.forEach((route, i) => {
+          const ll = (route.points || []).map(p => [p.lat, p.lon]);
+          if (ll.length < 2) return;
+          coords.push(...ll);
+          L.polyline(ll, {
+            color: CC[i % CC.length],
+            weight: 2.4,
+            opacity: 0.55
+          }).addTo(routeLayerGrp);
+        });
+
+        if (coords.length) {
+          const bAll = L.latLngBounds(coords);
+          if (bAll.isValid()) routeMapInst.fitBounds(bAll.pad(.08), { maxZoom: 18 });
+        }
+        return;
+      }
+
+      const r = allRoutes[idx];
+      if (!r) {
+        if (allRoutes.length) selectRoute(-1);
+        return;
+      }
+
       const ll = r.points.map(p => [p.lat, p.lon]);
       L.polyline(ll, { color: '#FF6B35', weight: 4.5, opacity: .9 }).addTo(routeLayerGrp);
       const f = r.points[0], la = r.points[r.points.length - 1];
@@ -2241,36 +2264,6 @@
         .addTo(routeLayerGrp);
       const b = L.latLngBounds(ll);
       if (b.isValid()) routeMapInst.fitBounds(b.pad(.08), { maxZoom: 19 });
-    }
-
-    /* ── SYNTHETIC LOGS ─────────────────────────────────────────── */
-    function buildSynthetic(realLogs, pois, from, to, days) {
-      const target = Math.max(realLogs.length, Math.min(2000, days * 28));
-      const missing = Math.max(0, target - realLogs.length);
-      if (!missing || !pois.length) return [];
-      const triggers = ['GeofenceEnter', 'Proximity', 'ManualTap'];
-      const users = Array.from({ length: Math.max(20, Math.ceil(missing / 15)) }, (_, i) => `s-user-${i + 1}`);
-      const out = [];
-      for (let i = 0; i < missing; i++) {
-        const poi = pois[Math.floor(Math.random() * pois.length)];
-        const userId = users[Math.floor(Math.random() * users.length)];
-        const d = new Date(from.getTime() + Math.random() * (to.getTime() - from.getTime()));
-        if (Math.random() < .65) d.setHours(Math.floor(17 + Math.random() * 7));
-        else d.setHours(Math.floor(8 + Math.random() * 9));
-        out.push({
-          poI_ID: poi.poiId, poiName: poi.poiName,
-          userLatitude: poi.lat + (Math.random() - .5) * .0003,
-          userLongitude: poi.lon + (Math.random() - .5) * .0003,
-          userId,
-          sessionId: `sess-${userId}`,
-          triggerType: triggers[Math.floor(Math.random() * triggers.length)],
-          actionType: Math.random() > .75 ? 'NarrationPlayed' : 'LocationPing',
-          dwellSeconds: Math.random() > .75 ? Math.floor(rand(6, 95)) : null,
-          triggeredAt: d.toISOString(),
-          wasPlayed: Math.random() > .15, __syn: true
-        });
-      }
-      return out;
     }
 
     async function fetchAllNarrationLogs(from, to) {
@@ -2413,9 +2406,9 @@
           overview = MOCK_OVERVIEW;
           devices = MOCK_DEVICES;
           pois = MOCK_POIS;
-          realLogs = genLogs(days);
+          realLogs = [];
           audios = MOCK_AUDIOS;
-          topPois = buildTopPoiRows(realLogs, 10);
+          topPois = [];
         }
 
         // Thống kê thời gian Audio
@@ -2428,25 +2421,14 @@
         }
         const audioMap = globalAudioMap;
 
-        // Synthetic logs
-        const synLogs = buildSynthetic(realLogs, pois, from, to, days);
-        const allLogs = [...realLogs, ...synLogs];
+        const allLogs = [...realLogs];
+        const routeLogs = allLogs.filter(isVinhKhanhNarrationLog);
 
         // Build data
         const apiTopRows = normalizeTopPoiRows(topPois, 10);
         const topRows = apiTopRows.length ? apiTopRows : buildTopPoiRows(allLogs, 10);
         const avgRows = buildAvgListenRows(allLogs, audioMap, pois);
-        allRoutes = buildRoutes(allLogs);
-
-        // Try load from cache if no routes
-        if (!allRoutes.length) {
-          try {
-            const cached = JSON.parse(localStorage.getItem(ROUTE_CACHE_KEY) || '[]');
-            if (Array.isArray(cached) && cached.length) allRoutes = cached;
-          } catch (e) { }
-        } else {
-          try { localStorage.setItem(ROUTE_CACHE_KEY, JSON.stringify(allRoutes.slice(0, 80))); } catch (e) { }
-        }
+        allRoutes = buildRoutes(routeLogs);
 
         // Render everything
         renderKpis(overview, allLogs, allRoutes, pois, devices, avgRows);
@@ -2455,8 +2437,8 @@
         renderHourlyChart(allLogs);
         renderDonut('triggerChart', 'trigger', allLogs, l => triggerLabel(l.triggerType), ' lượt');
         renderDonut('platformChart', 'platform', devices, d => d.platform, ' thiết bị');
-        renderHeatMap(allLogs, pois, synLogs.length);
-        renderRouteList(allRoutes, allLogs);
+        renderHeatMap(routeLogs, pois, 0);
+        renderRouteList(allRoutes, routeLogs);
 
         showToast(`Đã cập nhật thống kê (${source})`, 'success');
       } catch (err) {

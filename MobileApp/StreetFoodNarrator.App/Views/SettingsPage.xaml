@@ -145,7 +145,7 @@
                                            FontAttributes="Bold"
                                            TextColor="White" />
                                     <Label x:Name="GpsTestModeSubtitleLabel"
-                                         Text="Bat de tao ngay 3 POI test theo toa do co dinh"
+                                         Text="Bật để test GPS"
                                            FontSize="12"
                                            TextColor="#64748B" />
                                 </VerticalStackLayout>
@@ -158,7 +158,7 @@
                             </Grid>
 
                             <Label x:Name="GpsTestCoordinateLabel"
-                                        Text="Tao dung 3 diem GPS test voi priority 10, 9, 8 ngay khi bat mode"
+                                        Text="Khi luu: tao 3 diem GPS test (10,9,8); tat va luu se don diem test"
                                         FontSize="12"
                                    TextColor="#94A3B8" />
                         </VerticalStackLayout>

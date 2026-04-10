@@ -14,6 +14,12 @@ public class AnalyticsController : ControllerBase
     private readonly MongoDbContext _db;
     private readonly MongoSequenceService _sequence;
 
+    // Keep this boundary aligned with mobile map scope: AppConfig default center +/- 0.01.
+    private const decimal VinhKhanhLatitudeMin = 10.7528m;
+    private const decimal VinhKhanhLatitudeMax = 10.7728m;
+    private const decimal VinhKhanhLongitudeMin = 106.6928m;
+    private const decimal VinhKhanhLongitudeMax = 106.7128m;
+
     public AnalyticsController(MongoDbContext db, MongoSequenceService sequence)
     {
         _db = db;
@@ -412,6 +418,25 @@ public class AnalyticsController : ControllerBase
         if (request.POI_ID <= 0)
             return BadRequest(new { message = "POI_ID must be greater than 0." });
 
+        POI? poiForCoordinateFallback = null;
+        if (!request.UserLatitude.HasValue || !request.UserLongitude.HasValue)
+        {
+            poiForCoordinateFallback = await _db.POIs
+                .Find(p => p.POI_ID == request.POI_ID && p.DeletedAt == null)
+                .FirstOrDefaultAsync();
+        }
+
+        if (!TryResolveCoordinatesForAreaCheck(request, poiForCoordinateFallback, out var effectiveLatitude, out var effectiveLongitude) ||
+            !IsInsideVinhKhanhArea(effectiveLatitude, effectiveLongitude))
+        {
+            return Ok(new
+            {
+                success = true,
+                skipped = true,
+                reason = "outside_vinh_khanh_area"
+            });
+        }
+
         var triggeredAt = request.TriggeredAt?.ToUniversalTime() ?? DateTime.UtcNow;
         var safeTriggerType = string.IsNullOrWhiteSpace(request.TriggerType)
             ? "LocationPing"
@@ -431,8 +456,8 @@ public class AnalyticsController : ControllerBase
             TriggerType = safeTriggerType,
             ActionType = safeActionType,
             DwellSeconds = request.DwellSeconds,
-            UserLatitude = request.UserLatitude,
-            UserLongitude = request.UserLongitude,
+            UserLatitude = request.UserLatitude ?? effectiveLatitude,
+            UserLongitude = request.UserLongitude ?? effectiveLongitude,
             WasPlayed = request.WasPlayed
         };
 
@@ -479,6 +504,39 @@ public class AnalyticsController : ControllerBase
         }
 
         return Ok(new { success = true, logId = log.Log_ID });
+    }
+
+    private static bool IsInsideVinhKhanhArea(decimal latitude, decimal longitude)
+    {
+        return latitude >= VinhKhanhLatitudeMin &&
+               latitude <= VinhKhanhLatitudeMax &&
+               longitude >= VinhKhanhLongitudeMin &&
+               longitude <= VinhKhanhLongitudeMax;
+    }
+
+    private static bool TryResolveCoordinatesForAreaCheck(
+        MobileNarrationLogRequest request,
+        POI? fallbackPoi,
+        out decimal latitude,
+        out decimal longitude)
+    {
+        if (request.UserLatitude.HasValue && request.UserLongitude.HasValue)
+        {
+            latitude = request.UserLatitude.Value;
+            longitude = request.UserLongitude.Value;
+            return true;
+        }
+
+        if (fallbackPoi?.Location?.Coordinates?.Length >= 2)
+        {
+            latitude = (decimal)fallbackPoi.Location.Latitude;
+            longitude = (decimal)fallbackPoi.Location.Longitude;
+            return true;
+        }
+
+        latitude = 0;
+        longitude = 0;
+        return false;
     }
 }
 

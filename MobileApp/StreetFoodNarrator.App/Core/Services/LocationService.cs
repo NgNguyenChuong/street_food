@@ -16,8 +16,11 @@ public class LocationService : ILocationService
     private bool _isRunning = false;
     private TrackingProximityState _trackingState = TrackingProximityState.Near;
     private Microsoft.Maui.Devices.Sensors.Location? _lastLocation;
-    private const double SignificantMovementMeters = 5.0;
-    private const int StationaryDelayMs = 5_000;
+    private DateTimeOffset _lastEmittedAt = DateTimeOffset.MinValue;
+    private const double SignificantMovementMeters = 2.5;
+    private const int StationaryDelayInsideMs = 1_800;
+    private const int StationaryDelayNearMs = 3_200;
+    private const int StationaryDelayFarMs = 12_000;
 
     public bool IsRunning => _isRunning;
     public event Action<Microsoft.Maui.Devices.Sensors.Location>? OnLocationUpdated;
@@ -76,14 +79,35 @@ public class LocationService : ILocationService
 
                     if (loc != null)
                     {
-                        if (!IsSignificantMovement(loc))
-                        {
-                            // User is effectively standing still: throttle polling.
-                            delayMs = Math.Max(delayMs, StationaryDelayMs);
-                        }
+                        var hasAcceptableAccuracy = IsAccuracyAcceptable(loc);
+                        var stabilizedLoc = ApplyLocationStabilization(loc);
+                        var significantMovement = hasAcceptableAccuracy && IsSignificantMovement(stabilizedLoc);
 
-                        _lastLocation = loc;
-                        OnLocationUpdated?.Invoke(loc);
+                        if (!hasAcceptableAccuracy)
+                        {
+                            delayMs = Math.Max(delayMs, GetNoisyFixDelayMs(_trackingState));
+
+                            if (ShouldEmitHeartbeat(_trackingState) && _lastLocation != null)
+                            {
+                                _lastEmittedAt = DateTimeOffset.UtcNow;
+                                OnLocationUpdated?.Invoke(_lastLocation);
+                            }
+                        }
+                        else
+                        {
+                            if (!significantMovement)
+                            {
+                                // Standing still: reduce jitter and keep a modest heartbeat for UI freshness.
+                                delayMs = Math.Max(delayMs, GetStationaryDelayMs(_trackingState));
+                            }
+
+                            if (significantMovement || ShouldEmitHeartbeat(_trackingState))
+                            {
+                                _lastLocation = stabilizedLoc;
+                                _lastEmittedAt = DateTimeOffset.UtcNow;
+                                OnLocationUpdated?.Invoke(stabilizedLoc);
+                            }
+                        }
                     }
                 }
                 catch (FeatureNotEnabledException)
@@ -129,13 +153,115 @@ public class LocationService : ILocationService
         if (_lastLocation == null)
             return true;
 
+        if (location.Speed.HasValue && location.Speed.Value > 1.4)
+            return true;
+
         var movedMeters = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(
             _lastLocation,
             location,
             Microsoft.Maui.Devices.Sensors.DistanceUnits.Kilometers) * 1000.0;
 
-        return movedMeters >= SignificantMovementMeters;
+        var accuracy = Math.Max(0, location.Accuracy ?? 0);
+        var threshold = _trackingState switch
+        {
+            TrackingProximityState.Inside => Math.Max(2.5, accuracy * 0.45),
+            TrackingProximityState.Near => Math.Max(SignificantMovementMeters, accuracy * 0.6),
+            _ => Math.Max(6.0, accuracy * 0.75)
+        };
+
+        return movedMeters >= threshold;
     }
+
+    private Microsoft.Maui.Devices.Sensors.Location ApplyLocationStabilization(Microsoft.Maui.Devices.Sensors.Location location)
+    {
+        if (_lastLocation == null || _trackingState != TrackingProximityState.Inside)
+            return location;
+
+        var movedMeters = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(
+            _lastLocation,
+            location,
+            Microsoft.Maui.Devices.Sensors.DistanceUnits.Kilometers) * 1000.0;
+
+        var accuracy = Math.Max(0, location.Accuracy ?? 0);
+        var snapThreshold = Math.Max(1.4, accuracy * 0.22);
+
+        // While user stands still inside zone, keep pin stable instead of following tiny GPS jitter.
+        if (movedMeters <= snapThreshold && (!location.Speed.HasValue || location.Speed.Value < 0.7))
+        {
+            var snapped = CloneLocation(_lastLocation.Latitude, _lastLocation.Longitude, location);
+            snapped.Accuracy = location.Accuracy.HasValue && _lastLocation.Accuracy.HasValue
+                ? Math.Min(location.Accuracy.Value, _lastLocation.Accuracy.Value)
+                : (location.Accuracy ?? _lastLocation.Accuracy);
+            return snapped;
+        }
+
+        // For small drifts, blend old/new coordinate to keep movement smooth on map.
+        if (movedMeters < 7.5 && (!location.Speed.HasValue || location.Speed.Value < 1.2))
+        {
+            var lat = (_lastLocation.Latitude * 0.68) + (location.Latitude * 0.32);
+            var lon = (_lastLocation.Longitude * 0.68) + (location.Longitude * 0.32);
+            return CloneLocation(lat, lon, location);
+        }
+
+        return location;
+    }
+
+    private static Microsoft.Maui.Devices.Sensors.Location CloneLocation(
+        double latitude,
+        double longitude,
+        Microsoft.Maui.Devices.Sensors.Location source)
+    {
+        return new Microsoft.Maui.Devices.Sensors.Location(latitude, longitude)
+        {
+            Accuracy = source.Accuracy,
+            Altitude = source.Altitude,
+            Course = source.Course,
+            Speed = source.Speed,
+            Timestamp = source.Timestamp
+        };
+    }
+
+    private bool IsAccuracyAcceptable(Microsoft.Maui.Devices.Sensors.Location location)
+    {
+        var accuracy = location.Accuracy;
+        if (!accuracy.HasValue || accuracy.Value <= 0)
+            return true;
+
+        var maxAllowed = _trackingState switch
+        {
+            TrackingProximityState.Inside => 28.0,
+            TrackingProximityState.Near => 45.0,
+            _ => 85.0
+        };
+
+        return accuracy.Value <= maxAllowed;
+    }
+
+    private bool ShouldEmitHeartbeat(TrackingProximityState state)
+    {
+        var heartbeatMs = state switch
+        {
+            TrackingProximityState.Inside => 2_000,
+            TrackingProximityState.Near => 4_500,
+            _ => 12_000
+        };
+
+        return (DateTimeOffset.UtcNow - _lastEmittedAt).TotalMilliseconds >= heartbeatMs;
+    }
+
+    private static int GetStationaryDelayMs(TrackingProximityState state) => state switch
+    {
+        TrackingProximityState.Inside => StationaryDelayInsideMs,
+        TrackingProximityState.Near => StationaryDelayNearMs,
+        _ => StationaryDelayFarMs
+    };
+
+    private static int GetNoisyFixDelayMs(TrackingProximityState state) => state switch
+    {
+        TrackingProximityState.Inside => 2_200,
+        TrackingProximityState.Near => 4_500,
+        _ => 15_000
+    };
 
 #if ANDROID
     private static void StartAndroidForegroundService()
@@ -160,16 +286,16 @@ public class LocationService : ILocationService
 
     private static int GetDelayMs(TrackingProximityState state) => state switch
     {
-        TrackingProximityState.Far => 60_000,
-        TrackingProximityState.Inside => 2_000,
-        _ => 12_000
+        TrackingProximityState.Far => 20_000,
+        TrackingProximityState.Inside => 1_000,
+        _ => 3_000
     };
 
     private static GeolocationAccuracy GetAccuracy(TrackingProximityState state) => state switch
     {
         TrackingProximityState.Far => GeolocationAccuracy.Medium,
         TrackingProximityState.Inside => GeolocationAccuracy.Best,
-        _ => GeolocationAccuracy.High
+        _ => GeolocationAccuracy.Best
     };
 }
 
