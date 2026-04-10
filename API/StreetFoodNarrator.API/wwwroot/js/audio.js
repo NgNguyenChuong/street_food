@@ -70,7 +70,18 @@ function _renderAudioTable(data) {
 // ── WORKFLOW ──
 async function _submitAudio(id) { try{await AudioApi.submit(id); showToast('Đã gửi audio','success'); _loadAudios();}catch(e){showToast(e.message,'error');} }
 async function _approveAudio(id) { try{await AudioApi.approve(id); showToast('Đã duyệt audio','success'); _loadAudios();}catch(e){showToast(e.message,'error');} }
-function _rejectAudioPrompt(id) { const r=prompt('Lý do từ chối:'); if(r){ AudioApi.reject(id,r).then(()=>{showToast('Đã từ chối','success'); _loadAudios();}).catch(e=>showToast(e.message,'error')); } }
+async function _rejectAudioPrompt(id) {
+  if (typeof showPromptDialog !== 'function') {
+    showToast('Chưa sẵn sàng hộp thoại nhập liệu.', 'error');
+    return;
+  }
+  const reason = await showPromptDialog('Nhập lý do từ chối:', '', { title: 'Từ chối Audio', confirmText: 'Xác nhận', cancelText: 'Hủy', placeholder: 'Lý do (tùy chọn)' });
+  const r = (reason || '').trim();
+  if(!r) return;
+  AudioApi.reject(id, r)
+    .then(() => { showToast('Đã từ chối','success'); _loadAudios(); })
+    .catch(e => showToast(e.message,'error'));
+}
 function _deleteAudio(id,btn) { confirmAction('Xóa audio này?', async ()=>{ try{await AudioApi.delete(id); showToast('Đã xóa','success'); _loadAudios();}catch(e){showToast(e.message,'error');} }); }
 
 // ── EDIT (UpdateAudioModel: title, description, isActive) ──

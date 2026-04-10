@@ -780,6 +780,35 @@
         .confirm-msg { color: #475569; margin-bottom: 1rem; }
         .confirm-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
 
+        .toast-wrap {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 3100;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+        }
+
+        .toast-item {
+            pointer-events: all;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+            font-weight: 600;
+            color: #fff;
+            background: #1A1A2E;
+            animation: fadeInUp 0.2s ease;
+        }
+
+        .toast-item.success { background: #0f766e; }
+        .toast-item.error { background: #b42318; }
+        .toast-item.warning { background: #a16207; }
+
         /* Animations */
         @keyframes fadeInDown {
             from {
@@ -836,6 +865,7 @@
     </style>
 </head>
 <body>
+<div class="toast-wrap" id="toastWrap"></div>
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
@@ -1493,7 +1523,7 @@
 
     function downloadAudio(url) {
         if (!url) {
-            alert('Audio chưa có file.');
+            showToast('Audio chưa có file.', 'warning');
             return;
         }
         window.open(url, '_blank');
@@ -1504,7 +1534,7 @@
             await api.submitAudio(id);
             loadAudios();
         } catch (error) {
-            alert('Không thể gửi duyệt: ' + error.message);
+            showToast('Không thể gửi duyệt: ' + error.message, 'error');
         }
     }
 
@@ -1513,40 +1543,40 @@
             await api.approveAudio(id);
             loadAudios();
         } catch (error) {
-            alert('Không thể duyệt audio: ' + error.message);
+            showToast('Không thể duyệt audio: ' + error.message, 'error');
         }
     }
 
     async function rejectAudio(id) {
-        const reason = prompt('Nhập lý do từ chối (tùy chọn):') || '';
+        const reason = (await showPrompt('Nhập lý do từ chối (tùy chọn):')) || '';
         try {
             await api.rejectAudio(id, reason);
             loadAudios();
         } catch (error) {
-            alert('Không thể từ chối audio: ' + error.message);
+            showToast('Không thể từ chối audio: ' + error.message, 'error');
         }
     }
 
     async function saveAudioScript(id, script) {
         if (!isVendor) {
-            alert('Admin không được phép chỉnh sửa script.');
+            showToast('Admin không được phép chỉnh sửa script.', 'warning');
             return;
         }
         try {
             await api.updateAudio(id, { ttsText: script || '' });
             await loadAudios();
         } catch (error) {
-            alert('Không thể lưu script: ' + error.message);
+            showToast('Không thể lưu script: ' + error.message, 'error');
         }
     }
 
     async function regenerateAudioFromScript(id, script, triggerBtn) {
         if (!isVendor) {
-            alert('Admin không được phép tạo lại audio.');
+            showToast('Admin không được phép tạo lại audio.', 'warning');
             return;
         }
         if (!script) {
-            alert('Vui lòng nhập nội dung script trước khi tạo lại audio.');
+            showToast('Vui lòng nhập nội dung script trước khi tạo lại audio.', 'warning');
             return;
         }
 
@@ -1569,7 +1599,7 @@
                     const message = (error?.message || '').toLowerCase();
                     const isApprovedEditBlocked = message.includes('approved audio cannot be edited by vendor');
                     if (isApprovedEditBlocked) {
-                        alert('Audio đã duyệt nên Vendor không thể sửa script. Hệ thống sẽ tạo lại bằng script hiện tại.');
+                        showToast('Audio đã duyệt nên Vendor không thể sửa script. Hệ thống sẽ tạo lại bằng script hiện tại.', 'warning');
                     } else {
                         throw error;
                     }
@@ -1579,7 +1609,7 @@
             await api.request(`/Audio/${id}/generate-file`, { method: 'POST' });
             await loadAudios();
         } catch (error) {
-            alert('Không thể tạo lại audio: ' + error.message);
+            showToast('Không thể tạo lại audio: ' + error.message, 'error');
         } finally {
             if (triggerBtn) {
                 triggerBtn.disabled = false;
@@ -1624,6 +1654,13 @@
     }
 
     function showConfirm(message, infoOnly = false) {
+        if (window.UiFeedback?.confirm) {
+            return window.UiFeedback.confirm(message || '', {
+                title: 'Xác nhận',
+                confirmText: infoOnly ? 'Đã hiểu' : 'Đồng ý',
+                cancelText: 'Hủy'
+            }).then(ok => (infoOnly ? true : ok));
+        }
         return new Promise(resolve => {
             const overlay = document.createElement('div');
             overlay.className = 'confirm-overlay';
@@ -1644,6 +1681,53 @@
             }
             document.getElementById('confirmYes').onclick = () => cleanup(infoOnly ? true : true);
         });
+    }
+
+    function showPrompt(message) {
+        if (window.UiFeedback?.prompt) {
+            return window.UiFeedback.prompt(message || '', '', {
+                title: 'Nhập thông tin',
+                confirmText: 'Xác nhận',
+                cancelText: 'Hủy'
+            });
+        }
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-dialog">
+                    <div class="confirm-title">Nhập thông tin</div>
+                    <div class="confirm-msg">${message || ''}</div>
+                    <input id="promptInput" class="filter-input" style="margin:0.75rem 0 0.5rem" />
+                    <div class="confirm-actions">
+                        <button class="btn btn-outline" id="promptNo">Hủy</button>
+                        <button class="btn btn-primary" id="promptYes">Xác nhận</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const input = overlay.querySelector('#promptInput');
+            const cleanup = (val) => { overlay.remove(); resolve(val); };
+            overlay.querySelector('#promptNo').onclick = () => cleanup(null);
+            overlay.querySelector('#promptYes').onclick = () => cleanup(input ? input.value : '');
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(null); });
+            setTimeout(() => input?.focus(), 0);
+        });
+    }
+
+    function showToast(message, type = 'info', timeout = 3200) {
+        if (window.UiFeedback?.toast) {
+            window.UiFeedback.toast(message, type, timeout);
+            return;
+        }
+        const wrap = document.getElementById('toastWrap');
+        if (!wrap || !message) return;
+        const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-circle-exclamation' : type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-info';
+        const item = document.createElement('div');
+        item.className = `toast-item ${type}`;
+        item.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
+        wrap.appendChild(item);
+        setTimeout(() => item.remove(), timeout);
     }
 
     const audioBarState = {

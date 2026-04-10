@@ -1088,6 +1088,16 @@
     }
 
     function showConfirm(message, onConfirm) {
+        if (window.UiFeedback?.confirm) {
+            window.UiFeedback.confirm(message || '', {
+                title: 'Xác nhận',
+                confirmText: 'Đồng ý',
+                cancelText: 'Hủy'
+            }).then(ok => {
+                if (ok) onConfirm && onConfirm();
+            });
+            return;
+        }
         ensureConfirmModal();
         const overlay = document.getElementById('appConfirmModal');
         const msg = document.getElementById('appConfirmMessage');

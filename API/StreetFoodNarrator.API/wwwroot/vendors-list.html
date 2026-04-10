@@ -1474,7 +1474,8 @@
     // ═══ Change Status ═══
     async function changeStatus(vendorId, newStatus) {
         const labels = { approved: 'duyệt', rejected: 'từ chối', pending: 'đặt chờ duyệt' };
-        if (!confirm(`Bạn muốn ${labels[newStatus]} vendor này?`)) return;
+        const ok = await showConfirmPopup(`Bạn muốn ${labels[newStatus]} vendor này?`);
+        if (!ok) return;
 
         try {
             await VendorApi.updateStatus(vendorId, newStatus);
@@ -1548,7 +1549,7 @@
 
                 showToast('Đã tạo tài khoản Vendor', 'success');
                 if (createdVendor && createdVendor.temporaryPassword) {
-                    alert(`Mật khẩu tạm thời: ${createdVendor.temporaryPassword}\n\nHãy gửi cho vendor để đăng nhập.`);
+                    showToast(`Mật khẩu tạm thời: ${createdVendor.temporaryPassword}`, 'info', 9000);
                 }
             }
 
@@ -1561,7 +1562,8 @@
 
     async function toggleLockAccount(id, isLocked) {
         const msg = isLocked ? 'Mở khóa tài khoản này?' : 'Khóa tài khoản này?';
-        if (!confirm(msg)) return;
+        const ok = await showConfirmPopup(msg);
+        if (!ok) return;
 
         try {
             if (isLocked) await UsersApi.unlock(id);
@@ -1574,7 +1576,8 @@
     }
 
     async function deleteAccount(id) {
-        if (!confirm('Xóa mềm tài khoản này?')) return;
+        const ok = await showConfirmPopup('Xóa mềm tài khoản này?');
+        if (!ok) return;
         try {
             await UsersApi.delete(id);
             showToast('Đã xóa tài khoản', 'success');
@@ -1585,11 +1588,11 @@
     }
 
     async function quickEditAccount(id, fullName, phoneNumber, role) {
-        const newName = prompt('Họ tên mới:', fullName || '');
+        const newName = await showPromptPopup('Họ tên mới:', fullName || '');
         if (newName === null) return;
-        const newPhone = prompt('Số điện thoại mới:', phoneNumber || '');
+        const newPhone = await showPromptPopup('Số điện thoại mới:', phoneNumber || '');
         if (newPhone === null) return;
-        const newRole = prompt('Role (Admin/Vendor):', role || 'Vendor');
+        const newRole = await showPromptPopup('Role (Admin/Vendor):', role || 'Vendor');
         if (newRole === null) return;
 
         try {
@@ -1644,6 +1647,69 @@
         } catch (err) {
             showToast(err.message || 'Lỗi cập nhật', 'error');
         }
+    }
+
+    function showConfirmPopup(message) {
+        if (window.UiFeedback?.confirm) {
+            return window.UiFeedback.confirm(message || '', {
+                title: 'Xác nhận',
+                confirmText: 'Đồng ý',
+                cancelText: 'Hủy'
+            });
+        }
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay active';
+            overlay.innerHTML = `
+                <div class="modal" style="max-width:420px;">
+                    <div class="modal-header"><h3>Xác nhận</h3></div>
+                    <div class="modal-body"><p>${escapeHtml(message || '')}</p></div>
+                    <div class="modal-footer" style="justify-content:flex-end;gap:.6rem;">
+                        <button class="btn btn-outline" id="cfNo">Hủy</button>
+                        <button class="btn btn-primary" id="cfYes">Đồng ý</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const cleanup = (val) => { overlay.remove(); resolve(val); };
+            overlay.querySelector('#cfNo')?.addEventListener('click', () => cleanup(false));
+            overlay.querySelector('#cfYes')?.addEventListener('click', () => cleanup(true));
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+        });
+    }
+
+    function showPromptPopup(label, defaultValue = '') {
+        if (window.UiFeedback?.prompt) {
+            return window.UiFeedback.prompt(label || '', defaultValue || '', {
+                title: 'Nhập thông tin',
+                confirmText: 'Xác nhận',
+                cancelText: 'Hủy'
+            });
+        }
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay active';
+            overlay.innerHTML = `
+                <div class="modal" style="max-width:460px;">
+                    <div class="modal-header"><h3>Nhập thông tin</h3></div>
+                    <div class="modal-body">
+                        <label style="display:block;font-weight:600;margin-bottom:.5rem;">${escapeHtml(label || '')}</label>
+                        <input id="pmInput" value="${escapeHtml(defaultValue || '')}" style="width:100%;padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:10px;" />
+                    </div>
+                    <div class="modal-footer" style="justify-content:flex-end;gap:.6rem;">
+                        <button class="btn btn-outline" id="pmNo">Hủy</button>
+                        <button class="btn btn-primary" id="pmYes">Xác nhận</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const input = overlay.querySelector('#pmInput');
+            const cleanup = (val) => { overlay.remove(); resolve(val); };
+            overlay.querySelector('#pmNo')?.addEventListener('click', () => cleanup(null));
+            overlay.querySelector('#pmYes')?.addEventListener('click', () => cleanup(input ? input.value : ''));
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(null); });
+            setTimeout(() => input?.focus(), 0);
+        });
     }
 
     // ═══ Modal Utils ═══

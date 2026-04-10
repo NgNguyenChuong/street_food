@@ -1499,6 +1499,10 @@
     }
 
     function showToast(msg, type = 'info') {
+      if (window.UiFeedback?.toast) {
+        window.UiFeedback.toast(msg, type, 3200);
+        return;
+      }
       const area = document.getElementById('toastArea');
       const t = document.createElement('div');
       t.className = `toast ${type}`;
