@@ -6,6 +6,7 @@ using Microsoft.Extensions.FileProviders;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
+using StreetFoodNarrator.API.Services;
 using System.Globalization;
 using System.Net;
 using System.Text;
@@ -40,6 +41,7 @@ builder.Services.AddSingleton(mongoDbSettings);
 builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(mongoDbSettings.ConnectionString));
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<MongoSequenceService>();
+builder.Services.AddHostedService<PremiumExpiryMonitorService>();
 
 // Identity Configuration
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>

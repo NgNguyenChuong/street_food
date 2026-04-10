@@ -457,6 +457,29 @@
             window.location.href = 'audio-list';
         }
 
+        const isVendor = canUseBulkAudio;
+
+        async function ensureVendorPremiumAudioAccess() {
+            if (!isVendor) return true;
+
+            try {
+                const premium = await api.request('/Payments/me/premium-status');
+                if (premium?.isPremiumActive) return true;
+
+                showTopRightToast('Bạn cần đăng ký gói Premium trước khi dùng chức năng âm thanh.', 'warning', 4200);
+                setTimeout(() => {
+                    window.location.href = 'payment-management';
+                }, 500);
+                return false;
+            } catch (error) {
+                showTopRightToast('Không thể kiểm tra trạng thái Premium. Vui lòng thử lại sau.', 'error', 3600);
+                setTimeout(() => {
+                    window.location.href = 'dashboard';
+                }, 500);
+                return false;
+            }
+        }
+
         // ─── CONSTANTS ───────────────────────────────────────────────────────────────
         const MAX_TTS_SECONDS = 30;
         const WORDS_PER_SECOND_DEFAULT = 2.6;
@@ -1890,13 +1913,18 @@ function showValidationError(stepId, message) {
         });
 
         // ─── INIT ─────────────────────────────────────────────────────────────────────
-        renderTemplates();
-        renderLanguages();
-        loadVoices();
-        loadPOIs();
-        updateSummary();
-        try { sessionStorage.removeItem('tts_current_step'); } catch {}
-        goStep(1);
+        (async () => {
+            const canAccess = await ensureVendorPremiumAudioAccess();
+            if (!canAccess) return;
+
+            renderTemplates();
+            renderLanguages();
+            loadVoices();
+            loadPOIs();
+            updateSummary();
+            try { sessionStorage.removeItem('tts_current_step'); } catch {}
+            goStep(1);
+        })();
     </script>
 </body>
 </html>

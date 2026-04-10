@@ -971,6 +971,23 @@
     const isAdmin = user?.roles?.includes('Admin');
     const isVendor = user?.roles?.includes('Vendor');
 
+    async function ensureVendorPremiumAudioAccess() {
+        if (!isVendor) return true;
+
+        try {
+            const premium = await api.request('/Payments/me/premium-status');
+            if (premium?.isPremiumActive) return true;
+
+            alert('Bạn cần đăng ký gói Premium trước khi dùng chức năng âm thanh. Vui lòng vào mục Thanh toán gói dịch vụ.');
+            window.location.href = 'payment-management';
+            return false;
+        } catch (error) {
+            alert('Không thể kiểm tra trạng thái Premium. Vui lòng thử lại sau.');
+            window.location.href = 'dashboard';
+            return false;
+        }
+    }
+
     const bulkGenerateBtn = document.getElementById('bulkGenerateBtn');
     if (bulkGenerateBtn && isAdmin) {
         bulkGenerateBtn.style.display = 'none';
@@ -1844,7 +1861,9 @@
         });
     }
 
-    window.addEventListener('load', function() {
+    window.addEventListener('load', async function() {
+        const canAccess = await ensureVendorPremiumAudioAccess();
+        if (!canAccess) return;
         applyFilters();
     });
 </script>

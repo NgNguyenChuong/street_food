@@ -123,7 +123,7 @@
                         </button>
                         <ul class="submenu">
                             <li><a href="${poiListHref}" class="nav-sublink">${poiListLabel}</a></li>
-                            <li><a href="poi-create" class="nav-sublink">Tạo POI</a></li>
+                            <li><a href="poi-create" class="nav-sublink" id="vendorCreatePoiLink">Tạo POI</a></li>
                         </ul>
                     </li>
                     `}
@@ -133,6 +133,12 @@
                         <a href="vendor-profile" class="nav-link">
                             <i class="nav-icon fas fa-id-card"></i>
                             <span>Thông tin tài khoản</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="payment-management" class="nav-link">
+                            <i class="nav-icon fas fa-credit-card"></i>
+                            <span>Thanh toán gói dịch vụ</span>
                         </a>
                     </li>
                     ` : ''}
@@ -156,6 +162,12 @@
                             <span>Quản lý Vendors</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="payment-management" class="nav-link">
+                            <i class="nav-icon fas fa-wallet"></i>
+                            <span>Quản lý thanh toán</span>
+                        </a>
+                    </li>
                     ` : ''}
 
                     ${isAdmin ? `
@@ -173,8 +185,8 @@
                             <i class="nav-caret fas fa-chevron-down"></i>
                         </button>
                         <ul class="submenu">
-                            <li><a href="audio-list" class="nav-sublink">Danh sách âm thanh</a></li>
-                            <li><a href="audio-bulk-generate" class="nav-sublink">TTS hàng loạt</a></li>
+                            <li><a href="audio-list" class="nav-sublink" id="vendorAudioListLink">Danh sách âm thanh</a></li>
+                            <li><a href="audio-bulk-generate" class="nav-sublink" id="vendorAudioBulkLink">TTS hàng loạt</a></li>
                         </ul>
                     </li>
                     `}
@@ -641,6 +653,11 @@
                 transform: none !important;
             }
 
+            .nav-sublink.gated-link {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
             body {
                  margin-left: 280px !important;
             }
@@ -1014,6 +1031,7 @@
 
         hydrateAppSettings();
         applyVendorApprovalGate();
+        applyVendorPremiumPoiGate();
     }
 
     async function applyVendorApprovalGate() {
@@ -1053,6 +1071,100 @@
                 link.setAttribute('title', 'Tài khoản Vendor đang chờ duyệt');
             }
         });
+    }
+
+    async function getVendorPremiumStatus() {
+        const apiClient = getApiClient();
+        const tokenMgr = getTokenManager();
+        if (!isVendor || !apiClient || !tokenMgr || !tokenMgr.isAuthenticated()) {
+            return { isPremiumActive: false };
+        }
+
+        try {
+            if (typeof apiClient.request === 'function') {
+                return await apiClient.request('/Payments/me/premium-status');
+            }
+        } catch {
+            // ignore and fallback to inactive state
+        }
+
+        return { isPremiumActive: false };
+    }
+
+    function showVendorPremiumRequiredMessage() {
+        const message = 'Bạn cần đăng ký gói Premium để dùng chức năng này. Vui lòng vào mục "Thanh toán gói dịch vụ".';
+        if (window.UiFeedback?.toast) {
+            window.UiFeedback.toast(message, 'warning', 4200);
+            return;
+        }
+
+        let wrap = document.getElementById('sidebarToastWrap');
+        if (!wrap) {
+            wrap = document.createElement('div');
+            wrap.id = 'sidebarToastWrap';
+            wrap.style.position = 'fixed';
+            wrap.style.top = '1rem';
+            wrap.style.right = '1rem';
+            wrap.style.zIndex = '12000';
+            wrap.style.display = 'flex';
+            wrap.style.flexDirection = 'column';
+            wrap.style.gap = '.5rem';
+            document.body.appendChild(wrap);
+        }
+
+        const item = document.createElement('div');
+        item.style.background = '#a16207';
+        item.style.color = '#fff';
+        item.style.padding = '.75rem .95rem';
+        item.style.borderRadius = '10px';
+        item.style.fontWeight = '600';
+        item.style.maxWidth = '520px';
+        item.style.boxShadow = '0 10px 26px rgba(0,0,0,.18)';
+        item.textContent = message;
+        wrap.appendChild(item);
+        setTimeout(() => item.remove(), 4200);
+    }
+
+    async function applyVendorPremiumPoiGate() {
+        if (!isVendor) return;
+
+        const createPoiLink = document.getElementById('vendorCreatePoiLink');
+        const audioListLink = document.getElementById('vendorAudioListLink');
+        const audioBulkLink = document.getElementById('vendorAudioBulkLink');
+        const currentPage = window.location.pathname.split('/').pop()?.replace('.html', '') || 'index';
+
+        const premiumStatus = await getVendorPremiumStatus();
+        const isPremiumActive = !!premiumStatus?.isPremiumActive;
+
+        if (!isPremiumActive && createPoiLink) {
+            createPoiLink.addEventListener('click', (event) => {
+                event.preventDefault();
+                showVendorPremiumRequiredMessage();
+            });
+            createPoiLink.classList.add('gated-link');
+            createPoiLink.setAttribute('aria-disabled', 'true');
+            createPoiLink.setAttribute('title', 'Chức năng yêu cầu gói Premium còn hạn. Vào Thanh toán gói dịch vụ để đăng ký.');
+        }
+
+        if (!isPremiumActive) {
+            [audioListLink, audioBulkLink].forEach(link => {
+                if (!link) return;
+                link.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    showVendorPremiumRequiredMessage();
+                });
+                link.classList.add('gated-link');
+                link.setAttribute('aria-disabled', 'true');
+                link.setAttribute('title', 'Chức năng âm thanh yêu cầu gói Premium còn hạn. Vào Thanh toán gói dịch vụ để đăng ký.');
+            });
+        }
+
+        if (!isPremiumActive && (currentPage === 'poi-create' || currentPage === 'audio-list' || currentPage === 'audio-bulk-generate')) {
+            showVendorPremiumRequiredMessage();
+            window.setTimeout(() => {
+                window.location.href = 'payment-management';
+            }, 100);
+        }
     }
 
     window.applyAppSettings = applyAppSettings;

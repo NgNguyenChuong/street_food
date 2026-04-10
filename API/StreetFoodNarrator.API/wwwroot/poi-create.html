@@ -1226,6 +1226,26 @@
             }
         }
 
+        async function ensureVendorCanCreatePoi() {
+            if (!isVendor) return true;
+
+            try {
+                const premium = await api.request('/Payments/me/premium-status');
+                const isPremiumActive = !!premium?.isPremiumActive;
+                if (isPremiumActive) return true;
+
+                showToast('Bạn cần đăng ký gói Premium trước khi tạo POI. Vui lòng vào mục Thanh toán gói dịch vụ.', 'warning', 4200);
+                setTimeout(() => {
+                    window.location.href = 'payment-management';
+                }, 600);
+                return false;
+            } catch (error) {
+                console.error('Cannot verify premium status:', error);
+                showToast('Không thể kiểm tra trạng thái Premium. Vui lòng thử lại sau.', 'error', 3600);
+                return false;
+            }
+        }
+
         async function loadAdminVendorOptions() {
             if (!isAdmin) return;
 
@@ -1709,6 +1729,8 @@
 
         // Initialize
         (async () => {
+            const canCreate = await ensureVendorCanCreatePoi();
+            if (!canCreate) return;
             applyRoleUi();
             await loadVendorContext();
             await loadAdminVendorOptions();

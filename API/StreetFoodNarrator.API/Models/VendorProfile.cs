@@ -38,6 +38,9 @@ public class VendorProfile
     public bool IsVerified { get; set; } = false;
     [MaxLength(20)]
     public string VerificationStatus { get; set; } = "pending"; // approved | pending | rejected
+    [MaxLength(50)]
+    public string? ServicePlan { get; set; }
+    public DateTime? PremiumExpiresAt { get; set; }
     public double? Rating { get; set; }
     public long ViewCount { get; set; } = 0;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

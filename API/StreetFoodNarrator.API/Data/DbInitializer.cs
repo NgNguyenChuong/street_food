@@ -80,9 +80,31 @@ public static class DbInitializer
                 ExpireAfter = TimeSpan.FromHours(24)
             });
 
+        var submissionIdIndex = new CreateIndexModel<ServiceSubmission>(
+            Builders<ServiceSubmission>.IndexKeys.Ascending(x => x.SubmissionId),
+            new CreateIndexOptions { Unique = true, Name = "ux_submissions_submission_id" });
+
+        var submissionVendorRequestedAtIndex = new CreateIndexModel<ServiceSubmission>(
+            Builders<ServiceSubmission>.IndexKeys
+                .Ascending(x => x.VendorId)
+                .Descending(x => x.RequestedAt),
+            new CreateIndexOptions { Name = "ix_submissions_vendor_requested_at" });
+
+        var submissionStatusRequestedAtIndex = new CreateIndexModel<ServiceSubmission>(
+            Builders<ServiceSubmission>.IndexKeys
+                .Ascending(x => x.Status)
+                .Descending(x => x.RequestedAt),
+            new CreateIndexOptions { Name = "ix_submissions_status_requested_at" });
+
         await db.POIs.Indexes.CreateManyAsync(new[] { poiIdIndex, poiVendorIndex });
         await db.VendorProfiles.Indexes.CreateOneAsync(vendorIdIndex);
         await db.SubmissionIdempotencies.Indexes.CreateManyAsync(new[] { idempotencyKeyIndex, idempotencyCreatedAtTtlIndex });
+        await db.ServiceSubmissions.Indexes.CreateManyAsync(new[]
+        {
+            submissionIdIndex,
+            submissionVendorRequestedAtIndex,
+            submissionStatusRequestedAtIndex
+        });
     }
 
     // ─────────────────────────────────────────────────────────────
