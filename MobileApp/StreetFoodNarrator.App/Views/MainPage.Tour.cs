@@ -13,6 +13,7 @@ using MapsBrush = Mapsui.Styles.Brush;
 using StreetFoodNarrator.App.ViewModels;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Models;
+using StreetFoodNarrator.App.Core.Utils;
 using StreetFoodNarrator.App.Views.Components;
 using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
@@ -115,6 +116,15 @@ public partial class MainPage
                 // Cache position để resume sau
                 CacheNarrationResumeState(zone);
                 _pausedNarrationPositionSeconds = _tts.GetCurrentPosition();
+                return;
+            }
+
+            if (!_vm.IsPoiAccessibleForCurrentSubscription(zone))
+            {
+                await PremiumTourPaywallPage.ShowAsync(
+                    Shell.Current?.Navigation ?? Navigation,
+                    zone.GetDisplayName(_lang.CurrentLanguage),
+                    _vm);
                 return;
             }
 

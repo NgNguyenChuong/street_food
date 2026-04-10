@@ -25,7 +25,7 @@
                         <GradientStop Color="#00000000" Offset="1.0"/>
                     </LinearGradientBrush>
                 </Grid.Background>
-                <Grid ColumnDefinitions="48,*,48" ColumnSpacing="8">
+                <Grid ColumnDefinitions="48,*,Auto,48" ColumnSpacing="8">
                     <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
                             BackgroundColor="#0E1E17" Stroke="#1C3024" StrokeThickness="1"
                             WidthRequest="48" HeightRequest="48" VerticalOptions="Center">
@@ -71,7 +71,20 @@
                         </VerticalStackLayout>
                     </Border>
 
-                    <BoxView Grid.Column="2" WidthRequest="48" BackgroundColor="Transparent"/>
+                    <Border Grid.Column="2"
+                            IsVisible="{Binding IsVipBadgeVisible}"
+                            VerticalOptions="Center"
+                            StrokeShape="RoundRectangle 12"
+                            BackgroundColor="#22C55E20"
+                            Stroke="#22C55E66"
+                            Padding="10,6">
+                        <Label Text="{Binding VipBadgeLabel}"
+                               FontSize="11"
+                               FontAttributes="Bold"
+                               TextColor="#86EFAC"/>
+                    </Border>
+
+                    <BoxView Grid.Column="3" WidthRequest="48" BackgroundColor="Transparent"/>
                 </Grid>
             </Grid>
 

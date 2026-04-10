@@ -52,9 +52,19 @@ public partial class MainPage
 
     // ─── Pin action buttons ───────────────────────────────────────────────────
 
-    private void OnPinPlayAudio(object? sender, EventArgs e)
+    private async void OnPinPlayAudio(object? sender, EventArgs e)
     {
         if (_vm.SelectedPinPOI == null) return;
+
+        if (!_vm.IsPoiAccessibleForCurrentSubscription(_vm.SelectedPinPOI))
+        {
+            await PremiumTourPaywallPage.ShowAsync(
+                Shell.Current?.Navigation ?? Navigation,
+                _vm.SelectedPinPOI.GetDisplayName(_lang.CurrentLanguage),
+                _vm);
+            return;
+        }
+
         // Ưu tiên: cache MP3 offline → TTS API → native MAUI TTS
         _ = _tts.SpeakAsync(
             _vm.SelectedPinPOI.GetDisplayDescription(_lang.CurrentLanguage)
@@ -92,7 +102,7 @@ public partial class MainPage
         UpdateZonePins();
     }
 
-    private void OnPinViewDetails(object? sender, EventArgs e)
+    private async void OnPinViewDetails(object? sender, EventArgs e)
     {
         Console.WriteLine("[MainPage] OnPinViewDetails - Opening Detail Mode...");
         
@@ -100,6 +110,15 @@ public partial class MainPage
         if (poi == null)
         {
             Console.WriteLine("[MainPage] OnPinViewDetails - SelectedPinPOI is NULL!");
+            return;
+        }
+
+        if (!_vm.IsPoiAccessibleForCurrentSubscription(poi))
+        {
+            await PremiumTourPaywallPage.ShowAsync(
+                Shell.Current?.Navigation ?? Navigation,
+                poi.GetDisplayName(_lang.CurrentLanguage),
+                _vm);
             return;
         }
 
@@ -124,6 +143,16 @@ public partial class MainPage
     private async void OnMapViewDetail(object? sender, Core.Models.POI poi)
     {
         if (poi == null) return;
+
+        if (!_vm.IsPoiAccessibleForCurrentSubscription(poi))
+        {
+            await PremiumTourPaywallPage.ShowAsync(
+                Shell.Current?.Navigation ?? Navigation,
+                poi.GetDisplayName(_lang.CurrentLanguage),
+                _vm);
+            return;
+        }
+
         _vm.SelectedPinPOI = poi;
         _vm.PrimaryZone = poi;
         _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);

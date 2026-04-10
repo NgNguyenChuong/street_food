@@ -396,6 +396,19 @@ public partial class MainPage : ContentPage
     private async Task HandleNearPrimaryActionAsync()
     {
         var startFromNearTour = _vm.NearPrimaryIsTour;
+
+        if (!startFromNearTour && !_vm.IsVipUser)
+        {
+            await DisplayAlertAsync(
+                Ui("Thông báo", "Notice", "提示"),
+                Ui(
+                    "Tài khoản chưa VIP chỉ dùng được tour miễn phí do admin chỉ định.",
+                    "Non-VIP users can only use the admin-designated free tour.",
+                    "非 VIP 用户只能使用管理员指定的免费路线。"),
+                "OK");
+            return;
+        }
+
         var handled = _vm.ActivateNearPrimaryChoice();
         if (!handled)
         {
@@ -1489,6 +1502,8 @@ public partial class MainPage : ContentPage
 
     private async Task InitializePageAsync()
     {
+        _ = _vm.RefreshVipSubscriptionStatusAsync(force: false);
+
         var usePrewarmedData = TryConsumeMainPagePrewarmFlag();
         if (!usePrewarmedData)
         {
@@ -2214,6 +2229,16 @@ public partial class MainPage : ContentPage
     {
         var targetPoi = _vm.JournalCurrentlyPlayingPoi ?? _vm.PrimaryZone;
         if (targetPoi == null) return;
+
+        if (!_vm.IsPoiAccessibleForCurrentSubscription(targetPoi))
+        {
+            await PremiumTourPaywallPage.ShowAsync(
+                Shell.Current?.Navigation ?? Navigation,
+                targetPoi.GetDisplayName(_lang.CurrentLanguage),
+                _vm);
+            return;
+        }
+
         if (!TryBeginPoiDetailNavigation()) return;
 
         try
@@ -2418,6 +2443,7 @@ public partial class MainPage : ContentPage
         if (!ReferenceEquals(BindingContext, _vm))
             BindingContext = _vm;
         _vm.RefreshOfflineBannerSession();
+        _ = _vm.RefreshVipSubscriptionStatusAsync(force: false);
 
         _autoOpenInZoneDirectly = Preferences.Get(AutoOpenInZoneOnNextMainPageKey, false);
         if (_autoOpenInZoneDirectly)

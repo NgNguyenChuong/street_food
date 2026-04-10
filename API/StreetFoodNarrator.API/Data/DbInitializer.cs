@@ -402,6 +402,7 @@ public static class DbInitializer
             Description = "Hành trình khám phá 4 quán ốc danh tiếng nhất Phố Vĩnh Khánh: từ Ốc Vũ bình dân đến Ốc Oanh được Michelin vinh danh. Trải nghiệm sự đa dạng trong văn hóa ăn ốc vỉa hè Sài Gòn qua những con ốc tươi, nước chấm đặc trưng và không khí đường phố sôi động.",
             EstimatedDurationMinutes = 90,
             IsActive = true,
+            IsFreeTour = true,
             CreatedAt = DateTime.UtcNow
         };
         await db.Tours.InsertOneAsync(tourOcHuyenThoai);

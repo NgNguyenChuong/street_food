@@ -107,6 +107,7 @@ public class ToursController : ControllerBase
                 ImageUrl = NormalizeImageUrlForResponse(t.ImageUrl),
                 EstimatedDurationMinutes = t.EstimatedDurationMinutes,
                 IsActive = t.IsActive,
+                IsFreeTour = t.IsFreeTour,
                 CreatedAt = t.CreatedAt,
                 Themes = t.Themes ?? new(),
                 TimeSlots = t.TimeSlots ?? new(),
@@ -149,6 +150,7 @@ public class ToursController : ControllerBase
     public async Task<ActionResult<Tour>> CreateTour([FromBody] CreateTourRequest request)
     {
         var tourId = await _sequence.GetNextAsync("Tour_ID");
+        var isFreeTour = request.IsFreeTour ?? false;
 
         var tour = new Tour
         {
@@ -161,7 +163,8 @@ public class ToursController : ControllerBase
             Description_Zh = request.Description_Zh,
             ImageUrl = NormalizeImageUrlForStorage(request.ImageUrl),
             EstimatedDurationMinutes = request.EstimatedDurationMinutes,
-            IsActive = request.IsActive ?? true,
+            IsActive = isFreeTour ? true : (request.IsActive ?? true),
+            IsFreeTour = isFreeTour,
             Themes = request.Themes ?? new(),
             TimeSlots = request.TimeSlots ?? new(),
             RouteType = request.RouteType ?? "ordered",
@@ -171,6 +174,14 @@ public class ToursController : ControllerBase
         };
 
         await _db.Tours.InsertOneAsync(tour);
+
+        if (isFreeTour)
+        {
+            await _db.Tours.UpdateManyAsync(
+                Builders<Tour>.Filter.Ne(t => t.Id, tour.Id),
+                Builders<Tour>.Update.Set(t => t.IsFreeTour, false));
+        }
+
         return CreatedAtAction(nameof(GetTour), new { id = tour.Id.ToString() }, tour);
     }
 
@@ -184,6 +195,8 @@ public class ToursController : ControllerBase
         if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
             return BadRequest("Invalid tour ID format");
 
+        var normalizedIsActive = request.IsFreeTour == true ? true : request.IsActive;
+
         var update = Builders<Tour>.Update
             .Set(t => t.TourName, request.TourName)
             .Set(t => t.TourName_En, request.TourName_En)
@@ -193,7 +206,7 @@ public class ToursController : ControllerBase
             .Set(t => t.Description_Zh, request.Description_Zh)
             .Set(t => t.ImageUrl, NormalizeImageUrlForStorage(request.ImageUrl))
             .Set(t => t.EstimatedDurationMinutes, request.EstimatedDurationMinutes)
-            .Set(t => t.IsActive, request.IsActive)
+            .Set(t => t.IsActive, normalizedIsActive)
             .Set(t => t.Themes, request.Themes ?? new())
             .Set(t => t.TimeSlots, request.TimeSlots ?? new())
             .Set(t => t.RouteType, request.RouteType ?? "ordered")
@@ -201,8 +214,18 @@ public class ToursController : ControllerBase
             .Set(t => t.RouteGeometry, request.RouteGeometry)
             .Set(t => t.UpdatedAt, DateTime.UtcNow);
 
+        if (request.IsFreeTour.HasValue)
+            update = update.Set(t => t.IsFreeTour, request.IsFreeTour.Value);
+
         var result = await _db.Tours.UpdateOneAsync(t => t.Id == objectId, update);
         if (result.MatchedCount == 0) return NotFound();
+
+        if (request.IsFreeTour == true)
+        {
+            await _db.Tours.UpdateManyAsync(
+                Builders<Tour>.Filter.Ne(t => t.Id, objectId),
+                Builders<Tour>.Update.Set(t => t.IsFreeTour, false));
+        }
 
         return NoContent();
     }
@@ -347,6 +370,7 @@ public class TourDto
     public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; }
+    public bool IsFreeTour { get; set; }
     public DateTime CreatedAt { get; set; }
     // v2 fields
     public List<string> Themes { get; set; } = new();
@@ -387,6 +411,7 @@ public class CreateTourRequest
     public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool? IsActive { get; set; }
+    public bool? IsFreeTour { get; set; }
     // v2 fields
     public List<string>? Themes { get; set; }
     public List<string>? TimeSlots { get; set; }
@@ -406,6 +431,7 @@ public class UpdateTourRequest
     public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; }
+    public bool? IsFreeTour { get; set; }
     // v2 fields
     public List<string>? Themes { get; set; }
     public List<string>? TimeSlots { get; set; }

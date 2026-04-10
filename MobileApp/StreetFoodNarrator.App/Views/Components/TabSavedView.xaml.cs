@@ -78,6 +78,16 @@ public partial class TabSavedView : ContentView
 
         if (e.CurrentSelection.FirstOrDefault() is POI poi)
         {
+            var vm = BindingContext as MainViewModel;
+            if (vm == null || !vm.IsPoiAccessibleForCurrentSubscription(poi))
+            {
+                await PremiumTourPaywallPage.ShowAsync(
+                    Shell.Current?.Navigation ?? Navigation,
+                    poi.GetDisplayName(),
+                    vm);
+                return;
+            }
+
             await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi, keepCurrentAudio: true), false);
         }
     }
@@ -141,7 +151,15 @@ public partial class TabSavedView : ContentView
         {
             var vm = BindingContext as MainViewModel;
             if (vm != null)
+            {
+                if (vm.IsTourLockedByFreeTrial(tour))
+                {
+                    await PremiumTourPaywallPage.ShowAsync(Navigation, tour.Name, vm);
+                    return;
+                }
+
                 await Navigation.PushModalAsync(new TourDetailPopupPage(vm, tour), false);
+            }
         }
     }
 
@@ -151,7 +169,15 @@ public partial class TabSavedView : ContentView
         {
             var vm = BindingContext as MainViewModel;
             if (vm != null)
+            {
+                if (vm.IsTourLockedByFreeTrial(tour))
+                {
+                    await PremiumTourPaywallPage.ShowAsync(Navigation, tour.Name, vm);
+                    return;
+                }
+
                 await vm.StartTourNowCommand.ExecuteAsync(tour);
+            }
         }
     }
 
@@ -167,6 +193,18 @@ public partial class TabSavedView : ContentView
     private async void OnDetailTapped(object sender, EventArgs e)
     {
         if (sender is BindableObject bindable && bindable.BindingContext is POI poi)
+        {
+            var vm = BindingContext as MainViewModel;
+            if (vm == null || !vm.IsPoiAccessibleForCurrentSubscription(poi))
+            {
+                await PremiumTourPaywallPage.ShowAsync(
+                    Shell.Current?.Navigation ?? Navigation,
+                    poi.GetDisplayName(),
+                    vm);
+                return;
+            }
+
             await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi, keepCurrentAudio: true), false);
+        }
     }
 }

@@ -50,7 +50,7 @@
                 <Grid x:Name="StateContentLayer"
                     RowDefinitions="Auto,*">
 
-            <Grid Grid.Row="0" Padding="20,36,20,8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Grid Grid.Row="0" Padding="20,36,20,8" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
                 <Button Grid.Column="0" WidthRequest="50" HeightRequest="50" CornerRadius="25"
                         BackgroundColor="#0F1D18" BorderColor="#1C3024" BorderWidth="1"
                         FontFamily="MDI" Text="&#xF0343;" FontSize="22" TextColor="#E57373"
@@ -59,8 +59,21 @@
                        VerticalTextAlignment="Center"
                        TextColor="#4BE277" FontSize="15" FontAttributes="Bold"
                        CharacterSpacing="1.8" LineBreakMode="TailTruncation" />
+                <Border Grid.Column="2"
+                        IsVisible="{Binding IsVipBadgeVisible}"
+                        VerticalOptions="Center"
+                        StrokeShape="RoundRectangle 12"
+                        BackgroundColor="#22C55E20"
+                        Stroke="#22C55E66"
+                        Padding="10,6">
+                    <Label Text="{Binding VipBadgeLabel}"
+                           FontSize="11"
+                           FontAttributes="Bold"
+                           TextColor="#86EFAC"/>
+                </Border>
+
                 <Button x:Name="MainHeaderLanguageButton"
-                    Grid.Column="2"
+                    Grid.Column="3"
                     WidthRequest="50"
                     HeightRequest="50"
                     CornerRadius="25"
@@ -165,12 +178,12 @@
                             </VerticalStackLayout>
                         </Border>
 
-                        <Grid Margin="2,-4,2,0" ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                        <Grid Margin="2,-4,2,0" ColumnDefinitions="*,Auto" VerticalOptions="Center" IsVisible="{Binding IsNearQuickExploreVisible}">
                             <Label Text="{Binding NearSecondaryIntroText}" FontSize="10" FontAttributes="Bold" CharacterSpacing="2.0" TextColor="#AEBFB6" />
                             <Label Grid.Column="1" Text="" FontSize="18" TextColor="#AEBFB6" />
                         </Grid>
 
-                        <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,-2,0,0">
+                        <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,-2,0,0" IsVisible="{Binding IsNearQuickExploreVisible}">
                             <HorizontalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding NearbyExplorePois}" Padding="0,0,0,6">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:MainViewModel+ExplorePoiCard">

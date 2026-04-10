@@ -18,7 +18,7 @@
             <VerticalStackLayout Spacing="0" Padding="0">
 
                 <!-- SECTION 1: Header Bar -->
-                <Grid ColumnDefinitions="Auto,*,Auto"
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto"
                       BackgroundColor="#0A1612"
                       Padding="20,16,20,16"
                       ColumnSpacing="12">
@@ -47,7 +47,21 @@
                            TextColor="#D8E6DF"
                            CharacterSpacing="0.3"/>
 
-                    <Border Grid.Column="2"
+                        <Border Grid.Column="2"
+                            IsVisible="{Binding IsVipBadgeVisible}"
+                            VerticalOptions="Center"
+                            StrokeThickness="1"
+                            BackgroundColor="#22C55E20"
+                            Stroke="#22C55E66"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="10,6">
+                        <Label Text="{Binding VipBadgeLabel}"
+                               FontSize="11"
+                               FontAttributes="Bold"
+                               TextColor="#86EFAC"/>
+                        </Border>
+
+                        <Border Grid.Column="3"
                             WidthRequest="44"
                             HeightRequest="44"
                             StrokeThickness="0"

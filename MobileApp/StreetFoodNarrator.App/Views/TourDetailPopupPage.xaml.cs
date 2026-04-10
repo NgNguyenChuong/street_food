@@ -53,6 +53,9 @@ public partial class TourDetailPopupPage : ContentPage
         ItineraryTitleLabel.Text = AppStrings.Get("PopupTour_Itinerary");
         SaveTourButton.Text = AppStrings.Get("PopupTour_Save");
         StartNowButton.Text = AppStrings.Get("PopupTour_StartNow");
+
+        if (_vm.IsTourLockedByFreeTrial(_tour))
+            StartNowButton.Text = "Đăng ký để mở tour";
     }
 
     private PopupVm BuildVm()
@@ -246,6 +249,12 @@ public partial class TourDetailPopupPage : ContentPage
 
     private async void OnStartNowClicked(object sender, EventArgs e)
     {
+        if (_vm.IsTourLockedByFreeTrial(_tour))
+        {
+            await PremiumTourPaywallPage.ShowAsync(Navigation, _tour.Name, _vm);
+            return;
+        }
+
         await _vm.StartTourNowCommand.ExecuteAsync(_tour);
         await Navigation.PopModalAsync(false);
     }
