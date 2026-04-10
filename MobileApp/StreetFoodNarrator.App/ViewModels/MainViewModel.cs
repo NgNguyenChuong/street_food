@@ -39,7 +39,10 @@ public partial class MainViewModel : ObservableObject
         public string DisplayPoiStopsText => AppStrings.Format("TourCard_PoiStopsFormat", PoiCount);
         public string DisplayDurationText => AppStrings.Format("TourCard_DurationFormat", EstimatedDurationMinutes);
         public string DetailButtonText => AppStrings.Get("TourCard_DetailButton");
-        public string StartNowButtonText => AppStrings.Get("TourCard_StartNowButton");
+        public bool IsStartAvailable => PoiCount > 0;
+        public string StartNowButtonText => IsStartAvailable
+            ? AppStrings.Get("TourCard_StartNowButton")
+            : "Tour tạm không khả dụng";
         public string CompletionStatusText => IsCompleted
             ? UiText("Đã đi", "Completed", "已体验")
             : UiText("Chưa đi", "Not yet", "未体验");
@@ -733,6 +736,7 @@ public partial class MainViewModel : ObservableObject
     private HashSet<string> _savedTourIds = new(StringComparer.OrdinalIgnoreCase);
     private HashSet<string> _completedTourIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<int> _activeTourPoiIds = new();
+    private List<POI> _tourPoiCatalog = new();
 
     partial void OnSelectedCategoryChanged(string value)
     {
@@ -781,6 +785,52 @@ public partial class MainViewModel : ObservableObject
 
     public IReadOnlyList<POI> GetRuntimeSpotPool()
         => ResolveRuntimeSpotPool();
+
+    public IReadOnlyList<POI> GetTourPoiCatalog(bool includeTemporarilyClosed = false)
+    {
+        var source = _tourPoiCatalog.Count > 0
+            ? _tourPoiCatalog
+            : AllPOIs.ToList();
+
+        var spots = source
+            .Where(p => p.ZoneType == "Spot")
+            .ToList();
+
+        if (!includeTemporarilyClosed)
+            spots = spots.Where(p => p.IsActive).ToList();
+
+        return spots;
+    }
+
+    private async Task RefreshTourPoiCatalogAsync()
+    {
+        try
+        {
+            var localPois = await _db.GetAllPOIsAsync();
+            if (localPois.Count == 0)
+            {
+                _tourPoiCatalog = AllPOIs
+                    .Where(p => p.ZoneType == "Spot")
+                    .ToList();
+                return;
+            }
+
+            _tourPoiCatalog = localPois
+                .Where(p => p.ZoneType == "Spot")
+                .GroupBy(p => p.Id)
+                .Select(g => g
+                    .OrderByDescending(x => x.UpdatedAt)
+                    .ThenByDescending(x => x.CreatedAt)
+                    .First())
+                .ToList();
+        }
+        catch
+        {
+            _tourPoiCatalog = AllPOIs
+                .Where(p => p.ZoneType == "Spot")
+                .ToList();
+        }
+    }
 
     public void ActivateTourOverride(TourListItem? tour, IEnumerable<POI>? orderedStops)
     {
@@ -2364,6 +2414,7 @@ public partial class MainViewModel : ObservableObject
             {
                 await _repository.SyncFromMongoAsync();
                 await _repository.LoadLocalAsync();
+                await RefreshTourPoiCatalogAsync();
 
                 var updatedZones = _repository.GetAllActiveZones();
                 await MainThread.InvokeOnMainThreadAsync(() =>
@@ -2382,6 +2433,7 @@ public partial class MainViewModel : ObservableObject
 
             // 1. ✅ Load local SQLite data IMMEDIATELY (cache-first)
             await _repository.LoadLocalAsync();
+            await RefreshTourPoiCatalogAsync();
 
             var zones = _repository.GetAllActiveZones();
             var hasSyncedDuringInitialLoad = false;
@@ -2557,6 +2609,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             IsToursLoading = true;
+            await RefreshTourPoiCatalogAsync();
 
             // 1) cache-first for instant UI
             var cachedTours = ReadToursFromCache();
@@ -2757,6 +2810,8 @@ public partial class MainViewModel : ObservableObject
                 tour.CoverImageUrl = ResolveTourCoverImageUrl(tour.CoverImageUrl);
             }
 
+            NormalizeTourPoiCounts(tours);
+
             ApplyLocalizedTourTexts(tours);
             return tours;
         }
@@ -2812,8 +2867,67 @@ public partial class MainViewModel : ObservableObject
             .ThenBy(t => t.Name)
             .ToList();
 
+        NormalizeTourPoiCounts(tours);
+
         ApplyLocalizedTourTexts(tours);
         return tours;
+    }
+
+    private void NormalizeTourPoiCounts(List<TourListItem> tours)
+    {
+        if (tours == null || tours.Count == 0)
+            return;
+
+        var catalog = GetTourPoiCatalog(includeTemporarilyClosed: true)
+            .Where(p => p.ZoneType == "Spot" && p.DeletedAt == null)
+            .ToList();
+
+        foreach (var tour in tours)
+        {
+            if (tour == null)
+                continue;
+
+            var resolved = CountResolvedTourStops(tour, catalog);
+            tour.PoiCount = resolved;
+        }
+    }
+
+    private static int CountResolvedTourStops(TourListItem tour, IReadOnlyList<POI> catalog)
+    {
+        if (tour == null || catalog.Count == 0)
+            return 0;
+
+        var seen = new HashSet<int>();
+
+        if (tour.PoiIds.Count > 0)
+        {
+            var byId = catalog.ToDictionary(p => p.Id);
+            foreach (var poiId in tour.PoiIds)
+            {
+                if (byId.ContainsKey(poiId))
+                    seen.Add(poiId);
+            }
+        }
+
+        if (tour.PoiNames.Count > 0)
+        {
+            foreach (var poiName in tour.PoiNames)
+            {
+                var normalizedName = NormalizeTourPoiName(poiName);
+                if (string.IsNullOrWhiteSpace(normalizedName))
+                    continue;
+
+                var match = catalog.FirstOrDefault(p =>
+                    NormalizeTourPoiName(p.Name_Vi) == normalizedName ||
+                    NormalizeTourPoiName(p.Name_En) == normalizedName ||
+                    NormalizeTourPoiName(p.Name_Zh) == normalizedName);
+
+                if (match != null)
+                    seen.Add(match.Id);
+            }
+        }
+
+        return seen.Count;
     }
 
     private static string ResolveTourLocalizedField(params string?[] values)
@@ -3331,12 +3445,23 @@ public partial class MainViewModel : ObservableObject
         if (tour == null)
             return;
 
+        if (tour.PoiCount <= 0)
+        {
+            await CustomAlert.ShowAsync(
+                "Tour tạm không khả dụng",
+                "Tour này hiện không còn quán khả dụng để bắt đầu.",
+                "OK",
+                AlertType.Warning);
+            return;
+        }
+
         try
         {
             if (AllPOIs.Count == 0)
                 await LoadAllPoisAsync(forceSyncNow: false);
 
-            var requestedStops = BuildTourStopsForStart(tour);
+            var includeTemporarilyClosed = CurrentExploreState == ExploreState.Far;
+            var requestedStops = BuildTourStopsForStart(tour, includeTemporarilyClosed);
             if (requestedStops.Count == 0)
             {
                 await CustomAlert.ShowAsync("Chưa thể bắt đầu", "Tour này chưa có dữ liệu POI phù hợp để bắt đầu ngay.", "OK", AlertType.Warning);
@@ -3405,18 +3530,17 @@ public partial class MainViewModel : ObservableObject
         CurrentAppMode = AppMode.Explore;
     }
 
-    private List<POI> BuildTourStopsForStart(TourListItem tour)
+    private List<POI> BuildTourStopsForStart(TourListItem tour, bool includeTemporarilyClosed = false)
     {
-        var activeSpots = AllPOIs
-            .Where(p => p.ZoneType == "Spot" && p.IsActive)
+        var candidateSpots = GetTourPoiCatalog(includeTemporarilyClosed)
             .ToList();
 
-        if (activeSpots.Count == 0)
+        if (candidateSpots.Count == 0)
             return new List<POI>();
 
         if (tour.PoiIds.Count > 0)
         {
-            var byId = activeSpots.ToDictionary(p => p.Id);
+            var byId = candidateSpots.ToDictionary(p => p.Id);
             var requested = new List<POI>();
             var seen = new HashSet<int>();
 
@@ -3440,7 +3564,7 @@ public partial class MainViewModel : ObservableObject
                 if (string.IsNullOrWhiteSpace(normalizedName))
                     continue;
 
-                var matchedPoi = activeSpots.FirstOrDefault(p =>
+                var matchedPoi = candidateSpots.FirstOrDefault(p =>
                     NormalizeTourPoiName(p.Name_Vi) == normalizedName ||
                     NormalizeTourPoiName(p.Name_En) == normalizedName ||
                     NormalizeTourPoiName(p.Name_Zh) == normalizedName);
@@ -3455,9 +3579,9 @@ public partial class MainViewModel : ObservableObject
 
         var baseLat = CurrentLat != 0 ? CurrentLat : AppConfig.DefaultLatitude;
         var baseLon = CurrentLon != 0 ? CurrentLon : AppConfig.DefaultLongitude;
-        var fallbackCount = Math.Clamp(tour.PoiCount > 0 ? tour.PoiCount : 4, 1, Math.Min(8, activeSpots.Count));
+        var fallbackCount = Math.Clamp(tour.PoiCount > 0 ? tour.PoiCount : 4, 1, Math.Min(8, candidateSpots.Count));
 
-        return activeSpots
+        return candidateSpots
             .OrderBy(p => HaversineDistance(baseLat, baseLon, p.Latitude, p.Longitude))
             .Take(fallbackCount)
             .ToList();

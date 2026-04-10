@@ -128,6 +128,17 @@
                                                        TextColor="#9CA3AF"
                                                        LineBreakMode="TailTruncation"
                                                        MaxLines="2"/>
+                                                <Border BackgroundColor="#7F1D1D33"
+                                                        Stroke="#EF444466"
+                                                        StrokeShape="RoundRectangle 8"
+                                                        Padding="8,2"
+                                                        HorizontalOptions="Start"
+                                                        IsVisible="{Binding IsTemporarilyClosed}">
+                                                    <Label Text="{Binding ClosedStatusText}"
+                                                           FontSize="10"
+                                                           FontAttributes="Bold"
+                                                           TextColor="#FCA5A5"/>
+                                                </Border>
                                             </VerticalStackLayout>
                                         </Grid>
                                     </Border>

@@ -153,6 +153,16 @@ public class LocalDatabaseService : ILocalDatabaseService
         
         return pois;
     }
+
+    public async Task<List<POI>> GetAllPOIsAsync()
+    {
+        await InitializeInternalAsync();
+
+        if (_database == null)
+            return new List<POI>();
+
+        return await _database.Table<POI>().ToListAsync();
+    }
     
     public async Task SavePOIAsync(POI poi)
     {
