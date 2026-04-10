@@ -243,6 +243,10 @@
                         <i class="fas fa-bolt"></i>
                         Giả lập thanh toán
                     </button>
+                    <button class="btn btn-outline" id="simulateExpiringBtn" onclick="simulateExpiringPayment()" style="margin-top:0.55rem">
+                        <i class="fas fa-hourglass-end"></i>
+                        Giả lập còn 3 phút
+                    </button>
                 </div>
             </article>
         </div>
@@ -394,6 +398,26 @@
             await loadVendorData();
         } catch (err) {
             alert(err.message || 'Không thể tạo yêu cầu thanh toán.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+        }
+    }
+
+    async function simulateExpiringPayment() {
+        const btn = document.getElementById('simulateExpiringBtn');
+        if (!btn) return;
+
+        btn.disabled = true;
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tạo...';
+
+        try {
+            const res = await PaymentApi.simulatePremiumExpiring(3);
+            alert(res?.message || 'Đã tạo gói giả lập còn 3 phút.');
+            await loadVendorData();
+        } catch (err) {
+            alert(err.message || 'Không thể tạo gói giả lập 3 phút.');
         } finally {
             btn.disabled = false;
             btn.innerHTML = oldHtml;

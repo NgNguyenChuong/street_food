@@ -87,6 +87,68 @@ public class PaymentsController : ControllerBase
         return Ok(new { data, total = data.Count });
     }
 
+    [HttpPost("simulate-premium-expiring")]
+    [Authorize(Roles = "Vendor")]
+    public async Task<ActionResult<object>> SimulatePremiumExpiring([FromBody] SimulatePremiumExpiringRequest? request)
+    {
+        var vendor = await ResolveCurrentVendorAsync();
+        if (vendor == null)
+            return Forbid();
+
+        if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = "Vendor phải được duyệt trước khi đăng ký gói premium." });
+        }
+
+        var remainingMinutes = Math.Clamp(request?.RemainingMinutes ?? 3, 1, 30);
+        var now = DateTime.UtcNow;
+        var paidAt = now.AddYears(-1).AddMinutes(remainingMinutes);
+        var expiresAt = paidAt.AddYears(1);
+
+        var submissionId = await _sequence.GetNextAsync("submission_id");
+        var transactionRef = $"MOCK-EXP-{DateTime.UtcNow:yyyyMMddHHmmss}-{submissionId}";
+
+        var submission = new ServiceSubmission
+        {
+            SubmissionId = submissionId,
+            VendorId = vendor.VendorId,
+            VendorUserId = vendor.UserId,
+            PlanCode = "premium_1y",
+            PlanName = "Premium 1 năm (test sắp hết hạn)",
+            DurationMonths = 12,
+            AmountVnd = PremiumOneYearPriceVnd,
+            Currency = "VND",
+            PaymentMethod = "mock_expiring_test",
+            TransactionRef = transactionRef,
+            Status = SubmissionStatuses.Approved,
+            RequestedAt = paidAt,
+            PaidAt = paidAt,
+            ExpiresAt = expiresAt,
+            ReviewedAt = paidAt,
+            ReviewedBy = "system-test",
+            ReviewNote = $"Backdated test subscription with {remainingMinutes} minute(s) remaining.",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        await _db.ServiceSubmissions.InsertOneAsync(submission);
+
+        var vendorUpdate = Builders<VendorProfile>.Update
+            .Set(v => v.ServicePlan, "premium")
+            .Set(v => v.PremiumExpiresAt, expiresAt)
+            .Set(v => v.UpdatedAt, now);
+        await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, vendorUpdate);
+
+        return Ok(new
+        {
+            message = $"Đã tạo gói premium giả lập còn {remainingMinutes} phút để kiểm tra tự động hết hạn.",
+            remainingMinutes,
+            paidAt,
+            expiresAt,
+            submission = ToDto(submission, vendor.BusinessName)
+        });
+    }
+
     [HttpGet("me/premium-status")]
     [Authorize(Roles = "Vendor")]
     public async Task<ActionResult<object>> GetMyPremiumStatus()
@@ -286,6 +348,11 @@ public class PaymentsController : ControllerBase
 public class SimulatePremiumPaymentRequest
 {
     public string? PaymentMethod { get; set; }
+}
+
+public class SimulatePremiumExpiringRequest
+{
+    public int? RemainingMinutes { get; set; } = 3;
 }
 
 public class ReviewSubmissionRequest

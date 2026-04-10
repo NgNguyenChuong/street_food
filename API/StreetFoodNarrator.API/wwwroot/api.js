@@ -1022,6 +1022,11 @@ const ToursApi = {
 const PaymentApi = {
     simulatePremium: (data = {}) =>
         api.request('/Payments/simulate-premium', { method: 'POST', body: JSON.stringify(data) }),
+    simulatePremiumExpiring: (remainingMinutes = 3) =>
+        api.request('/Payments/simulate-premium-expiring', {
+            method: 'POST',
+            body: JSON.stringify({ remainingMinutes })
+        }),
     mySubmissions: () => api.request('/Payments/me'),
     myPremiumStatus: () => api.request('/Payments/me/premium-status'),
     listSubmissions: ({ status, search } = {}) =>
