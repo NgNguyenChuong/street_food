@@ -148,6 +148,10 @@ public class ToursController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Tour>> CreateTour([FromBody] CreateTourRequest request)
     {
+        var eligibility = await ValidatePoiEligibilityForTourAsync(request.PoiIds);
+        if (!eligibility.IsValid)
+            return BadRequest(new { message = eligibility.Message });
+
         var tourId = await _sequence.GetNextAsync("Tour_ID");
 
         var tour = new Tour
@@ -183,6 +187,10 @@ public class ToursController : ControllerBase
     {
         if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
             return BadRequest("Invalid tour ID format");
+
+        var eligibility = await ValidatePoiEligibilityForTourAsync(request.PoiIds);
+        if (!eligibility.IsValid)
+            return BadRequest(new { message = eligibility.Message });
 
         var update = Builders<Tour>.Update
             .Set(t => t.TourName, request.TourName)
@@ -268,6 +276,82 @@ public class ToursController : ControllerBase
             value = "/" + value;
 
         return value;
+    }
+
+    private async Task<(bool IsValid, string? Message)> ValidatePoiEligibilityForTourAsync(List<string>? poiIds)
+    {
+        if (poiIds == null || poiIds.Count == 0)
+            return (true, null);
+
+        var objectIds = poiIds
+            .Where(x => MongoDB.Bson.ObjectId.TryParse(x, out _))
+            .Select(MongoDB.Bson.ObjectId.Parse)
+            .ToList();
+
+        if (objectIds.Count == 0)
+            return (true, null);
+
+        var pois = await _db.POIs
+            .Find(p => objectIds.Contains(p.Id) && p.DeletedAt == null)
+            .ToListAsync();
+
+        var missing = objectIds.Count - pois.Count;
+        if (missing > 0)
+            return (false, "Danh sách POI có phần tử không tồn tại hoặc đã bị xóa.");
+
+        var vendorIds = pois
+            .Where(p => p.VendorId.HasValue)
+            .Select(p => p.VendorId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (vendorIds.Count == 0)
+            return (true, null);
+
+        var now = DateTime.UtcNow;
+        var vendors = await _db.VendorProfiles
+            .Find(v => vendorIds.Contains(v.VendorId))
+            .ToListAsync();
+
+        var activeByProfile = vendors
+            .Where(v => string.Equals(v.ServicePlan, "premium", StringComparison.OrdinalIgnoreCase)
+                        && v.PremiumExpiresAt.HasValue
+                        && v.PremiumExpiresAt.Value > now)
+            .Select(v => v.VendorId)
+            .ToHashSet();
+
+        var remainingVendorIds = vendorIds
+            .Where(v => !activeByProfile.Contains(v))
+            .ToList();
+
+        if (remainingVendorIds.Count > 0)
+        {
+            var activeBySubmission = await _db.ServiceSubmissions
+                .Find(s => remainingVendorIds.Contains(s.VendorId)
+                    && s.Status == SubmissionStatuses.Approved
+                    && s.ExpiresAt.HasValue
+                    && s.ExpiresAt > now)
+                .Project(s => s.VendorId)
+                .ToListAsync();
+
+            foreach (var vendorId in activeBySubmission)
+                activeByProfile.Add(vendorId);
+        }
+
+        var blockedPois = pois
+            .Where(p => p.VendorId.HasValue && !activeByProfile.Contains(p.VendorId.Value))
+            .Select(p => p.Name_Vi)
+            .Distinct()
+            .Take(3)
+            .ToList();
+
+        if (blockedPois.Count > 0)
+        {
+            return (false,
+                $"Chỉ POI của vendor premium còn hạn mới được thêm vào tour quảng cáo. POI chưa đủ điều kiện: {string.Join(", ", blockedPois)}.");
+        }
+
+        return (true, null);
     }
 
     private static string? NormalizeImageUrlForResponse(string? rawUrl)

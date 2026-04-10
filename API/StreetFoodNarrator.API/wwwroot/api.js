@@ -922,8 +922,8 @@ const AuthAPI = {
 };
 
 const POIApi = {
-    list: ({ page = 1, pageSize = 10, search, isActive, category } = {}) =>
-        api.request('/POIs' + qs({ page, pageSize, search, isActive, category })),
+    list: ({ page = 1, pageSize = 10, search, isActive, category, tourEligible } = {}) =>
+        api.request('/POIs' + qs({ page, pageSize, search, isActive, category, tourEligible })),
     get: (id) => api.request(`/POIs/${id}`),
     create: (data) => api.request('/POIs', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => api.request(`/POIs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -1017,6 +1017,20 @@ const ToursApi = {
         fd.append('file', file);
         return api.uploadTourImage(fd);
     }
+};
+
+const PaymentApi = {
+    simulatePremium: (data = {}) =>
+        api.request('/Payments/simulate-premium', { method: 'POST', body: JSON.stringify(data) }),
+    mySubmissions: () => api.request('/Payments/me'),
+    myPremiumStatus: () => api.request('/Payments/me/premium-status'),
+    listSubmissions: ({ status, search } = {}) =>
+        api.request('/Payments/admin/submissions' + qs({ status, search })),
+    reviewSubmission: (submissionId, status, note) =>
+        api.request(`/Payments/admin/submissions/${submissionId}/review`, {
+            method: 'POST',
+            body: JSON.stringify({ status, note })
+        })
 };
 
 const UsersApi = {

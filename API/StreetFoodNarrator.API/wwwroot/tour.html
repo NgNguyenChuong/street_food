@@ -439,8 +439,8 @@ async function loadTours() {
 async function loadPOIs() {
     try {
         const r = typeof POIApi !== 'undefined'
-            ? await POIApi.list({page:1,pageSize:500})
-            : await fetch('/api/pois?pageSize=500').then(x=>x.json());
+            ? await POIApi.list({page:1,pageSize:500,tourEligible:true})
+            : await fetch('/api/pois?pageSize=500&tourEligible=true').then(x=>x.json());
         const pois = r.data || r.items || r || [];
         allPOIsRaw = pois;
         allPOIs = pois.filter(isPOIActiveForTour);
