@@ -1,6 +1,32 @@
 // API Base URL (auto-detect; allow override)
+function normalizeApiBaseUrl(raw) {
+    if (!raw) return '';
+
+    let value = String(raw).trim();
+    if (!value) return '';
+
+    const ensureApiSuffix = (base) => /\/api$/i.test(base) ? base : `${base}/api`;
+
+    if (/^https?:\/\//i.test(value)) {
+        return ensureApiSuffix(value.replace(/\/+$/, ''));
+    }
+
+    if (value.startsWith('//')) {
+        const absolute = `${window.location.protocol}${value}`.replace(/\/+$/, '');
+        return ensureApiSuffix(absolute);
+    }
+
+    if (!value.startsWith('/')) {
+        value = `/${value}`;
+    }
+
+    value = value.replace(/\/+$/, '');
+    value = ensureApiSuffix(value);
+    return `${window.location.origin}${value}`;
+}
+
 function resolveApiBaseUrl() {
-    const override = window.__API_BASE_URL || localStorage.getItem('API_BASE_URL');
+    const override = normalizeApiBaseUrl(window.__API_BASE_URL || localStorage.getItem('API_BASE_URL'));
     if (override) return override;
 
     const { protocol, hostname, port } = window.location;
@@ -510,6 +536,12 @@ class API {
 
     }
 
+    // Notifications APIs
+    async getSidebarNotifications(limit = 20) {
+        const safeLimit = Math.max(1, Number(limit || 20));
+        return this.request(`/Notifications/sidebar?limit=${safeLimit}`);
+    }
+
     // POI APIs
 
     async getPOIs(page = 1, pageSize = 10, search = '', isActive = null, category = null, reviewStatus = null) {
@@ -854,6 +886,10 @@ class API {
 // Export API instance
 
 const api = new API();
+if (typeof window !== 'undefined') {
+    window.api = api;
+    window.TokenManager = TokenManager;
+}
 
 // Schema-style helpers (compatible with provided CMS files)
 const getToken = () => TokenManager.getToken();

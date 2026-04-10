@@ -1033,7 +1033,17 @@
     async function updateStats(audios, total) {
         const statsAudios = audios || [];
         const totalCount = total ?? statsAudios.length;
-        const poiSet = new Set(statsAudios.map(a => a.poi_ID));
+        const poiSet = new Set();
+        statsAudios.forEach(a => {
+            const poiId = a.poi_ID ?? a.POI_ID ?? a.poiId ?? a.poiID ?? a.poi_Id;
+            if (poiId !== undefined && poiId !== null && String(poiId).trim() !== '') {
+                poiSet.add(String(poiId));
+                return;
+            }
+            if (a.poiName) {
+                poiSet.add(`name:${String(a.poiName).trim().toLowerCase()}`);
+            }
+        });
         const langSet = new Set(statsAudios.map(a => a.language || '').filter(Boolean));
         const totalSize = statsAudios.reduce((sum, a) => sum + (a.fileSize || 0), 0);
 

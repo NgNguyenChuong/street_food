@@ -37,6 +37,16 @@
     const roleLabel = isAdmin ? 'Quản trị viên' : (isVendor ? 'Vendor' : 'Người dùng');
     const roleBadgeClass = isAdmin ? 'role-badge-admin' : 'role-badge-vendor';
     const avatarLetters = displayName.split(' ').map(w => w[0]).slice(-2).join('').toUpperCase();
+    const NOTIF_POLL_VISIBLE_MS = 10000;
+    const NOTIF_POLL_HIDDEN_MS = 30000;
+    const NOTIF_READ_MAX_KEYS = 500;
+    const notifRoleScope = roleContext || (isAdmin ? 'admin' : (isVendor ? 'vendor' : 'guest'));
+    const notifIdentityScope = encodeURIComponent((displayEmail || displayName || 'anonymous').trim().toLowerCase());
+    const NOTIF_READ_STORAGE_KEY = `sidebar_notif_read_v1:${notifRoleScope}:${notifIdentityScope}`;
+    let notifPollTimer = null;
+    let notifRequestInFlight = false;
+    let latestNotifications = [];
+    let readNotifKeys = new Set();
 
         const sidebarHTML = `
         <aside class="sidebar ${isVendor ? 'sidebar-vendor' : ''}" id="sidebar">
@@ -414,6 +424,18 @@
                 transition: background 0.15s ease;
             }
 
+            .notif-item.unread {
+                background: #F0F9FF;
+            }
+
+            .notif-item.unread .notif-item-title {
+                color: #0F172A;
+            }
+
+            .notif-item.unread .notif-item-icon {
+                box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.2);
+            }
+
             .notif-item:last-child {
                 border-bottom: none;
             }
@@ -450,11 +472,42 @@
                 color: #111827;
             }
 
+            .notif-item-status {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-left: 0.35rem;
+                color: #6B7280;
+                font-size: 0.68rem;
+                vertical-align: middle;
+            }
+
+            .notif-item-status i {
+                line-height: 1;
+            }
+
             .notif-item-message {
                 display: block;
                 margin-top: 0.15rem;
                 font-size: 0.76rem;
                 color: #6B7280;
+                line-height: 1.35;
+            }
+
+            .notif-item-response {
+                display: block;
+                margin-top: 0.25rem;
+                font-size: 0.75rem;
+                color: #0F766E;
+                line-height: 1.35;
+                font-weight: 600;
+            }
+
+            .notif-item-meta {
+                display: block;
+                margin-top: 0.2rem;
+                font-size: 0.7rem;
+                color: #9CA3AF;
                 line-height: 1.35;
             }
 
@@ -616,6 +669,70 @@
         if (label) label.textContent = appName;
     }
 
+    function getApiClient() {
+        if (window.api) return window.api;
+        if (typeof api !== 'undefined') return api;
+        return null;
+    }
+
+    function getTokenManager() {
+        if (window.TokenManager) return window.TokenManager;
+        if (typeof TokenManager !== 'undefined') return TokenManager;
+        return null;
+    }
+
+    function loadReadNotificationKeys() {
+        try {
+            const raw = localStorage.getItem(NOTIF_READ_STORAGE_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            if (!Array.isArray(parsed)) return new Set();
+            return new Set(parsed.filter(v => typeof v === 'string' && v.trim().length > 0));
+        } catch {
+            return new Set();
+        }
+    }
+
+    function saveReadNotificationKeys() {
+        try {
+            const keys = Array.from(readNotifKeys);
+            if (keys.length > NOTIF_READ_MAX_KEYS) {
+                keys.splice(0, keys.length - NOTIF_READ_MAX_KEYS);
+            }
+            readNotifKeys = new Set(keys);
+            localStorage.setItem(NOTIF_READ_STORAGE_KEY, JSON.stringify(keys));
+        } catch {
+            // ignore storage errors
+        }
+    }
+
+    function getNotificationKey(item) {
+        if (!item) return null;
+
+        if (item.notificationId !== undefined && item.notificationId !== null && String(item.notificationId).trim() !== '') {
+            return `id:${String(item.notificationId).trim()}`;
+        }
+
+        const title = String(item.title || '').trim();
+        const message = String(item.message || '').trim();
+        const createdAt = String(item.createdAt || '').trim();
+        const href = String(item.href || '').trim();
+
+        if (!title && !message && !createdAt && !href) return null;
+        return `sig:${title}|${message}|${createdAt}|${href}`;
+    }
+
+    function isNotificationRead(item) {
+        const key = getNotificationKey(item);
+        return !!key && readNotifKeys.has(key);
+    }
+
+    function markNotificationKeyAsRead(key) {
+        if (!key || readNotifKeys.has(key)) return false;
+        readNotifKeys.add(key);
+        saveReadNotificationKeys();
+        return true;
+    }
+
     async function hydrateAppSettings() {
         try {
             const cached = localStorage.getItem('app_settings_cache');
@@ -627,8 +744,10 @@
         }
 
         try {
-            if (!window.api || !window.TokenManager || !TokenManager.isAuthenticated()) return;
-            const settings = await api.getMySettings();
+            const apiClient = getApiClient();
+            const tokenMgr = getTokenManager();
+            if (!apiClient || !tokenMgr || !tokenMgr.isAuthenticated()) return;
+            const settings = await apiClient.getMySettings();
             if (settings) {
                 localStorage.setItem('app_settings_cache', JSON.stringify(settings));
                 applyAppSettings(settings);
@@ -638,120 +757,69 @@
         }
     }
 
-    function extractTotalCount(payload) {
-        if (!payload) return 0;
-        if (typeof payload.total === 'number') return payload.total;
-        if (typeof payload.totalItems === 'number') return payload.totalItems;
-        if (typeof payload.count === 'number') return payload.count;
-        if (Array.isArray(payload.data)) return payload.data.length;
-        if (Array.isArray(payload)) return payload.length;
-        return 0;
-    }
-
     function buildNotificationItem({
+        notificationId = null,
         icon = 'fa-circle-info',
         title,
         message,
         href,
-        count = 0,
-        kind = 'info'
+        count = 1,
+        kind = 'info',
+        createdAt = null,
+        responseMessage = '',
+        processedAt = null,
+        processedBy = ''
     }) {
-        return { icon, title, message, href, count, kind };
+        return { notificationId, icon, title, message, href, count, kind, createdAt, responseMessage, processedAt, processedBy };
     }
 
-    async function fetchAdminNotifications() {
-        if (!window.api) return [];
-
-        const [poiRes, audioRes] = await Promise.allSettled([
-            api.getPOIs(1, 1, '', null, null, 'pending'),
-            api.getAudioList(1, 1, null, null, 'pending')
-        ]);
-
-        const pendingPois = poiRes.status === 'fulfilled' ? extractTotalCount(poiRes.value) : 0;
-        const pendingAudios = audioRes.status === 'fulfilled' ? extractTotalCount(audioRes.value) : 0;
-
-        const items = [];
-        if (pendingPois > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-map-location-dot',
-                title: 'POI chờ duyệt',
-                message: `${pendingPois} POI đang chờ Admin duyệt.`,
-                href: 'poi-list?reviewStatus=pending',
-                count: pendingPois
-            }));
-        }
-        if (pendingAudios > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-microphone-lines',
-                title: 'Audio chờ duyệt',
-                message: `${pendingAudios} audio đang chờ Admin duyệt.`,
-                href: 'audio-list?status=pending',
-                count: pendingAudios
-            }));
-        }
-
-        return items;
+    function escapeHtml(input) {
+        return String(input || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
-    async function fetchVendorNotifications() {
-        if (!window.api) return [];
+    function formatNotificationDate(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleString('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
 
-        const [poiRes, audioPendingRes, audioRejectedRes] = await Promise.allSettled([
-            api.getPOIs(1, 5000),
-            api.getAudioList(1, 1, null, null, 'pending'),
-            api.getAudioList(1, 1, null, null, 'rejected')
-        ]);
+    async function fetchSidebarNotifications() {
+        const apiClient = getApiClient();
+        if (!apiClient) return [];
 
-        const poiRows = poiRes.status === 'fulfilled'
-            ? (Array.isArray(poiRes.value?.data) ? poiRes.value.data : [])
-            : [];
+        const payload = typeof apiClient.getSidebarNotifications === 'function'
+            ? await apiClient.getSidebarNotifications(30)
+            : await apiClient.request('/Notifications/sidebar?limit=30');
 
-        const pendingPois = poiRows.filter(p => String(p.reviewStatus || p.ReviewStatus || '').toLowerCase() === 'pending').length;
-        const rejectedPois = poiRows.filter(p => String(p.reviewStatus || p.ReviewStatus || '').toLowerCase() === 'rejected').length;
-        const pendingAudios = audioPendingRes.status === 'fulfilled' ? extractTotalCount(audioPendingRes.value) : 0;
-        const rejectedAudios = audioRejectedRes.status === 'fulfilled' ? extractTotalCount(audioRejectedRes.value) : 0;
+        const rows = Array.isArray(payload?.data)
+            ? payload.data
+            : (Array.isArray(payload) ? payload : []);
 
-        const items = [];
-        if (pendingPois > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-hourglass-half',
-                title: 'POI đang chờ duyệt',
-                message: `${pendingPois} POI của bạn đang chờ Admin duyệt.`,
-                href: 'poi-list?reviewStatus=pending',
-                count: pendingPois
-            }));
-        }
-        if (rejectedPois > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-circle-xmark',
-                title: 'POI bị từ chối',
-                message: `${rejectedPois} POI bị từ chối, vui lòng cập nhật lại nội dung.`,
-                href: 'poi-list?reviewStatus=rejected',
-                count: rejectedPois,
-                kind: 'warn'
-            }));
-        }
-        if (pendingAudios > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-microphone',
-                title: 'Audio đang chờ duyệt',
-                message: `${pendingAudios} audio của bạn đang chờ Admin duyệt.`,
-                href: 'audio-list?status=pending',
-                count: pendingAudios
-            }));
-        }
-        if (rejectedAudios > 0) {
-            items.push(buildNotificationItem({
-                icon: 'fa-volume-xmark',
-                title: 'Audio bị từ chối',
-                message: `${rejectedAudios} audio bị từ chối, hãy chỉnh sửa và gửi lại.`,
-                href: 'audio-list?status=rejected',
-                count: rejectedAudios,
-                kind: 'warn'
-            }));
-        }
-
-        return items;
+        return rows.map(row => buildNotificationItem({
+            notificationId: row.notificationId,
+            icon: row.icon || 'fa-circle-info',
+            title: row.title || 'Thông báo',
+            message: row.message || '',
+            href: row.href || '#',
+            count: 1,
+            kind: row.kind || 'info',
+            createdAt: row.createdAt,
+            responseMessage: row.responseMessage || '',
+            processedAt: row.processedAt,
+            processedBy: row.processedBy || ''
+        }));
     }
 
     function renderSidebarNotifications(items) {
@@ -765,7 +833,10 @@
             return;
         }
 
-        const total = items.reduce((sum, item) => sum + Math.max(0, Number(item.count || 0)), 0);
+        const total = items.reduce((sum, item) => {
+            if (isNotificationRead(item)) return sum;
+            return sum + Math.max(0, Number(item.count || 0));
+        }, 0);
         if (total > 0) {
             badge.textContent = total > 99 ? '99+' : String(total);
             badge.classList.remove('hidden');
@@ -773,28 +844,56 @@
             badge.classList.add('hidden');
         }
 
-        list.innerHTML = items.map(item => `
-            <a href="${item.href || '#'}" class="notif-item ${item.kind === 'warn' ? 'warn' : ''}">
-                <span class="notif-item-icon"><i class="fas ${item.icon || 'fa-circle-info'}"></i></span>
+        list.innerHTML = items.map(item => {
+            const notifKey = getNotificationKey(item) || '';
+            const isRead = isNotificationRead(item);
+            const unreadClass = isRead ? '' : ' unread';
+            const createdText = formatNotificationDate(item.createdAt);
+            const processedText = formatNotificationDate(item.processedAt);
+            const infoBits = [];
+            if (createdText) infoBits.push(`Ngày tạo: ${createdText}`);
+            if (processedText) infoBits.push(`Ngày xử lý: ${processedText}`);
+            if (item.processedBy) infoBits.push(`Xử lý bởi: ${item.processedBy}`);
+            const meta = infoBits.join(' • ');
+            const hasLink = item.href && item.href !== '#';
+            const itemClass = `notif-item ${item.kind === 'warn' ? 'warn' : ''}${unreadClass}`.trim();
+            const keyAttr = notifKey ? ` data-notif-key="${escapeHtml(notifKey)}"` : '';
+            const openTag = hasLink
+                ? `<a href="${escapeHtml(item.href)}" class="${itemClass}"${keyAttr}>`
+                : `<div class="${itemClass}"${keyAttr}>`;
+            const closeTag = hasLink ? '</a>' : '</div>';
+            const viewedIcon = isRead
+                ? '<span class="notif-item-status" title="Đã xem" aria-label="Đã xem"><i class="fas fa-eye"></i></span>'
+                : '';
+
+            return `${openTag}
+                <span class="notif-item-icon"><i class="fas ${escapeHtml(item.icon || 'fa-circle-info')}"></i></span>
                 <span class="notif-item-content">
-                    <span class="notif-item-title">${item.title || ''}</span>
-                    <span class="notif-item-message">${item.message || ''}</span>
+                    <span class="notif-item-title">${escapeHtml(item.title || '')}${viewedIcon}</span>
+                    <span class="notif-item-message">${escapeHtml(item.message || '')}</span>
+                    ${item.responseMessage ? `<span class="notif-item-response">Phản hồi: ${escapeHtml(item.responseMessage)}</span>` : ''}
+                    ${meta ? `<span class="notif-item-meta">${escapeHtml(meta)}</span>` : ''}
                 </span>
-            </a>
-        `).join('');
+            ${closeTag}`;
+        }).join('');
     }
 
-    async function loadSidebarNotifications() {
+    async function loadSidebarNotifications(options = {}) {
+        const { showLoading = true } = options;
         const list = document.getElementById('sidebarNotifList');
-        if (list) list.innerHTML = '<div class="notif-empty">Đang tải thông báo...</div>';
+        if (showLoading && list) list.innerHTML = '<div class="notif-empty">Đang tải thông báo...</div>';
+
+        if (notifRequestInFlight) return;
+        notifRequestInFlight = true;
 
         try {
-            const items = isAdmin
-                ? await fetchAdminNotifications()
-                : await fetchVendorNotifications();
+            const items = await fetchSidebarNotifications();
+            latestNotifications = items;
             renderSidebarNotifications(items);
         } catch {
-            if (list) list.innerHTML = '<div class="notif-empty">Không tải được thông báo.</div>';
+            if (showLoading && list) list.innerHTML = '<div class="notif-empty">Không tải được thông báo.</div>';
+        } finally {
+            notifRequestInFlight = false;
         }
     }
 
@@ -802,13 +901,26 @@
         const btn = document.getElementById('sidebarNotifBtn');
         const panel = document.getElementById('sidebarNotifPanel');
         const refresh = document.getElementById('sidebarNotifRefresh');
+        const list = document.getElementById('sidebarNotifList');
         if (!btn || !panel) return;
+
+        const scheduleNextPoll = () => {
+            if (notifPollTimer) {
+                clearTimeout(notifPollTimer);
+            }
+
+            const delay = document.hidden ? NOTIF_POLL_HIDDEN_MS : NOTIF_POLL_VISIBLE_MS;
+            notifPollTimer = window.setTimeout(async () => {
+                await loadSidebarNotifications({ showLoading: false });
+                scheduleNextPoll();
+            }, delay);
+        };
 
         btn.addEventListener('click', async (event) => {
             event.stopPropagation();
             panel.classList.toggle('show');
             if (panel.classList.contains('show')) {
-                await loadSidebarNotifications();
+                await loadSidebarNotifications({ showLoading: true });
             }
         });
 
@@ -819,12 +931,38 @@
             refresh.addEventListener('click', async (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                await loadSidebarNotifications();
+                await loadSidebarNotifications({ showLoading: true });
             });
         }
 
-        loadSidebarNotifications();
-        setInterval(loadSidebarNotifications, 60000);
+        if (list) {
+            list.addEventListener('click', (event) => {
+                const itemEl = event.target.closest('.notif-item');
+                if (!itemEl) return;
+                const key = itemEl.getAttribute('data-notif-key');
+                if (markNotificationKeyAsRead(key)) {
+                    renderSidebarNotifications(latestNotifications);
+                }
+            });
+        }
+
+        loadSidebarNotifications({ showLoading: true });
+        scheduleNextPoll();
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                loadSidebarNotifications({ showLoading: false });
+            }
+            scheduleNextPoll();
+        });
+
+        window.addEventListener('focus', () => {
+            loadSidebarNotifications({ showLoading: false });
+        });
+
+        window.addEventListener('online', () => {
+            loadSidebarNotifications({ showLoading: false });
+        });
     }
 
     function init() {
@@ -871,6 +1009,7 @@
             });
         });
 
+        readNotifKeys = loadReadNotificationKeys();
         setupNotificationBell();
 
         hydrateAppSettings();
@@ -879,11 +1018,13 @@
 
     async function applyVendorApprovalGate() {
         if (!isVendor) return;
-        if (!window.api || !window.TokenManager || !TokenManager.isAuthenticated()) return;
+        const apiClient = getApiClient();
+        const tokenMgr = getTokenManager();
+        if (!apiClient || !tokenMgr || !tokenMgr.isAuthenticated()) return;
 
         let status = 'pending';
         try {
-            const profile = await api.getVendorMe();
+            const profile = await apiClient.getVendorMe();
             status = String(profile?.verificationStatus || profile?.VerificationStatus || 'pending').toLowerCase();
         } catch {
             status = 'pending';

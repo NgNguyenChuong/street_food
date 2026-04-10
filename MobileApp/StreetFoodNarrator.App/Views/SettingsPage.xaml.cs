@@ -25,7 +25,6 @@ public partial class SettingsPage : ContentPage
     private bool _isVoicePickerExpanded;
     private bool _isLoadingGpsTestModeSwitch;
     private bool _isApplyingControls;
-    private bool _isApplyingGpsTestModeToggle;
     private bool _hasPendingChanges;
     private bool _initialGpsTestModeEnabled;
     private bool _initialSimulationToolsVisible;
@@ -366,6 +365,7 @@ public partial class SettingsPage : ContentPage
 
         var requestedGpsTestModeEnabled = GpsTestModeSwitch.IsToggled;
         var requestedSimulationToolsVisible = SimulationToolsSwitch?.IsToggled == true;
+        var gpsTestModeChanged = requestedGpsTestModeEnabled != _initialGpsTestModeEnabled;
 
         _settings.TTS.AutoPlay = AutoPlaySwitch.IsToggled;
         _settings.TTS.Volume = (int)Math.Round(VolumeSlider.Value);
@@ -392,6 +392,14 @@ public partial class SettingsPage : ContentPage
         {
             await _mainViewModel.ApplyLocationSourceModeAsync(
                 string.Equals(_pendingLocationSourceMode, AppConfig.LocationSourceSimulated, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (gpsTestModeChanged)
+        {
+            if (requestedGpsTestModeEnabled)
+                await EnableGpsTestModeAsync();
+            else
+                await DisableGpsTestModeAsync();
         }
 
         await SaveSettingsAsync();
@@ -474,53 +482,17 @@ public partial class SettingsPage : ContentPage
 
     private async void OnGpsTestModeToggled(object sender, ToggledEventArgs e)
     {
-        if (_isApplyingControls || _isLoadingGpsTestModeSwitch || _isApplyingGpsTestModeToggle)
+        if (_isApplyingControls || _isLoadingGpsTestModeSwitch)
             return;
 
-        _isApplyingGpsTestModeToggle = true;
-        GpsTestModeSwitch.IsEnabled = false;
-
-        try
+        if (e.Value)
         {
-            if (e.Value)
-            {
-                _pendingLocationSourceMode = AppConfig.LocationSourceReal;
-                RefreshLocationSourceSelectionLabel();
-                FooterPolicyLabel.Text = BuildDataSourceFooterText();
-
-                Preferences.Set(AppConfig.LocationSourceModePrefKey, _pendingLocationSourceMode);
-                if (_mainViewModel != null)
-                    await _mainViewModel.ApplyLocationSourceModeAsync(useSimulatedGps: false);
-
-                await EnableGpsTestModeAsync();
-            }
-            else
-            {
-                await DisableGpsTestModeAsync();
-            }
-
-            Preferences.Set(AppConfig.GpsTestModeEnabledPrefKey, e.Value);
-            _initialGpsTestModeEnabled = e.Value;
+            _pendingLocationSourceMode = AppConfig.LocationSourceReal;
+            RefreshLocationSourceSelectionLabel();
+            FooterPolicyLabel.Text = BuildDataSourceFooterText();
         }
-        catch (Exception ex)
-        {
-            await MovementFileLogger.LogEventAsync("gps-test-error", $"toggle-failed:{ex.Message}");
 
-            _isLoadingGpsTestModeSwitch = true;
-            GpsTestModeSwitch.IsToggled = !e.Value;
-            _isLoadingGpsTestModeSwitch = false;
-
-            await CustomAlert.ShowAsync(
-                Localize("Lỗi", "Error", "错误"),
-                Localize("Không thể cập nhật GPS test mode", "Unable to update GPS test mode", "无法更新 GPS 测试模式") + $": {ex.Message}",
-                "OK",
-                AlertType.Error);
-        }
-        finally
-        {
-            GpsTestModeSwitch.IsEnabled = true;
-            _isApplyingGpsTestModeToggle = false;
-        }
+        _hasPendingChanges = true;
     }
 
     private void OnSimulationToolsToggled(object sender, ToggledEventArgs e)
@@ -988,13 +960,13 @@ public partial class SettingsPage : ContentPage
             "测试时可选择真实 GPS 或模拟 GPS");
         GpsTestModeTitleLabel.Text = Localize("GPS test mode", "GPS test mode", "GPS ce shi mo shi");
         GpsTestModeSubtitleLabel.Text = Localize(
-            "Bật để tạo ngay 3 POI test theo tọa độ cố định",
-            "Turn on to create 3 fixed-coordinate test POIs immediately",
-            "kai qi hou li ji chuang jian 3 ge gu ding zuo biao ce shi dian");
+            "Bật để đánh dấu GPS test mode (cần bấm Lưu thay đổi để áp dụng)",
+            "Turn on to mark GPS test mode (tap Save changes to apply)",
+            "kai qi hou jin biao ji GPS ce shi mo shi（xu dian ji bao cun hou sheng xiao）");
         GpsTestCoordinateLabel.Text = Localize(
-            "Tạo đúng 3 điểm GPS test với priority lần lượt 10, 9, 8 để ưu tiên phát audio.",
-            "Creates exactly 3 GPS test points with priorities 10, 9, 8 for audio playback order.",
-            "jing que chuang jian 3 ge ce shi dian, you xian ji yi ci wei 10, 9, 8.");
+            "Khi lưu: tạo đúng 3 điểm GPS test với priority 10, 9, 8; khi tắt và lưu sẽ dọn các điểm test này.",
+            "When saved: creates exactly 3 GPS test points with priorities 10, 9, 8; disabling and saving will remove them.",
+            "bao cun hou: jing que chuang jian 3 ge ce shi dian（10,9,8）；guan bi bing bao cun hui qing li ce shi dian.");
         SimulationToolsTitleLabel.Text = Localize(
             "Hien nut gia lap ExploreMap",
             "Show ExploreMap simulation buttons",

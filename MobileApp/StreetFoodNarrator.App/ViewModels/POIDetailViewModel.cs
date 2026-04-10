@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.Net.Http.Json;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Core.Utils;
 using System.Collections.ObjectModel;
 
 namespace StreetFoodNarrator.App.ViewModels;
@@ -355,6 +356,9 @@ public partial class POIDetailViewModel : ObservableObject
 
         try
         {
+            if (!VinhKhanhAreaGuard.IsInside(_poi))
+                return;
+
             var baseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
             if (string.IsNullOrWhiteSpace(baseUrl))
                 return;
@@ -373,6 +377,8 @@ public partial class POIDetailViewModel : ObservableObject
                 TriggerType = "ManualTap",
                 ActionType = "NarrationPlayed",
                 TriggeredAt = DateTime.UtcNow,
+                UserLatitude = Convert.ToDecimal(_poi.Latitude),
+                UserLongitude = Convert.ToDecimal(_poi.Longitude),
                 WasPlayed = true
             };
 
@@ -639,6 +645,8 @@ public partial class POIDetailViewModel : ObservableObject
         public string? TriggerType { get; set; }
         public string? ActionType { get; set; }
         public DateTime TriggeredAt { get; set; }
+        public decimal? UserLatitude { get; set; }
+        public decimal? UserLongitude { get; set; }
         public bool WasPlayed { get; set; }
     }
 }

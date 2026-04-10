@@ -2,6 +2,7 @@ namespace StreetFoodNarrator.App.Core.Services.Implementations;
 
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Core.Utils;
 using System.Net.Http.Json;
 
 /// <summary>
@@ -11,8 +12,12 @@ using System.Net.Http.Json;
 public class GeofenceService : IGeofenceService
 {
     // ── Constants ─────────────────────────────────────────────────
-    private const double GPS_DEBOUNCE_METERS = 5.0;
-    private const int GPS_DEBOUNCE_MS = 3000;
+    private const double GPS_DEBOUNCE_METERS_DEFAULT = 4.0;
+    private const double GPS_DEBOUNCE_METERS_INSIDE = 1.8;
+    private const int GPS_DEBOUNCE_MS_DEFAULT = 2200;
+    private const int GPS_DEBOUNCE_MS_INSIDE = 900;
+    private const double MAX_ACCEPTABLE_ACCURACY_INSIDE_METERS = 28.0;
+    private const double MAX_ACCEPTABLE_ACCURACY_NEAR_METERS = 50.0;
     private const double EARTH_RADIUS_M = 6_371_000.0;
     private const int MOVEMENT_UPLOAD_INTERVAL_SECONDS = 8;
     private const double MOVEMENT_UPLOAD_DISTANCE_METERS = 10.0;
@@ -318,6 +323,9 @@ public class GeofenceService : IGeofenceService
         if (!insideZones.Any())
             return;
 
+        if (!VinhKhanhAreaGuard.IsInside(location.Latitude, location.Longitude))
+            return;
+
         var now = DateTime.UtcNow;
         var nearestPoi = insideZones.OrderBy(z => z.DistanceFromUser).First();
 
@@ -347,6 +355,12 @@ public class GeofenceService : IGeofenceService
     {
         try
         {
+            var effectiveLatitude = location?.Latitude ?? poi.Latitude;
+            var effectiveLongitude = location?.Longitude ?? poi.Longitude;
+
+            if (!VinhKhanhAreaGuard.IsInside(effectiveLatitude, effectiveLongitude))
+                return;
+
             var baseUrl = AppConfig.GetResolvedApiBaseUrl()?.TrimEnd('/');
             if (string.IsNullOrWhiteSpace(baseUrl))
                 return;
@@ -365,8 +379,8 @@ public class GeofenceService : IGeofenceService
                 TriggerType = triggerType,
                 ActionType = actionType,
                 TriggeredAt = DateTime.UtcNow,
-                UserLatitude = location != null ? Convert.ToDecimal(location.Latitude) : null,
-                UserLongitude = location != null ? Convert.ToDecimal(location.Longitude) : null,
+                UserLatitude = Convert.ToDecimal(effectiveLatitude),
+                UserLongitude = Convert.ToDecimal(effectiveLongitude),
                 DwellSeconds = dwellSeconds,
                 WasPlayed = wasPlayed
             };
@@ -394,18 +408,40 @@ public class GeofenceService : IGeofenceService
 
     private bool ShouldProcess(Microsoft.Maui.Devices.Sensors.Location newLoc)
     {
+        if (!IsAccuracyAcceptable(newLoc))
+            return false;
+
         if (_lastLocation == null)
             return true;
 
+        var isInsideAnyZone = _currentZones.Count > 0;
+        var minDebounceMs = isInsideAnyZone ? GPS_DEBOUNCE_MS_INSIDE : GPS_DEBOUNCE_MS_DEFAULT;
+        var minDebounceMeters = isInsideAnyZone ? GPS_DEBOUNCE_METERS_INSIDE : GPS_DEBOUNCE_METERS_DEFAULT;
+
         var timeSinceLastMs = (DateTime.UtcNow - _lastLocation.Timestamp.UtcDateTime).TotalMilliseconds;
-        if (timeSinceLastMs < GPS_DEBOUNCE_MS)
+        if (timeSinceLastMs < minDebounceMs)
             return false;
+
+        if (newLoc.Speed.HasValue && newLoc.Speed.Value > 1.3)
+            return true;
 
         var dist = HaversineDistance(
             _lastLocation.Latitude, _lastLocation.Longitude,
             newLoc.Latitude, newLoc.Longitude);
 
-        return dist >= GPS_DEBOUNCE_METERS;
+        return dist >= minDebounceMeters;
+    }
+
+    private bool IsAccuracyAcceptable(Microsoft.Maui.Devices.Sensors.Location location)
+    {
+        if (!location.Accuracy.HasValue || location.Accuracy.Value <= 0)
+            return true;
+
+        var maxAllowedAccuracy = _currentZones.Count > 0
+            ? MAX_ACCEPTABLE_ACCURACY_INSIDE_METERS
+            : MAX_ACCEPTABLE_ACCURACY_NEAR_METERS;
+
+        return location.Accuracy.Value <= maxAllowedAccuracy;
     }
 
     private double HaversineDistance(double lat1, double lon1, double lat2, double lon2)

@@ -17,17 +17,21 @@ public class AudioController : ControllerBase
     private readonly MongoDbContext _db;
     private readonly MongoSequenceService _sequence;
     private readonly IWebHostEnvironment _env;
+    private readonly ILogger<AudioController> _logger;
     private static readonly HashSet<string> AllowedAudioExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".mp3", ".wav", ".m4a"
     };
     private const long MaxAudioBytes = 25L * 1024 * 1024; // 25 MB
+    private const string AppNotificationSequenceName = "app_notification_id";
+    private const string AppNotificationCollectionName = "app_notifications";
 
-    public AudioController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env)
+    public AudioController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env, ILogger<AudioController> logger)
     {
         _db = db;
         _sequence = sequence;
         _env = env;
+        _logger = logger;
     }
 
     /// <summary>
@@ -903,6 +907,7 @@ public class AudioController : ControllerBase
             .Set(a => a.UpdatedAt, DateTime.UtcNow);
 
         await _db.AudioContents.UpdateManyAsync(BuildPoiModerationFilter(audio.POI_ID), update);
+        await CreateAdminNotificationForAudioSubmitAsync(audio.POI_ID, vendor);
         return Ok(new { message = "Đã gửi duyệt bộ audio 3 ngôn ngữ cho POI." });
     }
 
@@ -934,6 +939,7 @@ public class AudioController : ControllerBase
             .Set(a => a.UpdatedAt, DateTime.UtcNow);
 
         await _db.AudioContents.UpdateManyAsync(BuildPoiModerationFilter(audio.POI_ID), update);
+        await CreateVendorNotificationForAudioModerationAsync(audio.POI_ID, "approved", null);
         return Ok(new { message = "Đã duyệt bộ audio 3 ngôn ngữ cho POI." });
     }
 
@@ -966,6 +972,7 @@ public class AudioController : ControllerBase
             .Set(a => a.UpdatedAt, DateTime.UtcNow);
 
         await _db.AudioContents.UpdateManyAsync(BuildPoiModerationFilter(audio.POI_ID), update);
+        await CreateVendorNotificationForAudioModerationAsync(audio.POI_ID, "rejected", reason);
         return Ok(new { message = "Đã từ chối bộ audio 3 ngôn ngữ của POI." });
     }
 
@@ -1310,6 +1317,87 @@ public class AudioController : ControllerBase
         }
 
         await _db.AudioContents.DeleteManyAsync(filter);
+    }
+
+    private async Task CreateAdminNotificationForAudioSubmitAsync(int poiId, VendorProfile? vendor)
+    {
+        var poi = await _db.POIs
+            .Find(p => p.POI_ID == poiId && p.DeletedAt == null)
+            .FirstOrDefaultAsync();
+
+        var poiName = poi?.Name_Vi ?? $"POI #{poiId}";
+        var vendorName = vendor?.BusinessName ?? vendor?.ContactName ?? $"Vendor #{vendor?.VendorId}";
+
+        var notification = new BsonDocument
+        {
+            { "AudienceRole", "admin" },
+            { "Kind", "info" },
+            { "Title", "Có bộ audio mới chờ duyệt" },
+            { "Message", $"{vendorName} đã gửi bộ audio 3 ngôn ngữ cho \"{poiName}\"." },
+            { "Href", $"audio-list?status=pending&poiId={poiId}" },
+            { "Category", "audio-submit" },
+            { "Status", "pending" },
+            { "CreatedAt", DateTime.UtcNow }
+        };
+
+        await InsertAppNotificationSafeAsync(notification);
+    }
+
+    private async Task CreateVendorNotificationForAudioModerationAsync(int poiId, string status, string? reason)
+    {
+        var poi = await _db.POIs
+            .Find(p => p.POI_ID == poiId && p.DeletedAt == null)
+            .FirstOrDefaultAsync();
+
+        if (poi?.VendorId == null)
+        {
+            return;
+        }
+
+        var isApproved = string.Equals(status, "approved", StringComparison.OrdinalIgnoreCase);
+        var processedBy = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email) ?? "admin";
+        var now = DateTime.UtcNow;
+
+        var notification = new BsonDocument
+        {
+            { "AudienceRole", "vendor" },
+            { "AudienceVendorId", poi.VendorId.Value },
+            { "Kind", isApproved ? "success" : "warning" },
+            { "Title", isApproved ? "Audio đã được duyệt" : "Audio bị từ chối" },
+            {
+                "Message",
+                isApproved
+                    ? $"Bộ audio 3 ngôn ngữ của \"{poi.Name_Vi}\" đã được duyệt."
+                    : $"Bộ audio 3 ngôn ngữ của \"{poi.Name_Vi}\" đã bị từ chối."
+            },
+            { "Href", $"audio-list?poiId={poiId}" },
+            { "Category", "audio-review" },
+            { "Status", status },
+            { "CreatedAt", now },
+            { "ProcessedAt", now },
+            { "ProcessedBy", processedBy }
+        };
+
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            notification.Add("ResponseMessage", reason.Trim());
+        }
+
+        await InsertAppNotificationSafeAsync(notification);
+    }
+
+    private async Task InsertAppNotificationSafeAsync(BsonDocument notification)
+    {
+        try
+        {
+            notification["NotificationId"] = await _sequence.GetNextAsync(AppNotificationSequenceName);
+            var collection = _db.Database.GetCollection<BsonDocument>(AppNotificationCollectionName);
+            await collection.InsertOneAsync(notification);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to write audio app notification.");
+        }
     }
 
     private static string NormalizeLanguage(string? language)

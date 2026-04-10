@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
@@ -24,6 +25,8 @@ public class POIsController : ControllerBase
     private const string GpsTestCategory = "gps-test";
     private const string GpsTestReviewedBy = "gps-test-mode";
     private const int GpsTestTriggerRadiusMeters = 50;
+    private const string AppNotificationSequenceName = "app_notification_id";
+    private const string AppNotificationCollectionName = "app_notifications";
     private static readonly GpsTestPoiSeed[] DefaultGpsTestPoiSeeds =
     [
         new("POI Test GPS Thuc Te 1", "Real GPS Test POI 1", "GPS shi di ce shi dian 1", 10.842078975289178, 106.60899362124417, 10),
@@ -857,14 +860,17 @@ public class POIsController : ControllerBase
                 return BadRequest(new { message = "Cannot approve POI while vendor is not approved" });
         }
 
+        var reviewedAt = DateTime.UtcNow;
+        var reviewedBy = User.Identity?.Name ?? "admin";
+
         var update = Builders<POI>.Update
             .Set(p => p.ReviewStatus, status)
             .Set(p => p.ReviewNote, request.Note)
-            .Set(p => p.ReviewedAt, DateTime.UtcNow)
-            .Set(p => p.ReviewedBy, User.Identity?.Name ?? "admin")
+            .Set(p => p.ReviewedAt, reviewedAt)
+            .Set(p => p.ReviewedBy, reviewedBy)
             .Set(p => p.IsActive, status == "approved")
             .Set(p => p.PendingChanges, null)
-            .Set(p => p.UpdatedAt, DateTime.UtcNow);
+            .Set(p => p.UpdatedAt, reviewedAt);
 
         // When rejected: REVERT the actual field data back to original values stored in PendingChanges
         if (status == "rejected" && poi.PendingChanges != null)
@@ -901,6 +907,7 @@ public class POIsController : ControllerBase
         }
 
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
+        await CreateVendorNotificationForPoiReviewAsync(poi, status, request.Note, reviewedAt, reviewedBy);
 
         var resultMsg = status == "rejected"
             ? "Đã từ chối và khôi phục lại dữ liệu gốc cho POI."
@@ -1297,6 +1304,62 @@ public class POIsController : ControllerBase
         var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
 
         return earthRadius * c;
+    }
+
+    private async Task CreateVendorNotificationForPoiReviewAsync(
+        POI poi,
+        string status,
+        string? reviewNote,
+        DateTime processedAt,
+        string processedBy)
+    {
+        if (!poi.VendorId.HasValue)
+        {
+            return;
+        }
+
+        var isApproved = string.Equals(status, "approved", StringComparison.OrdinalIgnoreCase);
+        var title = isApproved ? "POI đã được duyệt" : "POI bị từ chối";
+        var message = isApproved
+            ? $"POI \"{poi.Name_Vi}\" đã được duyệt và hiển thị trên hệ thống."
+            : $"POI \"{poi.Name_Vi}\" đã bị từ chối. Vui lòng cập nhật và gửi lại.";
+
+        var notification = new BsonDocument
+        {
+            { "AudienceRole", "vendor" },
+            { "AudienceVendorId", poi.VendorId.Value },
+            { "Kind", isApproved ? "success" : "warning" },
+            { "Title", title },
+            { "Message", message },
+            { "Href", $"poi-list?reviewStatus={status}" },
+            { "Category", "poi-review" },
+            { "Status", status },
+            { "CreatedAt", processedAt },
+            { "ProcessedAt", processedAt },
+            { "ProcessedBy", processedBy }
+        };
+
+        var note = reviewNote?.Trim();
+        if (!string.IsNullOrWhiteSpace(note))
+        {
+            notification.Add("ResponseMessage", note);
+        }
+
+        await InsertAppNotificationSafeAsync(notification);
+    }
+
+    private async Task InsertAppNotificationSafeAsync(BsonDocument notification)
+    {
+        try
+        {
+            notification["NotificationId"] = await _sequence.GetNextAsync(AppNotificationSequenceName);
+            var collection = _db.Database.GetCollection<BsonDocument>(AppNotificationCollectionName);
+            await collection.InsertOneAsync(notification);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to write POI app notification.");
+        }
     }
 
     private static List<GpsTestPoiSeed> BuildGpsTestPoiSeeds(EnsureGpsTestPoiRequest? request)
