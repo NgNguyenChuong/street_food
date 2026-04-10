@@ -209,7 +209,7 @@
                                            TextColor="#A7F3D0"
                                            HorizontalTextAlignment="Center"
                                            LineBreakMode="WordWrap"/>
-                                    <Label Text="Nhấn để xem gói Gourmet Explorer"
+                                     <Label Text="Nhấn để đăng ký VIP ngay"
                                            FontSize="11"
                                            FontAttributes="Bold"
                                            TextColor="#22C55E"

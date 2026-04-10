@@ -33,7 +33,8 @@ public partial class PremiumTourPaywallPage : ContentPage
         TransferContentLabel.Text = _transferContent;
 
         IntroTitleLabel.Text = "Mở khóa Tour Explore";
-        IntroMessageLabel.Text = $"Bạn đã dùng xong 1 tour miễn phí. Đăng ký để tiếp tục khám phá \"{_tourName}\" và nhiều tour hấp dẫn khác.";
+        IntroMessageLabel.Text = $"Đăng ký VIP để có thể sử dụng các chức năng hấp dẫn khác trong app và tiếp tục khám phá \"{_tourName}\".";
+        IntroBenefitsLabel.Text = "• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc";
         PaymentTitleLabel.Text = "Thanh toán gói Tour Explore";
         PaymentPriceLabel.Text = PlanPricePerMonth;
         SuccessPlanNameLabel.Text = $"Gói {PlanDisplayName}";

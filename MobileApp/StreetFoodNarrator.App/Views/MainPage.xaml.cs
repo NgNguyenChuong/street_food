@@ -399,12 +399,15 @@ public partial class MainPage : ContentPage
 
         if (!startFromNearTour && !_vm.IsVipUser)
         {
+            if (await PromptVipRenewalIfExpiredAsync(Ui("Khám phá nhanh", "Quick explore", "快速探索")))
+                return;
+
             await DisplayAlertAsync(
                 Ui("Thông báo", "Notice", "提示"),
                 Ui(
-                    "Tài khoản chưa VIP chỉ dùng được tour miễn phí do admin chỉ định.",
-                    "Non-VIP users can only use the admin-designated free tour.",
-                    "非 VIP 用户只能使用管理员指定的免费路线。"),
+                    "Đăng ký VIP để có thể sử dụng các chức năng hấp dẫn khác trong app:\n• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc",
+                    "Subscribe to VIP to unlock more exciting app features:\n• Interact with more POIs\n• Access more curated tours",
+                    "订阅 VIP 以解锁更多精彩功能：\n• 与更多 POI 互动\n• 查看更多精选路线"),
                 "OK");
             return;
         }
@@ -433,10 +436,58 @@ public partial class MainPage : ContentPage
         await OpenExploreMapForFeaturedPoiAsync(triggerFeaturedPoi: true);
     }
 
+    private bool HasExpiredVipSubscription()
+    {
+        return !_vm.IsVipUser
+            && _vm.VipInvoiceCreatedAtUtc.HasValue
+            && _vm.VipExpiresAtUtc.HasValue
+            && _vm.VipExpiresAtUtc.Value <= DateTime.UtcNow;
+    }
+
+    private async Task<bool> PromptVipRenewalIfExpiredAsync(string featureName)
+    {
+        if (!HasExpiredVipSubscription())
+            return false;
+
+        var expiresText = _vm.VipExpiresAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+            ?? Ui("không rõ", "unknown", "未知");
+
+        var shouldRenewNow = await DisplayAlertAsync(
+            Ui("VIP đã hết hạn", "VIP expired", "VIP 已过期"),
+            Ui(
+                $"Gói đăng ký VIP của bạn đã hết hạn vào {expiresText}. Bạn có muốn gia hạn ngay để tiếp tục sử dụng tính năng này không?",
+                $"Your VIP plan expired on {expiresText}. Do you want to renew now to continue using this feature?",
+                $"您的 VIP 套餐已于 {expiresText} 到期。是否立即续费以继续使用此功能？"),
+            Ui("Gia hạn ngay", "Renew now", "立即续费"),
+            Ui("Để sau", "Later", "稍后"));
+
+        if (shouldRenewNow)
+        {
+            await PremiumTourPaywallPage.ShowAsync(
+                Shell.Current?.Navigation ?? Navigation,
+                featureName,
+                _vm);
+        }
+
+        return true;
+    }
+
     private async void OnSecondaryExploreActionClicked(object? sender, EventArgs e)
     {
         try
         {
+            if (_vm.CurrentExploreState == MainViewModel.ExploreState.Far && !_vm.IsVipUser)
+            {
+                if (await PromptVipRenewalIfExpiredAsync(Ui("Xem bản đồ", "View map", "查看地图")))
+                    return;
+
+                await PremiumTourPaywallPage.ShowAsync(
+                    Shell.Current?.Navigation ?? Navigation,
+                    Ui("Xem bản đồ", "View map", "查看地图"),
+                    _vm);
+                return;
+            }
+
             if (_vm.CurrentExploreState == MainViewModel.ExploreState.Far && _vm.HasActiveTourOverride)
             {
                 var shouldClearTour = await DisplayAlertAsync(
@@ -2232,6 +2283,9 @@ public partial class MainPage : ContentPage
 
         if (!_vm.IsPoiAccessibleForCurrentSubscription(targetPoi))
         {
+            if (await PromptVipRenewalIfExpiredAsync(targetPoi.GetDisplayName(_lang.CurrentLanguage)))
+                return;
+
             await PremiumTourPaywallPage.ShowAsync(
                 Shell.Current?.Navigation ?? Navigation,
                 targetPoi.GetDisplayName(_lang.CurrentLanguage),

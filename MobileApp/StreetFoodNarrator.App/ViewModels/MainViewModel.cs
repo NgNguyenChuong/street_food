@@ -51,11 +51,11 @@ public partial class MainViewModel : ObservableObject
         public string CompletionStatusText => IsCompleted
             ? UiText("Đã đi", "Completed", "已体验")
             : UiText("Chưa đi", "Not yet", "未体验");
-        public string TrialLockTitle => UiText("Đăng ký để mở khóa", "Subscribe to unlock", "订阅后解锁");
+        public string TrialLockTitle => UiText("Đăng ký VIP để mở khóa", "Subscribe VIP to unlock", "订阅 VIP 以解锁");
         public string TrialLockDescription => UiText(
-            "Đăng ký để có thể khám phá thêm các tour hấp dẫn khác.",
-            "Subscribe to unlock and explore more exciting tours.",
-            "订阅后可解锁并探索更多精彩路线。");
+            "Đăng ký VIP để dùng thêm các chức năng hấp dẫn trong app:\n• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc",
+            "Subscribe to VIP for more exciting app features:\n• Interact with more POIs\n• Access more curated tours",
+            "订阅 VIP 以解锁更多精彩功能：\n• 与更多 POI 互动\n• 查看更多精选路线");
     }
 
     public enum AppMode
@@ -1926,7 +1926,9 @@ public partial class MainViewModel : ObservableObject
                 ExplorePrimaryActionText = hasTourOverride
                     ? UiText("🎬 Xem thử tour đã chọn", "🎬 Preview selected tour", "🎬 预览已选路线")
                     : UiText("🎬 Xem thử tour", "🎬 Preview tour", "🎬 预览路线");
-                ExploreSecondaryActionText = UiText("🗺️ Xem bản đồ", "🗺️ View map", "🗺️ 查看地图");
+                ExploreSecondaryActionText = IsVipUser
+                    ? UiText("🗺️ Xem bản đồ", "🗺️ View map", "🗺️ 查看地图")
+                    : UiText("🔒 Mở bản đồ (VIP)", "🔒 Unlock map (VIP)", "🔒 解锁地图（VIP）");
                 HasSecondaryExploreAction = true;
                 IsExploreAudioAvailable = false;
                 IsExploreAudioPlaying = false;
@@ -2869,13 +2871,9 @@ public partial class MainViewModel : ObservableObject
     private void ApplyTourFilterCore()
     {
         var q = (TourSearchQuery ?? string.Empty).Trim().ToLowerInvariant();
-        var accessibleTours = AllTours
-            .Where(IsTourAccessibleForCurrentSubscription)
-            .ToList();
-
         var results = string.IsNullOrEmpty(q)
-            ? accessibleTours
-            : accessibleTours.Where(t =>
+            ? AllTours.ToList()
+            : AllTours.Where(t =>
                     t.Name.ToLowerInvariant().Contains(q) ||
                     t.Description.ToLowerInvariant().Contains(q) ||
                     t.DescriptionVi.ToLowerInvariant().Contains(q) ||
@@ -3845,9 +3843,9 @@ public partial class MainViewModel : ObservableObject
             await CustomAlert.ShowAsync(
                 UiText("Yêu cầu đăng ký", "Subscription required", "需要订阅"),
                 UiText(
-                    "Hiện bạn chỉ có thể dùng tour miễn phí mặc định. Đăng ký VIP để mở toàn bộ tour và tính năng.",
-                    "You currently have access to the default free tour only. Subscribe to VIP to unlock all tours and features.",
-                    "你当前只能使用默认免费路线。订阅 VIP 可解锁全部路线和功能。"),
+                    "Đăng ký VIP để có thể sử dụng các chức năng hấp dẫn khác trong app:\n• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc",
+                    "Subscribe to VIP to unlock more exciting app features:\n• Interact with more POIs\n• Access more curated tours",
+                    "订阅 VIP 以解锁更多精彩功能：\n• 与更多 POI 互动\n• 查看更多精选路线"),
                 UiText("Đã hiểu", "OK", "确定"),
                 AlertType.Info);
             return;

@@ -61,6 +61,13 @@
                                HorizontalTextAlignment="Center"
                                LineBreakMode="WordWrap"/>
 
+                           <Label x:Name="IntroBenefitsLabel"
+                               Text="• Tương tác với nhiều POI khác&#10;• Xem thêm nhiều tour đặc sắc"
+                               FontSize="13"
+                               TextColor="#A7F3D0"
+                               HorizontalTextAlignment="Start"
+                               LineBreakMode="WordWrap"/>
+
                         <Button x:Name="SubscribeNowButton"
                                 Text="Đăng ký ngay"
                                 HeightRequest="48"
