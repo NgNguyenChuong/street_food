@@ -33,19 +33,29 @@ public partial class MainViewModel : ObservableObject
         public List<string> PoiNames { get; set; } = new();
         public string CoverImageUrl { get; set; } = "welcome_streetfood.jpg";
         public bool IsActive { get; set; } = true;
+        public bool IsAdminDesignatedFreeTour { get; set; }
         public bool IsFavorite { get; set; }
         public bool IsCompleted { get; set; }
+        public bool IsLockedByTrial { get; set; }
 
         public string DisplayPoiStopsText => AppStrings.Format("TourCard_PoiStopsFormat", PoiCount);
         public string DisplayDurationText => AppStrings.Format("TourCard_DurationFormat", EstimatedDurationMinutes);
         public string DetailButtonText => AppStrings.Get("TourCard_DetailButton");
-        public bool IsStartAvailable => PoiCount > 0;
+        public bool IsStartAvailable => PoiCount > 0 && !IsLockedByTrial;
+        public double CardOpacity => IsLockedByTrial ? 0.42 : 1.0;
         public string StartNowButtonText => IsStartAvailable
             ? AppStrings.Get("TourCard_StartNowButton")
-            : "Tour tạm không khả dụng";
+            : IsLockedByTrial
+                ? UiText("Đăng ký để mở tour", "Subscribe to unlock", "订阅后解锁")
+                : "Tour tạm không khả dụng";
         public string CompletionStatusText => IsCompleted
             ? UiText("Đã đi", "Completed", "已体验")
             : UiText("Chưa đi", "Not yet", "未体验");
+        public string TrialLockTitle => UiText("Đăng ký VIP để mở khóa", "Subscribe VIP to unlock", "订阅 VIP 以解锁");
+        public string TrialLockDescription => UiText(
+            "Đăng ký VIP để dùng thêm các chức năng hấp dẫn trong app:\n• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc",
+            "Subscribe to VIP for more exciting app features:\n• Interact with more POIs\n• Access more curated tours",
+            "订阅 VIP 以解锁更多精彩功能：\n• 与更多 POI 互动\n• 查看更多精选路线");
     }
 
     public enum AppMode
@@ -125,6 +135,7 @@ public partial class MainViewModel : ObservableObject
         IsOfflineHintDismissed = OfflineBannerSessionState.IsDismissed;
         LoadSavedTourIdsFromPreferences();
         LoadCompletedTourIdsFromPreferences();
+        LoadVipStatusFromPreferences();
         Connectivity.Current.ConnectivityChanged += (_, _) =>
             MainThread.BeginInvokeOnMainThread(() =>
             {
@@ -502,6 +513,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string nearPrimaryTourId = string.Empty;
     [ObservableProperty] private string nearMainIntroText = UiText("🍜 Gần bạn", "🍜 Near you", "🍜 在你附近");
     [ObservableProperty] private string nearSecondaryIntroText = UiText("Hoặc khám phá nhanh:", "Or quick explore:", "或快速探索：");
+    [ObservableProperty] private bool isNearQuickExploreVisible = true;
     [ObservableProperty] private bool isExploreAudioAvailable = false;
     [ObservableProperty] private bool isExploreAudioPlaying = false;
     [ObservableProperty] private double exploreAudioProgressValue = 0.32;
@@ -671,10 +683,16 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool isMainDataRefreshing = false;
     [ObservableProperty] private bool isSavedDataRefreshing = false;
     [ObservableProperty] private bool isTourDataStale = false;
+    [ObservableProperty] private bool isVipUser = false;
+    [ObservableProperty] private DateTime? vipInvoiceCreatedAtUtc;
+    [ObservableProperty] private DateTime? vipExpiresAtUtc;
+    [ObservableProperty] private string vipBadgeLabel = "VIP";
     [ObservableProperty] private ObservableCollection<POI> virtualTourPOIs = new();
     [ObservableProperty] private bool isVirtualTourPopupShown = false;
     [ObservableProperty] private POI? selectedPinPOI;
     [ObservableProperty] private bool isPinPopupVisible = false;
+
+    public bool IsVipBadgeVisible => IsVipUser;
 
     partial void OnSelectedPinPOIChanged(POI? value)
     {
@@ -724,19 +742,26 @@ public partial class MainViewModel : ObservableObject
     private const string ToursCacheJsonKey = "tours_cache_json_v1";
     private const string SavedTourIdsKey = "saved_tour_ids_v1";
     private const string CompletedTourIdsKey = "completed_tour_ids_v1";
+    private const string FreeTourIdKey = "subscription_free_tour_id_v1";
+    private const string VipInvoiceCreatedAtUtcKey = "vip_invoice_created_at_utc_v1";
+    private const string VipExpiresAtUtcKey = "vip_expires_at_utc_v1";
     private const string LastTourSyncTimeKey = "LastTourSyncTime";
     private const string LastPoiSyncTimeKey = "LastSyncTime";
     private const int PoiSyncIntervalSeconds = 60;
     private const int TourSyncIntervalSeconds = 180;
     private static readonly TimeSpan SavedPoisReloadInterval = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan VipStatusSyncInterval = TimeSpan.FromSeconds(45);
     private static readonly JsonSerializerOptions TourJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
     private HashSet<string> _savedTourIds = new(StringComparer.OrdinalIgnoreCase);
     private HashSet<string> _completedTourIds = new(StringComparer.OrdinalIgnoreCase);
+    private DateTime _lastVipStatusSyncUtc = DateTime.MinValue;
     private readonly List<int> _activeTourPoiIds = new();
     private List<POI> _tourPoiCatalog = new();
+    private string _freeTourId = string.Empty;
+    private readonly HashSet<int> _freeTourPoiIds = new();
 
     partial void OnSelectedCategoryChanged(string value)
     {
@@ -746,6 +771,16 @@ public partial class MainViewModel : ObservableObject
     partial void OnTourSearchQueryChanged(string value)
     {
         ApplyTourFilterCore();
+    }
+
+    partial void OnIsVipUserChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsVipBadgeVisible));
+        ApplySavedTourStateToTours(AllTours);
+        EnforceActiveTourAccessPolicy();
+        RefreshRuntimeTourPools();
+        ApplyTourFilterCore();
+        _ = ApplyFilterAsync();
     }
 
     /// <summary>
@@ -844,6 +879,14 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        if (IsTourLockedByFreeTrial(tour))
+        {
+            ActiveTourId = string.Empty;
+            ActiveTourName = string.Empty;
+            RefreshRuntimeTourPools();
+            return;
+        }
+
         var orderedIds = (orderedStops ?? Enumerable.Empty<POI>())
             .Where(p => p.ZoneType == "Spot")
             .Select(p => p.Id)
@@ -876,7 +919,7 @@ public partial class MainViewModel : ObservableObject
     {
         _activeTourPoiIds.Clear();
 
-        if (tour == null)
+        if (tour == null || IsTourLockedByFreeTrial(tour))
         {
             ActiveTourId = string.Empty;
             ActiveTourName = string.Empty;
@@ -926,6 +969,9 @@ public partial class MainViewModel : ObservableObject
         if (tour == null)
             return false;
 
+        if (IsTourLockedByFreeTrial(tour))
+            return false;
+
         var orderedStops = BuildTourStopsForStart(tour);
         if (orderedStops.Count == 0)
             return false;
@@ -945,7 +991,16 @@ public partial class MainViewModel : ObservableObject
             .ToList();
 
         if (_activeTourPoiIds.Count == 0)
-            return allSpots;
+        {
+            if (IsVipUser || _freeTourPoiIds.Count == 0)
+                return allSpots;
+
+            var freeTourSpots = allSpots
+                .Where(p => _freeTourPoiIds.Contains(p.Id))
+                .ToList();
+
+            return freeTourSpots.Count > 0 ? freeTourSpots : allSpots;
+        }
 
         var byId = allSpots.ToDictionary(p => p.Id);
         var orderedTourSpots = new List<POI>();
@@ -1577,10 +1632,24 @@ public partial class MainViewModel : ObservableObject
             .Where(p => p.ZoneType == "Spot" && p.IsActive)
             .ToDictionary(p => p.Id);
 
+        if (!IsVipUser)
+        {
+            var freeTour = AllTours.FirstOrDefault(t => t.IsActive && IsTourAccessibleForCurrentSubscription(t));
+            if (freeTour != null)
+            {
+                if (TryComputeTourDistanceMeters(freeTour, activeSpotsById, out var freeTourDistance))
+                    bestDistanceMeters = freeTourDistance;
+
+                return freeTour;
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(ActiveTourId))
         {
             var activeTour = AllTours.FirstOrDefault(t => string.Equals(t.Id, ActiveTourId, StringComparison.OrdinalIgnoreCase));
-            if (activeTour != null && TryComputeTourDistanceMeters(activeTour, activeSpotsById, out var activeDistance))
+            if (activeTour != null &&
+                !IsTourLockedByFreeTrial(activeTour) &&
+                TryComputeTourDistanceMeters(activeTour, activeSpotsById, out var activeDistance))
             {
                 if (activeDistance <= maxTourMatchMeters)
                 {
@@ -1591,7 +1660,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         TourListItem? bestTour = null;
-        foreach (var tour in AllTours.Where(t => t.IsActive))
+        foreach (var tour in AllTours.Where(t => t.IsActive && !IsTourLockedByFreeTrial(t)))
         {
             if (!TryComputeTourDistanceMeters(tour, activeSpotsById, out var distanceMeters))
                 continue;
@@ -1844,6 +1913,7 @@ public partial class MainViewModel : ObservableObject
     {
         var hasTourOverride = HasActiveTourOverride;
         var tourLabel = hasTourOverride ? ActiveTourDisplayName : UiText("Tuyến tự động", "Auto route", "自动路线");
+        var nearbyCards = (nearby ?? Array.Empty<ExplorePoiCard>()).ToList();
 
         switch (state)
         {
@@ -1856,10 +1926,13 @@ public partial class MainViewModel : ObservableObject
                 ExplorePrimaryActionText = hasTourOverride
                     ? UiText("🎬 Xem thử tour đã chọn", "🎬 Preview selected tour", "🎬 预览已选路线")
                     : UiText("🎬 Xem thử tour", "🎬 Preview tour", "🎬 预览路线");
-                ExploreSecondaryActionText = UiText("🗺️ Xem bản đồ", "🗺️ View map", "🗺️ 查看地图");
+                ExploreSecondaryActionText = IsVipUser
+                    ? UiText("🗺️ Xem bản đồ", "🗺️ View map", "🗺️ 查看地图")
+                    : UiText("🔒 Mở bản đồ (VIP)", "🔒 Unlock map (VIP)", "🔒 解锁地图（VIP）");
                 HasSecondaryExploreAction = true;
                 IsExploreAudioAvailable = false;
                 IsExploreAudioPlaying = false;
+                IsNearQuickExploreVisible = false;
                 break;
 
             case ExploreState.Near:
@@ -1881,6 +1954,17 @@ public partial class MainViewModel : ObservableObject
                 HasSecondaryExploreAction = false;
                 IsExploreAudioAvailable = false;
                 IsExploreAudioPlaying = false;
+
+                IsNearQuickExploreVisible = IsVipUser;
+                if (!IsNearQuickExploreVisible)
+                {
+                    NearSecondaryIntroText = string.Empty;
+                    nearbyCards.Clear();
+                }
+                else
+                {
+                    NearSecondaryIntroText = UiText("Hoặc khám phá nhanh:", "Or quick explore:", "或快速探索：");
+                }
                 break;
 
             default:
@@ -1894,6 +1978,7 @@ public partial class MainViewModel : ObservableObject
                 HasSecondaryExploreAction = true;
                 IsExploreAudioAvailable = true;
                 IsExploreAudioPlaying = IsAudioPlaying || IsNarrating;
+                IsNearQuickExploreVisible = false;
                 break;
         }
 
@@ -1909,7 +1994,7 @@ public partial class MainViewModel : ObservableObject
 
         // Replace collection instance to avoid ObservableCollection re-entrancy
         // when location/geofence updates arrive during UI CollectionChanged handling.
-        NearbyExplorePois = new ObservableCollection<ExplorePoiCard>(nearby);
+        NearbyExplorePois = new ObservableCollection<ExplorePoiCard>(nearbyCards);
     }
 
     private static string FormatDistance(double meters)
@@ -2420,6 +2505,7 @@ public partial class MainViewModel : ObservableObject
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
                     AllPOIs = new ObservableCollection<POI>(updatedZones);
+                    RefreshSubscriptionAccessPolicy(AllTours);
                     RefreshRuntimeTourPools(refreshExplore: false);
                     BuildMapCategories();
                     _ = ApplyFilterAsync();
@@ -2467,6 +2553,7 @@ public partial class MainViewModel : ObservableObject
             }
 
             AllPOIs = new ObservableCollection<POI>(zones);
+            RefreshSubscriptionAccessPolicy(AllTours);
 
             // 2. ✅ Populate runtime spot pool (ActiveTour override when available)
             RefreshRuntimeTourPools(refreshExplore: false);
@@ -2617,6 +2704,8 @@ public partial class MainViewModel : ObservableObject
             {
                 ApplySavedTourStateToTours(cachedTours);
                 AllTours = new ObservableCollection<TourListItem>(cachedTours);
+                EnforceActiveTourAccessPolicy();
+                RefreshRuntimeTourPools(refreshExplore: false);
                 ApplyTourFilterCore();
                 _ = WarmupTourCoverImagesAsync(cachedTours);
 
@@ -2656,6 +2745,8 @@ public partial class MainViewModel : ObservableObject
                 {
                     ApplySavedTourStateToTours(liveTours);
                     AllTours = new ObservableCollection<TourListItem>(liveTours);
+                    EnforceActiveTourAccessPolicy();
+                    RefreshRuntimeTourPools(refreshExplore: false);
                     ApplyTourFilterCore();
                     WriteToursToCache(liveTours);
                     _ = WarmupTourCoverImagesAsync(liveTours);
@@ -2780,7 +2871,6 @@ public partial class MainViewModel : ObservableObject
     private void ApplyTourFilterCore()
     {
         var q = (TourSearchQuery ?? string.Empty).Trim().ToLowerInvariant();
-
         var results = string.IsNullOrEmpty(q)
             ? AllTours.ToList()
             : AllTours.Where(t =>
@@ -2860,7 +2950,8 @@ public partial class MainViewModel : ObservableObject
                 PoiIds = ParseTourPoiIds(t.Pois),
                 PoiNames = ParseTourPoiNames(t.Pois),
                 CoverImageUrl = ResolveTourCoverImageUrl(t.ImageUrl),
-                IsActive = t.IsActive
+                IsActive = t.IsActive,
+                IsAdminDesignatedFreeTour = t.IsFreeTour
             })
             .Where(t => t.IsActive)
             .OrderByDescending(t => t.IsActive)
@@ -3128,6 +3219,7 @@ public partial class MainViewModel : ObservableObject
         public string? ImageUrl { get; set; }
         public int EstimatedDurationMinutes { get; set; }
         public bool IsActive { get; set; }
+        public bool IsFreeTour { get; set; }
         public List<TourPoiDto>? Pois { get; set; }
     }
 
@@ -3145,6 +3237,13 @@ public partial class MainViewModel : ObservableObject
         public string? Id { get; set; }
         public string? Name { get; set; }
         public int? POI_ID { get; set; }
+    }
+
+    private sealed class SubscriptionStatusDto
+    {
+        public bool IsVip { get; set; }
+        public DateTime? InvoiceCreatedAtUtc { get; set; }
+        public DateTime? ExpiresAtUtc { get; set; }
     }
 
     private void LoadSavedTourIdsFromPreferences()
@@ -3221,12 +3320,302 @@ public partial class MainViewModel : ObservableObject
 
     private void ApplySavedTourStateToTours(IEnumerable<TourListItem> tours)
     {
-        foreach (var tour in tours)
+        var list = tours?.ToList() ?? new List<TourListItem>();
+        RefreshSubscriptionAccessPolicy(list);
+
+        foreach (var tour in list)
         {
             var hasId = !string.IsNullOrWhiteSpace(tour.Id);
             tour.IsFavorite = hasId && _savedTourIds.Contains(tour.Id);
             tour.IsCompleted = hasId && _completedTourIds.Contains(tour.Id);
+            tour.IsLockedByTrial = !IsTourAccessibleForCurrentSubscription(tour);
         }
+    }
+
+    public bool HasConsumedFreeTourTrial => _completedTourIds.Count > 0;
+
+    public bool IsTourLockedByFreeTrial(TourListItem? tour)
+        => !IsTourAccessibleForCurrentSubscription(tour);
+
+    public bool IsTourAccessibleForCurrentSubscription(TourListItem? tour)
+    {
+        if (tour == null)
+            return false;
+
+        if (IsVipUser)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(_freeTourId))
+            RefreshSubscriptionAccessPolicy(AllTours);
+
+        if (string.IsNullOrWhiteSpace(_freeTourId))
+            return false;
+
+        var normalizedId = tour.Id?.Trim();
+        return !string.IsNullOrWhiteSpace(normalizedId) &&
+               string.Equals(normalizedId, _freeTourId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public bool IsPoiAccessibleForCurrentSubscription(POI? poi)
+    {
+        if (poi == null)
+            return false;
+
+        if (IsVipUser)
+            return true;
+
+        if (_freeTourPoiIds.Count == 0)
+            RefreshSubscriptionAccessPolicy(AllTours);
+
+        return _freeTourPoiIds.Contains(poi.Id);
+    }
+
+    private void RefreshSubscriptionAccessPolicy(IEnumerable<TourListItem>? tours)
+    {
+        var activeTours = (tours ?? Enumerable.Empty<TourListItem>())
+            .Where(t => t != null && t.IsActive)
+            .ToList();
+
+        _freeTourId = ResolveAndPersistFreeTourId(activeTours);
+        RebuildFreeTourPoiIds(activeTours);
+    }
+
+    private string ResolveAndPersistFreeTourId(IReadOnlyList<TourListItem> tours)
+    {
+        if (tours.Count == 0)
+        {
+            try { Preferences.Remove(FreeTourIdKey); } catch { }
+            return string.Empty;
+        }
+
+        var normalizedTours = tours
+            .Where(t => !string.IsNullOrWhiteSpace(t.Id))
+            .ToList();
+        if (normalizedTours.Count == 0)
+            return string.Empty;
+
+        var adminDesignated = normalizedTours
+            .FirstOrDefault(t => t.IsAdminDesignatedFreeTour);
+        if (adminDesignated != null)
+        {
+            var adminDesignatedId = adminDesignated.Id?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(adminDesignatedId))
+            {
+                try { Preferences.Set(FreeTourIdKey, adminDesignatedId); } catch { }
+                return adminDesignatedId;
+            }
+        }
+
+        var persisted = Preferences.Get(FreeTourIdKey, string.Empty)?.Trim() ?? string.Empty;
+        var selected = normalizedTours.FirstOrDefault(t =>
+                           string.Equals(t.Id?.Trim(), persisted, StringComparison.OrdinalIgnoreCase))
+                       ?? normalizedTours.First();
+
+        var selectedId = selected.Id?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(selectedId) &&
+            !string.Equals(selectedId, persisted, StringComparison.OrdinalIgnoreCase))
+        {
+            try { Preferences.Set(FreeTourIdKey, selectedId); } catch { }
+        }
+
+        return selectedId;
+    }
+
+    private void RebuildFreeTourPoiIds(IReadOnlyList<TourListItem> tours)
+    {
+        _freeTourPoiIds.Clear();
+
+        if (string.IsNullOrWhiteSpace(_freeTourId))
+            return;
+
+        var freeTour = tours.FirstOrDefault(t =>
+            string.Equals(t.Id?.Trim(), _freeTourId, StringComparison.OrdinalIgnoreCase));
+        if (freeTour == null)
+            return;
+
+        var stops = ResolveTourStopsForSubscriptionPolicy(freeTour);
+        foreach (var poi in stops)
+            _freeTourPoiIds.Add(poi.Id);
+    }
+
+    private List<POI> ResolveTourStopsForSubscriptionPolicy(TourListItem tour)
+    {
+        var candidateSpots = GetTourPoiCatalog(includeTemporarilyClosed: true)
+            .Where(p => p.ZoneType == "Spot")
+            .ToList();
+
+        if (candidateSpots.Count == 0)
+            return new List<POI>();
+
+        if (tour.PoiIds.Count > 0)
+        {
+            var byId = candidateSpots.ToDictionary(p => p.Id);
+            var requested = new List<POI>();
+            var seen = new HashSet<int>();
+
+            foreach (var poiId in tour.PoiIds)
+            {
+                if (byId.TryGetValue(poiId, out var poi) && seen.Add(poi.Id))
+                    requested.Add(poi);
+            }
+
+            if (requested.Count > 0)
+                return requested;
+        }
+
+        if (tour.PoiNames.Count > 0)
+        {
+            var requestedByName = new List<POI>();
+            var seen = new HashSet<int>();
+            foreach (var poiName in tour.PoiNames)
+            {
+                var normalizedName = NormalizeTourPoiName(poiName);
+                if (string.IsNullOrWhiteSpace(normalizedName))
+                    continue;
+
+                var matchedPoi = candidateSpots.FirstOrDefault(p =>
+                    NormalizeTourPoiName(p.Name_Vi) == normalizedName ||
+                    NormalizeTourPoiName(p.Name_En) == normalizedName ||
+                    NormalizeTourPoiName(p.Name_Zh) == normalizedName);
+
+                if (matchedPoi != null && seen.Add(matchedPoi.Id))
+                    requestedByName.Add(matchedPoi);
+            }
+
+            if (requestedByName.Count > 0)
+                return requestedByName;
+        }
+
+        var fallbackCount = Math.Clamp(tour.PoiCount > 0 ? tour.PoiCount : 4, 1, Math.Min(8, candidateSpots.Count));
+        return candidateSpots
+            .OrderBy(p => p.Id)
+            .Take(fallbackCount)
+            .ToList();
+    }
+
+    private void EnforceActiveTourAccessPolicy()
+    {
+        if (IsVipUser || !HasActiveTourOverride)
+            return;
+
+        var normalizedActiveTourId = ActiveTourId?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(_freeTourId) ||
+            !string.Equals(normalizedActiveTourId, _freeTourId, StringComparison.OrdinalIgnoreCase))
+        {
+            ClearTourOverride();
+        }
+    }
+
+    public void ApplyVipSubscriptionFromServer(bool isVip, DateTime? invoiceCreatedAtUtc, DateTime? expiresAtUtc)
+    {
+        var now = DateTime.UtcNow;
+        var normalizedIsVip = isVip && expiresAtUtc.HasValue && expiresAtUtc.Value > now;
+
+        VipInvoiceCreatedAtUtc = invoiceCreatedAtUtc;
+        VipExpiresAtUtc = expiresAtUtc;
+        IsVipUser = normalizedIsVip;
+
+        if (normalizedIsVip && expiresAtUtc.HasValue)
+        {
+            var days = Math.Max(1, (int)Math.Ceiling((expiresAtUtc.Value - now).TotalDays));
+            VipBadgeLabel = days > 1 ? $"VIP • {days}d" : "VIP";
+        }
+        else
+        {
+            VipBadgeLabel = "VIP";
+        }
+
+        PersistVipStatusToPreferences();
+    }
+
+    public async Task RefreshVipSubscriptionStatusAsync(bool force = false)
+    {
+        if (!force && (DateTime.UtcNow - _lastVipStatusSyncUtc) < VipStatusSyncInterval)
+            return;
+
+        _lastVipStatusSyncUtc = DateTime.UtcNow;
+
+        if (!HasInternetAccess())
+        {
+            ApplyVipSubscriptionFromServer(IsVipUser, VipInvoiceCreatedAtUtc, VipExpiresAtUtc);
+            return;
+        }
+
+        try
+        {
+            var deviceId = GetOrCreateAnonymousDeviceId();
+            var safeDeviceId = Uri.EscapeDataString(deviceId);
+            var url = AppConfig.BuildApiUrl($"api/Subscriptions/status?deviceId={safeDeviceId}");
+            using var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                ApplyVipSubscriptionFromServer(IsVipUser, VipInvoiceCreatedAtUtc, VipExpiresAtUtc);
+                return;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var payload = JsonSerializer.Deserialize<SubscriptionStatusDto>(json, TourJsonOptions);
+            if (payload == null)
+            {
+                ApplyVipSubscriptionFromServer(IsVipUser, VipInvoiceCreatedAtUtc, VipExpiresAtUtc);
+                return;
+            }
+
+            ApplyVipSubscriptionFromServer(payload.IsVip, payload.InvoiceCreatedAtUtc, payload.ExpiresAtUtc);
+        }
+        catch
+        {
+            ApplyVipSubscriptionFromServer(IsVipUser, VipInvoiceCreatedAtUtc, VipExpiresAtUtc);
+        }
+    }
+
+    private void LoadVipStatusFromPreferences()
+    {
+        DateTime? invoiceCreated = null;
+        DateTime? expiresAt = null;
+
+        var invoiceRaw = Preferences.Get(VipInvoiceCreatedAtUtcKey, string.Empty);
+        if (DateTime.TryParse(invoiceRaw, out var parsedInvoice))
+            invoiceCreated = parsedInvoice.ToUniversalTime();
+
+        var expiresRaw = Preferences.Get(VipExpiresAtUtcKey, string.Empty);
+        if (DateTime.TryParse(expiresRaw, out var parsedExpiry))
+            expiresAt = parsedExpiry.ToUniversalTime();
+
+        var localVip = expiresAt.HasValue && expiresAt.Value > DateTime.UtcNow;
+        ApplyVipSubscriptionFromServer(localVip, invoiceCreated, expiresAt);
+    }
+
+    private void PersistVipStatusToPreferences()
+    {
+        try
+        {
+            if (VipInvoiceCreatedAtUtc.HasValue)
+                Preferences.Set(VipInvoiceCreatedAtUtcKey, VipInvoiceCreatedAtUtc.Value.ToString("O"));
+            else
+                Preferences.Remove(VipInvoiceCreatedAtUtcKey);
+
+            if (VipExpiresAtUtc.HasValue)
+                Preferences.Set(VipExpiresAtUtcKey, VipExpiresAtUtc.Value.ToString("O"));
+            else
+                Preferences.Remove(VipExpiresAtUtcKey);
+        }
+        catch
+        {
+            // ignore preferences persistence issues
+        }
+    }
+
+    private static string GetOrCreateAnonymousDeviceId()
+    {
+        const string key = "analytics_anonymous_device_id";
+        var current = Preferences.Get(key, string.Empty);
+        if (!string.IsNullOrWhiteSpace(current))
+            return current;
+
+        var created = $"m-{Guid.NewGuid():N}";
+        Preferences.Set(key, created);
+        return created;
     }
 
     public bool MarkActiveTourCompleted()
@@ -3250,7 +3639,7 @@ public partial class MainViewModel : ObservableObject
     private void RebuildSavedToursCollection()
     {
         var favorites = AllTours
-            .Where(t => t.IsFavorite)
+            .Where(t => t.IsFavorite && IsTourAccessibleForCurrentSubscription(t))
             .OrderBy(t => t.Name)
             .ToList();
 
@@ -3271,6 +3660,8 @@ public partial class MainViewModel : ObservableObject
         var byCategory = cat == "Tất cả"
             ? AllPOIs.Where(p => p.ZoneType == "Spot")
             : AllPOIs.Where(p => p.ZoneType == "Spot" && p.Type == cat);
+
+        byCategory = byCategory.Where(IsPoiAccessibleForCurrentSubscription);
 
         var results = byCategory.Where(p =>
             string.IsNullOrEmpty(q) ||
@@ -3318,6 +3709,8 @@ public partial class MainViewModel : ObservableObject
             var byCategory = cat == "Tất cả"
                 ? AllPOIs.Where(p => p.ZoneType == "Spot")
                 : AllPOIs.Where(p => p.ZoneType == "Spot" && p.Type == cat);
+
+            byCategory = byCategory.Where(IsPoiAccessibleForCurrentSubscription);
 
             var results = byCategory.Where(p =>
                 string.IsNullOrEmpty(q) ||
@@ -3444,6 +3837,19 @@ public partial class MainViewModel : ObservableObject
     {
         if (tour == null)
             return;
+
+        if (IsTourLockedByFreeTrial(tour))
+        {
+            await CustomAlert.ShowAsync(
+                UiText("Yêu cầu đăng ký", "Subscription required", "需要订阅"),
+                UiText(
+                    "Đăng ký VIP để có thể sử dụng các chức năng hấp dẫn khác trong app:\n• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc",
+                    "Subscribe to VIP to unlock more exciting app features:\n• Interact with more POIs\n• Access more curated tours",
+                    "订阅 VIP 以解锁更多精彩功能：\n• 与更多 POI 互动\n• 查看更多精选路线"),
+                UiText("Đã hiểu", "OK", "确定"),
+                AlertType.Info);
+            return;
+        }
 
         if (tour.PoiCount <= 0)
         {

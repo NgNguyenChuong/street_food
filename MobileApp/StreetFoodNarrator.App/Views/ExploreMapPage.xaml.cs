@@ -16,6 +16,7 @@ using Microsoft.Maui.Storage;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Services.Implementations;
+using StreetFoodNarrator.App.Core.Utils;
 using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 using StreetFoodNarrator.App.ViewModels;
@@ -2893,6 +2894,16 @@ public partial class ExploreMapPage : ContentPage
         if (poi == null)
             return;
 
+        if (!_vm.IsPoiAccessibleForCurrentSubscription(poi))
+        {
+            var nav = Shell.Current?.Navigation ?? Navigation;
+            await PremiumTourPaywallPage.ShowAsync(
+                nav,
+                poi.GetDisplayName(_lang.CurrentLanguage),
+                _vm);
+            return;
+        }
+
         _vm.SelectedPinPOI = poi;
         _vm.PrimaryZone = poi;
         _vm.PrimaryZoneName = poi.GetDisplayName(_lang.CurrentLanguage);
@@ -3927,6 +3938,15 @@ public partial class ExploreMapPage : ContentPage
                         return true;
                     }
                 }
+            }
+
+            if (!_vm.IsPoiAccessibleForCurrentSubscription(poi))
+            {
+                await PremiumTourPaywallPage.ShowAsync(
+                    Shell.Current?.Navigation ?? Navigation,
+                    poi.GetDisplayName(_lang.CurrentLanguage),
+                    _vm);
+                return false;
             }
 
             await StopPreviewAudioAsync();

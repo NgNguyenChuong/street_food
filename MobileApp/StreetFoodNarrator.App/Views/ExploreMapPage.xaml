@@ -72,7 +72,7 @@
 
             <Grid Grid.Row="0"
                 Padding="16,24,16,8"
-                ColumnDefinitions="44,*,44"
+                                ColumnDefinitions="44,*,Auto,44"
                   ColumnSpacing="10">
                 <Border WidthRequest="44"
                         HeightRequest="44"
@@ -99,14 +99,20 @@
                        TextColor="#4BE277"
                        VerticalTextAlignment="Center"/>
 
-                <BoxView Grid.Column="2"
-                         WidthRequest="44"
-                         HeightRequest="44"
-                         Opacity="0"
-                         InputTransparent="True"
-                         IsVisible="False"/>
-
                 <Border Grid.Column="2"
+                    IsVisible="{Binding IsVipBadgeVisible}"
+                    VerticalOptions="Center"
+                    StrokeShape="RoundRectangle 12"
+                    BackgroundColor="#22C55E20"
+                    Stroke="#22C55E66"
+                    Padding="10,6">
+                    <Label Text="{Binding VipBadgeLabel}"
+                       FontSize="11"
+                       FontAttributes="Bold"
+                       TextColor="#86EFAC"/>
+                </Border>
+
+                <Border Grid.Column="3"
                         WidthRequest="44"
                         HeightRequest="44"
                         BackgroundColor="#1D3A2E"

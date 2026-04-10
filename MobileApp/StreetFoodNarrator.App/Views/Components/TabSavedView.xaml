@@ -16,10 +16,25 @@
 
     <Grid RowDefinitions="Auto,Auto,*">
 
-        <VerticalStackLayout Grid.Row="0" Padding="16,52,16,8" Spacing="4">
-            <Label x:Name="SavedHeaderTitleLabel" Text="Đã lưu" FontSize="22" FontAttributes="Bold" TextColor="White"/>
-            <Label x:Name="SavedHeaderSubtitleLabel" Text="Các Tour và POI yêu thích" FontSize="13" TextColor="#6B7280"/>
-        </VerticalStackLayout>
+        <Grid Grid.Row="0" Padding="16,52,16,8" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <VerticalStackLayout Grid.Column="0" Spacing="4">
+                <Label x:Name="SavedHeaderTitleLabel" Text="Đã lưu" FontSize="22" FontAttributes="Bold" TextColor="White"/>
+                <Label x:Name="SavedHeaderSubtitleLabel" Text="Các Tour và POI yêu thích" FontSize="13" TextColor="#6B7280"/>
+            </VerticalStackLayout>
+
+            <Border Grid.Column="1"
+                    IsVisible="{Binding IsVipBadgeVisible}"
+                    VerticalOptions="Center"
+                    StrokeShape="RoundRectangle 12"
+                    BackgroundColor="#22C55E20"
+                    Stroke="#22C55E66"
+                    Padding="10,6">
+                <Label Text="{Binding VipBadgeLabel}"
+                       FontSize="11"
+                       FontAttributes="Bold"
+                       TextColor="#86EFAC"/>
+            </Border>
+        </Grid>
 
         <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="14,0,14,10" ColumnSpacing="8">
             <Border x:Name="SavedTourSegment"

@@ -107,6 +107,7 @@ public class ToursController : ControllerBase
                 ImageUrl = NormalizeImageUrlForResponse(t.ImageUrl),
                 EstimatedDurationMinutes = t.EstimatedDurationMinutes,
                 IsActive = t.IsActive,
+                IsFreeTour = t.IsFreeTour,
                 CreatedAt = t.CreatedAt,
                 Themes = t.Themes ?? new(),
                 TimeSlots = t.TimeSlots ?? new(),
@@ -153,6 +154,15 @@ public class ToursController : ControllerBase
             return BadRequest(new { message = eligibility.Message });
 
         var tourId = await _sequence.GetNextAsync("Tour_ID");
+        var isFreeTour = request.IsFreeTour ?? false;
+        var isActive = request.IsActive ?? true;
+
+        if (isFreeTour && isActive)
+        {
+            var activeFreeTour = await FindOtherActiveFreeTourAsync();
+            if (activeFreeTour != null)
+                return Conflict(CreateFreeTourConflictPayload(activeFreeTour));
+        }
 
         var tour = new Tour
         {
@@ -165,7 +175,8 @@ public class ToursController : ControllerBase
             Description_Zh = request.Description_Zh,
             ImageUrl = NormalizeImageUrlForStorage(request.ImageUrl),
             EstimatedDurationMinutes = request.EstimatedDurationMinutes,
-            IsActive = request.IsActive ?? true,
+            IsActive = isActive,
+            IsFreeTour = isFreeTour,
             Themes = request.Themes ?? new(),
             TimeSlots = request.TimeSlots ?? new(),
             RouteType = request.RouteType ?? "ordered",
@@ -175,6 +186,7 @@ public class ToursController : ControllerBase
         };
 
         await _db.Tours.InsertOneAsync(tour);
+
         return CreatedAtAction(nameof(GetTour), new { id = tour.Id.ToString() }, tour);
     }
 
@@ -188,6 +200,19 @@ public class ToursController : ControllerBase
         if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
             return BadRequest("Invalid tour ID format");
 
+        var currentTour = await _db.Tours.Find(t => t.Id == objectId).FirstOrDefaultAsync();
+        if (currentTour == null)
+            return NotFound();
+
+        var normalizedIsActive = request.IsActive ?? currentTour.IsActive;
+        var normalizedIsFreeTour = request.IsFreeTour ?? currentTour.IsFreeTour;
+
+        if (normalizedIsFreeTour && normalizedIsActive)
+        {
+            var activeFreeTour = await FindOtherActiveFreeTourAsync(objectId);
+            if (activeFreeTour != null)
+                return Conflict(CreateFreeTourConflictPayload(activeFreeTour));
+        }
         var eligibility = await ValidatePoiEligibilityForTourAsync(request.PoiIds);
         if (!eligibility.IsValid)
             return BadRequest(new { message = eligibility.Message });
@@ -201,7 +226,8 @@ public class ToursController : ControllerBase
             .Set(t => t.Description_Zh, request.Description_Zh)
             .Set(t => t.ImageUrl, NormalizeImageUrlForStorage(request.ImageUrl))
             .Set(t => t.EstimatedDurationMinutes, request.EstimatedDurationMinutes)
-            .Set(t => t.IsActive, request.IsActive)
+            .Set(t => t.IsActive, normalizedIsActive)
+            .Set(t => t.IsFreeTour, normalizedIsFreeTour)
             .Set(t => t.Themes, request.Themes ?? new())
             .Set(t => t.TimeSlots, request.TimeSlots ?? new())
             .Set(t => t.RouteType, request.RouteType ?? "ordered")
@@ -214,6 +240,32 @@ public class ToursController : ControllerBase
 
         return NoContent();
     }
+
+    private async Task<Tour?> FindOtherActiveFreeTourAsync(MongoDB.Bson.ObjectId? excludeTourId = null)
+    {
+        var filter = Builders<Tour>.Filter.And(
+            Builders<Tour>.Filter.Eq(t => t.IsFreeTour, true),
+            Builders<Tour>.Filter.Eq(t => t.IsActive, true));
+
+        if (excludeTourId.HasValue)
+        {
+            filter &= Builders<Tour>.Filter.Ne(t => t.Id, excludeTourId.Value);
+        }
+
+        return await _db.Tours
+            .Find(filter)
+            .SortByDescending(t => t.UpdatedAt)
+            .ThenByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync();
+    }
+
+    private static object CreateFreeTourConflictPayload(Tour activeFreeTour)
+        => new
+        {
+            message = $"Đã có tour free \"{activeFreeTour.TourName}\" đang bật. Vui lòng ẩn tour đó trước khi kích hoạt free tour này.",
+            existingFreeTourId = activeFreeTour.Id.ToString(),
+            existingFreeTourName = activeFreeTour.TourName
+        };
 
     /// <summary>
     /// Upload image for a Tour
@@ -431,6 +483,7 @@ public class TourDto
     public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; }
+    public bool IsFreeTour { get; set; }
     public DateTime CreatedAt { get; set; }
     // v2 fields
     public List<string> Themes { get; set; } = new();
@@ -471,6 +524,7 @@ public class CreateTourRequest
     public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public bool? IsActive { get; set; }
+    public bool? IsFreeTour { get; set; }
     // v2 fields
     public List<string>? Themes { get; set; }
     public List<string>? TimeSlots { get; set; }
@@ -489,7 +543,8 @@ public class UpdateTourRequest
     public string? Description_Zh { get; set; }
     public string? ImageUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
-    public bool IsActive { get; set; }
+    public bool? IsActive { get; set; }
+    public bool? IsFreeTour { get; set; }
     // v2 fields
     public List<string>? Themes { get; set; }
     public List<string>? TimeSlots { get; set; }

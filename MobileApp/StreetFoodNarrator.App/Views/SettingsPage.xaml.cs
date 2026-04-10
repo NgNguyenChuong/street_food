@@ -78,6 +78,7 @@ public partial class SettingsPage : ContentPage
 
         LoadSettingsAndControls();
         ReloadUIStrings();
+        _ = RefreshVipStatusUiAsync(forceSync: false);
         _ = LoadVoicesAsync();
     }
 
@@ -86,6 +87,7 @@ public partial class SettingsPage : ContentPage
         base.OnAppearing();
         LanguageService.LanguageChanged -= OnLanguageChanged;
         LanguageService.LanguageChanged += OnLanguageChanged;
+        _ = RefreshVipStatusUiAsync(forceSync: false);
     }
 
     protected override void OnDisappearing()
@@ -114,6 +116,77 @@ public partial class SettingsPage : ContentPage
             "zh" => zh,
             _ => vi
         };
+
+    private async Task RefreshVipStatusUiAsync(bool forceSync)
+    {
+        if (_mainViewModel != null)
+        {
+            try
+            {
+                await _mainViewModel.RefreshVipSubscriptionStatusAsync(force: forceSync);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Settings] RefreshVipStatusUiAsync: {ex.Message}");
+            }
+        }
+
+        ApplyVipStatusUi();
+    }
+
+    private void ApplyVipStatusUi()
+    {
+        if (_mainViewModel == null)
+        {
+            HeaderVipBadge.IsVisible = false;
+            VipStatusValueLabel.Text = Localize(
+                "Bạn chưa kích hoạt VIP",
+                "VIP is not active",
+                "VIP 未激活");
+            VipStatusSubtitleLabel.Text = Localize(
+                "Đăng ký VIP để mở thêm tour và tính năng cao cấp",
+                "Subscribe to VIP to unlock more tours and premium features",
+                "订阅 VIP 以解锁更多路线与高级功能");
+            return;
+        }
+
+        var isVip = _mainViewModel.IsVipUser;
+        HeaderVipBadge.IsVisible = isVip;
+
+        if (isVip)
+        {
+            var expiresAtUtc = _mainViewModel.VipExpiresAtUtc;
+            var daysRemaining = expiresAtUtc.HasValue
+                ? Math.Max(0, (int)Math.Ceiling((expiresAtUtc.Value - DateTime.UtcNow).TotalDays))
+                : 0;
+
+            HeaderVipBadgeLabel.Text = daysRemaining > 0 ? $"VIP • {daysRemaining}d" : "VIP";
+            VipStatusValueLabel.Text = Localize(
+                $"VIP còn {daysRemaining} ngày",
+                $"VIP has {daysRemaining} day(s) left",
+                $"VIP 剩余 {daysRemaining} 天");
+            VipStatusSubtitleLabel.Text = expiresAtUtc.HasValue
+                ? Localize(
+                    $"Hiệu lực đến: {expiresAtUtc.Value.ToLocalTime():dd/MM/yyyy HH:mm}",
+                    $"Valid until: {expiresAtUtc.Value.ToLocalTime():dd/MM/yyyy HH:mm}",
+                    $"有效期至：{expiresAtUtc.Value.ToLocalTime():dd/MM/yyyy HH:mm}")
+                : Localize(
+                    "Đang đồng bộ thời hạn VIP...",
+                    "Syncing VIP validity...",
+                    "正在同步 VIP 有效期...");
+            return;
+        }
+
+        HeaderVipBadgeLabel.Text = "VIP";
+        VipStatusValueLabel.Text = Localize(
+            "Bạn chưa kích hoạt VIP",
+            "VIP is not active",
+            "VIP 未激活");
+        VipStatusSubtitleLabel.Text = Localize(
+            "Đăng ký VIP để mở thêm tour và tính năng cao cấp",
+            "Subscribe to VIP to unlock more tours and premium features",
+            "订阅 VIP 以解锁更多路线与高级功能");
+    }
 
     private string BuildDataSourceFooterText()
     {
@@ -937,6 +1010,7 @@ public partial class SettingsPage : ContentPage
         HeaderLanguageButton.Text = LanguageSwitcher.GetHeaderLabel(_pendingLanguageCode);
         GeneralSectionLabel.Text = AppStrings.Settings_General;
         TourSectionLabel.Text = AppStrings.Settings_TourExperience;
+        VipStatusTitleLabel.Text = Localize("Gói VIP", "VIP plan", "VIP 套餐");
         LanguageTitleLabel.Text = Localize("Ngôn ngữ", "Language", "语言");
         TtsTitleLabel.Text = AppStrings.Settings_Tts;
         AutoPlayTitleLabel.Text = AppStrings.Settings_AutoPlay;
@@ -979,6 +1053,7 @@ public partial class SettingsPage : ContentPage
         RefreshLocationSourceSelectionLabel();
         DefaultBackButton.Text = Localize("Khôi phục mặc định", "Restore defaults", "恢复默认设置");
         SaveSettingsButton.Text = Localize("Lưu thay đổi", "Save changes", "保存更改");
+        ApplyVipStatusUi();
     }
 
     private async void OnSaveChangesClicked(object sender, EventArgs e)

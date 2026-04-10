@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="StreetFoodNarrator.App.Views.PremiumTourPaywallPage"
+             BackgroundColor="#CC04130E"
+             Shell.NavBarIsVisible="False">
+
+    <Grid Padding="18,24">
+        <Border x:Name="PaywallContainer"
+                StrokeShape="RoundRectangle 24"
+                BackgroundColor="#0E1E17"
+                Stroke="#1C3024"
+                StrokeThickness="1"
+                VerticalOptions="Center"
+                MaximumHeightRequest="780"
+                Padding="18">
+            <Grid>
+                <Border HorizontalOptions="End"
+                        VerticalOptions="Start"
+                        StrokeShape="RoundRectangle 14"
+                        BackgroundColor="#10251C"
+                        Stroke="#234233"
+                        WidthRequest="30"
+                        HeightRequest="30"
+                        ZIndex="2">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCloseTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label Text="✕"
+                           FontSize="14"
+                           TextColor="#A7F3D0"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"/>
+                </Border>
+
+                <Grid x:Name="IntroStep">
+                    <VerticalStackLayout Spacing="14"
+                                         VerticalOptions="Center"
+                                         HorizontalOptions="Fill">
+                        <Border StrokeShape="RoundRectangle 24"
+                                BackgroundColor="#123325"
+                                Stroke="#1E4A37"
+                                Padding="10"
+                                HorizontalOptions="Center">
+                            <Label Text="🔒"
+                                   FontSize="26"
+                                   HorizontalOptions="Center"/>
+                        </Border>
+
+                        <Label x:Name="IntroTitleLabel"
+                               Text="Mở khóa Tour Explore"
+                               FontSize="28"
+                               FontAttributes="Bold"
+                               TextColor="White"
+                               HorizontalTextAlignment="Center"/>
+
+                        <Label x:Name="IntroMessageLabel"
+                               Text="Bạn đã dùng xong 1 tour miễn phí. Hãy đăng ký để khám phá thêm các tour hấp dẫn khác."
+                               FontSize="14"
+                               TextColor="#D1D5DB"
+                               HorizontalTextAlignment="Center"
+                               LineBreakMode="WordWrap"/>
+
+                           <Label x:Name="IntroBenefitsLabel"
+                               Text="• Tương tác với nhiều POI khác&#10;• Xem thêm nhiều tour đặc sắc"
+                               FontSize="13"
+                               TextColor="#A7F3D0"
+                               HorizontalTextAlignment="Start"
+                               LineBreakMode="WordWrap"/>
+
+                        <Button x:Name="SubscribeNowButton"
+                                Text="Đăng ký ngay"
+                                HeightRequest="48"
+                                CornerRadius="24"
+                                BackgroundColor="#22C55E"
+                                TextColor="#052E16"
+                                FontAttributes="Bold"
+                                Clicked="OnSubscribeNowClicked"/>
+
+                        <Button x:Name="MaybeLaterButton"
+                                Text="Để sau"
+                                HeightRequest="46"
+                                CornerRadius="23"
+                                BackgroundColor="#10251C"
+                                BorderColor="#2A4A3A"
+                                BorderWidth="1"
+                                TextColor="#86EFAC"
+                                Clicked="OnMaybeLaterClicked"/>
+
+                        <Button x:Name="RestoreVipButton"
+                                Text="Khôi phục VIP đã mua"
+                                HeightRequest="42"
+                                CornerRadius="21"
+                                BackgroundColor="#143426"
+                                BorderColor="#2E6A4D"
+                                BorderWidth="1"
+                                TextColor="#A7F3D0"
+                                Clicked="OnRestoreVipClicked"/>
+
+                        <Label Text="Hủy bất kỳ lúc nào • 36.000 VND/tháng"
+                               FontSize="11"
+                               TextColor="#6B7280"
+                               HorizontalTextAlignment="Center"/>
+                    </VerticalStackLayout>
+                </Grid>
+
+                <Grid x:Name="PaymentStep" IsVisible="False">
+                    <ScrollView>
+                        <VerticalStackLayout Spacing="12" Padding="0,20,0,6">
+                            <Label x:Name="PaymentTitleLabel"
+                                   Text="Thanh toán gói Tour Explore"
+                                   FontSize="30"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   LineBreakMode="WordWrap"/>
+
+                            <Label x:Name="PaymentPriceLabel"
+                                   Text="36.000 VND / tháng"
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   TextColor="#86EFAC"/>
+
+                            <Border StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="#123325"
+                                    Stroke="#1E4A37"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="10">
+                                    <Label Text="Quét mã để thanh toán nhanh"
+                                           FontSize="13"
+                                           TextColor="#D1FAE5"
+                                           HorizontalTextAlignment="Center"/>
+
+                                    <Border StrokeShape="RoundRectangle 14"
+                                            BackgroundColor="#ECFDF5"
+                                            Stroke="#BBF7D0"
+                                            Padding="14"
+                                            HorizontalOptions="Center">
+                                        <Grid WidthRequest="170" HeightRequest="170">
+                                            <BoxView Color="#052E16" CornerRadius="8" Opacity="0.08"/>
+                                            <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="4">
+                                                <Label Text="QR"
+                                                       FontSize="36"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#14532D"
+                                                       HorizontalOptions="Center"/>
+                                                <Label Text="PAYMENT"
+                                                       FontSize="11"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#166534"
+                                                       HorizontalOptions="Center"/>
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </Border>
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Border StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="#10251C"
+                                    Stroke="#234233"
+                                    Padding="12">
+                                <VerticalStackLayout Spacing="6">
+                                    <Label Text="Đơn vị thụ hưởng"
+                                           FontSize="11"
+                                           TextColor="#6B7280"/>
+                                    <Label Text="STREET FOOD NARRATOR LTD"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           TextColor="#F0FDF4"/>
+
+                                    <Label Text="Ngân hàng"
+                                           FontSize="11"
+                                           TextColor="#6B7280"/>
+                                    <Label Text="Global Tech Bank"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           TextColor="#F0FDF4"/>
+
+                                    <Label Text="Số tài khoản"
+                                           FontSize="11"
+                                           TextColor="#6B7280"/>
+                                    <Label Text="123-456-7890"
+                                           FontSize="20"
+                                           FontAttributes="Bold"
+                                           TextColor="#DCFCE7"/>
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Border StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="#0B1712"
+                                    Stroke="#1F372C"
+                                    Padding="10,8">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                                    <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                        <Label Text="Nội dung chuyển khoản"
+                                               FontSize="10"
+                                               TextColor="#6B7280"/>
+                                        <Label x:Name="TransferContentLabel"
+                                               Text="SUB_Tour_Explore_[UserID]"
+                                               FontSize="12"
+                                               FontAttributes="Bold"
+                                               TextColor="#FDE68A"/>
+                                    </VerticalStackLayout>
+
+                                    <Button Grid.Column="1"
+                                            x:Name="CopyContentButton"
+                                            Text="Sao chép"
+                                            HeightRequest="34"
+                                            CornerRadius="10"
+                                            Padding="12,0"
+                                            BackgroundColor="#2A3D2F"
+                                            TextColor="#F9A826"
+                                            Clicked="OnCopyTransferContentClicked"/>
+                                </Grid>
+                            </Border>
+
+                            <Button x:Name="ConfirmTransferButton"
+                                    Text="Xác nhận đã chuyển khoản"
+                                    HeightRequest="50"
+                                    CornerRadius="25"
+                                    BackgroundColor="#22C55E"
+                                    TextColor="#052E16"
+                                    FontAttributes="Bold"
+                                    Clicked="OnConfirmTransferClicked"/>
+
+                            <Button Text="Quay lại"
+                                    HeightRequest="44"
+                                    CornerRadius="22"
+                                    BackgroundColor="#10251C"
+                                    BorderColor="#2A4A3A"
+                                    BorderWidth="1"
+                                    TextColor="#86EFAC"
+                                    Clicked="OnBackToIntroClicked"/>
+
+                            <Label Text="Gói dịch vụ sẽ được kích hoạt sau khi hệ thống xác nhận giao dịch."
+                                   FontSize="11"
+                                   TextColor="#6B7280"
+                                   HorizontalTextAlignment="Center"/>
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Grid x:Name="SuccessStep"
+              IsVisible="False"
+              BackgroundColor="#B2000E09"
+              Padding="12"
+              InputTransparent="False">
+            <Border StrokeShape="RoundRectangle 28"
+                    BackgroundColor="#101F19"
+                    Stroke="#244638"
+                    StrokeThickness="1"
+                    Padding="18"
+                    VerticalOptions="Center"
+                    HorizontalOptions="Center"
+                    MaximumWidthRequest="360">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                      RowSpacing="12">
+                    <Border Grid.Row="0"
+                            HorizontalOptions="End"
+                            StrokeShape="RoundRectangle 12"
+                            BackgroundColor="#132A21"
+                            Stroke="#2B4B3D"
+                            WidthRequest="28"
+                            HeightRequest="28">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnSuccessCloseTapped"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="✕"
+                               FontSize="13"
+                               TextColor="#8DA89A"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"/>
+                    </Border>
+
+                    <Border Grid.Row="1"
+                            HorizontalOptions="Center"
+                            StrokeShape="RoundRectangle 26"
+                            BackgroundColor="#22C55E"
+                            WidthRequest="58"
+                            HeightRequest="58">
+                        <Label Text="✓"
+                               FontSize="28"
+                               TextColor="#053019"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"/>
+                    </Border>
+
+                    <Label Grid.Row="2"
+                           Text="Thanh toán thành công!"
+                           FontSize="30"
+                           FontAttributes="Bold"
+                           TextColor="#EAF7F0"
+                           HorizontalTextAlignment="Center"/>
+
+                    <Label Grid.Row="3"
+                           Text="Chào mừng bạn đến với gói Tour Explore."
+                           FontSize="13"
+                           TextColor="#B9CDC2"
+                           HorizontalTextAlignment="Center"/>
+
+                    <Border Grid.Row="4"
+                            StrokeShape="RoundRectangle 18"
+                            BackgroundColor="#1A2A24"
+                            Stroke="#273F35"
+                            Padding="12">
+                        <VerticalStackLayout Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                                <Label Text="HÓA ĐƠN"
+                                       FontSize="10"
+                                       FontAttributes="Bold"
+                                       TextColor="#8FA79B"/>
+                                <Border Grid.Column="1"
+                                        StrokeShape="RoundRectangle 10"
+                                        BackgroundColor="#1F6B3F"
+                                        Stroke="#2C9A5A"
+                                        Padding="8,3">
+                                    <Label Text="Đã hoàn tất"
+                                           FontSize="10"
+                                           FontAttributes="Bold"
+                                           TextColor="#C8FAD7"/>
+                                </Border>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                                <Label x:Name="SuccessPlanNameLabel"
+                                       Text="Gói Tour Explore"
+                                       FontSize="14"
+                                       TextColor="#E5F3EB"/>
+                                <Label x:Name="SuccessPriceLabel"
+                                       Grid.Column="1"
+                                       Text="36.000 VND"
+                                       FontSize="24"
+                                       FontAttributes="Bold"
+                                       TextColor="#EAF7F0"/>
+                            </Grid>
+
+                            <Label Text="MÃ KHÔI PHỤC CỦA BẠN"
+                                   FontSize="10"
+                                   FontAttributes="Bold"
+                                   TextColor="#8FA79B"
+                                   HorizontalTextAlignment="Center"/>
+
+                            <Border StrokeShape="RoundRectangle 14"
+                                    BackgroundColor="#192821"
+                                    Stroke="#2C4138"
+                                    Padding="10,8">
+                                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center" ColumnSpacing="10">
+                                    <Label x:Name="SuccessRecoveryCodeLabel"
+                                           Text="VIP-XXXXX-XXXXX"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           TextColor="#4ADE80"
+                                           VerticalTextAlignment="Center"/>
+
+                                    <Button x:Name="CopyRecoveryCodeButton"
+                                            Grid.Column="1"
+                                            Text="Sao chép"
+                                            HeightRequest="30"
+                                            CornerRadius="12"
+                                            Padding="10,0"
+                                            BackgroundColor="#214034"
+                                            TextColor="#B9F7D1"
+                                            FontSize="11"
+                                            Clicked="OnCopyRecoveryCodeClicked"/>
+                                </Grid>
+                            </Border>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Button Grid.Row="5"
+                            Text="Bắt đầu khám phá ngay"
+                            HeightRequest="50"
+                            CornerRadius="25"
+                            BackgroundColor="#4ADE80"
+                            TextColor="#063F22"
+                            FontSize="17"
+                            FontAttributes="Bold"
+                            Clicked="OnStartExploreNowClicked"/>
+
+                    <Button Grid.Row="6"
+                            Text="↓  Tải hóa đơn (PDF)"
+                            HeightRequest="34"
+                            FontSize="12"
+                            BackgroundColor="Transparent"
+                            TextColor="#B9CDC2"
+                            Clicked="OnDownloadInvoiceClicked"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</ContentPage>

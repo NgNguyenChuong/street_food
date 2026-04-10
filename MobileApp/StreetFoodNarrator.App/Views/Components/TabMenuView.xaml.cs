@@ -63,6 +63,21 @@ public partial class TabMenuView : ContentView
         if (BindingContext is not MainViewModel vm)
             return;
 
+        if (vm.IsTourLockedByFreeTrial(tour))
+        {
+            await PremiumTourPaywallPage.ShowAsync(Navigation, tour.Name, vm);
+            return;
+        }
+
         await Navigation.PushModalAsync(new TourDetailPopupPage(vm, tour), false);
+    }
+
+    private async void OnLockedTourTapped(object sender, TappedEventArgs e)
+    {
+        if (sender is not BindableObject bindable || bindable.BindingContext is not MainViewModel.TourListItem tour)
+            return;
+
+        var vm = BindingContext as MainViewModel;
+        await PremiumTourPaywallPage.ShowAsync(Navigation, tour.Name, vm);
     }
 }

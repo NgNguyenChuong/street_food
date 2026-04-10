@@ -36,6 +36,7 @@ public class Tour
     
     public int EstimatedDurationMinutes { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool IsFreeTour { get; set; } = false;
 
     // ── New fields (tour v2) ──────────────────────────────────────
 

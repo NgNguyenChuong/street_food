@@ -1,9 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Json;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Utils;
+using StreetFoodNarrator.App.Views;
 using System.Collections.ObjectModel;
 
 namespace StreetFoodNarrator.App.ViewModels;
@@ -286,6 +288,24 @@ public partial class POIDetailViewModel : ObservableObject
             }
         }
 
+        var mainVm = MauiProgram.Services.GetService<MainViewModel>();
+        var hasAccess = mainVm?.IsPoiAccessibleForCurrentSubscription(_poi)
+                        ?? VipAudioPreviewGate.IsVipActive();
+
+        if (!hasAccess)
+        {
+            var nav = ResolvePaywallNavigation();
+
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                await PremiumTourPaywallPage.ShowAsync(
+                    nav,
+                    _poi.GetDisplayName(_lang.CurrentLanguage),
+                    mainVm);
+            });
+            return;
+        }
+
         var lang = ResolveLanguageCode();
         var text = ResolveNarrationText(lang);
 
@@ -318,6 +338,16 @@ public partial class POIDetailViewModel : ObservableObject
         }
 
         await TrackManualPlaybackAsync();
+    }
+
+    private static INavigation? ResolvePaywallNavigation()
+    {
+        var shellNav = Shell.Current?.Navigation;
+        if (shellNav != null)
+            return shellNav;
+
+        var page = Application.Current?.Windows.FirstOrDefault()?.Page;
+        return page?.Navigation;
     }
 
     private async Task TrackManualPlaybackAsync()
