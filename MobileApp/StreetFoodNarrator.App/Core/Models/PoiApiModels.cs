@@ -17,6 +17,7 @@ public class PoiSyncResponse
 
 public class PoiDto
 {
+    public string? Id { get; set; }
     public int POI_ID { get; set; }
 
     public string? Name_Vi { get; set; }
@@ -37,6 +38,13 @@ public class PoiDto
     public decimal Longitude { get; set; }
 
     public string? Address { get; set; }
+    public string? MapUrl { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public int AudioCount { get; set; }
+    public int? VendorId { get; set; }
+    public string? ReviewStatus { get; set; }
     public string? Category { get; set; }
     public string? SignatureDish { get; set; }
     public List<string>? SignatureDishes { get; set; }
@@ -44,6 +52,7 @@ public class PoiDto
     public string? PhoneNumber { get; set; }
     public decimal? AveragePrice { get; set; }
     public double? Rating { get; set; }
+    public int NumReviews { get; set; }
     public long PlayCount { get; set; }
     public double MeanPlay { get; set; }
     public int? PriceLevel { get; set; }
@@ -56,6 +65,9 @@ public class PoiDto
     public string? AudioUrl_Fr { get; set; }
     public string? AudioUrl_Ko { get; set; }
     public string? AudioUrl_Zh { get; set; }
+    public string? Script_Vi { get; set; }
+    public string? Script_En { get; set; }
+    public string? Script_Zh { get; set; }
 
     public string? ZoneType { get; set; }
     public int ZoneLevel { get; set; }
@@ -66,4 +78,11 @@ public class PoiDto
     public int MaxPlaysPerSession { get; set; }
 
     public bool IsActive { get; set; }
+    public Dictionary<string, PendingFieldChangeDto>? PendingChanges { get; set; }
+}
+
+public class PendingFieldChangeDto
+{
+    public string? Old { get; set; }
+    public string? New { get; set; }
 }

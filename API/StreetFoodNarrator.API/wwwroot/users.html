@@ -1286,7 +1286,7 @@
               <div class="card-head">
                 <div class="card-title"><i class="fas fa-bolt"></i>Cách người dùng mở thuyết minh
                   <span class="tip-icon"
-                    title="Cách app phát hiện người dùng đến gần địa điểm&#10;• Vào vùng (Geofence): tự động khi bước vào bán kính ~50m&#10;• Gần kề (Proximity): Bluetooth/beacon phát hiện khoảng cách sát&#10;• Bấm tay (ManualTap): người dùng chủ động nhấn vào POI trên bản đồ">?</span>
+                    title="Chỉ tính các lượt nghe thực tế (ActionType = NarrationPlayed hoặc WasPlayed = true)&#10;• Nghe tự động: hệ thống tự phát khi vào vùng&#10;• Nghe ở chi tiết quán: người dùng chủ động bấm nghe từ giao diện chi tiết POI">?</span>
                 </div>
               </div>
               <div class="chart-box" style="height:170px"><canvas id="triggerChart"></canvas></div>
@@ -1799,7 +1799,11 @@
     function renderDonut(canvasId, key, logs, fieldFn, labelSuffix) {
       if (chartInst[key]) { chartInst[key].destroy(); chartInst[key] = null; }
       const m = new Map();
-      for (const l of logs) { const k = fieldFn(l) || 'Unknown'; m.set(k, (m.get(k) || 0) + 1); }
+      for (const l of logs) {
+        const k = fieldFn(l);
+        if (!k) continue;
+        m.set(k, (m.get(k) || 0) + 1);
+      }
       const labels = [...m.keys()], vals = [...m.values()];
       if (!labels.length) return;
       const ctx = document.getElementById(canvasId).getContext('2d');
@@ -2008,6 +2012,28 @@
     function triggerLabel(raw) {
       const map = { 'GeofenceEnter': 'Vào vùng', 'Proximity': 'Gần kề', 'ManualTap': 'Bấm tay' };
       return map[raw] || raw || '—';
+    }
+
+    function isRealPlaybackLog(log) {
+      if (!log) return false;
+      if (log.wasPlayed === true) return true;
+      const action = String(log.actionType || '').trim().toLowerCase();
+      return action === 'narrationplayed';
+    }
+
+    function playbackMethodLabel(log) {
+      if (!isRealPlaybackLog(log)) return null;
+
+      const trigger = String(log.triggerType || '').trim().toLowerCase();
+      if (trigger === 'manualtap' || trigger === 'manual') {
+        return 'Nghe ở chi tiết quán';
+      }
+
+      if (trigger === 'geofenceenter' || trigger === 'auto' || trigger === 'proximity') {
+        return 'Nghe tự động';
+      }
+
+      return null;
     }
 
     /* coordinate → short label using nearest POI */
@@ -2435,7 +2461,7 @@
         renderTopPoisChart(topRows);
         renderAvgListenChart(avgRows);
         renderHourlyChart(allLogs);
-        renderDonut('triggerChart', 'trigger', allLogs, l => triggerLabel(l.triggerType), ' lượt');
+        renderDonut('triggerChart', 'trigger', allLogs, l => playbackMethodLabel(l), ' lượt');
         renderDonut('platformChart', 'platform', devices, d => d.platform, ' thiết bị');
         renderHeatMap(routeLogs, pois, 0);
         renderRouteList(allRoutes, routeLogs);

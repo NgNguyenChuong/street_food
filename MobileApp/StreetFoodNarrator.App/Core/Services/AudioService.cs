@@ -4,7 +4,11 @@ using Plugin.Maui.Audio;
 using StreetFoodNarrator.App.Core.Models;
 using System.Diagnostics;
 using System.Net.Http.Json;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
+#if ANDROID
+using Android.Content;
+#endif
 
 /// <summary>
 /// AudioService backed by Plugin.Maui.Audio.
@@ -25,6 +29,13 @@ public class AudioService : IAudioService
     private readonly Dictionary<int, double>       _volumes   = new();
     private readonly Dictionary<int, PoiListenSession> _listenSessions = new();
 
+#if ANDROID
+    private global::Android.Media.AudioManager? _androidAudioManager;
+    private AudioFocusChangeListener? _audioFocusListener;
+    private readonly HashSet<int> _focusPausedZoneIds = new();
+    private bool _hasAudioFocus;
+#endif
+
     public event Action<int>?         OnPlaybackCompleted;
     public event Action<int, double>? OnPositionChanged;
 
@@ -42,6 +53,10 @@ public class AudioService : IAudioService
         _httpClient = httpClient;
         _session = session;
         _apiBaseUrl = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/');
+
+    #if ANDROID
+        InitializeAudioFocus();
+    #endif
     }
 
     private sealed class PoiListenSession
@@ -123,6 +138,158 @@ public class AudioService : IAudioService
         return created;
     }
 
+#if ANDROID
+    private sealed class AudioFocusChangeListener : Java.Lang.Object, global::Android.Media.AudioManager.IOnAudioFocusChangeListener
+    {
+        private readonly AudioService _owner;
+
+        public AudioFocusChangeListener(AudioService owner)
+        {
+            _owner = owner;
+        }
+
+        public void OnAudioFocusChange(global::Android.Media.AudioFocus focusChange)
+        {
+            _owner.HandleAudioFocusChange(focusChange);
+        }
+    }
+
+    private void InitializeAudioFocus()
+    {
+        try
+        {
+            _androidAudioManager = global::Android.App.Application.Context.GetSystemService(Context.AudioService) as global::Android.Media.AudioManager;
+            if (_androidAudioManager == null)
+                return;
+
+            _audioFocusListener = new AudioFocusChangeListener(this);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Audio] Audio focus init failed: {ex.Message}");
+        }
+    }
+
+    private bool TryRequestAudioFocus()
+    {
+        if (_hasAudioFocus)
+            return true;
+
+        if (_androidAudioManager == null || _audioFocusListener == null)
+            return true;
+
+        try
+        {
+            var result = _androidAudioManager.RequestAudioFocus(
+                _audioFocusListener,
+                global::Android.Media.Stream.Music,
+                global::Android.Media.AudioFocus.Gain);
+
+            _hasAudioFocus = result == global::Android.Media.AudioFocusRequest.Granted;
+            return _hasAudioFocus;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Audio] RequestAudioFocus failed: {ex.Message}");
+            return true;
+        }
+    }
+
+    private void AbandonAudioFocus()
+    {
+        if (!_hasAudioFocus || _androidAudioManager == null || _audioFocusListener == null)
+            return;
+
+        try
+        {
+            _androidAudioManager.AbandonAudioFocus(_audioFocusListener);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Audio] AbandonAudioFocus failed: {ex.Message}");
+        }
+        finally
+        {
+            _hasAudioFocus = false;
+        }
+    }
+
+    private void AbandonAudioFocusIfIdle()
+    {
+        var hasAnyPlaying = _players.Values.Any(player => player.IsPlaying);
+        if (!hasAnyPlaying)
+            AbandonAudioFocus();
+    }
+
+    private void HandleAudioFocusChange(global::Android.Media.AudioFocus focusChange)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            switch (focusChange)
+            {
+                case global::Android.Media.AudioFocus.Gain:
+                    ResumeAfterAudioFocusGain();
+                    break;
+
+                case global::Android.Media.AudioFocus.LossTransient:
+                case global::Android.Media.AudioFocus.LossTransientCanDuck:
+                    PauseForTransientAudioFocusLoss();
+                    break;
+
+                case global::Android.Media.AudioFocus.Loss:
+                    _ = Task.Run(HandlePermanentAudioFocusLossAsync);
+                    break;
+            }
+        });
+    }
+
+    private void PauseForTransientAudioFocusLoss()
+    {
+        foreach (var kv in _players.ToList())
+        {
+            var zoneId = kv.Key;
+            var player = kv.Value;
+            if (!player.IsPlaying)
+                continue;
+
+            player.Pause();
+            _positions[zoneId] = player.CurrentPosition;
+            CaptureZoneProgress(zoneId, player.CurrentPosition);
+            _focusPausedZoneIds.Add(zoneId);
+        }
+    }
+
+    private void ResumeAfterAudioFocusGain()
+    {
+        if (_focusPausedZoneIds.Count == 0)
+            return;
+
+        foreach (var zoneId in _focusPausedZoneIds.ToList())
+        {
+            if (_players.TryGetValue(zoneId, out var player) && !player.IsPlaying)
+            {
+                try
+                {
+                    player.Play();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Audio] Resume after focus gain failed for zone {zoneId}: {ex.Message}");
+                }
+            }
+        }
+
+        _focusPausedZoneIds.Clear();
+    }
+
+    private async Task HandlePermanentAudioFocusLossAsync()
+    {
+        _focusPausedZoneIds.Clear();
+        await StopAllAsync();
+        AbandonAudioFocus();
+    }
+#endif
+
     private async Task StopAsyncInternal(int zoneId, bool finalizeProgress)
     {
         CaptureZoneProgress(zoneId);
@@ -138,6 +305,11 @@ public class AudioService : IAudioService
 
         _positions[zoneId] = 0;
         Debug.WriteLine($"[Audio] ⏹ Stopped zone {zoneId}");
+
+    #if ANDROID
+        _focusPausedZoneIds.Remove(zoneId);
+        AbandonAudioFocusIfIdle();
+    #endif
     }
 
     private async Task FinalizeSessionsForSwitchAsync(int nextZoneId)
@@ -170,6 +342,15 @@ public class AudioService : IAudioService
         await FinalizeSessionsForSwitchAsync(zoneId);
         await StopAsyncInternal(zoneId, finalizeProgress: false);
         EnsurePoiListenSession(zoneId);
+
+#if ANDROID
+        if (!TryRequestAudioFocus())
+        {
+            Debug.WriteLine($"[Audio] Audio focus denied for zone {zoneId}");
+            return;
+        }
+        _focusPausedZoneIds.Remove(zoneId);
+#endif
 
         Stream? stream = null;
 
@@ -222,6 +403,11 @@ public class AudioService : IAudioService
                     });
                     OnPlaybackCompleted?.Invoke(zoneId);
                     Debug.WriteLine($"[Audio] ⏹ Completed zone {zoneId}");
+
+#if ANDROID
+                    _focusPausedZoneIds.Remove(zoneId);
+                    AbandonAudioFocusIfIdle();
+#endif
                 };
 
                 player.Play();
@@ -233,6 +419,10 @@ public class AudioService : IAudioService
                 Debug.WriteLine($"[Audio] Player error for stream: {ex.Message}");
             }
         }
+
+#if ANDROID
+        AbandonAudioFocusIfIdle();
+#endif
 
         // Silent mock fallback or TTS fallback
         if (!string.IsNullOrWhiteSpace(fallbackText))
@@ -265,6 +455,11 @@ public class AudioService : IAudioService
             _positions[zoneId] = p.CurrentPosition;
             CaptureZoneProgress(zoneId, p.CurrentPosition);
             Debug.WriteLine($"[Audio] ⏸ Paused zone {zoneId} at {_positions[zoneId]:F0}s");
+
+#if ANDROID
+            _focusPausedZoneIds.Remove(zoneId);
+            AbandonAudioFocusIfIdle();
+#endif
         }
         await Task.CompletedTask;
     }
@@ -273,6 +468,15 @@ public class AudioService : IAudioService
     {
         if (_players.TryGetValue(zoneId, out var p))
         {
+#if ANDROID
+            if (!TryRequestAudioFocus())
+            {
+                Debug.WriteLine($"[Audio] Audio focus denied while resuming zone {zoneId}");
+                return;
+            }
+            _focusPausedZoneIds.Remove(zoneId);
+#endif
+
             p.Seek(positionSeconds);
             p.Play();
             Debug.WriteLine($"[Audio] ▶ Resume zone {zoneId} from {positionSeconds:F0}s");
@@ -295,6 +499,11 @@ public class AudioService : IAudioService
 
         foreach (var id in ids)
             await StopAsyncInternal(id, finalizeProgress: false);
+
+#if ANDROID
+        _focusPausedZoneIds.Clear();
+        AbandonAudioFocus();
+#endif
     }
 
     public async Task SetVolumeAsync(int zoneId, double volume)

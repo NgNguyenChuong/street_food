@@ -1092,11 +1092,11 @@
 
                     <div class="form-group admin-only">
                         <label class="form-label">Bán kính Geofence (mét)</label>
-                        <input type="number" class="form-input" placeholder="50" min="10" max="500" id="geofenceRadius"
+                        <input type="number" class="form-input" placeholder="30" min="15" max="40" id="geofenceRadius"
                             value="">
-                        <div class="form-help">
+                        <div class="form-help" id="geofenceRadiusHelp">
                             <i class="fas fa-circle-notch"></i>
-                            Khoảng cách kích hoạt thuyết minh tự động (10-500m)
+                            Spot: 15-40m, mặc định 30m nếu để trống
                         </div>
                     </div>
 
@@ -1115,7 +1115,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Thời gian chờ (phút)</label>
-                            <input type="number" class="form-input" id="cooldownMinutes" min="0" max="240" value="">
+                            <input type="number" class="form-input" id="cooldownMinutes" min="0" max="5" value="">
                         </div>
                     </div>
 
@@ -1359,6 +1359,9 @@
                             <div class="form-help" id="vendorStatusHelp" style="margin-top:0.75rem;">
                                 Trạng thái này do Admin quyết định.
                             </div>
+                            <div class="form-help" id="vendorRadiusNotice">
+                                Geofence Spot được hệ thống chuẩn hóa 15-40m, mặc định 30m nếu bỏ trống.
+                            </div>
                         </div>
                     </div>
                     <!-- Admin: Review Status row -->
@@ -1468,6 +1471,56 @@
         function getQueryId() {
             const params = new URLSearchParams(window.location.search);
             return params.get('id');
+        }
+
+        function isPoiPermanentlyClosed(poi) {
+            if (!poi) return false;
+            const deletedAt = poi.deletedAt ?? poi.DeletedAt;
+            const isDeleted = poi.isDeleted ?? poi.IsDeleted;
+            return !!deletedAt || isDeleted === true;
+        }
+
+        function setSaveButtonState(enabled, reason = '') {
+            document.querySelectorAll('.form-actions .btn-success').forEach(btn => {
+                btn.disabled = !enabled;
+                btn.title = enabled ? '' : reason;
+            });
+        }
+
+        function getZoneLimits(zoneTypeValue) {
+            const isSpot = zoneTypeValue === 'Spot';
+            return {
+                radiusMin: isSpot ? 15 : 10,
+                radiusMax: isSpot ? 40 : 500,
+                cooldownMin: 0,
+                cooldownMax: isSpot ? 5 : 240,
+                zoneLabel: isSpot ? 'Spot' : 'District/Area'
+            };
+        }
+
+        function validateZoneInputsForSave() {
+            if (!isAdmin) return true;
+
+            const zoneTypeValue = document.getElementById('zoneType')?.value || 'Spot';
+            const limits = getZoneLimits(zoneTypeValue);
+
+            const radiusEl = document.getElementById('geofenceRadius');
+            const radius = parseInt(radiusEl?.value || '', 10);
+            if (!Number.isNaN(radius) && (radius < limits.radiusMin || radius > limits.radiusMax)) {
+                showToast(`Bán kính geofence của ${limits.zoneLabel} phải trong khoảng ${limits.radiusMin}-${limits.radiusMax}m.`, 'warning');
+                radiusEl?.focus();
+                return false;
+            }
+
+            const cooldownEl = document.getElementById('cooldownMinutes');
+            const cooldown = parseInt(cooldownEl?.value || '', 10);
+            if (!Number.isNaN(cooldown) && (cooldown < limits.cooldownMin || cooldown > limits.cooldownMax)) {
+                showToast(`Cooldown của ${limits.zoneLabel} phải trong khoảng ${limits.cooldownMin}-${limits.cooldownMax} phút.`, 'warning');
+                cooldownEl?.focus();
+                return false;
+            }
+
+            return true;
         }
 
         async function safeAutoTranslate(text, targetLangs = ['en', 'zh-CN']) {
@@ -1814,6 +1867,13 @@
                 const poi = await api.getPOI(currentPoiId);
                 currentPoi = poi;
 
+                if (isPoiPermanentlyClosed(poi)) {
+                    setSaveButtonState(false, 'POI đã đóng cửa vĩnh viễn, không thể chỉnh sửa.');
+                    showToast('POI này đã đóng cửa vĩnh viễn nên không thể lưu chỉnh sửa.', 'warning');
+                } else {
+                    setSaveButtonState(true);
+                }
+
                 if (isVendor) {
                     try {
                         currentVendorProfile = await api.getVendorMe();
@@ -1845,12 +1905,18 @@
                 const zoneTypeValue = poi.zoneType || 'Spot';
                 const zoneTypeEl = document.getElementById('zoneType');
                 if (zoneTypeEl) zoneTypeEl.value = zoneTypeValue;
-                const cooldownDefault = zoneTypeValue === 'Spot' ? 0 : 30;
+                const cooldownDefault = zoneTypeValue === 'Spot' ? 5 : 30;
                 document.getElementById('priority').value = poi.priority ?? 5;
                 document.getElementById('cooldownMinutes').value = poi.cooldownMinutes ?? cooldownDefault;
                 document.getElementById('maxPlaysPerSession').value = poi.maxPlaysPerSession ?? 1;
                 document.getElementById('parentZoneId').value = poi.parentZoneId ?? '';
                 document.getElementById('funFact').value = poi.funFact || '';
+
+                const loadedCooldownInput = document.getElementById('cooldownMinutes');
+                const loadedRadiusInput = document.getElementById('geofenceRadius');
+                if (loadedCooldownInput) loadedCooldownInput.dataset.auto = 'false';
+                if (loadedRadiusInput) loadedRadiusInput.dataset.auto = 'false';
+                applyZoneDefaults();
 
                 const categoryEl = document.getElementById('poiCategory');
                 const categoryOtherEl = document.getElementById('poiCategoryOther');
@@ -1968,6 +2034,14 @@
 
         async function savePOI() {
             if (!currentPoiId) return;
+
+            if (isPoiPermanentlyClosed(currentPoi)) {
+                showToast('POI này đã đóng cửa vĩnh viễn nên không thể chỉnh sửa.', 'warning');
+                return;
+            }
+
+            if (!validateZoneInputsForSave())
+                return;
 
             if (isAdmin) {
                 const selectedVendorId = parseInt(document.getElementById('vendorSelect')?.value || '', 10);
@@ -2096,11 +2170,20 @@
                     window.location.href = 'poi-list';
                 }, 450);
             } catch (error) {
-                showToast('Lỗi khi lưu POI: ' + error.message, 'error');
+                const rawMessage = String(error?.message || error || 'Unknown error');
+                if (/POI\s*not\s*found/i.test(rawMessage)) {
+                    showToast('Không thể lưu vì POI này không còn tồn tại hoặc đã bị đóng cửa. Vui lòng quay lại danh sách và mở POI còn hiệu lực.', 'error');
+                } else {
+                    showToast('Lỗi khi lưu POI: ' + rawMessage, 'error');
+                }
             } finally {
                 if (saveBtn && btnHtml !== null) {
                     saveBtn.innerHTML = btnHtml;
                     saveBtn.disabled = false;
+                }
+
+                if (isPoiPermanentlyClosed(currentPoi)) {
+                    setSaveButtonState(false, 'POI đã đóng cửa vĩnh viễn, không thể chỉnh sửa.');
                 }
             }
         }
@@ -2164,18 +2247,81 @@
 
         const zoneTypeSelect = document.getElementById('zoneType');
         const cooldownInput = document.getElementById('cooldownMinutes');
+        const geofenceRadiusInput = document.getElementById('geofenceRadius');
+        const geofenceRadiusHelp = document.getElementById('geofenceRadiusHelp');
+
+        const enforceZoneInputRanges = () => {
+            if (!zoneTypeSelect) return;
+            const isSpot = zoneTypeSelect.value === 'Spot';
+            const zoneLabel = isSpot ? 'Spot' : 'District/Area';
+
+            if (cooldownInput) {
+                const min = Number(cooldownInput.min || 0);
+                const max = Number(cooldownInput.max || (isSpot ? 5 : 240));
+                const value = Number(cooldownInput.value);
+                if (!Number.isNaN(value) && (value < min || value > max)) {
+                    cooldownInput.value = String(Math.min(max, Math.max(min, value)));
+                    showToast(`Cooldown của ${zoneLabel} chỉ được trong khoảng ${min}-${max} phút.`, 'warning');
+                }
+            }
+
+            if (geofenceRadiusInput) {
+                const min = Number(geofenceRadiusInput.min || (isSpot ? 15 : 10));
+                const max = Number(geofenceRadiusInput.max || (isSpot ? 40 : 500));
+                const value = Number(geofenceRadiusInput.value);
+                if (!Number.isNaN(value) && (value < min || value > max)) {
+                    geofenceRadiusInput.value = String(Math.min(max, Math.max(min, value)));
+                    showToast(`Bán kính geofence của ${zoneLabel} chỉ được trong khoảng ${min}-${max}m.`, 'warning');
+                }
+            }
+        };
+
         if (cooldownInput) {
             cooldownInput.dataset.auto = 'true';
             cooldownInput.addEventListener('input', () => { cooldownInput.dataset.auto = 'false'; });
+            cooldownInput.addEventListener('change', enforceZoneInputRanges);
+        }
+        if (geofenceRadiusInput) {
+            geofenceRadiusInput.dataset.auto = 'true';
+            geofenceRadiusInput.addEventListener('input', () => { geofenceRadiusInput.dataset.auto = 'false'; });
+            geofenceRadiusInput.addEventListener('change', enforceZoneInputRanges);
         }
         const applyZoneDefaults = () => {
-            if (!zoneTypeSelect || !cooldownInput) return;
-            if (cooldownInput.dataset.auto === 'false' && cooldownInput.value !== '') return;
-            cooldownInput.value = zoneTypeSelect.value === 'Spot' ? '0' : '30';
-            cooldownInput.dataset.auto = 'true';
+            if (!zoneTypeSelect) return;
+
+            const isSpot = zoneTypeSelect.value === 'Spot';
+
+            if (cooldownInput && !(cooldownInput.dataset.auto === 'false' && cooldownInput.value !== '')) {
+                cooldownInput.min = '0';
+                cooldownInput.max = isSpot ? '5' : '240';
+                cooldownInput.value = isSpot ? '5' : '30';
+                cooldownInput.dataset.auto = 'true';
+            }
+
+            if (geofenceRadiusInput) {
+                geofenceRadiusInput.min = isSpot ? '15' : '10';
+                geofenceRadiusInput.max = isSpot ? '40' : '500';
+                geofenceRadiusInput.placeholder = isSpot ? '30' : '50';
+                if (!(geofenceRadiusInput.dataset.auto === 'false' && geofenceRadiusInput.value !== '')) {
+                    geofenceRadiusInput.value = isSpot ? '30' : '50';
+                    geofenceRadiusInput.dataset.auto = 'true';
+                }
+            }
+
+            if (geofenceRadiusHelp) {
+                geofenceRadiusHelp.innerHTML = isSpot
+                    ? '<i class="fas fa-circle-notch"></i> Spot: 15-40m, mặc định 30m nếu để trống'
+                    : '<i class="fas fa-circle-notch"></i> District/Area: nhập 10-500m theo quy mô khu vực';
+            }
         };
-        if (zoneTypeSelect) zoneTypeSelect.addEventListener('change', applyZoneDefaults);
+        if (zoneTypeSelect) {
+            zoneTypeSelect.addEventListener('change', () => {
+                applyZoneDefaults();
+                enforceZoneInputRanges();
+            });
+        }
         applyZoneDefaults();
+        enforceZoneInputRanges();
         // Resolve Map URL Feature
         document.getElementById('btnResolveMap')?.addEventListener('click', async () => {
             const urlInput = document.getElementById('mapUrlInput');

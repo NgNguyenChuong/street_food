@@ -31,4 +31,5 @@ public class MongoDbContext
     public IMongoCollection<DeviceHistory> DeviceHistories => Database.GetCollection<DeviceHistory>("device_history");
     public IMongoCollection<SubmissionIdempotency> SubmissionIdempotencies => Database.GetCollection<SubmissionIdempotency>("submission_idempotency");
     public IMongoCollection<ServiceSubmission> ServiceSubmissions => Database.GetCollection<ServiceSubmission>("submissions");
+    public IMongoCollection<QrCampaignState> QrCampaignStates => Database.GetCollection<QrCampaignState>("qr_campaign_states");
 }

@@ -24,14 +24,25 @@ public class POIsController : ControllerBase
     private const string GpsTestApiKey = "streetfood-gps-test-mode-2026";
     private const string GpsTestCategory = "gps-test";
     private const string GpsTestReviewedBy = "gps-test-mode";
-    private const int GpsTestTriggerRadiusMeters = 50;
+    private const int GpsTestTriggerRadiusMeters = 30;
+    private const int GpsTestCooldownMinutes = 1;
+    private const int SpotTriggerRadiusMinMeters = 15;
+    private const int SpotTriggerRadiusMaxMeters = 40;
+    private const int NonSpotTriggerRadiusMinMeters = 10;
+    private const int NonSpotTriggerRadiusMaxMeters = 500;
+    private const int SpotTriggerRadiusFallbackMeters = 30;
+    private const int DefaultTriggerRadiusMeters = 50;
+    private const int SpotDefaultCooldownMinutes = 5;
+    private const int SpotMaxCooldownMinutes = 5;
+    private const int DefaultAreaCooldownMinutes = 30;
+    private const int MaxGeneralCooldownMinutes = 240;
     private const string AppNotificationSequenceName = "app_notification_id";
     private const string AppNotificationCollectionName = "app_notifications";
     private static readonly GpsTestPoiSeed[] DefaultGpsTestPoiSeeds =
     [
         new("POI Test GPS Thuc Te 1", "Real GPS Test POI 1", "GPS shi di ce shi dian 1", 10.842078975289178, 106.60899362124417, 10),
-        new("POI Test GPS Thuc Te 2", "Real GPS Test POI 2", "GPS shi di ce shi dian 2", 10.842098731748207, 106.60896276355663, 9),
-        new("POI Test GPS Thuc Te 3", "Real GPS Test POI 3", "GPS shi di ce shi dian 3", 10.84207831569258, 106.60906602860645, 8)
+        new("POI Test GPS Thuc Te 2", "Real GPS Test POI 2", "GPS shi di ce shi dian 2", 10.842611200000000, 106.608708400000000, 9),
+        new("POI Test GPS Thuc Te 3", "Real GPS Test POI 3", "GPS shi di ce shi dian 3", 10.843128900000000, 106.608430900000000, 8)
     ];
 
     public POIsController(MongoDbContext db, MongoSequenceService sequence, IWebHostEnvironment env, ILogger<POIsController> logger)
@@ -295,8 +306,8 @@ public class POIsController : ControllerBase
                     ZoneType = "Spot",
                     ZoneLevel = 3,
                     Priority = seed.Priority,
-                    TriggerRadius = GpsTestTriggerRadiusMeters,
-                    CooldownMinutes = 0,
+                    TriggerRadius = NormalizeTriggerRadius("Spot", GpsTestTriggerRadiusMeters),
+                    CooldownMinutes = GpsTestCooldownMinutes,
                     MaxPlaysPerSession = 99,
                     IsActive = true,
                     ReviewStatus = "approved",
@@ -332,8 +343,8 @@ public class POIsController : ControllerBase
                 .Set(p => p.ZoneType, "Spot")
                 .Set(p => p.ZoneLevel, 3)
                 .Set(p => p.Priority, seed.Priority)
-                .Set(p => p.TriggerRadius, GpsTestTriggerRadiusMeters)
-                .Set(p => p.CooldownMinutes, 0)
+                .Set(p => p.TriggerRadius, NormalizeTriggerRadius("Spot", GpsTestTriggerRadiusMeters))
+                .Set(p => p.CooldownMinutes, GpsTestCooldownMinutes)
                 .Set(p => p.MaxPlaysPerSession, 99)
                 .Set(p => p.IsActive, true)
                 .Set(p => p.ReviewStatus, "approved")
@@ -382,6 +393,69 @@ public class POIsController : ControllerBase
         return Ok(new { deletedCount = result.DeletedCount });
     }
 
+    private static int NormalizeTriggerRadius(string? zoneType, int? triggerRadius)
+    {
+        var isSpot = string.Equals(zoneType, "Spot", StringComparison.OrdinalIgnoreCase);
+        var fallback = isSpot ? SpotTriggerRadiusFallbackMeters : DefaultTriggerRadiusMeters;
+        var raw = triggerRadius.GetValueOrDefault(fallback);
+        if (raw <= 0)
+            raw = fallback;
+
+        return isSpot
+            ? Math.Clamp(raw, SpotTriggerRadiusMinMeters, SpotTriggerRadiusMaxMeters)
+            : Math.Clamp(raw, NonSpotTriggerRadiusMinMeters, NonSpotTriggerRadiusMaxMeters);
+    }
+
+    private static int NormalizeCooldownMinutes(string? zoneType, int? cooldownMinutes)
+    {
+        var isSpot = string.Equals(zoneType, "Spot", StringComparison.OrdinalIgnoreCase);
+        if (isSpot)
+        {
+            var rawSpot = cooldownMinutes.GetValueOrDefault(SpotDefaultCooldownMinutes);
+            if (rawSpot < 0)
+                rawSpot = SpotDefaultCooldownMinutes;
+
+            return Math.Clamp(rawSpot, 0, SpotMaxCooldownMinutes);
+        }
+
+        var raw = cooldownMinutes.GetValueOrDefault(DefaultAreaCooldownMinutes);
+        return Math.Clamp(raw, 0, MaxGeneralCooldownMinutes);
+    }
+
+    private static string? ValidateZoneLimits(string? zoneType, int? triggerRadius, int? cooldownMinutes)
+    {
+        var isSpot = string.Equals(zoneType, "Spot", StringComparison.OrdinalIgnoreCase);
+
+        if (triggerRadius.HasValue)
+        {
+            var radius = triggerRadius.Value;
+            if (isSpot && (radius < SpotTriggerRadiusMinMeters || radius > SpotTriggerRadiusMaxMeters))
+            {
+                return $"Spot TriggerRadius chỉ được trong khoảng {SpotTriggerRadiusMinMeters}-{SpotTriggerRadiusMaxMeters}m.";
+            }
+
+            if (!isSpot && (radius < NonSpotTriggerRadiusMinMeters || radius > NonSpotTriggerRadiusMaxMeters))
+            {
+                return $"District/Area TriggerRadius chỉ được trong khoảng {NonSpotTriggerRadiusMinMeters}-{NonSpotTriggerRadiusMaxMeters}m.";
+            }
+        }
+
+        if (cooldownMinutes.HasValue)
+        {
+            var cooldown = cooldownMinutes.Value;
+            if (cooldown < 0)
+                return "CooldownMinutes không được âm.";
+
+            if (isSpot && cooldown > SpotMaxCooldownMinutes)
+                return $"Spot CooldownMinutes tối đa {SpotMaxCooldownMinutes} phút.";
+
+            if (!isSpot && cooldown > MaxGeneralCooldownMinutes)
+                return $"District/Area CooldownMinutes tối đa {MaxGeneralCooldownMinutes} phút.";
+        }
+
+        return null;
+    }
+
     private async Task<List<POIDto>> BuildPoiDtosAsync(List<POI> pois)
     {
         var poiIds = pois.Select(p => p.POI_ID).ToList();
@@ -415,10 +489,12 @@ public class POIsController : ControllerBase
             ReviewStatus = p.ReviewStatus,
             Category = p.Category,
             SignatureDish = p.SignatureDishes?.FirstOrDefault(),
+            SignatureDishes = p.SignatureDishes,
             OpeningHoursText = p.OpeningHoursText,
             PhoneNumber = p.PhoneNumber,
             AveragePrice = p.AveragePrice,
             Rating = p.Rating,
+            NumReviews = p.NumReviews,
             PlayCount = p.PlayCount,
             MeanPlay = p.MeanPlay,
             PriceLevel = p.PriceLevel,
@@ -434,7 +510,7 @@ public class POIsController : ControllerBase
             ZoneLevel = p.ZoneLevel,
             Priority = p.Priority,
             TriggerRadius = p.TriggerRadius,
-            CooldownMinutes = p.CooldownMinutes,
+            CooldownMinutes = NormalizeCooldownMinutes(p.ZoneType, p.CooldownMinutes),
             ParentZoneId = p.ParentZoneId,
             MaxPlaysPerSession = p.MaxPlaysPerSession,
             PendingChanges = p.PendingChanges
@@ -600,9 +676,13 @@ public class POIsController : ControllerBase
 
         var nextId = await _sequence.GetNextAsync("poi_id");
         var zoneType = string.IsNullOrWhiteSpace(model.ZoneType) ? "Spot" : model.ZoneType;
+        var zoneLimitError = ValidateZoneLimits(zoneType, model.TriggerRadius, model.CooldownMinutes);
+        if (!string.IsNullOrWhiteSpace(zoneLimitError))
+            return BadRequest(new { message = zoneLimitError });
+
         var zoneLevel = model.ZoneLevel ?? (zoneType == "Area" ? 1 : zoneType == "District" ? 2 : 3);
-        var cooldown = model.CooldownMinutes ?? (zoneType == "Spot" ? 0 : 30);
-        var triggerRadius = model.TriggerRadius ?? 50;
+        var cooldown = NormalizeCooldownMinutes(zoneType, model.CooldownMinutes);
+        var triggerRadius = NormalizeTriggerRadius(zoneType, model.TriggerRadius);
         var priority = model.Priority ?? 5;
         var maxPlays = model.MaxPlaysPerSession ?? 1;
         var reviewStatus = "pending";
@@ -692,11 +772,16 @@ public class POIsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdatePOI(int id, [FromBody] UpdatePOIModel model)
     {
-        var poi = await _db.POIs.Find(p => p.POI_ID == id && p.DeletedAt == null).FirstOrDefaultAsync();
+        var poi = await _db.POIs.Find(p => p.POI_ID == id).FirstOrDefaultAsync();
 
         if (poi == null)
         {
             return NotFound(new { message = "POI not found" });
+        }
+
+        if (poi.DeletedAt != null || poi.IsDeleted)
+        {
+            return BadRequest(new { message = "POI này đã đóng cửa vĩnh viễn, không thể chỉnh sửa." });
         }
 
         // Vendor must only update their own POIs
@@ -731,13 +816,23 @@ public class POIsController : ControllerBase
         var zoneType = isAdmin
             ? (string.IsNullOrWhiteSpace(model.ZoneType) ? poi.ZoneType : model.ZoneType)
             : poi.ZoneType;
+
+        if (isAdmin)
+        {
+            var zoneLimitError = ValidateZoneLimits(zoneType, model.TriggerRadius, model.CooldownMinutes);
+            if (!string.IsNullOrWhiteSpace(zoneLimitError))
+                return BadRequest(new { message = zoneLimitError });
+        }
+
         var zoneLevel = isAdmin
             ? (model.ZoneLevel ?? (zoneType == "Area" ? 1 : zoneType == "District" ? 2 : 3))
             : poi.ZoneLevel;
         var cooldown = isAdmin
-            ? (model.CooldownMinutes ?? (zoneType == "Spot" ? 0 : 30))
-            : poi.CooldownMinutes;
-        var triggerRadius = isAdmin ? (model.TriggerRadius ?? poi.TriggerRadius) : poi.TriggerRadius;
+            ? NormalizeCooldownMinutes(zoneType, model.CooldownMinutes ?? poi.CooldownMinutes)
+            : NormalizeCooldownMinutes(zoneType, poi.CooldownMinutes);
+        var triggerRadius = isAdmin
+            ? NormalizeTriggerRadius(zoneType, model.TriggerRadius ?? poi.TriggerRadius)
+            : poi.TriggerRadius;
         var priority = isAdmin ? (model.Priority ?? poi.Priority) : poi.Priority;
         var maxPlays = isAdmin ? (model.MaxPlaysPerSession ?? poi.MaxPlaysPerSession) : poi.MaxPlaysPerSession;
         var latitude = model.Latitude.HasValue ? (double)model.Latitude.Value : poi.Location.Latitude;
@@ -1538,10 +1633,12 @@ public class POIDto
     public string? ReviewStatus { get; set; }
     public string? Category { get; set; }
     public string? SignatureDish { get; set; }
+    public List<string>? SignatureDishes { get; set; }
     public string? OpeningHoursText { get; set; }
     public string? PhoneNumber { get; set; }
     public decimal? AveragePrice { get; set; }
     public double? Rating { get; set; }
+    public int NumReviews { get; set; }
     public long PlayCount { get; set; }
     public double MeanPlay { get; set; }
     public int? PriceLevel { get; set; }

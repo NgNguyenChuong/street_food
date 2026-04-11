@@ -21,6 +21,7 @@ public class GeofenceService : IGeofenceService
     private const double EARTH_RADIUS_M = 6_371_000.0;
     private const int MOVEMENT_UPLOAD_INTERVAL_SECONDS = 8;
     private const double MOVEMENT_UPLOAD_DISTANCE_METERS = 10.0;
+    private const int SPOT_MAX_COOLDOWN_MINUTES = 5;
 
     // ── Dependencies ──────────────────────────────────────────────
     private readonly IZoneRepository _repository;
@@ -89,7 +90,13 @@ public class GeofenceService : IGeofenceService
                 z.Latitude, z.Longitude);
 
         var insideZones = candidates
-            .Where(z => z.DistanceFromUser <= z.Radius)
+            .Where(z =>
+            {
+                var effectiveRadius = string.Equals(z.ZoneType, "Spot", StringComparison.OrdinalIgnoreCase)
+                    ? AppConfig.NormalizeSpotRadiusMeters(z.Radius)
+                    : (z.Radius > 0 ? z.Radius : 50);
+                return z.DistanceFromUser <= effectiveRadius;
+            })
             .ToList();
 
         // STEP 4: Compute diffs
@@ -126,11 +133,11 @@ public class GeofenceService : IGeofenceService
 
         if (!enabled)
         {
-            await ClearMonitoringStateAsync("GPS đang ở xa POI, tạm tắt geofence để tiết kiệm pin.");
+            await ClearMonitoringStateAsync("GPS đang ở xa quán, tạm tắt geofence để tiết kiệm pin.");
             return;
         }
 
-        OnStatusMessage?.Invoke("Đã bật geofence watch mode cho POI gần nhất.");
+        OnStatusMessage?.Invoke("Đã bật geofence watch mode cho quán gần nhất.");
     }
 
     private async Task UpdatePrimaryZoneAsync(List<POI> insideZones)
@@ -192,11 +199,10 @@ public class GeofenceService : IGeofenceService
             // Duck the Area audio
             await _audio.SetVolumeAsync(previousZone.Id, 0.2);
 
-            // Play Spot if not already played this session
-            if (!_session.IsPlayedThisSession(bestZone.Id) && !_session.IsOnCooldown(bestZone.Id))
+            if (ShouldPlayZoneNarration(bestZone))
                 await PlayZoneAsync(bestZone);
             else
-                OnStatusMessage?.Invoke($"✅ {bestZone.Name_Vi} — đã nghe trong phiên này.");
+                OnStatusMessage?.Invoke(BuildCooldownBlockedMessage(bestZone));
         }
         // ── SCENARIO B: Entered a brand-new zone ─────────────────────
         else
@@ -204,16 +210,10 @@ public class GeofenceService : IGeofenceService
             if (previousZone != null)
                 await _audio.StopAsync(previousZone.Id);
 
-            if (!_session.IsPlayedThisSession(bestZone.Id) && !_session.IsOnCooldown(bestZone.Id))
+            if (ShouldPlayZoneNarration(bestZone))
                 await PlayZoneAsync(bestZone);
             else
-            {
-                var remaining = _session.GetCooldownRemaining(bestZone.Id);
-                var msg = remaining.HasValue
-                    ? $"⏳ {bestZone.Name_Vi} — còn {remaining.Value.Minutes}p {remaining.Value.Seconds}s cooldown"
-                    : $"✅ {bestZone.Name_Vi} — đã nghe trong phiên này.";
-                OnStatusMessage?.Invoke(msg);
-            }
+                OnStatusMessage?.Invoke(BuildCooldownBlockedMessage(bestZone));
         }
     }
 
@@ -258,7 +258,7 @@ public class GeofenceService : IGeofenceService
         await UploadMobileLogAsync(zone, _lastLocation, "NarrationPlayed", "GeofenceEnter", true, null);
 
         _session.MarkPlayedThisSession(zone.Id);
-        _session.SetCooldown(zone.Id, zone.CooldownMinutes);
+        _session.SetCooldown(zone.Id, GetEffectiveCooldownMinutes(zone));
 
         try
         {
@@ -289,6 +289,38 @@ public class GeofenceService : IGeofenceService
         {
             System.Diagnostics.Debug.WriteLine($"[Geofence] Save history error: {ex.Message}");
         }
+    }
+
+    private bool ShouldPlayZoneNarration(POI zone)
+    {
+        var effectiveCooldown = GetEffectiveCooldownMinutes(zone);
+
+        // Cooldown=0 keeps one-play-per-session behavior to avoid spam loops.
+        if (effectiveCooldown <= 0)
+            return !_session.IsPlayedThisSession(zone.Id);
+
+        return !_session.IsOnCooldown(zone.Id);
+    }
+
+    private string BuildCooldownBlockedMessage(POI zone)
+    {
+        var effectiveCooldown = GetEffectiveCooldownMinutes(zone);
+        if (effectiveCooldown <= 0)
+            return $"✅ {zone.Name_Vi} — đã nghe trong phiên này.";
+
+        var remaining = _session.GetCooldownRemaining(zone.Id);
+        return remaining.HasValue
+            ? $"⏳ {zone.Name_Vi} — còn {remaining.Value.Minutes}p {remaining.Value.Seconds}s cooldown"
+            : $"⏳ {zone.Name_Vi} — đang trong cooldown.";
+    }
+
+    private static int GetEffectiveCooldownMinutes(POI zone)
+    {
+        var rawCooldown = Math.Max(0, zone.CooldownMinutes);
+        if (string.Equals(zone.ZoneType, "Spot", StringComparison.OrdinalIgnoreCase) && rawCooldown > 0)
+            return Math.Min(rawCooldown, SPOT_MAX_COOLDOWN_MINUTES);
+
+        return rawCooldown;
     }
 
     private async Task ClearMonitoringStateAsync(string? statusMessage = null)
