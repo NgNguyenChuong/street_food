@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 
 namespace StreetFoodNarrator.App.Views.Components;
@@ -82,16 +83,19 @@ public partial class FloatingBottomNav : ContentView
 
     private async void OnExploreTapped(object sender, EventArgs e)
     {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
         await NavigateToAsync("//MapPage", ActiveTab == "Explore" || ActiveTab == "MainPage");
     }
 
     private async void OnSavedTapped(object sender, EventArgs e)
     {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
         await NavigateToAsync("//SavedPage", ActiveTab == "Saved" || ActiveTab == "SavedPage");
     }
 
     private async void OnSettingsTapped(object sender, EventArgs e)
     {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
         await NavigateToAsync("//SettingsPage", ActiveTab == "Settings" || ActiveTab == "SettingsPage");
     }
 

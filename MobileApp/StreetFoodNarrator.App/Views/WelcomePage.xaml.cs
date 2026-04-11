@@ -264,7 +264,7 @@ public partial class WelcomePage : ContentPage
             // Chưa từng tải offline → hỏi có muốn tải không
             var shouldSync = await CustomAlert.ShowConfirmAsync(
                 "Cập nhật dữ liệu",
-                "Đồng bộ dữ liệu mới nhất từ web quản lý: quán/POI, menu và audio.",
+                "Đồng bộ dữ liệu mới nhất từ web quản lý: quán, menu và audio.",
                 "Đồng bộ ngay",
                 AppStrings.Common_Cancel,
                 AlertType.Info);

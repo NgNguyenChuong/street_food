@@ -985,6 +985,11 @@ const SettingsApi = {
     }
 };
 
+const QrApi = {
+    getAdminStatus: () => api.request('/Qr/admin/status'),
+    rotateTest3Minutes: () => api.request('/Qr/admin/test-rotate', { method: 'POST' })
+};
+
 const TranslationsApi = {
     list: ({ page = 1, pageSize = 50, search, category, status } = {}) => 
         api.request('/Translations' + qs({ page, pageSize, search, category, status })),
@@ -1031,6 +1036,8 @@ const PaymentApi = {
     myPremiumStatus: () => api.request('/Payments/me/premium-status'),
     listSubmissions: ({ status, search } = {}) =>
         api.request('/Payments/admin/submissions' + qs({ status, search })),
+    listAppSubscriptions: ({ status, platform, search } = {}) =>
+        api.request('/Subscriptions/admin/subscriptions' + qs({ status, platform, search })),
     reviewSubmission: (submissionId, status, note) =>
         api.request(`/Payments/admin/submissions/${submissionId}/review`, {
             method: 'POST',

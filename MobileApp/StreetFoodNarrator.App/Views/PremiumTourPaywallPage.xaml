@@ -54,6 +54,13 @@
                                TextColor="White"
                                HorizontalTextAlignment="Center"/>
 
+                           <Label x:Name="IntroPriceLabel"
+                               Text="chỉ với 36.000 VND/tháng"
+                               FontSize="13"
+                               FontAttributes="Bold"
+                               TextColor="#86EFAC"
+                               HorizontalTextAlignment="Center"/>
+
                         <Label x:Name="IntroMessageLabel"
                                Text="Bạn đã dùng xong 1 tour miễn phí. Hãy đăng ký để khám phá thêm các tour hấp dẫn khác."
                                FontSize="14"
@@ -61,8 +68,8 @@
                                HorizontalTextAlignment="Center"
                                LineBreakMode="WordWrap"/>
 
-                           <Label x:Name="IntroBenefitsLabel"
-                               Text="• Tương tác với nhiều POI khác&#10;• Xem thêm nhiều tour đặc sắc"
+                        <Label x:Name="IntroBenefitsLabel"
+                               Text="• Tương tác với nhiều quán khác&#10;• Xem thêm nhiều tour đặc sắc"
                                FontSize="13"
                                TextColor="#A7F3D0"
                                HorizontalTextAlignment="Start"
@@ -96,11 +103,6 @@
                                 BorderWidth="1"
                                 TextColor="#A7F3D0"
                                 Clicked="OnRestoreVipClicked"/>
-
-                        <Label Text="Hủy bất kỳ lúc nào • 36.000 VND/tháng"
-                               FontSize="11"
-                               TextColor="#6B7280"
-                               HorizontalTextAlignment="Center"/>
                     </VerticalStackLayout>
                 </Grid>
 
@@ -137,18 +139,10 @@
                                             HorizontalOptions="Center">
                                         <Grid WidthRequest="170" HeightRequest="170">
                                             <BoxView Color="#052E16" CornerRadius="8" Opacity="0.08"/>
-                                            <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="4">
-                                                <Label Text="QR"
-                                                       FontSize="36"
-                                                       FontAttributes="Bold"
-                                                       TextColor="#14532D"
-                                                       HorizontalOptions="Center"/>
-                                                <Label Text="PAYMENT"
-                                                       FontSize="11"
-                                                       FontAttributes="Bold"
-                                                       TextColor="#166534"
-                                                       HorizontalOptions="Center"/>
-                                            </VerticalStackLayout>
+                                            <Image x:Name="PaymentQrImage"
+                                                   WidthRequest="170"
+                                                   HeightRequest="170"
+                                                   Aspect="AspectFit"/>
                                         </Grid>
                                     </Border>
                                 </VerticalStackLayout>
@@ -189,28 +183,22 @@
                                     BackgroundColor="#0B1712"
                                     Stroke="#1F372C"
                                     Padding="10,8">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" VerticalOptions="Center">
-                                    <VerticalStackLayout Grid.Column="0" Spacing="2">
-                                        <Label Text="Nội dung chuyển khoản"
-                                               FontSize="10"
-                                               TextColor="#6B7280"/>
-                                        <Label x:Name="TransferContentLabel"
-                                               Text="SUB_Tour_Explore_[UserID]"
-                                               FontSize="12"
-                                               FontAttributes="Bold"
-                                               TextColor="#FDE68A"/>
-                                    </VerticalStackLayout>
-
-                                    <Button Grid.Column="1"
-                                            x:Name="CopyContentButton"
-                                            Text="Sao chép"
-                                            HeightRequest="34"
-                                            CornerRadius="10"
-                                            Padding="12,0"
-                                            BackgroundColor="#2A3D2F"
-                                            TextColor="#F9A826"
-                                            Clicked="OnCopyTransferContentClicked"/>
-                                </Grid>
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Nội dung chuyển khoản"
+                                           FontSize="10"
+                                           TextColor="#6B7280"/>
+                                    <Entry x:Name="TransferContentEntry"
+                                           Text="SUB_Tour_Explore_[UserID]"
+                                           MaxLength="120"
+                                           ClearButtonVisibility="WhileEditing"
+                                           TextColor="#FDE68A"
+                                           FontSize="12"
+                                           FontAttributes="Bold"
+                                           BackgroundColor="#132119"
+                                           Placeholder="Nhập nội dung chuyển khoản"
+                                           PlaceholderColor="#6B7280"
+                                           TextChanged="OnTransferContentEntryTextChanged"/>
+                                </VerticalStackLayout>
                             </Border>
 
                             <Button x:Name="ConfirmTransferButton"

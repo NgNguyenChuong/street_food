@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
@@ -13,6 +14,8 @@ namespace StreetFoodNarrator.API.Controllers;
 public class PaymentsController : ControllerBase
 {
     private const decimal PremiumOneYearPriceVnd = 1990000m;
+    private const string AppNotificationSequenceName = "app_notification_id";
+    private const string AppNotificationCollectionName = "app_notifications";
 
     private readonly MongoDbContext _db;
     private readonly MongoSequenceService _sequence;
@@ -61,6 +64,7 @@ public class PaymentsController : ControllerBase
         };
 
         await _db.ServiceSubmissions.InsertOneAsync(submission);
+        await CreateAdminNotificationForPremiumSubmitAsync(submission, vendor);
 
         return Ok(new
         {
@@ -270,6 +274,8 @@ public class PaymentsController : ControllerBase
             await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == submission.VendorId, vendorUpdate);
         }
 
+        await CreateVendorNotificationForPremiumReviewAsync(submission, status, request.Note);
+
         return Ok(new
         {
             message = status == SubmissionStatuses.Approved
@@ -342,6 +348,72 @@ public class PaymentsController : ControllerBase
             ReviewedBy = row.ReviewedBy,
             ReviewNote = row.ReviewNote
         };
+    }
+
+    private async Task CreateAdminNotificationForPremiumSubmitAsync(ServiceSubmission submission, VendorProfile vendor)
+    {
+        var vendorName = string.IsNullOrWhiteSpace(vendor.BusinessName)
+            ? $"Vendor #{vendor.VendorId}"
+            : vendor.BusinessName;
+
+        var notification = new BsonDocument
+        {
+            { "AudienceRole", "admin" },
+            { "Kind", "info" },
+            { "Title", "Có yêu cầu Premium mới" },
+            { "Message", $"{vendorName} vừa gửi yêu cầu đăng ký gói Premium 1 năm." },
+            { "Href", "payment-management?status=pending" },
+            { "Category", "premium-submit" },
+            { "Status", SubmissionStatuses.Pending },
+            { "CreatedAt", DateTime.UtcNow }
+        };
+
+        await InsertAppNotificationSafeAsync(notification);
+    }
+
+    private async Task CreateVendorNotificationForPremiumReviewAsync(ServiceSubmission submission, string status, string? note)
+    {
+        var isApproved = string.Equals(status, SubmissionStatuses.Approved, StringComparison.OrdinalIgnoreCase);
+        var processedBy = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email) ?? "admin";
+        var message = isApproved
+            ? "Yêu cầu Premium của bạn đã được duyệt và gói đã được kích hoạt."
+            : "Yêu cầu Premium của bạn đã bị từ chối.";
+
+        var notification = new BsonDocument
+        {
+            { "AudienceRole", "vendor" },
+            { "AudienceVendorId", submission.VendorId },
+            { "Kind", isApproved ? "success" : "warning" },
+            { "Title", isApproved ? "Premium đã được duyệt" : "Premium bị từ chối" },
+            { "Message", message },
+            { "Href", "payment-management" },
+            { "Category", "premium-review" },
+            { "Status", status },
+            { "CreatedAt", DateTime.UtcNow },
+            { "ProcessedAt", DateTime.UtcNow },
+            { "ProcessedBy", processedBy }
+        };
+
+        if (!string.IsNullOrWhiteSpace(note))
+        {
+            notification.Add("ResponseMessage", note.Trim());
+        }
+
+        await InsertAppNotificationSafeAsync(notification);
+    }
+
+    private async Task InsertAppNotificationSafeAsync(BsonDocument notification)
+    {
+        try
+        {
+            notification["NotificationId"] = await _sequence.GetNextAsync(AppNotificationSequenceName);
+            var collection = _db.Database.GetCollection<BsonDocument>(AppNotificationCollectionName);
+            await collection.InsertOneAsync(notification);
+        }
+        catch
+        {
+            // Do not block payment workflow if notification write fails.
+        }
     }
 }
 

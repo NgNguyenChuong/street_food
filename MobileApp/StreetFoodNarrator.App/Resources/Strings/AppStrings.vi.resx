@@ -402,13 +402,13 @@ XEM BẢN ĐỒ</value>
     <value>Không thể chỉ đường lúc này.</value>
   </data>
   <data name="TabSaved_Subtitle" xml:space="preserve">
-    <value>Các Tour và POI yêu thích</value>
+    <value>Các tour và quán yêu thích</value>
   </data>
   <data name="TabSaved_Segment_Tours" xml:space="preserve">
     <value>Tour đã lưu</value>
   </data>
   <data name="TabSaved_Segment_Pois" xml:space="preserve">
-    <value>POI đã lưu</value>
+    <value>Quán đã lưu</value>
   </data>
   <data name="TabSaved_EmptyTour_Title" xml:space="preserve">
     <value>Chưa có tour nào được lưu</value>
@@ -420,7 +420,7 @@ XEM BẢN ĐỒ</value>
     <value>Chưa có quán nào được lưu</value>
   </data>
   <data name="TabSaved_EmptyPoi_Subtitle" xml:space="preserve">
-    <value>Nhấn tim trong tab Map/Explore để lưu POI</value>
+    <value>Nhấn tim trong tab Map/Explore để lưu quán</value>
   </data>
   <data name="TabMenu_SearchPlaceholder" xml:space="preserve">
     <value>Tìm kiếm tour...</value>

@@ -162,11 +162,16 @@
                             <span>Quản lý Vendors</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="payment-management" class="nav-link">
+                    <li class="nav-item has-submenu" id="paymentNavGroup">
+                        <button type="button" class="nav-link nav-toggle">
                             <i class="nav-icon fas fa-wallet"></i>
                             <span>Quản lý thanh toán</span>
-                        </a>
+                            <i class="nav-caret fas fa-chevron-down"></i>
+                        </button>
+                        <ul class="submenu">
+                            <li><a href="payment-management?mode=vendor" class="nav-sublink">Thanh toán vendor</a></li>
+                            <li><a href="payment-management?mode=app" class="nav-sublink">Thanh toán user app</a></li>
+                        </ul>
                     </li>
                     ` : ''}
 
@@ -632,6 +637,9 @@
                 text-decoration: none;
                 border-radius: 10px;
                 transition: all 0.2s ease;
+                font-size: 0.9rem;
+                font-weight: 500;
+                line-height: 1.3;
             }
 
             .sidebar-vendor .nav-sublink {
@@ -992,11 +1000,35 @@
         document.body.insertAdjacentHTML('afterbegin', sidebarHTML);
 
         const normalizeHref = (href) => (href || '').split('?')[0].split('#')[0];
+        const currentSearchParams = new URLSearchParams(window.location.search || '');
+        const getHrefQuery = (href) => {
+            const queryPart = (href || '').split('?')[1] || '';
+            return queryPart.split('#')[0];
+        };
+
+        const isHrefActive = (href) => {
+            if (normalizeHref(href) !== currentPage) return false;
+
+            const query = getHrefQuery(href);
+            if (!query) {
+                return !window.location.search;
+            }
+
+            const linkParams = new URLSearchParams(query);
+            for (const [key, value] of linkParams.entries()) {
+                const currentValue = currentSearchParams.get(key);
+                if ((currentValue || '').toLowerCase() !== String(value).toLowerCase()) {
+                    return false;
+                }
+            }
+
+            return true;
+        };
 
         const links = document.querySelectorAll('.nav-link');
         links.forEach(link => {
             const href = link.getAttribute('href') || '';
-            if (normalizeHref(href) === currentPage && !/[?#]/.test(href)) {
+            if (href && isHrefActive(href)) {
                 link.classList.add('active');
             }
         });
@@ -1004,10 +1036,11 @@
         const sublinks = document.querySelectorAll('.nav-sublink');
         sublinks.forEach(link => {
             const href = link.getAttribute('href') || '';
-            if (normalizeHref(href) === currentPage && !/[?#]/.test(href)) {
+            if (href && isHrefActive(href)) {
                 link.classList.add('active');
             }
-            if (normalizeHref(href) === currentPage) {
+
+            if (normalizeHref(href) === currentPage || link.classList.contains('active')) {
                 const parent = link.closest('.nav-item.has-submenu');
                 if (parent) parent.classList.add('open');
             }

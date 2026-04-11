@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
 
 namespace StreetFoodNarrator.App.Views.Components;
@@ -56,11 +57,35 @@ public partial class BottomNavView : ContentView
 
     // ─── Tab tap handlers (forwarding events) ────────────────────────────────
 
-    private void OnTabMapTapped(object sender, EventArgs e)      => TabSwitchRequested?.Invoke(0);
-    private void OnTabTourTapped(object sender, EventArgs e)     => TabSwitchRequested?.Invoke(1);
-    private void OnTabMenuTapped(object sender, EventArgs e)     => TabSwitchRequested?.Invoke(2);
-    private void OnTabSavedTapped(object sender, EventArgs e)    => TabSwitchRequested?.Invoke(3);
-    private void OnTabSettingsTapped(object sender, EventArgs e) => TabSwitchRequested?.Invoke(4);
+    private void OnTabMapTapped(object sender, EventArgs e)
+    {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+        TabSwitchRequested?.Invoke(0);
+    }
+
+    private void OnTabTourTapped(object sender, EventArgs e)
+    {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+        TabSwitchRequested?.Invoke(1);
+    }
+
+    private void OnTabMenuTapped(object sender, EventArgs e)
+    {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+        TabSwitchRequested?.Invoke(2);
+    }
+
+    private void OnTabSavedTapped(object sender, EventArgs e)
+    {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+        TabSwitchRequested?.Invoke(3);
+    }
+
+    private void OnTabSettingsTapped(object sender, EventArgs e)
+    {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+        TabSwitchRequested?.Invoke(4);
+    }
 
     // ─── Cập nhật giao diện tab active ───────────────────────────────────────
 
