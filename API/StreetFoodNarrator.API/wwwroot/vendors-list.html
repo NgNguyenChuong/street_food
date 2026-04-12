@@ -1106,14 +1106,15 @@
         table.style.display = 'table';
         empty.style.display = 'none';
 
-        tbody.innerHTML = vendors.map(v => `
+        tbody.innerHTML = vendors.map(v => {
+            const vendorDisplayName = v.contactName || v.businessName || '—';
+            return `
             <tr>
                 <td>
                     <div class="vendor-info">
-                        <div class="vendor-avatar">${escapeHtml(getInitials(v.businessName))}</div>
+                        <div class="vendor-avatar">${escapeHtml(getInitials(vendorDisplayName))}</div>
                         <div class="vendor-details">
-                            <h4>${escapeHtml(v.businessName)}</h4>
-                            <p>${escapeHtml(v.contactName || '—')}</p>
+                            <h4>${escapeHtml(vendorDisplayName)}</h4>
                         </div>
                     </div>
                 </td>
@@ -1163,7 +1164,8 @@
                     </div>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
     }
 
     function renderVendorPage() {
