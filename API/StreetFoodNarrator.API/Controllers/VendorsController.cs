@@ -5,6 +5,8 @@ using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
 using System.Security.Claims;
+using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 
 namespace StreetFoodNarrator.API.Controllers;
 
@@ -16,6 +18,8 @@ public class VendorsController : ControllerBase
     private readonly MongoDbContext _db;
     private readonly MongoSequenceService _sequence;
     private readonly UserManager<ApplicationUser> _userManager;
+
+    private static readonly Regex PhoneRegex = new(@"^\+84(3|5|7|8|9)\d{8}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public VendorsController(MongoDbContext db, MongoSequenceService sequence, UserManager<ApplicationUser> userManager)
     {
@@ -78,6 +82,161 @@ public class VendorsController : ControllerBase
         }
 
         return Ok(vendor);
+    }
+
+    [Authorize(Roles = "Admin,Vendor")]
+    [HttpPut("me")]
+    public async Task<ActionResult<VendorProfile>> UpdateMyVendor([FromBody] UpdateMyVendorRequest request)
+    {
+        if (!User.IsInRole("Vendor") && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
+        if (request == null)
+        {
+            return BadRequest(new { message = "Thiếu dữ liệu cập nhật." });
+        }
+
+        var hasChanges = request.BusinessName != null
+            || request.BusinessDescription != null
+            || request.ContactName != null
+            || request.ContactEmail != null
+            || request.ContactPhone != null
+            || request.Address != null
+            || request.FullName != null
+            || request.PhoneNumber != null;
+
+        if (!hasChanges)
+        {
+            return BadRequest(new { message = "Không có dữ liệu để cập nhật." });
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        var name = User.FindFirstValue(ClaimTypes.Name);
+
+        var businessName = request.BusinessName?.Trim();
+        if (request.BusinessName != null && string.IsNullOrWhiteSpace(businessName))
+        {
+            return BadRequest(new { message = "Tên cửa hàng không được để trống." });
+        }
+
+        var contactEmail = NormalizeNullable(request.ContactEmail);
+        if (!string.IsNullOrWhiteSpace(contactEmail) && !new EmailAddressAttribute().IsValid(contactEmail))
+        {
+            return BadRequest(new { message = "Email liên hệ không đúng định dạng." });
+        }
+
+        var normalizedContactPhone = NormalizePhoneNumber(request.ContactPhone);
+        if (request.ContactPhone != null && !string.IsNullOrWhiteSpace(request.ContactPhone) && normalizedContactPhone == null)
+        {
+            return BadRequest(new { message = "Số điện thoại liên hệ không đúng định dạng Việt Nam." });
+        }
+
+        var normalizedAccountPhone = NormalizePhoneNumber(request.PhoneNumber);
+        if (request.PhoneNumber != null && !string.IsNullOrWhiteSpace(request.PhoneNumber) && normalizedAccountPhone == null)
+        {
+            return BadRequest(new { message = "Số điện thoại tài khoản không đúng định dạng Việt Nam." });
+        }
+
+        var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+        if (vendor == null && !string.IsNullOrWhiteSpace(email))
+        {
+            vendor = await _db.VendorProfiles.Find(v => v.ContactEmail == email).FirstOrDefaultAsync();
+            if (vendor != null && string.IsNullOrWhiteSpace(vendor.UserId))
+            {
+                var bindUpdate = Builders<VendorProfile>.Update
+                    .Set(v => v.UserId, userId)
+                    .Set(v => v.UpdatedAt, DateTime.UtcNow);
+                await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, bindUpdate);
+            }
+        }
+
+        if (vendor == null)
+        {
+            if (!User.IsInRole("Vendor"))
+            {
+                return NotFound(new { message = "Vendor profile not found" });
+            }
+
+            var vendorId = await _sequence.GetNextAsync("vendor_id");
+            var fallbackName = !string.IsNullOrWhiteSpace(name)
+                ? name
+                : (!string.IsNullOrWhiteSpace(email) ? email.Split('@')[0] : "Vendor");
+
+            vendor = new VendorProfile
+            {
+                VendorId = vendorId,
+                UserId = userId,
+                ContactName = name,
+                ContactEmail = email,
+                BusinessName = fallbackName
+            };
+
+            await _db.VendorProfiles.InsertOneAsync(vendor);
+        }
+
+        var updates = new List<UpdateDefinition<VendorProfile>>
+        {
+            Builders<VendorProfile>.Update.Set(v => v.UpdatedAt, DateTime.UtcNow)
+        };
+
+        if (request.BusinessName != null)
+            updates.Add(Builders<VendorProfile>.Update.Set(v => v.BusinessName, businessName!));
+        if (request.BusinessDescription != null)
+            updates.Add(Builders<VendorProfile>.Update.Set(v => v.BusinessDescription, NormalizeNullable(request.BusinessDescription)));
+        if (request.ContactName != null)
+            updates.Add(Builders<VendorProfile>.Update.Set(v => v.ContactName, NormalizeNullable(request.ContactName)));
+        if (request.ContactEmail != null)
+            updates.Add(Builders<VendorProfile>.Update.Set(v => v.ContactEmail, contactEmail));
+        if (request.ContactPhone != null)
+            updates.Add(Builders<VendorProfile>.Update.Set(v => v.ContactPhone, normalizedContactPhone));
+        if (request.Address != null)
+            updates.Add(Builders<VendorProfile>.Update.Set(v => v.Address, NormalizeNullable(request.Address)));
+
+        var combinedUpdate = Builders<VendorProfile>.Update.Combine(updates);
+        await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, combinedUpdate);
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return NotFound(new { message = "User not found" });
+        }
+
+        var userChanged = false;
+        if (request.FullName != null)
+        {
+            user.FullName = NormalizeNullable(request.FullName);
+            userChanged = true;
+        }
+
+        if (request.PhoneNumber != null)
+        {
+            user.PhoneNumber = normalizedAccountPhone;
+            userChanged = true;
+        }
+
+        if (userChanged)
+        {
+            var updateUserResult = await _userManager.UpdateAsync(user);
+            if (!updateUserResult.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    message = "Không thể cập nhật thông tin tài khoản.",
+                    errors = updateUserResult.Errors.Select(e => e.Description)
+                });
+            }
+        }
+
+        var updatedVendor = await _db.VendorProfiles.Find(v => v.VendorId == vendor.VendorId).FirstOrDefaultAsync();
+        return Ok(updatedVendor);
     }
 
     [Authorize(Roles = "Admin")]
@@ -380,6 +539,32 @@ public class VendorsController : ControllerBase
 
         return new string(password);
     }
+
+    private static string? NormalizeNullable(string? value)
+    {
+        if (value == null)
+            return null;
+
+        var trimmed = value.Trim();
+        return trimmed.Length == 0 ? null : trimmed;
+    }
+
+    private static string? NormalizePhoneNumber(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var compact = Regex.Replace(raw.Trim(), @"[\s\.\-]", string.Empty);
+        if (compact.StartsWith("84", StringComparison.Ordinal))
+            compact = $"+{compact}";
+        else if (compact.StartsWith("0", StringComparison.Ordinal))
+            compact = $"+84{compact[1..]}";
+
+        if (!PhoneRegex.IsMatch(compact))
+            return null;
+
+        return compact;
+    }
 }
 
 public class VendorDto
@@ -442,6 +627,18 @@ public class VendorPoiDto
 public class UpdateVendorStatusRequest
 {
     public string Status { get; set; } = string.Empty;
+}
+
+public class UpdateMyVendorRequest
+{
+    public string? FullName { get; set; }
+    public string? PhoneNumber { get; set; }
+    public string? BusinessName { get; set; }
+    public string? BusinessDescription { get; set; }
+    public string? ContactName { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? ContactPhone { get; set; }
+    public string? Address { get; set; }
 }
 
 public class UpdateVendorRequest

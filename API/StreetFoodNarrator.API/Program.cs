@@ -52,11 +52,11 @@ builder.Services.AddHostedService<PremiumExpiryMonitorService>();
 // Identity Configuration
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 {
-    options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequiredLength = 6;
+    options.Password.RequiredLength = 8;
     options.User.RequireUniqueEmail = true;
 })
 .AddMongoDbStores<ApplicationUser, ApplicationRole, Guid>(

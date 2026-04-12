@@ -25,6 +25,9 @@ public class NarrationLog
 
     [MaxLength(120)]
     public string? DeviceId { get; set; }
+
+    [MaxLength(10)]
+    public string? Language { get; set; }
     
     public DateTime TriggeredAt { get; set; } = DateTime.UtcNow;
     

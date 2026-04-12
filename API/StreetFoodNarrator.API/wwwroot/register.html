@@ -150,13 +150,13 @@
             
             <div class="form-group">
                 <label for="phoneNumber">Số Điện Thoại</label>
-                <input type="tel" id="phoneNumber" placeholder="0912345678">
+                <input type="tel" id="phoneNumber" placeholder="0912345678 hoặc +84912345678">
             </div>
             
             <div class="form-group">
                 <label for="password">Mật Khẩu *</label>
-                <input type="password" id="password" required placeholder="Ví dụ: Admin@123">
-                <small style="color: #666; font-size: 0.85rem;">Tối thiểu 6 ký tự, có chữ HOA, chữ thường và số</small>
+                <input type="password" id="password" required minlength="8" placeholder="Ví dụ: StreetFoodA">
+                <small style="color: #666; font-size: 0.85rem;">Tối thiểu 8 ký tự và có ít nhất 1 chữ in HOA</small>
             </div>
             
             <div class="form-group">
@@ -177,18 +177,51 @@
         const registerForm = document.getElementById('registerForm');
         const errorDiv = document.getElementById('error');
         const successDiv = document.getElementById('success');
+        const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+        const PHONE_REGEX = /^\+84(3|5|7|8|9)\d{8}$/;
+        const PASSWORD_REGEX = /^(?=.*[A-Z]).{8,}$/;
         
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const fullName = document.getElementById('fullName').value;
-            const email = document.getElementById('email').value;
-            const phoneNumber = document.getElementById('phoneNumber').value || null;
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim().toLowerCase();
+            const rawPhone = document.getElementById('phoneNumber').value.trim();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
+
+            let phoneNumber = null;
+            if (rawPhone) {
+                let normalizedPhone = rawPhone.replace(/[\s.\-]/g, '');
+                if (normalizedPhone.startsWith('84')) {
+                    normalizedPhone = `+${normalizedPhone}`;
+                } else if (normalizedPhone.startsWith('0')) {
+                    normalizedPhone = `+84${normalizedPhone.slice(1)}`;
+                }
+
+                if (!PHONE_REGEX.test(normalizedPhone)) {
+                    errorDiv.textContent = 'Số điện thoại không đúng định dạng Việt Nam.';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                phoneNumber = normalizedPhone;
+            }
             
             errorDiv.style.display = 'none';
             successDiv.style.display = 'none';
+
+            if (fullName.length < 2) {
+                errorDiv.textContent = 'Họ và tên phải có ít nhất 2 ký tự.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (!EMAIL_REGEX.test(email)) {
+                errorDiv.textContent = 'Email không đúng định dạng.';
+                errorDiv.style.display = 'block';
+                return;
+            }
             
             // Validate passwords
             if (password !== confirmPassword) {
@@ -197,27 +230,8 @@
                 return;
             }
             
-            if (password.length < 6) {
-                errorDiv.textContent = 'Mật khẩu phải có ít nhất 6 ký tự!';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            // Check password requirements (must have uppercase, lowercase, and digit)
-            if (!/[A-Z]/.test(password)) {
-                errorDiv.textContent = 'Mật khẩu phải có ít nhất 1 chữ in HOA!';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            if (!/[a-z]/.test(password)) {
-                errorDiv.textContent = 'Mật khẩu phải có ít nhất 1 chữ thường!';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            if (!/[0-9]/.test(password)) {
-                errorDiv.textContent = 'Mật khẩu phải có ít nhất 1 chữ số!';
+            if (!PASSWORD_REGEX.test(password)) {
+                errorDiv.textContent = 'Mật khẩu phải có ít nhất 8 ký tự và chứa tối thiểu 1 chữ in HOA.';
                 errorDiv.style.display = 'block';
                 return;
             }

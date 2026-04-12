@@ -99,11 +99,19 @@ public sealed class StartupLoadingPage : ContentPage
         {
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                var shell = new AppShell(isOnboarding: false);
                 var window = Application.Current?.Windows.FirstOrDefault();
-                if (window != null)
+                if (window == null)
+                    return;
+
+                try
                 {
+                    var shell = new AppShell(isOnboarding: false);
                     window.Page = shell;
+                }
+                catch (Exception ex)
+                {
+                    App.AppendStartupErrorToLog(ex, "StartupLoadingPage.Finally");
+                    window.Page = App.BuildStartupRecoveryPage(ex);
                 }
             });
         }

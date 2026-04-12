@@ -3,6 +3,7 @@ using SkiaSharp.Views.Maui.Controls.Hosting;
 using StreetFoodNarrator.App.Core.Models;
 using StreetFoodNarrator.App.Core.Services;
 using StreetFoodNarrator.App.Core.Services.Implementations;
+using StreetFoodNarrator.App.Core.Utils;
 using StreetFoodNarrator.App.Views;
 using StreetFoodNarrator.App.ViewModels;
 
@@ -81,25 +82,14 @@ public static class MauiProgram
         {
             var ex = args.ExceptionObject as Exception;
             System.Diagnostics.Debug.WriteLine($"[CRASH] UnhandledException: {ex}");
-            try
-            {
-                var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
-                var crashLog = $"[{DateTime.Now}] CRASH Unhandled: {ex?.Message}\n{ex?.StackTrace}\n\n";
-                File.AppendAllText(logPath, crashLog);
-                System.Diagnostics.Debug.WriteLine($"[CRASH LOGGED TO {logPath}]");
-            }
-            catch { /* safe */ }
+            if (ex != null)
+                StartupDiagnostics.Append(ex, "AppDomain.UnhandledException");
         };
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             System.Diagnostics.Debug.WriteLine($"[CRASH] UnobservedTask: {args.Exception}");
-            try
-            {
-                var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
-                var crashLog = $"[{DateTime.Now}] CRASH Task: {args.Exception?.Message}\n{args.Exception?.StackTrace}\n\n";
-                File.AppendAllText(logPath, crashLog);
-            }
-            catch { /* safe */ }
+            if (args.Exception != null)
+                StartupDiagnostics.Append(args.Exception, "TaskScheduler.UnobservedTaskException");
             args.SetObserved(); // Prevent process termination for fire-and-forget task faults
         };
 

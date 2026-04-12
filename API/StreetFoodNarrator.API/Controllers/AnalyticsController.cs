@@ -78,6 +78,30 @@ public class AnalyticsController : ControllerBase
             .ToListAsync();
         var poiDict = pois.ToDictionary(p => p.POI_ID, p => p.Name_Vi ?? p.Name_En);
 
+        var deviceIds = logs
+            .Select(l => l.DeviceId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .Cast<string>()
+            .ToList();
+
+        var deviceLanguageDict = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        if (deviceIds.Count > 0)
+        {
+            var deviceRows = await _db.Devices
+                .Find(d => deviceIds.Contains(d.DeviceId))
+                .Project(d => new { d.DeviceId, d.PreferredLanguage })
+                .ToListAsync();
+
+            deviceLanguageDict = deviceRows
+                .Where(d => !string.IsNullOrWhiteSpace(d.DeviceId))
+                .GroupBy(d => d.DeviceId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => NormalizeLanguageCode(g.First().PreferredLanguage),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
         var dtos = logs.Select(l => new NarrationLogDto
         {
             Id = l.Id.ToString(),
@@ -93,6 +117,11 @@ public class AnalyticsController : ControllerBase
             DwellSeconds = l.DwellSeconds,
             UserLatitude = l.UserLatitude,
             UserLongitude = l.UserLongitude,
+            Language = !string.IsNullOrWhiteSpace(l.Language)
+                ? NormalizeLanguageCode(l.Language)
+                : (l.DeviceId != null && deviceLanguageDict.TryGetValue(l.DeviceId, out var preferredLanguage)
+                    ? preferredLanguage
+                    : null),
             WasPlayed = l.WasPlayed
         }).ToList();
 
@@ -444,6 +473,7 @@ public class AnalyticsController : ControllerBase
         var safeActionType = string.IsNullOrWhiteSpace(request.ActionType)
             ? "LocationPing"
             : request.ActionType.Trim();
+        var normalizedLanguage = NormalizeLanguageCode(request.Language);
 
         var log = new NarrationLog
         {
@@ -458,6 +488,7 @@ public class AnalyticsController : ControllerBase
             DwellSeconds = request.DwellSeconds,
             UserLatitude = request.UserLatitude ?? effectiveLatitude,
             UserLongitude = request.UserLongitude ?? effectiveLongitude,
+            Language = normalizedLanguage,
             WasPlayed = request.WasPlayed
         };
 
@@ -476,7 +507,7 @@ public class AnalyticsController : ControllerBase
                     Model = request.Model,
                     OsVersion = request.OsVersion,
                     AppVersion = request.AppVersion,
-                    PreferredLanguage = request.Language,
+                    PreferredLanguage = normalizedLanguage,
                     FirstSeen = DateTime.UtcNow,
                     LastSeen = DateTime.UtcNow,
                     TotalSessions = 1,
@@ -493,7 +524,7 @@ public class AnalyticsController : ControllerBase
                     .Set(d => d.Model, request.Model ?? existing.Model)
                     .Set(d => d.OsVersion, request.OsVersion ?? existing.OsVersion)
                     .Set(d => d.AppVersion, request.AppVersion ?? existing.AppVersion)
-                    .Set(d => d.PreferredLanguage, request.Language ?? existing.PreferredLanguage)
+                    .Set(d => d.PreferredLanguage, normalizedLanguage ?? existing.PreferredLanguage)
                     .Inc(d => d.TotalPOIsViewed, 1);
 
                 if (request.WasPlayed)
@@ -538,6 +569,21 @@ public class AnalyticsController : ControllerBase
         longitude = 0;
         return false;
     }
+
+    private static string? NormalizeLanguageCode(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var value = raw.Trim().ToLowerInvariant();
+        if (value.StartsWith("vi")) return "vi";
+        if (value.StartsWith("en")) return "en";
+        if (value.StartsWith("zh") || value.StartsWith("cn")) return "zh";
+        if (value.StartsWith("ja")) return "ja";
+        if (value.StartsWith("ko")) return "ko";
+        if (value.StartsWith("fr")) return "fr";
+        return value.Length <= 10 ? value : value[..10];
+    }
 }
 
 // DTOs
@@ -556,6 +602,7 @@ public class NarrationLogDto
     public int? DwellSeconds { get; set; }
     public decimal? UserLatitude { get; set; }
     public decimal? UserLongitude { get; set; }
+    public string? Language { get; set; }
     public bool WasPlayed { get; set; }
 }
 
