@@ -170,26 +170,22 @@ namespace StreetFoodNarrator.App
             base.OnCreate(savedInstanceState);
             TryCaptureQrDeepLink(Intent);
 
-            // Edge-to-edge so the map can render under the status bar.
-            WindowCompat.SetDecorFitsSystemWindows(Window!, false);
-#pragma warning disable CA1416, CA1422 // SetStatusBarColor obsoleted API 35+; safe on our min-SDK
-            Window!.SetStatusBarColor(AColor.ParseColor("#0A1612"));
-#pragma warning restore CA1416, CA1422
-
-            var insetsController = WindowCompat.GetInsetsController(Window!, Window!.DecorView);
-            if (insetsController != null)
-                insetsController.AppearanceLightStatusBars = false;
-
-            // Android 13+ (API 33): must request POST_NOTIFICATIONS at runtime
-            if (OperatingSystem.IsAndroidVersionAtLeast(33))
+            try
             {
-                var granted = ContextCompat.CheckSelfPermission(
-                    this, global::Android.Manifest.Permission.PostNotifications);
-                if (granted != global::Android.Content.PM.Permission.Granted)
-                    ActivityCompat.RequestPermissions(
-                        this,
-                        new[] { global::Android.Manifest.Permission.PostNotifications },
-                        RequestNotificationPermission);
+                ApplyWindowStyleSafely();
+            }
+            catch (Exception ex)
+            {
+                StartupDiagnostics.Append(ex, "MainActivity.ApplyWindowStyle");
+            }
+
+            try
+            {
+                RequestNotificationPermissionIfNeeded();
+            }
+            catch (Exception ex)
+            {
+                StartupDiagnostics.Append(ex, "MainActivity.RequestNotificationPermission");
             }
         }
 
@@ -228,8 +224,43 @@ namespace StreetFoodNarrator.App
             }
             catch (Exception ex)
             {
+                StartupDiagnostics.Append(ex, "MainActivity.TryCaptureQrDeepLink");
                 System.Diagnostics.Debug.WriteLine($"[MainActivity] QR deep link capture error: {ex.Message}");
             }
+        }
+
+        private void ApplyWindowStyleSafely()
+        {
+            var window = Window;
+            if (window == null)
+                return;
+
+            // Edge-to-edge so the map can render under the status bar.
+            WindowCompat.SetDecorFitsSystemWindows(window, false);
+#pragma warning disable CA1416, CA1422 // SetStatusBarColor obsoleted API 35+; safe on our min-SDK
+            window.SetStatusBarColor(AColor.ParseColor("#0A1612"));
+#pragma warning restore CA1416, CA1422
+
+            var insetsController = WindowCompat.GetInsetsController(window, window.DecorView);
+            if (insetsController != null)
+                insetsController.AppearanceLightStatusBars = false;
+        }
+
+        private void RequestNotificationPermissionIfNeeded()
+        {
+            // Android 13+ (API 33): must request POST_NOTIFICATIONS at runtime
+            if (!OperatingSystem.IsAndroidVersionAtLeast(33))
+                return;
+
+            var granted = ContextCompat.CheckSelfPermission(
+                this, global::Android.Manifest.Permission.PostNotifications);
+            if (granted == global::Android.Content.PM.Permission.Granted)
+                return;
+
+            ActivityCompat.RequestPermissions(
+                this,
+                new[] { global::Android.Manifest.Permission.PostNotifications },
+                RequestNotificationPermission);
         }
     }
 }

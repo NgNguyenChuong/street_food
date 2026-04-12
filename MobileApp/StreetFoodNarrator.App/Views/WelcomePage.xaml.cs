@@ -491,9 +491,15 @@ public partial class WelcomePage : ContentPage
                     return;
                 }
 
-                // Popup handlers already execute "download" and "skip" actions directly.
-                // Return here to avoid double download / double navigation races.
-                if (result == "download" || result == "skip")
+                // Execute selected action explicitly to avoid stalled flows.
+                if (result == "download")
+                {
+                    await RunDownloadWithOverlayAsync(isUpdate: false);
+                    return;
+                }
+
+                // Backward compatibility: if an older popup variant already handled navigation.
+                if (result == "skip")
                     return;
             }
 

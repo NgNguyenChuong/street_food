@@ -1,4 +1,5 @@
 using Microsoft.Maui.ApplicationModel.DataTransfer;
+using Microsoft.Maui.Networking;
 using StreetFoodNarrator.App.ViewModels;
 using System.Net.Http.Json;
 
@@ -23,6 +24,9 @@ public partial class PremiumTourPaywallPage : ContentPage
     private string _latestInvoiceNumber = string.Empty;
     private DateTime? _latestInvoiceCreatedAtUtc;
     private DateTime? _latestExpiresAtUtc;
+
+    private const string PaymentNoNetworkTitle = "Không có mạng";
+    private const string PaymentNoNetworkMessage = "Hiện tại không có kết nối Internet nên chưa thể xác nhận thanh toán QR hoặc khôi phục VIP. Vui lòng bật mạng và thử lại.";
 
     public PremiumTourPaywallPage(string? tourName = null, MainViewModel? viewModel = null)
     {
@@ -131,9 +135,14 @@ public partial class PremiumTourPaywallPage : ContentPage
         await NavigateBackToTourListAsync();
     }
 
-    private void OnSubscribeNowClicked(object sender, EventArgs e)
+    private async void OnSubscribeNowClicked(object sender, EventArgs e)
     {
         ShowPaymentStep();
+
+        if (!IsOnline())
+        {
+            await DisplayAlertAsync(PaymentNoNetworkTitle, PaymentNoNetworkMessage, "OK");
+        }
     }
 
     private async void OnMaybeLaterClicked(object sender, EventArgs e)
@@ -169,6 +178,12 @@ public partial class PremiumTourPaywallPage : ContentPage
         }
 
         _transferContent = typed;
+
+        if (!IsOnline())
+        {
+            await DisplayAlertAsync(PaymentNoNetworkTitle, PaymentNoNetworkMessage, "OK");
+            return;
+        }
 
         _isConfirmingPayment = true;
         ConfirmTransferButton.IsEnabled = false;
@@ -282,6 +297,12 @@ public partial class PremiumTourPaywallPage : ContentPage
         if (_isConfirmingPayment || _isRestoringVip)
             return;
 
+        if (!IsOnline())
+        {
+            await DisplayAlertAsync(PaymentNoNetworkTitle, PaymentNoNetworkMessage, "OK");
+            return;
+        }
+
         var recoveryCode = await DisplayPromptAsync(
             "Khôi phục VIP",
             "Nhập mã khôi phục (ví dụ: VIP-ABCDE-12345)",
@@ -353,6 +374,9 @@ public partial class PremiumTourPaywallPage : ContentPage
 
     private async Task<SubscriptionStatusDto?> ConfirmDevicePaymentAsync()
     {
+        if (!IsOnline())
+            return null;
+
         var deviceId = GetOrCreateAnonymousDeviceId();
         var url = AppConfig.BuildApiUrl("api/Subscriptions/confirm-device-payment");
         var payload = new ConfirmDevicePaymentDto
@@ -379,6 +403,9 @@ public partial class PremiumTourPaywallPage : ContentPage
 
     private async Task<SubscriptionStatusDto?> RestoreDeviceVipAsync(string recoveryCode)
     {
+        if (!IsOnline())
+            return null;
+
         var deviceId = GetOrCreateAnonymousDeviceId();
         var url = AppConfig.BuildApiUrl("api/Subscriptions/restore-device-vip");
         var payload = new RestoreDeviceVipDto
@@ -423,6 +450,9 @@ public partial class PremiumTourPaywallPage : ContentPage
 
         return value.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
     }
+
+    private static bool IsOnline()
+        => Connectivity.Current.NetworkAccess == NetworkAccess.Internet;
 
     private sealed class ConfirmDevicePaymentDto
     {

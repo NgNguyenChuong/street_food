@@ -98,7 +98,7 @@ public partial class AppShell : Shell
     private void OnShellLoaded(object? sender, EventArgs e)
     {
         StartVipStatusMonitorTimer();
-        _ = _mainViewModel.RefreshVipSubscriptionStatusAsync(force: false);
+        _ = RefreshVipStatusSafelyAsync("OnShellLoaded");
     }
 
     private void OnShellUnloaded(object? sender, EventArgs e)
@@ -144,6 +144,19 @@ public partial class AppShell : Shell
         finally
         {
             _isVipStatusRefreshInFlight = false;
+        }
+    }
+
+    private async Task RefreshVipStatusSafelyAsync(string stage)
+    {
+        try
+        {
+            await _mainViewModel.RefreshVipSubscriptionStatusAsync(force: false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AppShell] {stage} error: {ex.Message}");
+            App.AppendStartupErrorToLog(ex, $"AppShell.{stage}");
         }
     }
 
