@@ -20,6 +20,8 @@ public class VendorsController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
 
     private static readonly Regex PhoneRegex = new(@"^\+84(3|5|7|8|9)\d{8}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex PersonNameRegex = new(@"^[\p{L}][\p{L}\s'.-]{1,199}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex BusinessNameRegex = new(@"^(?=.{2,200}$)[\p{L}\p{N}\s&().,'""/+\-]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public VendorsController(MongoDbContext db, MongoSequenceService sequence, UserManager<ApplicationUser> userManager)
     {
@@ -127,7 +129,69 @@ public class VendorsController : ControllerBase
             return BadRequest(new { message = "Tên cửa hàng không được để trống." });
         }
 
-        var contactEmail = NormalizeNullable(request.ContactEmail);
+        var fullName = NormalizeNullable(request.FullName);
+        var businessDescription = NormalizeNullable(request.BusinessDescription);
+        var contactName = NormalizeNullable(request.ContactName);
+        var contactEmail = NormalizeNullable(request.ContactEmail)?.ToLowerInvariant();
+        var address = NormalizeNullable(request.Address);
+
+        if (!string.IsNullOrWhiteSpace(fullName) && fullName.Length > 200)
+        {
+            return BadRequest(new { message = "Họ và tên tối đa 200 ký tự." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(businessName) && businessName.Length > 200)
+        {
+            return BadRequest(new { message = "Tên cửa hàng tối đa 200 ký tự." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(contactName) && contactName.Length > 200)
+        {
+            return BadRequest(new { message = "Tên người liên hệ tối đa 200 ký tự." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(contactEmail) && contactEmail.Length > 200)
+        {
+            return BadRequest(new { message = "Email liên hệ tối đa 200 ký tự." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(address) && address.Length > 500)
+        {
+            return BadRequest(new { message = "Địa chỉ tối đa 500 ký tự." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(businessDescription) && businessDescription.Length > 500)
+        {
+            return BadRequest(new { message = "Mô tả cửa hàng tối đa 500 ký tự." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(fullName) && !PersonNameRegex.IsMatch(fullName))
+        {
+            return BadRequest(new { message = "Họ và tên chứa ký tự không hợp lệ." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(contactName) && !PersonNameRegex.IsMatch(contactName))
+        {
+            return BadRequest(new { message = "Tên người liên hệ chứa ký tự không hợp lệ." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(businessName) && !BusinessNameRegex.IsMatch(businessName))
+        {
+            return BadRequest(new { message = "Tên cửa hàng chứa ký tự không hợp lệ." });
+        }
+
+        if (HasInvalidControlChars(fullName)
+            || HasInvalidControlChars(businessName)
+            || HasInvalidControlChars(contactName)
+            || HasInvalidControlChars(contactEmail)
+            || HasInvalidControlChars(address)
+            || HasInvalidControlChars(request.PhoneNumber)
+            || HasInvalidControlChars(request.ContactPhone)
+            || HasInvalidControlChars(businessDescription, allowLineBreaks: true))
+        {
+            return BadRequest(new { message = "Dữ liệu chứa ký tự điều khiển không hợp lệ." });
+        }
+
         if (!string.IsNullOrWhiteSpace(contactEmail) && !new EmailAddressAttribute().IsValid(contactEmail))
         {
             return BadRequest(new { message = "Email liên hệ không đúng định dạng." });
@@ -190,15 +254,15 @@ public class VendorsController : ControllerBase
         if (request.BusinessName != null)
             updates.Add(Builders<VendorProfile>.Update.Set(v => v.BusinessName, businessName!));
         if (request.BusinessDescription != null)
-            updates.Add(Builders<VendorProfile>.Update.Set(v => v.BusinessDescription, NormalizeNullable(request.BusinessDescription)));
+            updates.Add(Builders<VendorProfile>.Update.Set(v => v.BusinessDescription, businessDescription));
         if (request.ContactName != null)
-            updates.Add(Builders<VendorProfile>.Update.Set(v => v.ContactName, NormalizeNullable(request.ContactName)));
+            updates.Add(Builders<VendorProfile>.Update.Set(v => v.ContactName, contactName));
         if (request.ContactEmail != null)
             updates.Add(Builders<VendorProfile>.Update.Set(v => v.ContactEmail, contactEmail));
         if (request.ContactPhone != null)
             updates.Add(Builders<VendorProfile>.Update.Set(v => v.ContactPhone, normalizedContactPhone));
         if (request.Address != null)
-            updates.Add(Builders<VendorProfile>.Update.Set(v => v.Address, NormalizeNullable(request.Address)));
+            updates.Add(Builders<VendorProfile>.Update.Set(v => v.Address, address));
 
         var combinedUpdate = Builders<VendorProfile>.Update.Combine(updates);
         await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, combinedUpdate);
@@ -212,7 +276,7 @@ public class VendorsController : ControllerBase
         var userChanged = false;
         if (request.FullName != null)
         {
-            user.FullName = NormalizeNullable(request.FullName);
+            user.FullName = fullName;
             userChanged = true;
         }
 
@@ -564,6 +628,25 @@ public class VendorsController : ControllerBase
             return null;
 
         return compact;
+    }
+
+    private static bool HasInvalidControlChars(string? value, bool allowLineBreaks = false)
+    {
+        if (string.IsNullOrEmpty(value))
+            return false;
+
+        foreach (var ch in value)
+        {
+            if (char.IsControl(ch))
+            {
+                if (allowLineBreaks && (ch == '\n' || ch == '\r' || ch == '\t'))
+                    continue;
+
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
