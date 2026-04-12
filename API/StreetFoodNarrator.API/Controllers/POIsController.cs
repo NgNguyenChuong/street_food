@@ -1119,9 +1119,72 @@ public class POIsController : ControllerBase
             .Set(p => p.UpdatedAt, DateTime.UtcNow);
         await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
 
+        var deletedAudioCount = await RemoveAudiosByPoiIdAsync(id);
+
         await RemovePoiFromAllToursAsync(poi.Id.ToString());
 
-        return Ok(new { message = "POI đã được đóng cửa vĩnh viễn." });
+        return Ok(new
+        {
+            message = "POI đã được đóng cửa vĩnh viễn.",
+            deletedAudioCount
+        });
+    }
+
+    private async Task<long> RemoveAudiosByPoiIdAsync(int poiId)
+    {
+        var audios = await _db.AudioContents
+            .Find(a => a.POI_ID == poiId)
+            .ToListAsync();
+
+        foreach (var audio in audios)
+        {
+            if (!TryGetAudioPhysicalPath(audio.AudioUrl, out var audioPath) || string.IsNullOrWhiteSpace(audioPath))
+                continue;
+
+            try
+            {
+                if (System.IO.File.Exists(audioPath))
+                    System.IO.File.Delete(audioPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete audio file for POI {PoiId}: {AudioPath}", poiId, audioPath);
+            }
+        }
+
+        var deleteResult = await _db.AudioContents.DeleteManyAsync(a => a.POI_ID == poiId);
+        return deleteResult.DeletedCount;
+    }
+
+    private bool TryGetAudioPhysicalPath(string? audioUrl, out string physicalPath)
+    {
+        physicalPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(audioUrl))
+            return false;
+
+        if (!audioUrl.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var fileName = Path.GetFileName(audioUrl);
+        if (string.IsNullOrWhiteSpace(fileName))
+            return false;
+
+        var normalized = audioUrl.Replace('\\', '/').ToLowerInvariant();
+        var inAudioFolder = normalized.StartsWith("/uploads/audio/");
+        var inTempAudioFolder = normalized.StartsWith("/uploads/temp-audio/");
+        if (!inAudioFolder && !inTempAudioFolder)
+            return false;
+
+        var targetFolder = inTempAudioFolder ? "temp-audio" : "audio";
+
+        var contentRootPath = Path.Combine(_env.ContentRootPath, "Uploads", targetFolder, fileName);
+        physicalPath = contentRootPath;
+        if (System.IO.File.Exists(physicalPath))
+            return true;
+
+        var legacyPath = Path.Combine(_env.WebRootPath, "uploads", targetFolder, fileName);
+        physicalPath = legacyPath;
+        return true;
     }
 
     private async Task RemovePoiFromAllToursAsync(string poiObjectId)

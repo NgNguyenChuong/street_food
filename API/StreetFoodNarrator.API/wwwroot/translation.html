@@ -418,9 +418,10 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         if (!requireAuth()) return;
-        var role = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
-        if (role !== 'admin') { window.location.href = 'dashboard'; return; }
-        loadData();
+        if (window.UiFeedback?.toast) {
+            window.UiFeedback.toast('Chức năng quản lý bản dịch đã được gỡ khỏi hệ thống.', 'warning', 2600);
+        }
+        window.location.href = 'dashboard';
     });
 </script>
 </body>

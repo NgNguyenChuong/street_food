@@ -145,12 +145,6 @@
 
                     ${isAdmin ? `
                     <li class="nav-item">
-                        <a href="translation" class="nav-link">
-                            <i class="nav-icon fas fa-language"></i>
-                            <span>Bản dịch</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a href="tour" class="nav-link">
                             <i class="nav-icon fas fa-route"></i>
                             <span>Quản lý Tour</span>
