@@ -891,13 +891,6 @@
                 </button>
             </div>
         </div>
-        <div class="bulk-actions">
-            <button class="btn btn-outline" onclick="deleteAllFiltered()">
-                <i class="fas fa-trash"></i>
-                <span>Xóa tất cả</span>
-            </button>
-        </div>
-
         <!-- Stats Bar -->
         <div class="stats-bar">
             <div class="stat-item">
@@ -1674,41 +1667,6 @@
                 triggerBtn.disabled = false;
                 triggerBtn.innerHTML = originalHtml;
             }
-        }
-    }
-
-    async function deleteAllFiltered() {
-        const ok = await showConfirm('Xóa tất cả audio theo bộ lọc hiện tại?');
-        if (!ok) return;
-        try {
-            const poiInput = currentPoiQuery.trim();
-            const poiId = poiInput && /^\d+$/.test(poiInput) ? parseInt(poiInput, 10) : null;
-            const poiName = poiInput && !poiId ? poiInput : null;
-            const fetchSize = Math.max(groupsPerPage * 4, 200);
-            const first = await api.getAudioList(
-                1,
-                fetchSize,
-                currentLanguage || null,
-                poiId,
-                currentStatus || null,
-                poiName
-            );
-            const total = first.total || (first.data || []).length;
-            const full = await api.getAudioList(
-                1,
-                total || 1000,
-                currentLanguage || null,
-                poiId,
-                currentStatus || null,
-                poiName
-            );
-            const all = full.data || [];
-            for (const a of all) {
-                try { await api.deleteAudio(a.audioContent_ID); } catch {}
-            }
-            loadAudios();
-        } catch (error) {
-            showConfirm('Lỗi khi xóa tất cả: ' + error.message, true);
         }
     }
 
