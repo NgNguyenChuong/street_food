@@ -414,6 +414,7 @@ let activeFilter = 'all';
 let pMap = null, pRoute = null, pMarkers = [];
 let savedRouteGeom = null;   // stored routeGeometry from DB
 let currentPage = 1;
+let currentTotalPages = 1;
 const pageSize = 6;
 let currentQrTourId = '';
 let currentQrTourName = '';
@@ -579,6 +580,7 @@ function filtered() {
 function renderPagedTours() {
     const data = filtered();
     const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+    currentTotalPages = totalPages;
     currentPage = Math.min(Math.max(1, currentPage), totalPages);
     const start = (currentPage - 1) * pageSize;
     const paged = data.slice(start, start + pageSize);
@@ -607,11 +609,29 @@ function renderPagination(totalPages, currentPageNum, hide = false) {
             <i class="fas fa-chevron-left"></i>
         </button>
     `;
-    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-        html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-    }
-    if (totalPages > 5) {
-        html += `<span class="pagination-info">... ${totalPages}</span>`;
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+    } else {
+        html += `<button class="pagination-btn ${currentPageNum === 1 ? 'active' : ''}" onclick="goToPage(1)">1</button>`;
+
+        const start = Math.max(2, currentPageNum - 1);
+        const end = Math.min(totalPages - 1, currentPageNum + 1);
+
+        if (start > 2) {
+            html += `<span class="pagination-info">...</span>`;
+        }
+
+        for (let i = start; i <= end; i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+
+        if (end < totalPages - 1) {
+            html += `<span class="pagination-info">...</span>`;
+        }
+
+        html += `<button class="pagination-btn ${currentPageNum === totalPages ? 'active' : ''}" onclick="goToPage(${totalPages})">${totalPages}</button>`;
     }
     html += `
         <button class="pagination-btn" onclick="changePage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
@@ -623,12 +643,12 @@ function renderPagination(totalPages, currentPageNum, hide = false) {
 
 function changePage(direction) {
     if (direction === 'prev' && currentPage > 1) currentPage--;
-    else if (direction === 'next') currentPage++;
+    else if (direction === 'next' && currentPage < currentTotalPages) currentPage++;
     renderPagedTours();
 }
 
 function goToPage(page) {
-    currentPage = page;
+    currentPage = Math.min(Math.max(1, Number(page) || 1), currentTotalPages);
     renderPagedTours();
 }
 

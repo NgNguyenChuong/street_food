@@ -456,7 +456,7 @@
 <script src="api.js"></script>
 <script src="sidebar.js"></script>
 <script>
-    let currentPage = 1, currentPageSize = 5;
+    let currentPage = 1, currentPageSize = 5, currentTotalPages = 1;
     let currentSearch = '', currentStatus = null, currentSort = 'newest';
     let currentCategory = null, currentReviewStatus = null;
     let selectedPOIs = new Set(), allPOIs = [], vendorAllPOIs = [];
@@ -641,9 +641,32 @@
     function renderPagination(totalPages, curPage) {
         const container = document.getElementById('paginationContainer');
         let html = `<button class="pagination-btn" onclick="changePage('prev')" ${curPage===1?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
-        const maxShow = Math.min(totalPages, 5);
-        for (let i = 1; i <= maxShow; i++) html += `<button class="pagination-btn ${i===curPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-        if (totalPages > 5) html += `<span style="color:#666;padding:0 0.5rem">... ${totalPages}</span>`;
+
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="pagination-btn ${i===curPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+        } else {
+            html += `<button class="pagination-btn ${curPage===1?'active':''}" onclick="goToPage(1)">1</button>`;
+
+            const start = Math.max(2, curPage - 1);
+            const end = Math.min(totalPages - 1, curPage + 1);
+
+            if (start > 2) {
+                html += `<span style="color:#666;padding:0 0.5rem">...</span>`;
+            }
+
+            for (let i = start; i <= end; i++) {
+                html += `<button class="pagination-btn ${i===curPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            if (end < totalPages - 1) {
+                html += `<span style="color:#666;padding:0 0.5rem">...</span>`;
+            }
+
+            html += `<button class="pagination-btn ${curPage===totalPages?'active':''}" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+        }
+
         html += `<button class="pagination-btn" onclick="changePage('next')" ${curPage===totalPages?'disabled':''}><i class="fas fa-chevron-right"></i></button>`;
         container.innerHTML = html;
     }
@@ -658,6 +681,7 @@
             const sorted = sortPois(statusFiltered, currentSort);
             const total = sorted.length;
             const totalPages = Math.max(1, Math.ceil(total / currentPageSize));
+            currentTotalPages = totalPages;
             currentPage = Math.min(Math.max(1, currentPage), totalPages);
             const start = (currentPage - 1) * currentPageSize;
             allPOIs = sorted.slice(start, start + currentPageSize);
@@ -717,9 +741,14 @@
 
     function changePage(dir) {
         if (dir === 'prev' && currentPage > 1) { currentPage--; loadPOIs(); }
-        else if (dir === 'next') { currentPage++; loadPOIs(); }
+        else if (dir === 'next' && currentPage < currentTotalPages) { currentPage++; loadPOIs(); }
     }
-    function goToPage(p) { currentPage = p; loadPOIs(); }
+    function goToPage(p) {
+        const target = Math.min(Math.max(1, Number(p) || 1), currentTotalPages);
+        if (target === currentPage) return;
+        currentPage = target;
+        loadPOIs();
+    }
 
     function toggleSelectAll() {
         const all = document.getElementById('selectAll').checked;

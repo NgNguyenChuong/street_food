@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="api.js"></script>
-    <script src="sidebar.js?v=20260410"></script>
+    <script src="sidebar.js?v=20260412"></script>
     <style>
         :root {
             --primary: #FF6B35;
@@ -471,7 +471,7 @@
             ? 'Quản lý thanh toán dịch vụ'
             : 'Quản lý thanh toán người dùng app';
         document.getElementById('pageSubtitle').textContent = showVendor
-            ? 'Admin duyệt yêu cầu premium để vendor được đăng POI quảng bá vào tour.'
+            ? 'Theo dõi các giao dịch premium của vendor và trạng thái kích hoạt ngay sau thanh toán.'
             : 'Theo dõi các lượt xác nhận thanh toán và trạng thái VIP theo thiết bị từ app mobile.';
 
         if (showVendor) {
@@ -510,7 +510,7 @@
             document.getElementById('pageSubtitle').textContent = 'Theo dõi thanh toán vendor và người dùng app từ menu Quản lý thanh toán ở sidebar.';
         } else {
             document.getElementById('pageTitle').textContent = 'Thanh toán gói dịch vụ';
-            document.getElementById('pageSubtitle').textContent = 'Đăng ký premium 1 năm để mở quyền thêm POI và được admin đưa POI vào tour quảng cáo.';
+            document.getElementById('pageSubtitle').textContent = 'Đăng ký premium 1 năm để mở quyền thêm POI và kích hoạt ngay sau khi thanh toán.';
         }
 
         return true;
@@ -526,10 +526,10 @@
 
         try {
             await PaymentApi.simulatePremium({ paymentMethod: 'mock_bank_transfer' });
-            alert('Đã tạo yêu cầu thanh toán giả lập thành công. Vui lòng chờ admin duyệt.');
+            showToast('Thanh toán giả lập thành công. Gói premium đã được kích hoạt ngay.', 'success');
             await loadVendorData();
         } catch (err) {
-            alert(err.message || 'Không thể tạo yêu cầu thanh toán.');
+            showToast(err.message || 'Không thể tạo yêu cầu thanh toán.', 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = oldHtml;
@@ -546,10 +546,10 @@
 
         try {
             const res = await PaymentApi.simulatePremiumExpiring(3);
-            alert(res?.message || 'Đã tạo gói giả lập còn 3 phút.');
+            showToast(res?.message || 'Đã tạo gói giả lập còn 3 phút.', 'success');
             await loadVendorData();
         } catch (err) {
-            alert(err.message || 'Không thể tạo gói giả lập 3 phút.');
+            showToast(err.message || 'Không thể tạo gói giả lập 3 phút.', 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = oldHtml;
@@ -592,18 +592,27 @@
                 body.appendChild(tr);
             }
         } catch (err) {
-            alert(err.message || 'Không thể tải dữ liệu thanh toán.');
+            showToast(err.message || 'Không thể tải dữ liệu thanh toán.', 'error');
         }
     }
 
     async function reviewSubmission(submissionId, status) {
-        const note = prompt(status === 'approved' ? 'Ghi chú duyệt (không bắt buộc):' : 'Lý do từ chối (không bắt buộc):', '') || '';
+        const note = (await window.UiFeedback.prompt(
+            status === 'approved' ? 'Ghi chú duyệt (không bắt buộc):' : 'Lý do từ chối (không bắt buộc):',
+            '',
+            {
+                title: status === 'approved' ? 'Duyệt submission' : 'Từ chối submission',
+                confirmText: 'Xác nhận',
+                cancelText: 'Hủy',
+                placeholder: status === 'approved' ? 'Nhập ghi chú (tùy chọn)' : 'Nhập lý do từ chối (tùy chọn)'
+            }
+        )) || '';
         try {
             await PaymentApi.reviewSubmission(submissionId, status, note);
-            alert(status === 'approved' ? 'Đã duyệt submission.' : 'Đã từ chối submission.');
+            showToast(status === 'approved' ? 'Đã duyệt submission.' : 'Đã từ chối submission.', 'success');
             await loadAdminData();
         } catch (err) {
-            alert(err.message || 'Thao tác thất bại.');
+            showToast(err.message || 'Thao tác thất bại.', 'error');
         }
     }
 
@@ -651,7 +660,7 @@
                 body.appendChild(tr);
             }
         } catch (err) {
-            alert(err.message || 'Không thể tải danh sách submissions.');
+            showToast(err.message || 'Không thể tải danh sách submissions.', 'error');
         }
     }
 
@@ -732,7 +741,7 @@
                 body.appendChild(tr);
             });
         } catch (err) {
-            alert(err.message || 'Không thể tải dữ liệu thanh toán người dùng app.');
+            showToast(err.message || 'Không thể tải dữ liệu thanh toán người dùng app.', 'error');
         }
     }
 

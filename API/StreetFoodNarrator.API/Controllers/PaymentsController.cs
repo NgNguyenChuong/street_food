@@ -34,6 +34,16 @@ public class PaymentsController : ControllerBase
         if (vendor == null)
             return Forbid();
 
+        var activePremium = await GetActivePremiumAsync(vendor);
+        if (activePremium.IsActive)
+        {
+            return Conflict(new
+            {
+                message = "Bạn đã có gói premium đang hoạt động, không thể đăng ký thêm.",
+                expiresAt = activePremium.ExpiresAt
+            });
+        }
+
         if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest(new { message = "Vendor phải được duyệt trước khi đăng ký gói premium." });
@@ -41,6 +51,7 @@ public class PaymentsController : ControllerBase
 
         var submissionId = await _sequence.GetNextAsync("submission_id");
         var now = DateTime.UtcNow;
+        var expiresAt = now.AddYears(1);
         var transactionRef = $"MOCK-{DateTime.UtcNow:yyyyMMddHHmmss}-{submissionId}";
 
         var submission = new ServiceSubmission
@@ -57,18 +68,28 @@ public class PaymentsController : ControllerBase
                 ? "mock_bank_transfer"
                 : request.PaymentMethod!.Trim(),
             TransactionRef = transactionRef,
-            Status = SubmissionStatuses.Pending,
+            Status = SubmissionStatuses.Approved,
             RequestedAt = now,
+            PaidAt = now,
+            ExpiresAt = expiresAt,
+            ReviewedAt = now,
+            ReviewedBy = "system-auto",
+            ReviewNote = "Auto approved on successful payment simulation.",
             CreatedAt = now,
             UpdatedAt = now
         };
 
         await _db.ServiceSubmissions.InsertOneAsync(submission);
-        await CreateAdminNotificationForPremiumSubmitAsync(submission, vendor);
+
+        var vendorUpdate = Builders<VendorProfile>.Update
+            .Set(v => v.ServicePlan, "premium")
+            .Set(v => v.PremiumExpiresAt, expiresAt)
+            .Set(v => v.UpdatedAt, now);
+        await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, vendorUpdate);
 
         return Ok(new
         {
-            message = "Đã tạo yêu cầu thanh toán giả lập. Chờ admin duyệt để kích hoạt gói premium.",
+            message = "Thanh toán thành công. Gói premium đã được kích hoạt ngay.",
             submission = ToDto(submission, vendor.BusinessName)
         });
     }
@@ -98,6 +119,16 @@ public class PaymentsController : ControllerBase
         var vendor = await ResolveCurrentVendorAsync();
         if (vendor == null)
             return Forbid();
+
+        var activePremium = await GetActivePremiumAsync(vendor);
+        if (activePremium.IsActive)
+        {
+            return Conflict(new
+            {
+                message = "Bạn đã có gói premium đang hoạt động, không thể đăng ký thêm.",
+                expiresAt = activePremium.ExpiresAt
+            });
+        }
 
         if (!string.Equals(vendor.VerificationStatus, "approved", StringComparison.OrdinalIgnoreCase))
         {
@@ -324,6 +355,29 @@ public class PaymentsController : ControllerBase
             .ToListAsync();
 
         return vendors.ToDictionary(v => v.VendorId, v => v.BusinessName);
+    }
+
+    private async Task<(bool IsActive, DateTime? ExpiresAt)> GetActivePremiumAsync(VendorProfile vendor)
+    {
+        var now = DateTime.UtcNow;
+        var activeByProfile = string.Equals(vendor.ServicePlan, "premium", StringComparison.OrdinalIgnoreCase)
+            && vendor.PremiumExpiresAt.HasValue
+            && vendor.PremiumExpiresAt.Value > now;
+
+        if (activeByProfile)
+        {
+            return (true, vendor.PremiumExpiresAt);
+        }
+
+        var activeSubmission = await _db.ServiceSubmissions
+            .Find(x => x.VendorId == vendor.VendorId
+                && x.Status == SubmissionStatuses.Approved
+                && x.ExpiresAt.HasValue
+                && x.ExpiresAt > now)
+            .SortByDescending(x => x.ExpiresAt)
+            .FirstOrDefaultAsync();
+
+        return (activeSubmission != null, activeSubmission?.ExpiresAt);
     }
 
     private static SubmissionDto ToDto(ServiceSubmission row, string? businessName)

@@ -361,6 +361,11 @@
             color: #1F2937;
         }
 
+        .audio-script-input[readonly] {
+            background: #F8FAFC;
+            color: #64748B;
+        }
+
         .audio-script-input:focus {
             outline: none;
             border-color: var(--primary);
@@ -387,6 +392,11 @@
         }
 
         .btn-script-save {
+            background: #E8F2FF;
+            color: #0B4A8A;
+        }
+
+        .btn-script-edit {
             background: #E8F2FF;
             color: #0B4A8A;
         }
@@ -994,6 +1004,7 @@
     }
 
     let currentPage     = 1;
+    let currentTotalPages = 1;
     let groupsPerPage   = 5;   // Number of POI cards shown per page
     let currentLanguage = '';
     let currentPoiQuery = '';
@@ -1059,6 +1070,7 @@
         const grid = document.getElementById('audioGrid');
         const totalGroups = allGroups.length;
         const totalPages  = Math.max(1, Math.ceil(totalGroups / groupsPerPage));
+        currentTotalPages = totalPages;
         // Clamp currentPage
         if (currentPage > totalPages) currentPage = totalPages;
         if (currentPage < 1) currentPage = 1;
@@ -1124,12 +1136,29 @@
             </button>
         `;
 
-        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-        }
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+        } else {
+            html += `<button class="pagination-btn ${currentPageNum === 1 ? 'active' : ''}" onclick="goToPage(1)">1</button>`;
 
-        if (totalPages > 5) {
-            html += `<span class="pagination-info">... ${totalPages}</span>`;
+            const start = Math.max(2, currentPageNum - 1);
+            const end = Math.min(totalPages - 1, currentPageNum + 1);
+
+            if (start > 2) {
+                html += `<span class="pagination-info">...</span>`;
+            }
+
+            for (let i = start; i <= end; i++) {
+                html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            if (end < totalPages - 1) {
+                html += `<span class="pagination-info">...</span>`;
+            }
+
+            html += `<button class="pagination-btn ${currentPageNum === totalPages ? 'active' : ''}" onclick="goToPage(${totalPages})">${totalPages}</button>`;
         }
 
         html += `
@@ -1145,14 +1174,14 @@
     function changePage(direction) {
         if (direction === 'prev' && currentPage > 1) {
             currentPage--;
-        } else if (direction === 'next') {
+        } else if (direction === 'next' && currentPage < currentTotalPages) {
             currentPage++;
         }
         renderPage();
     }
 
     function goToPage(page) {
-        currentPage = page;
+        currentPage = Math.min(Math.max(1, Number(page) || 1), currentTotalPages);
         renderPage();
     }
 
@@ -1329,15 +1358,15 @@
                     <div class="audio-script">
                         <div class="audio-script-title">Nội dung audio (text)</div>
                         ${isVendor ? `
-                            <textarea class="audio-script-input" data-audio-id="${selected.audioContent_ID}" placeholder="Nhập script audio...">${escapeHtml(scriptText || '')}</textarea>
+                            <textarea class="audio-script-input" data-audio-id="${selected.audioContent_ID}" placeholder="Nhập script audio..." readonly>${escapeHtml(scriptText || '')}</textarea>
                             <div class="audio-script-actions">
-                                <button class="btn-script btn-script-save" data-action="save-script" data-id="${selected.audioContent_ID}">
-                                    <i class="fas fa-floppy-disk"></i>
-                                    <span>Lưu script</span>
+                                <button class="btn-script btn-script-edit" data-action="start-edit-regenerate" data-id="${selected.audioContent_ID}">
+                                    <i class="fas fa-pen-to-square"></i>
+                                    <span>Chỉnh sửa & tạo lại audio</span>
                                 </button>
-                                <button class="btn-script btn-script-generate" data-action="regenerate" data-id="${selected.audioContent_ID}">
+                                <button class="btn-script btn-script-generate" data-action="confirm-regenerate" data-id="${selected.audioContent_ID}" style="display:none;">
                                     <i class="fas fa-rotate"></i>
-                                    <span>Tạo lại audio</span>
+                                    <span>Xác nhận tạo lại</span>
                                 </button>
                             </div>
                         ` : isAdmin ? `
@@ -1449,10 +1478,31 @@
                 const card = btn.closest('.audio-card');
                 const input = card?.querySelector('.audio-script-input');
                 const script = input?.value?.trim() || '';
-                if (action === 'save-script') return saveAudioScript(id, script);
-                if (action === 'regenerate') return regenerateAudioFromScript(id, script, btn);
+                if (action === 'start-edit-regenerate') {
+                    return toggleScriptEditMode(card, true);
+                }
+                if (action === 'confirm-regenerate') {
+                    return regenerateAudioFromScript(id, script, btn);
+                }
             };
         });
+    }
+
+    function toggleScriptEditMode(card, isEditing) {
+        if (!card) return;
+        const input = card.querySelector('.audio-script-input');
+        const editBtn = card.querySelector('button[data-action="start-edit-regenerate"]');
+        const confirmBtn = card.querySelector('button[data-action="confirm-regenerate"]');
+        if (!input || !editBtn || !confirmBtn) return;
+
+        card.dataset.scriptEditMode = isEditing ? '1' : '0';
+        input.readOnly = !isEditing;
+        editBtn.style.display = isEditing ? 'none' : 'inline-flex';
+        confirmBtn.style.display = isEditing ? 'inline-flex' : 'none';
+
+        if (isEditing) {
+            setTimeout(() => input.focus(), 0);
+        }
     }
 
     function findAudioInCard(groupKey, audioId) {
@@ -1481,6 +1531,7 @@
             card.querySelectorAll('.audio-script-actions button').forEach(btn => {
                 btn.setAttribute('data-id', String(audio.audioContent_ID));
             });
+            toggleScriptEditMode(card, false);
         }
 
         const player = card.querySelector('.audio-player');
@@ -1574,19 +1625,6 @@
         }
     }
 
-    async function saveAudioScript(id, script) {
-        if (!isVendor) {
-            showToast('Admin không được phép chỉnh sửa script.', 'warning');
-            return;
-        }
-        try {
-            await api.updateAudio(id, { ttsText: script || '' });
-            await loadAudios();
-        } catch (error) {
-            showToast('Không thể lưu script: ' + error.message, 'error');
-        }
-    }
-
     async function regenerateAudioFromScript(id, script, triggerBtn) {
         if (!isVendor) {
             showToast('Admin không được phép tạo lại audio.', 'warning');
@@ -1604,6 +1642,7 @@
         }
 
         try {
+            const card = triggerBtn?.closest('.audio-card');
             const audio = findAudioById(id);
             const currentScript = getAudioScriptText(audio) || '';
             const newScript = (script || '').trim();
@@ -1624,6 +1663,9 @@
             }
 
             await api.request(`/Audio/${id}/generate-file`, { method: 'POST' });
+            if (card) {
+                toggleScriptEditMode(card, false);
+            }
             await loadAudios();
         } catch (error) {
             showToast('Không thể tạo lại audio: ' + error.message, 'error');

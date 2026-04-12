@@ -653,6 +653,14 @@
                 color: #fff;
             }
 
+            /* Keep admin payment menu typography consistent with other admin items */
+            #paymentNavGroup > .nav-link,
+            #paymentNavGroup .nav-sublink {
+                font-size: 0.96rem;
+                font-weight: 500;
+                line-height: 1.35;
+            }
+
             .nav-link.disabled,
             .nav-sublink.disabled {
                 opacity: 0.4;
