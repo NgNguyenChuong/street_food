@@ -815,11 +815,8 @@
                         Địa chỉ
                         <span class="required">*</span>
                     </label>
-                    <div class="address-field">
-                        <input type="text" class="form-input" id="address"
-                            placeholder="VD: 123 Vĩnh Khánh, Phường 5, Quận 4" autocomplete="off" required>
-                        <div id="addressSuggestions" class="address-suggestions"></div>
-                    </div>
+                    <input type="text" class="form-input" id="address"
+                        placeholder="VD: 123 Vĩnh Khánh, Phường 5, Quận 4" required>
                     <div class="form-help">
                         <i class="fas fa-map-marker-alt"></i>
                         Địa chỉ chính xác giúp du khách dễ tìm thấy quán
@@ -1325,105 +1322,6 @@
             document.getElementById(`lang-${lang}`).classList.add('active');
         }
 
-        // Address autocomplete
-        function setupAddressSuggestions() {
-            const input = document.getElementById('address');
-            const box = document.getElementById('addressSuggestions');
-            if (!input || !box) return;
-
-            let timer = null;
-            const vinhKhanhHint = 'Vĩnh Khánh, Quận 4, TP.HCM';
-
-            const normalize = (str) => String(str || '')
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '');
-
-            const isInVinhKhanh = (item) => {
-                const name = normalize(item?.display_name || '');
-                const road = normalize(item?.address?.road || '');
-                const suburb = normalize(item?.address?.suburb || '');
-                const district = normalize(item?.address?.city_district || item?.address?.county || '');
-
-                const hasVinhKhanh = name.includes('vinh khanh') || road.includes('vinh khanh') || suburb.includes('vinh khanh');
-                const hasDistrict4 = name.includes('quan 4') || name.includes('district 4') || district.includes('4');
-
-                return hasVinhKhanh && hasDistrict4;
-            };
-
-            const hideBox = () => {
-                box.classList.remove('show');
-                box.innerHTML = '';
-            };
-
-            const showSuggestions = (items) => {
-                box.innerHTML = '';
-
-                if (!items.length) {
-                    const empty = document.createElement('div');
-                    empty.className = 'address-empty';
-                    empty.textContent = 'Không tìm thấy địa chỉ trong khu Vĩnh Khánh, Quận 4';
-                    box.appendChild(empty);
-                    box.classList.add('show');
-                    return;
-                }
-
-                items.forEach(item => {
-                    const row = document.createElement('div');
-                    row.className = 'address-item';
-                    row.textContent = item.display_name || '';
-                    row.addEventListener('click', () => {
-                        input.value = item.display_name || '';
-
-                        const lat = parseFloat(item.lat);
-                        const lng = parseFloat(item.lon);
-                        if (!isNaN(lat) && !isNaN(lng)) {
-                            document.getElementById('latitude').value = lat.toFixed(6);
-                            document.getElementById('longitude').value = lng.toFixed(6);
-                        }
-
-                        hideBox();
-                    });
-                    box.appendChild(row);
-                });
-
-                box.classList.add('show');
-            };
-
-            const fetchSuggestions = async () => {
-                const query = input.value.trim();
-                if (query.length < 3) {
-                    hideBox();
-                    return;
-                }
-
-                try {
-                    const results = await api.geocode(`${query}, ${vinhKhanhHint}`, 10);
-                    const list = Array.isArray(results) ? results : [];
-                    const filtered = list.filter(isInVinhKhanh);
-                    showSuggestions(filtered);
-                } catch (error) {
-                    console.error('Geocoding error:', error);
-                    hideBox();
-                }
-            };
-
-            input.addEventListener('input', () => {
-                clearTimeout(timer);
-                timer = setTimeout(fetchSuggestions, 400);
-            });
-
-            input.addEventListener('focus', () => {
-                if (input.value.trim().length >= 3) {
-                    fetchSuggestions();
-                }
-            });
-
-            input.addEventListener('blur', () => {
-                setTimeout(hideBox, 250);
-            });
-        }
-
         // Opening hours preset
         let currentPreset = 'weekday';
 
@@ -1772,7 +1670,6 @@
             applyRoleUi();
             await loadVendorContext();
             await loadAdminVendorOptions();
-            setupAddressSuggestions();
             updateHoursPreview();
         })();
 
