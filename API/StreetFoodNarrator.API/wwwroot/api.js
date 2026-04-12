@@ -334,7 +334,7 @@ class API {
 
     async request(endpoint, options = {}) {
 
-        const { suppressNotFound, ...fetchOptions } = options;
+        const { suppressNotFound, skipAutoLogoutOn401 = false, ...fetchOptions } = options;
 
         const url = `${this.baseURL}${endpoint}`;
 
@@ -373,11 +373,11 @@ class API {
 
             
 
-            if (response.status === 401) {
+            if (response.status === 401 && !skipAutoLogoutOn401) {
 
                 TokenManager.logout();
 
-                throw new Error('Unauthorized - Please login again');
+                throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
 
             }
 
@@ -452,6 +452,8 @@ class API {
 
             method: 'POST',
 
+            skipAutoLogoutOn401: true,
+
             body: JSON.stringify({ email, password, fullName, phoneNumber })
 
         });
@@ -465,6 +467,8 @@ class API {
         const data = await this.request('/Auth/login', {
 
             method: 'POST',
+
+            skipAutoLogoutOn401: true,
 
             body: JSON.stringify({ email, password })
 
@@ -661,6 +665,10 @@ class API {
 
     async getVendorMe() {
         return this.request('/Vendors/me', { suppressNotFound: true });
+    }
+
+    async updateVendorMe(data) {
+        return this.request('/Vendors/me', { method: 'PUT', body: JSON.stringify(data) });
     }
 
     async getVendorStats() {
@@ -916,7 +924,7 @@ function qs(params = {}) {
 
 const AuthAPI = {
     login: (email, password) => api.login(email, password),
-    register: (data) => api.request('/Auth/register', { method: 'POST', body: JSON.stringify(data) }),
+    register: (data) => api.request('/Auth/register', { method: 'POST', skipAutoLogoutOn401: true, body: JSON.stringify(data) }),
     me: () => api.getCurrentUser(),
     refresh: () => api.refreshToken()
 };
@@ -965,6 +973,7 @@ const TTSApi = {
 
 const VendorApi = {
     me: () => api.request('/Vendors/me', { suppressNotFound: true }),
+    updateMe: (data) => api.request('/Vendors/me', { method: 'PUT', body: JSON.stringify(data) }),
     list: ({ search, status, sort } = {}) => api.request('/Vendors' + qs({ search, status, sort })),
     stats: () => api.request('/Vendors/stats'),
     get: (vendorId) => api.request(`/Vendors/${vendorId}`),

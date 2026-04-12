@@ -1293,7 +1293,7 @@
             </div>
             <div class="card">
               <div class="card-head">
-                <div class="card-title"><i class="fas fa-mobile"></i>Nền tảng</div>
+                <div class="card-title"><i class="fas fa-language"></i>Ngôn ngữ nghe nhiều nhất</div>
               </div>
               <div class="chart-box" style="height:170px"><canvas id="platformChart"></canvas></div>
             </div>
@@ -1394,7 +1394,7 @@
             <div class="movement-col">Session (ẩn danh)</div>
             <div class="movement-col">Tọa độ GPS</div>
             <div class="movement-col">Hành động</div>
-            <div class="movement-col">Thời gian ở lại</div>
+            <div class="movement-col">Thời gian ở lại (~ là ước tính)</div>
           </div>
 
           <div id="routeList" class="movement-list-wrap"></div>
@@ -1468,6 +1468,7 @@
     let avgListenPage = 1;
     const AVG_LISTEN_PAGE_SIZE = 6;
     let globalAudioMap = new Map();
+    let devicePreferredLanguageMap = new Map();
     const chartInst = {};
 
     /* ── UTILS ─────────────────────────────────────────────────── */
@@ -1481,6 +1482,28 @@
       const value = String(raw || '').trim().toLowerCase();
       if (!value) return '';
       return value.includes('android') ? 'Android' : '';
+    }
+
+    function toTimestamp(raw) {
+      const ts = new Date(raw || '').getTime();
+      return Number.isFinite(ts) ? ts : 0;
+    }
+
+    function getLogPoiId(log) {
+      return Number(log?.poI_ID ?? log?.poiId ?? log?.poi_ID ?? log?.POI_ID ?? 0);
+    }
+
+    function getLogSessionKey(log) {
+      return String(log?.sessionId ?? log?.SessionId ?? log?.userId ?? log?.UserId ?? '').trim();
+    }
+
+    function distanceMeters(lat1, lon1, lat2, lon2) {
+      const rad = Math.PI / 180;
+      const dLat = (lat2 - lat1) * rad;
+      const dLon = (lon2 - lon1) * rad;
+      const a = Math.sin(dLat / 2) ** 2
+        + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+      return 6371000 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
     }
 
     function isInsideVinhKhanh(lat, lon) {
@@ -1900,41 +1923,29 @@
       if (hpCount) hpCount.textContent = `${num(logs.length)} log`;
 
       const synTag = document.getElementById('syntheticTag');
-      if (synTag) synTag.textContent = `Mẫu: ${num(synCount)}`;
 
       const heat = [];
+      const poiById = new Map(
+        mapPois.map(p => [String(Number(p.poiId || 0)), p]).filter(([id]) => id !== '0')
+      );
       const bucket = new Map();
       for (const l of logs) {
-        const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
-        if (!isFinite(lat) || !isFinite(lon)) continue;
-        const k = `${lat.toFixed(5)}|${lon.toFixed(5)}`;
-        const weight = 1 + (l.dwellSeconds > 0 ? Math.min(5, l.dwellSeconds / 20) : 0);
-        bucket.set(k, (bucket.get(k) || 0) + weight);
+        const poiId = String(Number(l.poI_ID || l.poiId || l.poi_ID || 0));
+        const poi = poiById.get(poiId);
+        if (!poi) continue;
+        const dwellSeconds = Number(l.dwellSeconds || 0);
+        const weight = 1 + (dwellSeconds > 0 ? Math.min(5, dwellSeconds / 20) : 0);
+        bucket.set(poiId, (bucket.get(poiId) || 0) + weight);
       }
       const max = Math.max(1, ...bucket.values());
-      for (const [k, c] of bucket) {
-        const [lat, lon] = k.split('|').map(Number);
+      for (const [poiId, c] of bucket) {
+        const poi = poiById.get(poiId);
+        if (!poi) continue;
+        const lat = Number(poi.lat);
+        const lon = Number(poi.lon);
         heat.push([lat, lon, Math.max(.1, c / max)]);
       }
-
-      // Giả lập đường nối giữa các điểm để heatmap trải dài theo đường mang tính chất kết nối
-      if (allRoutes && allRoutes.length) {
-        allRoutes.forEach(r => {
-          if (!r.points || r.points.length < 2) return;
-          for (let i = 0; i < r.points.length - 1; i++) {
-            const p1 = r.points[i], p2 = r.points[i+1];
-            if (Math.abs(p1.lat - p2.lat) < 0.05 && Math.abs(p1.lon - p2.lon) < 0.05) {
-              const count = Math.ceil(Math.random() * 4 + 2);
-              for(let j=1; j<count; j++){
-                const f = j/count;
-                const lat = p1.lat + (p2.lat - p1.lat) * f + (Math.random() - 0.5) * 0.0001;
-                const lon = p1.lon + (p2.lon - p1.lon) * f + (Math.random() - 0.5) * 0.0001;
-                heat.push([lat, lon, 0.04]); // Cường độ rất nhẹ để hiện màu xanh nhạt
-              }
-            }
-          }
-        });
-      }
+      if (synTag) synTag.textContent = `POI nóng: ${num(bucket.size)}`;
 
       if (heat.length && typeof L.heatLayer === 'function') {
         heatLayer = L.heatLayer(heat, {
@@ -1998,7 +2009,16 @@
         const u = l.sessionId || l.userId;
         if (!u) continue;
         if (!m.has(u)) m.set(u, []);
-        m.get(u).push({ lat, lon, at: l.triggeredAt, poiName: l.poiName || '—' });
+        m.get(u).push({
+          lat,
+          lon,
+          at: l.triggeredAt,
+          poiName: l.poiName || '—',
+          poiId: getLogPoiId(l),
+          actionType: l.actionType || '',
+          triggerType: l.triggerType || '',
+          dwellSeconds: l.dwellSeconds
+        });
       }
       return [...m.entries()].map(([u, pts]) => {
         pts.sort((a, b) => new Date(a.at) - new Date(b.at));
@@ -2006,12 +2026,113 @@
       }).filter(r => r.pointCount >= 2).sort((a, b) => b.pointCount - a.pointCount);
     }
 
+    function isTrailPoint(point) {
+      const action = String(point?.actionType || '').toLowerCase();
+      const trigger = String(point?.triggerType || '').toLowerCase();
+      return action === 'locationping' || trigger === 'proximity' || action === 'exitzone';
+    }
+
+    function buildTrailSegments(points) {
+      const ordered = [...(points || [])].sort((a, b) => toTimestamp(a.at) - toTimestamp(b.at));
+      const preferred = ordered.filter(isTrailPoint);
+      const source = preferred.length >= 2 ? preferred : ordered;
+
+      const cleaned = [];
+      for (const p of source) {
+        const lat = Number(p.lat);
+        const lon = Number(p.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        const prev = cleaned[cleaned.length - 1];
+        if (!prev) {
+          cleaned.push(p);
+          continue;
+        }
+
+        const d = distanceMeters(prev.lat, prev.lon, lat, lon);
+        if (d < 2) continue;
+        cleaned.push(p);
+      }
+
+      if (cleaned.length < 2) return [];
+
+      const segments = [];
+      let current = [[cleaned[0].lat, cleaned[0].lon]];
+
+      for (let i = 1; i < cleaned.length; i++) {
+        const prev = cleaned[i - 1];
+        const cur = cleaned[i];
+        const d = distanceMeters(prev.lat, prev.lon, cur.lat, cur.lon);
+        const dt = Math.max(0, (toTimestamp(cur.at) - toTimestamp(prev.at)) / 1000);
+
+        // Break trail on unrealistic jump or very large time gap.
+        if (d > 260 || dt > 900) {
+          if (current.length >= 2) segments.push(current);
+          current = [[cur.lat, cur.lon]];
+          continue;
+        }
+
+        current.push([cur.lat, cur.lon]);
+      }
+
+      if (current.length >= 2) segments.push(current);
+      return segments;
+    }
+
+    function drawTrailSegments(layer, segments, color, focused = false) {
+      for (const seg of segments) {
+        L.polyline(seg, {
+          color,
+          weight: focused ? 8 : 4,
+          opacity: focused ? 0.18 : 0.22,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(layer);
+
+        L.polyline(seg, {
+          color,
+          weight: focused ? 4.6 : 2.6,
+          opacity: focused ? 0.9 : 0.58,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(layer);
+      }
+    }
+
+    function addRoutePoiMarkers(layer) {
+      const maxPoiMarkers = 120;
+      (globalPois || []).slice(0, maxPoiMarkers).forEach((p, i) => {
+        const lat = Number(p?.lat);
+        const lon = Number(p?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        const color = POI_DOT_COLORS[i % POI_DOT_COLORS.length];
+        L.circleMarker([lat, lon], {
+          radius: 5.2,
+          color,
+          weight: 1.6,
+          fillColor: color,
+          fillOpacity: 0.72
+        })
+          .bindPopup(`<b style="color:${color}">${esc(p.poiName || 'POI')}</b><br><span style="font-size:11px;color:#666">${esc(p.address || '')}</span>`)
+          .addTo(layer);
+      });
+    }
+
     let movementLogs = [];
 
     /* translate trigger type to Vietnamese */
     function triggerLabel(raw) {
-      const map = { 'GeofenceEnter': 'Vào vùng', 'Proximity': 'Gần kề', 'ManualTap': 'Bấm tay' };
-      return map[raw] || raw || '—';
+      const key = String(raw || '').trim().toLowerCase();
+      const map = {
+        geofenceenter: 'Vào vùng',
+        proximity: 'Gần kề',
+        manualtap: 'Bấm tay',
+        geofenceexit: 'Rời vùng',
+        exitzone: 'Rời vùng',
+        locationping: 'Theo dõi vị trí',
+        narrationplayed: 'Nghe audio'
+      };
+      return map[key] || String(raw || '—');
     }
 
     function isRealPlaybackLog(log) {
@@ -2034,6 +2155,84 @@
       }
 
       return null;
+    }
+    
+    function narrationLanguageCode(log) {
+      if (!isRealPlaybackLog(log)) return null;
+
+      const deviceId = String(log.deviceId ?? log.DeviceId ?? '').trim().toLowerCase();
+      const raw = String(
+        log.language
+        ?? log.Language
+        ?? log.lang
+        ?? log.Lang
+        ?? log.audioLanguage
+        ?? log.AudioLanguage
+        ?? (deviceId ? devicePreferredLanguageMap.get(deviceId) : '')
+        ?? ''
+      ).trim().toLowerCase();
+
+      if (raw.startsWith('vi')) return 'vi';
+      if (raw.startsWith('en')) return 'en';
+      if (raw.startsWith('zh') || raw.startsWith('cn')) return 'zh';
+      return null;
+    }
+
+    function renderLanguageDonut(logs) {
+      if (chartInst.platform) { chartInst.platform.destroy(); chartInst.platform = null; }
+
+      const counts = { vi: 0, en: 0, zh: 0 };
+      for (const l of logs || []) {
+        const code = narrationLanguageCode(l);
+        if (!code || !(code in counts)) continue;
+        counts[code]++;
+      }
+
+      const labels = ['Tiếng Việt', 'Tiếng Anh', 'Tiếng Trung'];
+      const vals = [counts.vi, counts.en, counts.zh];
+      const total = vals.reduce((s, v) => s + v, 0);
+
+      const ctx = document.getElementById('platformChart').getContext('2d');
+      if (total <= 0) {
+        chartInst.platform = new Chart(ctx, {
+          type: 'doughnut',
+          data: { labels: ['Chưa có dữ liệu nghe'], datasets: [{ data: [1], backgroundColor: ['#CBD5E1'], borderWidth: 0 }] },
+          options: {
+            maintainAspectRatio: false,
+            cutout: '66%',
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#7C8497', font: { size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+              tooltip: { callbacks: { label: () => 'Chưa có dữ liệu ngôn ngữ' } }
+            }
+          }
+        });
+        return;
+      }
+
+      chartInst.platform = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: vals,
+            backgroundColor: ['#FF6B35DD', '#4A9EFFDD', '#2DD4BFDD'],
+            borderWidth: 0,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          cutout: '66%',
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#7C8497', font: { size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+            tooltip: {
+              callbacks: {
+                label: c => `${c.label}: ${num(c.parsed)} lượt nghe`
+              }
+            }
+          }
+        }
+      });
     }
 
     /* coordinate → short label using nearest POI */
@@ -2135,6 +2334,63 @@
       refreshMovementLogsByFilter();
     }
 
+    function buildDwellDisplayByRow(sortedLogs) {
+      const rows = (sortedLogs || []).map((l, rowIndex) => {
+        const ts = toTimestamp(l.triggeredAt);
+        const poiId = getLogPoiId(l);
+        const sessionKey = getLogSessionKey(l);
+        const action = String(l.actionType || '').toLowerCase();
+        const trigger = String(l.triggerType || '').toLowerCase();
+        const dwellRaw = Number(l.dwellSeconds);
+
+        return {
+          rowIndex,
+          ts,
+          poiId,
+          sessionKey,
+          action,
+          trigger,
+          dwellSeconds: Number.isFinite(dwellRaw) && dwellRaw >= 0 ? dwellRaw : null,
+          isExit: action === 'exitzone' || trigger === 'geofenceexit'
+        };
+      });
+
+      const exitsByKey = new Map();
+      for (const r of rows) {
+        if (!r.isExit || !r.sessionKey || r.poiId <= 0 || r.ts <= 0) continue;
+        const key = `${r.sessionKey}|${r.poiId}`;
+        if (!exitsByKey.has(key)) exitsByKey.set(key, []);
+        exitsByKey.get(key).push(r);
+      }
+
+      for (const list of exitsByKey.values()) {
+        list.sort((a, b) => a.ts - b.ts);
+      }
+
+      const displayByRow = new Map();
+      for (const r of rows) {
+        if (r.dwellSeconds != null) {
+          displayByRow.set(r.rowIndex, `${Math.round(r.dwellSeconds)}s`);
+          continue;
+        }
+
+        if (!r.sessionKey || r.poiId <= 0 || r.ts <= 0) continue;
+        const key = `${r.sessionKey}|${r.poiId}`;
+        const exits = exitsByKey.get(key);
+        if (!exits?.length) continue;
+
+        // Estimate from nearest future ExitZone in same session+POI, max 30 minutes.
+        const matchedExit = exits.find(e => e.ts >= r.ts && ((e.ts - r.ts) / 1000) <= 1800);
+        if (!matchedExit) continue;
+
+        if (matchedExit.dwellSeconds != null) {
+          displayByRow.set(r.rowIndex, `~${Math.round(matchedExit.dwellSeconds)}s`);
+        }
+      }
+
+      return displayByRow;
+    }
+
     function renderMovementLogTable(logs) {
       const list = document.getElementById('routeList');
       const movementCount = document.getElementById('movementCountBadge');
@@ -2166,6 +2422,7 @@
         const timeB = new Date(b.triggeredAt).getTime();
         return sortDir === 'asc' ? timeA - timeB : timeB - timeA;
       });
+      const dwellDisplayByRow = buildDwellDisplayByRow(sorted);
       
       const totalPages = Math.ceil(sorted.length / movementPageSize);
       if (movementPage > totalPages) movementPage = totalPages;
@@ -2175,22 +2432,35 @@
       const pagedLogs = sorted.slice(startIdx, startIdx + movementPageSize);
 
       let html = '';
-      for (const l of pagedLogs) {
+      for (let rowOffset = 0; rowOffset < pagedLogs.length; rowOffset++) {
+        const l = pagedLogs[rowOffset];
+        const globalRowIndex = startIdx + rowOffset;
         const timeText = l.triggeredAt ? new Date(l.triggeredAt).toLocaleString('vi-VN') : '—';
         const sessionRaw = l.sessionId || l.userId || 'ẩn danh';
         const sessionText = anonId(sessionRaw);
         const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
         const gpsText = (isFinite(lat) && isFinite(lon)) ? `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E` : '—';
         const poiText = l.poiName || ((isFinite(lat) && isFinite(lon)) ? nearestPoiName(lat, lon, globalPois || []) : '—');
-        const actionText = l.actionType || triggerLabel(l.triggerType) || 'LocationPing';
-        const dwellText = l.dwellSeconds != null && l.dwellSeconds >= 0 ? `${l.dwellSeconds}s` : '-';
+        const actionRaw = l.actionType || l.triggerType || 'LocationPing';
+        const actionText = triggerLabel(actionRaw);
+        const dwellRaw = Number(l.dwellSeconds);
+        const hasRawDwell = Number.isFinite(dwellRaw) && dwellRaw >= 0;
+        const estimatedDwell = hasRawDwell ? '' : (dwellDisplayByRow.get(globalRowIndex) || '');
+        const dwellText = hasRawDwell
+          ? `${Math.round(dwellRaw)}s`
+          : (estimatedDwell || 'Chờ ExitZone');
+        const dwellTitle = hasRawDwell
+          ? 'Thời gian ở lại lưu trực tiếp từ app'
+          : (estimatedDwell
+            ? 'Ước tính từ log rời vùng gần nhất cùng phiên và POI'
+            : 'Chưa có log rời vùng (ExitZone) để tính thời gian ở lại');
 
         html += `<div class="movement-row" style="grid-template-columns: 1.2fr 1.3fr 1.5fr .95fr .8fr;">
       <div class="movement-cell" style="font-size:.85rem">${timeText}</div>
       <div class="movement-cell mono" style="font-size:.85rem">${sessionText}</div>
       <div class="movement-cell mono muted" style="font-size:.8rem">${gpsText}<div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">POI: ${esc(poiText)}</div></div>
-      <div class="movement-cell"><span class="action-pill" style="font-size:.7rem">${actionText === 'NarrationPlayed' ? 'Nghe Audio' : actionText}</span></div>
-      <div class="movement-cell muted">${dwellText}</div>
+      <div class="movement-cell"><span class="action-pill" style="font-size:.7rem">${actionText}</span></div>
+      <div class="movement-cell muted" title="${dwellTitle}">${dwellText}</div>
     </div>`;
       }
 
@@ -2245,25 +2515,17 @@
       if (!routeLayerGrp) return;
       routeLayerGrp.clearLayers();
 
-      // Hiện thấu các POI tĩnh chìm phía dưới để có bối cảnh
-      globalPois.forEach(p => {
-        L.circleMarker([p.lat, p.lon], { radius: 5, color: '#888', fillColor: '#aaa', fillOpacity: 0.15, weight: 1 })
-          .bindPopup(`<span style="font-size:11px;color:#666">📍 ${p.poiName}</span>`)
-          .addTo(routeLayerGrp);
-      });
+      // POI tĩnh để đối chiếu bối cảnh với đường di chuyển
+      addRoutePoiMarkers(routeLayerGrp);
 
       if (idx < 0) {
         const routeSample = allRoutes.slice(0, 80);
         const coords = [];
         routeSample.forEach((route, i) => {
-          const ll = (route.points || []).map(p => [p.lat, p.lon]);
-          if (ll.length < 2) return;
-          coords.push(...ll);
-          L.polyline(ll, {
-            color: CC[i % CC.length],
-            weight: 2.4,
-            opacity: 0.55
-          }).addTo(routeLayerGrp);
+          const segs = buildTrailSegments(route.points || []);
+          if (!segs.length) return;
+          segs.forEach(seg => coords.push(...seg));
+          drawTrailSegments(routeLayerGrp, segs, CC[i % CC.length], false);
         });
 
         if (coords.length) {
@@ -2279,8 +2541,18 @@
         return;
       }
 
-      const ll = r.points.map(p => [p.lat, p.lon]);
-      L.polyline(ll, { color: '#FF6B35', weight: 4.5, opacity: .9 }).addTo(routeLayerGrp);
+      const segs = buildTrailSegments(r.points || []);
+      const ll = segs.flat();
+      if (segs.length) {
+        drawTrailSegments(routeLayerGrp, segs, '#FF6B35', true);
+      } else {
+        const fallback = (r.points || []).map(p => [p.lat, p.lon]).filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+        if (fallback.length >= 2) {
+          drawTrailSegments(routeLayerGrp, [fallback], '#FF6B35', true);
+          ll.push(...fallback);
+        }
+      }
+
       const f = r.points[0], la = r.points[r.points.length - 1];
       L.circleMarker([f.lat, f.lon], { radius: 6, color: '#2DD4BF', fillColor: '#2DD4BF', fillOpacity: 1 })
         .bindPopup(`<b>Bắt đầu</b><br>${new Date(f.at).toLocaleString('vi-VN')}<br>${f.poiName || ''}`)
@@ -2288,6 +2560,28 @@
       L.circleMarker([la.lat, la.lon], { radius: 6, color: '#EF4444', fillColor: '#EF4444', fillOpacity: 1 })
         .bindPopup(`<b>Kết thúc</b><br>${new Date(la.at).toLocaleString('vi-VN')}<br>${la.poiName || ''}`)
         .addTo(routeLayerGrp);
+
+      // Đánh dấu các POI đã đi qua trên chính tuyến này
+      const visitedPoiMap = new Map();
+      for (const p of r.points || []) {
+        const pid = Number(p.poiId || 0);
+        if (!pid || visitedPoiMap.has(pid)) continue;
+        const poi = (globalPois || []).find(x => Number(x.poiId) === pid);
+        if (!poi || !Number.isFinite(Number(poi.lat)) || !Number.isFinite(Number(poi.lon))) continue;
+        visitedPoiMap.set(pid, poi);
+      }
+      for (const [pid, poi] of visitedPoiMap.entries()) {
+        L.circleMarker([poi.lat, poi.lon], {
+          radius: 7.6,
+          color: '#F59E0B',
+          weight: 2,
+          fillColor: '#FBBF24',
+          fillOpacity: 0.9
+        })
+          .bindPopup(`<b>POI trên tuyến</b><br>${esc(poi.poiName || `POI ${pid}`)}`)
+          .addTo(routeLayerGrp);
+      }
+
       const b = L.latLngBounds(ll);
       if (b.isValid()) routeMapInst.fitBounds(b.pad(.08), { maxZoom: 19 });
     }
@@ -2447,6 +2741,17 @@
         }
         const audioMap = globalAudioMap;
 
+        devicePreferredLanguageMap = new Map(
+          (devices || [])
+            .map(d => {
+              const id = String(d.deviceId ?? d.DeviceId ?? '').trim();
+              const normalizedId = id.toLowerCase();
+              const language = String(d.preferredLanguage ?? d.PreferredLanguage ?? '').trim();
+              return [normalizedId, language];
+            })
+            .filter(([id, language]) => id && language)
+        );
+
         const allLogs = [...realLogs];
         const routeLogs = allLogs.filter(isVinhKhanhNarrationLog);
 
@@ -2462,7 +2767,7 @@
         renderAvgListenChart(avgRows);
         renderHourlyChart(allLogs);
         renderDonut('triggerChart', 'trigger', allLogs, l => playbackMethodLabel(l), ' lượt');
-        renderDonut('platformChart', 'platform', devices, d => d.platform, ' thiết bị');
+        renderLanguageDonut(allLogs);
         renderHeatMap(routeLogs, pois, 0);
         renderRouteList(allRoutes, routeLogs);
 

@@ -273,7 +273,7 @@ public class GeofenceService : IGeofenceService
                     FirstPlayedAt = now,
                     LastTriggeredAt = now,
                     PlayCount = 1,
-                    Language = "vi",
+                    Language = ResolveCurrentLanguageCode(),
                     SessionId = sessionId
                 };
             }
@@ -407,7 +407,7 @@ public class GeofenceService : IGeofenceService
                 Model = Microsoft.Maui.Devices.DeviceInfo.Model,
                 OsVersion = Microsoft.Maui.Devices.DeviceInfo.VersionString,
                 AppVersion = Microsoft.Maui.ApplicationModel.AppInfo.Current.VersionString,
-                Language = "vi",
+                Language = ResolveCurrentLanguageCode(),
                 TriggerType = triggerType,
                 ActionType = actionType,
                 TriggeredAt = DateTime.UtcNow,
@@ -436,6 +436,22 @@ public class GeofenceService : IGeofenceService
         var created = $"m-{Guid.NewGuid():N}";
         Microsoft.Maui.Storage.Preferences.Set(key, created);
         return created;
+    }
+
+    private static string ResolveCurrentLanguageCode()
+    {
+        var raw = Microsoft.Maui.Storage.Preferences.Get(AppConfig.LanguagePrefKey, "vi");
+        if (string.IsNullOrWhiteSpace(raw))
+            return "vi";
+
+        var value = raw.Trim().ToLowerInvariant();
+        if (value.StartsWith("vi")) return "vi";
+        if (value.StartsWith("en")) return "en";
+        if (value.StartsWith("zh") || value.StartsWith("cn")) return "zh";
+        if (value.StartsWith("ja")) return "ja";
+        if (value.StartsWith("ko")) return "ko";
+        if (value.StartsWith("fr")) return "fr";
+        return value;
     }
 
     private bool ShouldProcess(Microsoft.Maui.Devices.Sensors.Location newLoc)

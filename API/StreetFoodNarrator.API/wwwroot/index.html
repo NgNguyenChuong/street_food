@@ -146,6 +146,7 @@
     <script>
         // Auto-fill if stored
         document.getElementById('loginEmail').value = localStorage.getItem('last_email') || '';
+        const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 
         async function doLogin() {
             const email = document.getElementById('loginEmail').value.trim();
@@ -155,8 +156,14 @@
             const errMsg = document.getElementById('errorMsg');
 
             errBox.style.display = 'none';
-            if (!email || !pw) {
+            if (!email || !pw.trim()) {
                 errMsg.textContent = 'Vui lòng nhập email và mật khẩu';
+                errBox.style.display = 'flex';
+                return;
+            }
+
+            if (!EMAIL_REGEX.test(email)) {
+                errMsg.textContent = 'Email không đúng định dạng';
                 errBox.style.display = 'flex';
                 return;
             }
@@ -165,9 +172,10 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang đăng nhập...';
 
             try {
-                const data = await api.login(email, pw);
+                const normalizedEmail = email.toLowerCase();
+                const data = await api.login(normalizedEmail, pw);
                 if (data && data.token) {
-                    localStorage.setItem('last_email', email);
+                    localStorage.setItem('last_email', normalizedEmail);
                     console.log('Login success, redirecting to: dashboard');
                     // Force clean redirect without .html extension
                     window.location.replace('/dashboard');
@@ -176,7 +184,12 @@
                     errBox.style.display = 'flex';
                 }
             } catch (err) {
-                errMsg.textContent = err.message || 'Email hoặc mật khẩu không đúng';
+                const rawMsg = String(err?.message || '').trim();
+                if (/invalid email or password|unauthorized/i.test(rawMsg)) {
+                    errMsg.textContent = 'Email hoặc mật khẩu không đúng';
+                } else {
+                    errMsg.textContent = rawMsg || 'Email hoặc mật khẩu không đúng';
+                }
                 errBox.style.display = 'flex';
             } finally {
                 btn.disabled = false;
