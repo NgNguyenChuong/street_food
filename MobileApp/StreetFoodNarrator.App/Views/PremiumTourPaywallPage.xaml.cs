@@ -9,9 +9,13 @@ public partial class PremiumTourPaywallPage : ContentPage
     private const string PlanDisplayName = "Tour Explore";
     private const string PlanPricePerMonth = "36.000 VND / tháng";
     private const string PlanPriceCompact = "36.000 VND";
+    private const string BeneficiaryName = "STREET FOOD NARRATOR LTD";
+    private const string BankName = "Global Tech Bank";
+    private const string BankAccountNumber = "123-456-7890";
 
     private readonly string _tourName;
-    private readonly string _transferContent;
+    private string _transferContent = string.Empty;
+    private readonly string _defaultTransferContent;
     private readonly MainViewModel? _viewModel;
     private bool _isConfirmingPayment;
     private bool _isRestoringVip;
@@ -29,16 +33,47 @@ public partial class PremiumTourPaywallPage : ContentPage
             ? "tour tiếp theo"
             : tourName.Trim();
 
-        _transferContent = BuildTransferContent();
-        TransferContentLabel.Text = _transferContent;
+        _defaultTransferContent = BuildTransferContent();
+        _transferContent = _defaultTransferContent;
+        TransferContentEntry.Text = _transferContent;
+        BindPaymentQrImage();
 
         IntroTitleLabel.Text = "Mở khóa Tour Explore";
         IntroMessageLabel.Text = $"Đăng ký VIP để có thể sử dụng các chức năng hấp dẫn khác trong app và tiếp tục khám phá \"{_tourName}\".";
-        IntroBenefitsLabel.Text = "• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc";
+        IntroBenefitsLabel.Text = "• Tương tác với nhiều quán khác\n• Xem thêm nhiều tour đặc sắc";
         PaymentTitleLabel.Text = "Thanh toán gói Tour Explore";
         PaymentPriceLabel.Text = PlanPricePerMonth;
         SuccessPlanNameLabel.Text = $"Gói {PlanDisplayName}";
         SuccessPriceLabel.Text = PlanPriceCompact;
+    }
+
+    private void BindPaymentQrImage()
+    {
+        if (PaymentQrImage == null)
+            return;
+
+        var qrText = BuildPaymentQrText();
+        var qrImageUrl = BuildQrImageUrl(qrText);
+        PaymentQrImage.Source = ImageSource.FromUri(new Uri(qrImageUrl));
+    }
+
+    private string BuildPaymentQrText()
+    {
+        return string.Join("\n",
+        [
+            "PAYMENT_DEMO",
+            $"BENEFICIARY: {BeneficiaryName}",
+            $"BANK: {BankName}",
+            $"ACCOUNT_NO: {BankAccountNumber}",
+            "AMOUNT: 36000 VND",
+            $"CONTENT: {_transferContent}"
+        ]);
+    }
+
+    private static string BuildQrImageUrl(string payload)
+    {
+        var encoded = Uri.EscapeDataString(payload);
+        return $"https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=0&ecc=M&data={encoded}";
     }
 
     public static async Task ShowAsync(INavigation? navigation, string? tourName = null, MainViewModel? viewModel = null)
@@ -111,23 +146,29 @@ public partial class PremiumTourPaywallPage : ContentPage
         ShowIntroStep();
     }
 
-    private async void OnCopyTransferContentClicked(object sender, EventArgs e)
+    private void OnTransferContentEntryTextChanged(object? sender, TextChangedEventArgs e)
     {
-        try
-        {
-            await Clipboard.Default.SetTextAsync(_transferContent);
-            CopyContentButton.Text = "Đã sao chép";
-        }
-        catch
-        {
-            CopyContentButton.Text = "Không thể sao chép";
-        }
+        var typed = e.NewTextValue?.Trim() ?? string.Empty;
+        _transferContent = string.IsNullOrWhiteSpace(typed) ? _defaultTransferContent : typed;
+        BindPaymentQrImage();
     }
 
     private async void OnConfirmTransferClicked(object sender, EventArgs e)
     {
         if (_isConfirmingPayment || _isRestoringVip)
             return;
+
+        var typed = TransferContentEntry.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(typed))
+        {
+            await DisplayAlertAsync(
+                "Thiếu thông tin",
+                "Vui lòng nhập nội dung chuyển khoản trước khi xác nhận đăng ký.",
+                "OK");
+            return;
+        }
+
+        _transferContent = typed;
 
         _isConfirmingPayment = true;
         ConfirmTransferButton.IsEnabled = false;

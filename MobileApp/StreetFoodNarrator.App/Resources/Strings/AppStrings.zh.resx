@@ -662,7 +662,7 @@
     <value>暂不可虚拟浏览</value>
   </data>
   <data name="Main_Virtual_NotAvailable_Message" xml:space="preserve">
-    <value>虚拟模式仅建议在距离 POI 区域超过 1 公里时使用。</value>
+    <value>虚拟模式仅建议在距离店铺区域超过 1 公里时使用。</value>
   </data>
   <data name="Main_NoAttractions_Message" xml:space="preserve">
     <value>当前没有可用景点。</value>

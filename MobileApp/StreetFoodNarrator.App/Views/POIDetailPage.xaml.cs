@@ -268,14 +268,20 @@ public partial class POIDetailPage : ContentPage
     {
         try
         {
-            var db = MauiProgram.Services.GetRequiredService<ILocalDatabaseService>();
-            _poi.IsLikedByUser = !_poi.IsLikedByUser;
-            await db.SavePOIAsync(_poi);
-            UpdateLikeIcon();
-
             var mainVm = MauiProgram.Services.GetService<ViewModels.MainViewModel>();
             if (mainVm != null)
+            {
+                await mainVm.ToggleSavePOICommand.ExecuteAsync(_poi);
                 await mainVm.LoadSavedPOIsAsync(forceReload: true);
+            }
+            else
+            {
+                var db = MauiProgram.Services.GetRequiredService<ILocalDatabaseService>();
+                _poi.IsLikedByUser = !_poi.IsLikedByUser;
+                await db.SavePOIAsync(_poi);
+            }
+
+            UpdateLikeIcon();
         }
         catch (Exception ex)
         {

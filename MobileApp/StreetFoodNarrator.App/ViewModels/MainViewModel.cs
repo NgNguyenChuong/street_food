@@ -53,9 +53,9 @@ public partial class MainViewModel : ObservableObject
             : UiText("Chưa đi", "Not yet", "未体验");
         public string TrialLockTitle => UiText("Đăng ký VIP để mở khóa", "Subscribe VIP to unlock", "订阅 VIP 以解锁");
         public string TrialLockDescription => UiText(
-            "Đăng ký VIP để dùng thêm các chức năng hấp dẫn trong app:\n• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc",
-            "Subscribe to VIP for more exciting app features:\n• Interact with more POIs\n• Access more curated tours",
-            "订阅 VIP 以解锁更多精彩功能：\n• 与更多 POI 互动\n• 查看更多精选路线");
+            "Đăng ký VIP để dùng thêm các chức năng hấp dẫn trong app:\n• Tương tác với nhiều quán khác\n• Xem thêm nhiều tour đặc sắc",
+            "Subscribe to VIP for more exciting app features:\n• Interact with more places\n• Access more curated tours",
+            "订阅 VIP 以解锁更多精彩功能：\n• 与更多店铺互动\n• 查看更多精选路线");
     }
 
     public enum AppMode
@@ -445,8 +445,7 @@ public partial class MainViewModel : ObservableObject
 
     private static double GetEffectiveSpotInZoneRadius(POI spot)
     {
-        var rawRadius = spot.Radius > 0 ? spot.Radius : AppConfig.SpotZoneMinMeters;
-        return Math.Clamp(rawRadius, AppConfig.SpotZoneMinMeters, AppConfig.SpotZoneMaxMeters);
+        return AppConfig.NormalizeSpotRadiusMeters(spot.Radius);
     }
 
     public void ReduceTrackingForBackground()
@@ -454,7 +453,11 @@ public partial class MainViewModel : ObservableObject
         if (!IsTracking)
             return;
 
-        GetActiveLocationService().SetTrackingState(TrackingProximityState.Far);
+        var nextState = CurrentExploreState == ExploreState.InZone || CurrentExploreState == ExploreState.Near
+            ? TrackingProximityState.Near
+            : TrackingProximityState.Far;
+
+        GetActiveLocationService().SetTrackingState(nextState);
     }
 
     public void RestoreTrackingFromBackground()
@@ -604,6 +607,7 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>Fires when user taps "Chuyển sang Real Mode" in the proximity banner.</summary>
     public event EventHandler? SwitchToRealModeRequested;
+    public event EventHandler? VipSubscriptionExpired;
 
     [RelayCommand]
     public void SwitchToRealModeFromVirtual() => SwitchToRealModeRequested?.Invoke(this, EventArgs.Empty);
@@ -737,6 +741,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SemaphoreSlim _liveSyncGate = new(1, 1);
     private readonly SemaphoreSlim _loadPoisGate = new(1, 1);
     private readonly SemaphoreSlim _loadSavedPoisGate = new(1, 1);
+    private readonly SemaphoreSlim _favoriteToggleGate = new(1, 1);
     private bool _isLiveSyncInFlight;
     private DateTime _lastSavedPoisLoadedUtc = DateTime.MinValue;
     private const string ToursCacheJsonKey = "tours_cache_json_v1";
@@ -745,6 +750,7 @@ public partial class MainViewModel : ObservableObject
     private const string FreeTourIdKey = "subscription_free_tour_id_v1";
     private const string VipInvoiceCreatedAtUtcKey = "vip_invoice_created_at_utc_v1";
     private const string VipExpiresAtUtcKey = "vip_expires_at_utc_v1";
+    private const string VipExpiryNotifiedAtUtcKey = "vip_expiry_notified_at_utc_v1";
     private const string LastTourSyncTimeKey = "LastTourSyncTime";
     private const string LastPoiSyncTimeKey = "LastSyncTime";
     private const int PoiSyncIntervalSeconds = 60;
@@ -762,6 +768,7 @@ public partial class MainViewModel : ObservableObject
     private List<POI> _tourPoiCatalog = new();
     private string _freeTourId = string.Empty;
     private readonly HashSet<int> _freeTourPoiIds = new();
+    private DateTime? _lastVipExpiryNotifiedAtUtc;
 
     partial void OnSelectedCategoryChanged(string value)
     {
@@ -2870,15 +2877,16 @@ public partial class MainViewModel : ObservableObject
 
     private void ApplyTourFilterCore()
     {
-        var q = (TourSearchQuery ?? string.Empty).Trim().ToLowerInvariant();
-        var results = string.IsNullOrEmpty(q)
+        var tokens = BuildSearchTokens(TourSearchQuery);
+        var results = tokens.Count == 0
             ? AllTours.ToList()
             : AllTours.Where(t =>
-                    t.Name.ToLowerInvariant().Contains(q) ||
-                    t.Description.ToLowerInvariant().Contains(q) ||
-                    t.DescriptionVi.ToLowerInvariant().Contains(q) ||
-                    t.DescriptionEn.ToLowerInvariant().Contains(q) ||
-                    t.DescriptionZh.ToLowerInvariant().Contains(q))
+                    MatchesSearch(tokens,
+                        t.Name,
+                        t.Description,
+                        t.DescriptionVi,
+                        t.DescriptionEn,
+                        t.DescriptionZh))
                 .ToList();
 
         FilteredTours = new ObservableCollection<TourListItem>(results);
@@ -3510,6 +3518,11 @@ public partial class MainViewModel : ObservableObject
     {
         var now = DateTime.UtcNow;
         var normalizedIsVip = isVip && expiresAtUtc.HasValue && expiresAtUtc.Value > now;
+        var shouldNotifyVipExpired = ShouldNotifyVipExpired(
+            normalizedIsVip,
+            invoiceCreatedAtUtc,
+            expiresAtUtc,
+            now);
 
         VipInvoiceCreatedAtUtc = invoiceCreatedAtUtc;
         VipExpiresAtUtc = expiresAtUtc;
@@ -3526,6 +3539,9 @@ public partial class MainViewModel : ObservableObject
         }
 
         PersistVipStatusToPreferences();
+
+        if (shouldNotifyVipExpired && expiresAtUtc.HasValue)
+            NotifyVipExpiredOnce(expiresAtUtc.Value);
     }
 
     public async Task RefreshVipSubscriptionStatusAsync(bool force = false)
@@ -3582,8 +3598,60 @@ public partial class MainViewModel : ObservableObject
         if (DateTime.TryParse(expiresRaw, out var parsedExpiry))
             expiresAt = parsedExpiry.ToUniversalTime();
 
+        var notifiedRaw = Preferences.Get(VipExpiryNotifiedAtUtcKey, string.Empty);
+        if (DateTime.TryParse(notifiedRaw, out var parsedNotified))
+            _lastVipExpiryNotifiedAtUtc = parsedNotified.ToUniversalTime();
+        else
+            _lastVipExpiryNotifiedAtUtc = null;
+
         var localVip = expiresAt.HasValue && expiresAt.Value > DateTime.UtcNow;
         ApplyVipSubscriptionFromServer(localVip, invoiceCreated, expiresAt);
+    }
+
+    private bool ShouldNotifyVipExpired(
+        bool normalizedIsVip,
+        DateTime? invoiceCreatedAtUtc,
+        DateTime? expiresAtUtc,
+        DateTime nowUtc)
+    {
+        if (normalizedIsVip)
+            return false;
+
+        if (!invoiceCreatedAtUtc.HasValue || !expiresAtUtc.HasValue)
+            return false;
+
+        var expiryUtc = expiresAtUtc.Value.ToUniversalTime();
+        if (expiryUtc > nowUtc)
+            return false;
+
+        if (_lastVipExpiryNotifiedAtUtc.HasValue &&
+            _lastVipExpiryNotifiedAtUtc.Value >= expiryUtc)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private void NotifyVipExpiredOnce(DateTime expiresAtUtc)
+    {
+        var normalizedExpiryUtc = expiresAtUtc.ToUniversalTime();
+        _lastVipExpiryNotifiedAtUtc = normalizedExpiryUtc;
+
+        try
+        {
+            Preferences.Set(VipExpiryNotifiedAtUtcKey, normalizedExpiryUtc.ToString("O"));
+        }
+        catch
+        {
+            // ignore preferences persistence issues
+        }
+
+        var handler = VipSubscriptionExpired;
+        if (handler == null)
+            return;
+
+        MainThread.BeginInvokeOnMainThread(() => handler.Invoke(this, EventArgs.Empty));
     }
 
     private void PersistVipStatusToPreferences()
@@ -3653,9 +3721,68 @@ public partial class MainViewModel : ObservableObject
         _ = ApplyFilterAsync();
     }
 
+    private static List<string> BuildSearchTokens(string? rawQuery)
+    {
+        var normalized = NormalizeSearchText(rawQuery);
+        if (string.IsNullOrWhiteSpace(normalized))
+            return new List<string>();
+
+        return normalized
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static bool MatchesSearch(IReadOnlyCollection<string> tokens, params string?[] values)
+    {
+        if (tokens.Count == 0)
+            return true;
+
+        var normalizedValues = values
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(NormalizeSearchText)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .ToList();
+
+        if (normalizedValues.Count == 0)
+            return false;
+
+        foreach (var token in tokens)
+        {
+            if (!normalizedValues.Any(v => v.Contains(token, StringComparison.Ordinal)))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static string NormalizeSearchText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var normalized = value
+            .Trim()
+            .ToLowerInvariant()
+            .Normalize(NormalizationForm.FormD);
+
+        var sb = new StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark)
+                continue;
+
+            sb.Append(ch == 'đ' ? 'd' : ch);
+        }
+
+        return sb
+            .ToString()
+            .Normalize(NormalizationForm.FormC);
+    }
+
     private void ApplyFilterCore()
     {
-        var q = (SearchQuery ?? "").Trim().ToLower();
+        var tokens = BuildSearchTokens(SearchQuery);
         var cat = SelectedCategory ?? "Tất cả";
         var byCategory = cat == "Tất cả"
             ? AllPOIs.Where(p => p.ZoneType == "Spot")
@@ -3664,16 +3791,16 @@ public partial class MainViewModel : ObservableObject
         byCategory = byCategory.Where(IsPoiAccessibleForCurrentSubscription);
 
         var results = byCategory.Where(p =>
-            string.IsNullOrEmpty(q) ||
-            (p.Name_Vi?.ToLower().Contains(q) == true) ||
-            (p.Name_En?.ToLower().Contains(q) == true) ||
-            (p.Name_Zh?.ToLower().Contains(q) == true) ||
-            (p.SignatureDish?.ToLower().Contains(q) == true) ||
-            (p.SignatureDishesJson?.ToLower().Contains(q) == true) ||
-            (p.Description_Vi?.ToLower().Contains(q) == true) ||
-            (p.Description_En?.ToLower().Contains(q) == true) ||
-            (p.Description_Zh?.ToLower().Contains(q) == true) ||
-            (p.Type?.ToLower().Contains(q) == true)).ToList();
+            MatchesSearch(tokens,
+                p.Name_Vi,
+                p.Name_En,
+                p.Name_Zh,
+                p.SignatureDish,
+                p.SignatureDishesJson,
+                p.Description_Vi,
+                p.Description_En,
+                p.Description_Zh,
+                p.Type)).ToList();
 
         var suggestions = HasSearchText ? results.Take(6).ToList() : new List<POI>();
 
@@ -3704,7 +3831,7 @@ public partial class MainViewModel : ObservableObject
             await Task.Delay(80, token);
             token.ThrowIfCancellationRequested();
 
-            var q = (SearchQuery ?? "").Trim().ToLower();
+            var tokens = BuildSearchTokens(SearchQuery);
             var cat = SelectedCategory ?? "Tất cả";
             var byCategory = cat == "Tất cả"
                 ? AllPOIs.Where(p => p.ZoneType == "Spot")
@@ -3713,16 +3840,16 @@ public partial class MainViewModel : ObservableObject
             byCategory = byCategory.Where(IsPoiAccessibleForCurrentSubscription);
 
             var results = byCategory.Where(p =>
-                string.IsNullOrEmpty(q) ||
-                (p.Name_Vi?.ToLower().Contains(q) == true) ||
-                (p.Name_En?.ToLower().Contains(q) == true) ||
-                (p.Name_Zh?.ToLower().Contains(q) == true) ||
-                (p.SignatureDish?.ToLower().Contains(q) == true) ||
-                (p.SignatureDishesJson?.ToLower().Contains(q) == true) ||
-                (p.Description_Vi?.ToLower().Contains(q) == true) ||
-                (p.Description_En?.ToLower().Contains(q) == true) ||
-                (p.Description_Zh?.ToLower().Contains(q) == true) ||
-                (p.Type?.ToLower().Contains(q) == true)).ToList();
+                MatchesSearch(tokens,
+                    p.Name_Vi,
+                    p.Name_En,
+                    p.Name_Zh,
+                    p.SignatureDish,
+                    p.SignatureDishesJson,
+                    p.Description_Vi,
+                    p.Description_En,
+                    p.Description_Zh,
+                    p.Type)).ToList();
 
             var suggestions = HasSearchText ? results.Take(6).ToList() : new List<POI>();
 
@@ -3775,43 +3902,87 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task ToggleSavePOIAsync(POI poi)
     {
-        if (poi == null) return;
-        poi.IsLikedByUser = !poi.IsLikedByUser;
-        await _db.SavePOIAsync(poi);
+        if (poi == null)
+            return;
 
-        if (poi.IsLikedByUser)
+        if (!IsVipUser)
         {
-            if (!SavedPOIs.Any(p => p.Id == poi.Id))
-                SavedPOIs.Add(poi);
-            SavedPOIIds.Add(poi.Id);
-        }
-        else
-        {
-            var item = SavedPOIs.FirstOrDefault(p => p.Id == poi.Id);
-            if (item != null) SavedPOIs.Remove(item);
-            SavedPOIIds.Remove(poi.Id);
+            await ShowVipRequiredForFavoriteAsync();
+            return;
         }
 
-        // Rebuild FilteredPOIs so heart colors reflect the new liked state
-        ApplyFilterCore();
+        await _favoriteToggleGate.WaitAsync();
+        try
+        {
+            poi.IsLikedByUser = !poi.IsLikedByUser;
+            await _db.SavePOIAsync(poi);
+
+            if (poi.IsLikedByUser)
+            {
+                if (!SavedPOIs.Any(p => p.Id == poi.Id))
+                    SavedPOIs.Add(poi);
+                SavedPOIIds.Add(poi.Id);
+            }
+            else
+            {
+                var item = SavedPOIs.FirstOrDefault(p => p.Id == poi.Id);
+                if (item != null)
+                    SavedPOIs.Remove(item);
+
+                SavedPOIIds.Remove(poi.Id);
+            }
+
+            // Rebuild FilteredPOIs so heart colors reflect the new liked state
+            ApplyFilterCore();
+        }
+        finally
+        {
+            _favoriteToggleGate.Release();
+        }
     }
 
     [RelayCommand]
-    private void ToggleSaveTour(TourListItem? tour)
+    private async Task ToggleSaveTour(TourListItem? tour)
     {
         if (tour == null || string.IsNullOrWhiteSpace(tour.Id))
             return;
 
-        tour.IsFavorite = !tour.IsFavorite;
+        if (!IsVipUser)
+        {
+            await ShowVipRequiredForFavoriteAsync();
+            return;
+        }
 
-        if (tour.IsFavorite)
-            _savedTourIds.Add(tour.Id);
-        else
-            _savedTourIds.Remove(tour.Id);
+        await _favoriteToggleGate.WaitAsync();
+        try
+        {
+            tour.IsFavorite = !tour.IsFavorite;
 
-        PersistSavedTourIds();
-        ApplySavedTourStateToTours(AllTours);
-        ApplyTourFilterCore();
+            if (tour.IsFavorite)
+                _savedTourIds.Add(tour.Id);
+            else
+                _savedTourIds.Remove(tour.Id);
+
+            PersistSavedTourIds();
+            ApplySavedTourStateToTours(AllTours);
+            ApplyTourFilterCore();
+        }
+        finally
+        {
+            _favoriteToggleGate.Release();
+        }
+    }
+
+    private Task ShowVipRequiredForFavoriteAsync()
+    {
+        return CustomAlert.ShowAsync(
+            UiText("Yêu cầu đăng ký", "Subscription required", "需要订阅"),
+            UiText(
+                "Tính năng yêu thích chỉ dành cho tài khoản VIP. Vui lòng đăng ký để tiếp tục.",
+                "Favorites are available for VIP accounts only. Please subscribe to continue.",
+                "收藏功能仅适用于 VIP 账户。请先订阅后再继续。"),
+            UiText("Đã hiểu", "OK", "确定"),
+            AlertType.Info);
     }
 
     [RelayCommand]
@@ -3843,9 +4014,9 @@ public partial class MainViewModel : ObservableObject
             await CustomAlert.ShowAsync(
                 UiText("Yêu cầu đăng ký", "Subscription required", "需要订阅"),
                 UiText(
-                    "Đăng ký VIP để có thể sử dụng các chức năng hấp dẫn khác trong app:\n• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc",
-                    "Subscribe to VIP to unlock more exciting app features:\n• Interact with more POIs\n• Access more curated tours",
-                    "订阅 VIP 以解锁更多精彩功能：\n• 与更多 POI 互动\n• 查看更多精选路线"),
+                    "Đăng ký VIP để có thể sử dụng các chức năng hấp dẫn khác trong app:\n• Tương tác với nhiều quán khác\n• Xem thêm nhiều tour đặc sắc",
+                    "Subscribe to VIP to unlock more exciting app features:\n• Interact with more places\n• Access more curated tours",
+                    "订阅 VIP 以解锁更多精彩功能：\n• 与更多店铺互动\n• 查看更多精选路线"),
                 UiText("Đã hiểu", "OK", "确定"),
                 AlertType.Info);
             return;
@@ -3870,7 +4041,7 @@ public partial class MainViewModel : ObservableObject
             var requestedStops = BuildTourStopsForStart(tour, includeTemporarilyClosed);
             if (requestedStops.Count == 0)
             {
-                await CustomAlert.ShowAsync("Chưa thể bắt đầu", "Tour này chưa có dữ liệu POI phù hợp để bắt đầu ngay.", "OK", AlertType.Warning);
+                await CustomAlert.ShowAsync("Chưa thể bắt đầu", "Tour này chưa có dữ liệu quán phù hợp để bắt đầu ngay.", "OK", AlertType.Warning);
                 return;
             }
 

@@ -404,13 +404,13 @@ VIEW MAP</value>
     <value>Cannot start navigation right now.</value>
   </data>
   <data name="TabSaved_Subtitle" xml:space="preserve">
-    <value>Your favorite tours and POIs</value>
+    <value>Your favorite tours and places</value>
   </data>
   <data name="TabSaved_Segment_Tours" xml:space="preserve">
     <value>Saved tours</value>
   </data>
   <data name="TabSaved_Segment_Pois" xml:space="preserve">
-    <value>Saved POIs</value>
+    <value>Saved places</value>
   </data>
   <data name="TabSaved_EmptyTour_Title" xml:space="preserve">
     <value>No saved tours yet</value>
@@ -422,7 +422,7 @@ VIEW MAP</value>
     <value>No saved places yet</value>
   </data>
   <data name="TabSaved_EmptyPoi_Subtitle" xml:space="preserve">
-    <value>Tap the heart in Map/Explore tab to save POIs</value>
+    <value>Tap the heart in Map/Explore tab to save places</value>
   </data>
   <data name="TabMenu_SearchPlaceholder" xml:space="preserve">
     <value>Search tours...</value>
@@ -662,7 +662,7 @@ VIEW MAP</value>
     <value>Virtual view unavailable</value>
   </data>
   <data name="Main_Virtual_NotAvailable_Message" xml:space="preserve">
-    <value>Virtual mode should only be used when you are more than 1 km away from POI zones.</value>
+    <value>Virtual mode should only be used when you are more than 1 km away from shop zones.</value>
   </data>
   <data name="Main_NoAttractions_Message" xml:space="preserve">
     <value>No attractions available.</value>
