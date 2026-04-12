@@ -48,6 +48,8 @@
         .card { background: white; border-radius: 20px; padding: 1.75rem; box-shadow: 0 4px 20px var(--shadow); animation: fadeInUp 0.6s ease-out 0.4s backwards; }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
         .card-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; }
+        .table-scroll { overflow-x: auto; }
+        .table-loading-cell { text-align: center; padding: 2rem; color: #999; }
         table { width: 100%; border-collapse: separate; border-spacing: 0; }
         thead { background: linear-gradient(to right, #F8F9FA, #F0F4F8); }
         th { padding: 0.875rem 1.25rem; text-align: left; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); }
@@ -76,9 +78,63 @@
         .quick-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
         .quick-name { font-weight: 600; font-size: 0.9rem; }
         .quick-desc { font-size: 0.8rem; color: #888; margin-top: 0.15rem; }
+        .is-hidden { display: none; }
+        .qr-admin-section { margin-top: 1.6rem; }
+        .qr-admin-grid { display: grid; grid-template-columns: 1.2fr 0.9fr; gap: 1.25rem; align-items: center; }
+        .qr-admin-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; margin-bottom: .35rem; }
+        .qr-admin-sub { color: #5f6a78; font-size: .93rem; line-height: 1.5; margin-bottom: 1rem; }
+        .qr-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            background: #f6fbff;
+            border: 1px solid #d6e9fb;
+            color: #0f4f8b;
+            border-radius: 999px;
+            padding: .45rem .8rem;
+            font-size: .82rem;
+            font-weight: 700;
+            margin-bottom: .85rem;
+        }
+        .qr-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #0f4f8b; }
+        .qr-admin-meta {
+            background: #f9fbfd;
+            border: 1px solid #e5ecf3;
+            border-radius: 12px;
+            padding: .75rem;
+            display: grid;
+            gap: .45rem;
+            font-size: .84rem;
+            color: #516174;
+        }
+        .qr-admin-meta b { color: #1a1a2e; }
+        .qr-admin-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: .95rem; }
+        .btn-small { min-height: 42px; padding: 0 .95rem; font-size: .84rem; }
+        .qr-preview-wrap {
+            width: 230px;
+            height: 230px;
+            margin: 0 auto;
+            border-radius: 16px;
+            border: 1px solid #dce8f6;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 22px rgba(0,78,137,.08);
+            padding: 10px;
+        }
+        #adminQrCode {
+            width: 192px;
+            height: 192px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .qr-admin-help { margin-top: .7rem; font-size: .8rem; color: #7b8796; text-align: center; line-height: 1.45; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 1024px) { .content-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 860px) { .qr-admin-grid { grid-template-columns: 1fr; } }
         @media (max-width: 768px) { .main-content { margin-left: 0; } .stats-grid { grid-template-columns: 1fr 1fr; } .quick-links { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -123,13 +179,13 @@
                 <h2 class="card-title">POI gần đây</h2>
                 <a href='poi-list' class="btn btn-outline" id="viewAllPoisBtn">Xem tất cả <i class="fas fa-arrow-right"></i></a>
             </div>
-            <div class="table-container" style="overflow-x:auto">
+            <div class="table-container table-scroll">
                 <table id="poisTable">
                     <thead>
                         <tr><th>Tên POI</th><th>Địa chỉ</th><th>Trạng thái</th><th>Audio</th><th>Hành động</th></tr>
                     </thead>
                     <tbody id="poisTableBody">
-                        <tr><td colspan="5" style="text-align:center;padding:2rem;color:#999"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
+                        <tr><td colspan="5" class="table-loading-cell"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -152,23 +208,51 @@
         </div>
     </div>
 
+    <section class="card qr-admin-section is-hidden" id="adminQrSection">
+        <div class="qr-admin-grid">
+            <div>
+                <div class="qr-admin-title">QR công khu vực Vĩnh Khánh và bến xe</div>
+                <p class="qr-admin-sub">
+                    QR này ưu tiên mở app nếu máy đã cài đặt. Nếu chưa có app, trình duyệt sẽ chuyển về trang tải APK.
+                </p>
+                <div class="qr-status-pill" id="qrAdminStatus"><span class="qr-status-dot"></span>Đang tải trạng thái QR...</div>
+                <div class="qr-admin-meta">
+                    <div><b>Hết hạn lúc:</b> <span id="qrAdminExpiresAt">-</span></div>
+                    <div><b>Còn lại:</b> <span id="qrAdminRemaining">-</span></div>
+                </div>
+                <div class="qr-admin-actions">
+                    <button class="btn btn-outline btn-small" id="qrRefreshBtn" type="button"><i class="fas fa-clock"></i> Kiểm tra hạn QR</button>
+                    <button class="btn btn-primary btn-small" id="qrTestBtn" type="button"><i class="fas fa-flask"></i> Test đổi QR 3 phút</button>
+                    <a class="btn btn-outline btn-small" id="qrOpenBtn" href="#" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt"></i> Mở link QR</a>
+                </div>
+            </div>
+            <div>
+                <div class="qr-preview-wrap">
+                    <div id="adminQrCode"></div>
+                </div>
+                
+            </div>
+        </div>
+    </section>
+
     <!-- Quick links
     <div class="quick-links">
-        <a class="quick-card" href='translation">
+        <a class="quick-card" href='translation'>
             <div class="quick-icon" style="background:rgba(0,78,137,0.1);color:var(--secondary)"><i class="fas fa-language"></i></div>
             <div><div class="quick-name">Bản dịch</div><div class="quick-desc">Quản lý nội dung đa ngôn ngữ</div></div>
         </a>
-        <a class="quick-card" href='tour">
+        <a class="quick-card" href='tour'>
             <div class="quick-icon" style="background:rgba(255,210,63,0.15);color:#D69E00"><i class="fas fa-route"></i></div>
             <div><div class="quick-name">Quản lý Tour</div><div class="quick-desc">Lộ trình tham quan ẩm thực</div></div>
         </a>
-        <a class="quick-card" href='users">
+        <a class="quick-card" href='users'>
             <div class="quick-icon" style="background:rgba(255,107,53,0.1);color:var(--primary)"><i class="fas fa-mobile-alt"></i></div>
             <div><div class="quick-name">Lịch sử sử dụng</div><div class="quick-desc">Phân tích người dùng app</div></div>
         </a>
     </div> -->
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="api.js"></script>
 <script>
     const roleContext = TokenManager.ensureRoleContext();
@@ -211,6 +295,86 @@
         if (diff < 60) return Math.round(diff) + ' phút trước';
         if (diff < 1440) return Math.round(diff/60) + ' giờ trước';
         return Math.round(diff/1440) + ' ngày trước';
+    }
+
+    function formatDateTime(d) {
+        if (!d) return '—';
+        const dt = new Date(d);
+        if (Number.isNaN(dt.getTime())) return '—';
+        return dt.toLocaleString('vi-VN');
+    }
+
+    function buildResolvedQrUrl(data) {
+        return (data && data.qrAbsoluteUrl)
+            || (data && data.qrRelativeUrl ? (window.location.origin + data.qrRelativeUrl) : '');
+    }
+
+    function renderAdminQr(url) {
+        const container = document.getElementById('adminQrCode');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (typeof QRCode === 'undefined') {
+            container.textContent = 'Khong tai duoc thu vien QR';
+            return;
+        }
+
+        new QRCode(container, {
+            text: url,
+            width: 188,
+            height: 188,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    }
+
+    function applyAdminQrStatus(data) {
+        if (!data) return;
+
+        const modeText = data.mode === 'test' ? 'Test 3 phút' : 'Chu kỳ 5 ngày';
+        const remainingText = data.remainingHuman || '0';
+        const qrUrl = buildResolvedQrUrl(data);
+
+        document.getElementById('qrAdminStatus').innerHTML = `<span class="qr-status-dot"></span>${modeText} - con ${remainingText}`;
+        document.getElementById('qrAdminExpiresAt').textContent = formatDateTime(data.expiresAtUtc);
+        document.getElementById('qrAdminRemaining').textContent = remainingText;
+
+        const openBtn = document.getElementById('qrOpenBtn');
+        if (openBtn) {
+            if (qrUrl) {
+                openBtn.href = qrUrl;
+                openBtn.removeAttribute('aria-disabled');
+            } else {
+                openBtn.href = '#';
+                openBtn.setAttribute('aria-disabled', 'true');
+            }
+        }
+
+        if (qrUrl) {
+            renderAdminQr(qrUrl);
+        }
+    }
+
+    async function loadAdminQrStatus(showNotice = false) {
+        if (isVendor) return;
+
+        const section = document.getElementById('adminQrSection');
+        if (section) section.classList.remove('is-hidden');
+
+        try {
+            const data = await QrApi.getAdminStatus();
+            applyAdminQrStatus(data);
+            if (showNotice && typeof showToast === 'function') {
+                showToast('Da cap nhat han QR', 'success');
+            }
+        } catch (error) {
+            console.error('Load admin QR status failed:', error);
+            document.getElementById('qrAdminStatus').innerHTML = '<span class="qr-status-dot"></span>Khong tai duoc trang thai QR';
+            if (typeof showToast === 'function') {
+                showToast('Khong tai duoc trang thai QR', 'error');
+            }
+        }
     }
 
     async function loadDashboard() {
@@ -291,6 +455,40 @@
     }
 
     loadDashboard();
+
+    if (!isVendor) {
+        loadAdminQrStatus(false);
+
+        const refreshBtn = document.getElementById('qrRefreshBtn');
+        const testBtn = document.getElementById('qrTestBtn');
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => loadAdminQrStatus(true));
+        }
+
+        if (testBtn) {
+            testBtn.addEventListener('click', async () => {
+                const original = testBtn.innerHTML;
+                testBtn.disabled = true;
+                testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Dang doi...';
+                try {
+                    const data = await QrApi.rotateTest3Minutes();
+                    applyAdminQrStatus(data);
+                    if (typeof showToast === 'function') {
+                        showToast('Da tao QR test 3 phut', 'success');
+                    }
+                } catch (error) {
+                    console.error('Rotate test QR failed:', error);
+                    if (typeof showToast === 'function') {
+                        showToast('Khong doi duoc QR test', 'error');
+                    }
+                } finally {
+                    testBtn.disabled = false;
+                    testBtn.innerHTML = original;
+                }
+            });
+        }
+    }
 </script>
 </body>
 </html>

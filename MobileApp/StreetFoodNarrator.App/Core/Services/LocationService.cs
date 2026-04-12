@@ -18,9 +18,9 @@ public class LocationService : ILocationService
     private Microsoft.Maui.Devices.Sensors.Location? _lastLocation;
     private DateTimeOffset _lastEmittedAt = DateTimeOffset.MinValue;
     private const double SignificantMovementMeters = 2.5;
-    private const int StationaryDelayInsideMs = 1_800;
-    private const int StationaryDelayNearMs = 3_200;
-    private const int StationaryDelayFarMs = 12_000;
+    private const int StationaryDelayInsideMs = 3_000;
+    private const int StationaryDelayNearMs = 7_000;
+    private const int StationaryDelayFarMs = 25_000;
 
     public bool IsRunning => _isRunning;
     public event Action<Microsoft.Maui.Devices.Sensors.Location>? OnLocationUpdated;
@@ -241,9 +241,9 @@ public class LocationService : ILocationService
     {
         var heartbeatMs = state switch
         {
-            TrackingProximityState.Inside => 2_000,
-            TrackingProximityState.Near => 4_500,
-            _ => 12_000
+            TrackingProximityState.Inside => 3_500,
+            TrackingProximityState.Near => 8_000,
+            _ => 20_000
         };
 
         return (DateTimeOffset.UtcNow - _lastEmittedAt).TotalMilliseconds >= heartbeatMs;
@@ -258,9 +258,9 @@ public class LocationService : ILocationService
 
     private static int GetNoisyFixDelayMs(TrackingProximityState state) => state switch
     {
-        TrackingProximityState.Inside => 2_200,
-        TrackingProximityState.Near => 4_500,
-        _ => 15_000
+        TrackingProximityState.Inside => 4_000,
+        TrackingProximityState.Near => 9_000,
+        _ => 30_000
     };
 
 #if ANDROID
@@ -286,9 +286,9 @@ public class LocationService : ILocationService
 
     private static int GetDelayMs(TrackingProximityState state) => state switch
     {
-        TrackingProximityState.Far => 20_000,
-        TrackingProximityState.Inside => 1_000,
-        _ => 3_000
+        TrackingProximityState.Far => 30_000,
+        TrackingProximityState.Inside => 2_000,
+        _ => 5_000
     };
 
     private static GeolocationAccuracy GetAccuracy(TrackingProximityState state) => state switch

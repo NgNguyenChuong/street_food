@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Resources.Strings;
+using StreetFoodNarrator.App.ViewModels;
 using StreetFoodNarrator.App.Views;
 using System.Collections.Generic;
 
@@ -11,12 +13,21 @@ public partial class AppShell : Shell
     private MainPage? _cachedMainPage;
     private SavedPage? _cachedSavedPage;
     private SettingsPage? _cachedSettingsTabPage;
+    private readonly MainViewModel _mainViewModel;
+    private readonly LanguageService _languageService;
+    private IDispatcherTimer? _vipStatusMonitorTimer;
+    private bool _isVipStatusRefreshInFlight;
+    private bool _isVipExpiryAlertVisible;
+    private static readonly TimeSpan VipStatusMonitorInterval = TimeSpan.FromSeconds(20);
     public static string PreviousNonSettingsRoute { get; private set; } = string.Empty;
     public static string LastNonSettingsRoute { get; private set; } = "//MapPage";
 
     public AppShell(bool isOnboarding = false)
     {
         InitializeComponent();
+        _mainViewModel = ResolveActiveServices().GetRequiredService<MainViewModel>();
+        _languageService = ResolveActiveServices().GetRequiredService<LanguageService>();
+        _mainViewModel.VipSubscriptionExpired += OnVipSubscriptionExpired;
         LanguageService.LanguageChanged += OnLanguageChanged;
 
         if (isOnboarding)
@@ -79,8 +90,100 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("SettingsPage", typeof(SettingsPage));
 
         Navigated += OnShellNavigated;
+        Loaded += OnShellLoaded;
+        Unloaded += OnShellUnloaded;
         ApplyLocalizedTabTitles();
     }
+
+    private void OnShellLoaded(object? sender, EventArgs e)
+    {
+        StartVipStatusMonitorTimer();
+        _ = _mainViewModel.RefreshVipSubscriptionStatusAsync(force: false);
+    }
+
+    private void OnShellUnloaded(object? sender, EventArgs e)
+    {
+        StopVipStatusMonitorTimer();
+    }
+
+    private void StartVipStatusMonitorTimer()
+    {
+        if (_vipStatusMonitorTimer != null || Dispatcher == null)
+            return;
+
+        _vipStatusMonitorTimer = Dispatcher.CreateTimer();
+        _vipStatusMonitorTimer.Interval = VipStatusMonitorInterval;
+        _vipStatusMonitorTimer.Tick += OnVipStatusMonitorTick;
+        _vipStatusMonitorTimer.Start();
+    }
+
+    private void StopVipStatusMonitorTimer()
+    {
+        if (_vipStatusMonitorTimer == null)
+            return;
+
+        _vipStatusMonitorTimer.Tick -= OnVipStatusMonitorTick;
+        _vipStatusMonitorTimer.Stop();
+        _vipStatusMonitorTimer = null;
+    }
+
+    private async void OnVipStatusMonitorTick(object? sender, EventArgs e)
+    {
+        if (_isVipStatusRefreshInFlight)
+            return;
+
+        _isVipStatusRefreshInFlight = true;
+        try
+        {
+            await _mainViewModel.RefreshVipSubscriptionStatusAsync(force: false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AppShell] VIP status monitor error: {ex.Message}");
+        }
+        finally
+        {
+            _isVipStatusRefreshInFlight = false;
+        }
+    }
+
+    private async void OnVipSubscriptionExpired(object? sender, EventArgs e)
+    {
+        if (_isVipExpiryAlertVisible)
+            return;
+
+        _isVipExpiryAlertVisible = true;
+        try
+        {
+            var expiresText = _mainViewModel.VipExpiresAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                ?? UiText("không rõ", "unknown", "未知");
+
+            await CustomAlert.ShowAsync(
+                UiText("VIP đã hết hạn", "VIP expired", "VIP 已过期"),
+                UiText(
+                    $"Gói VIP của bạn đã hết hạn lúc {expiresText}. Vui lòng gia hạn để tiếp tục sử dụng đầy đủ tính năng.",
+                    $"Your VIP plan expired at {expiresText}. Please renew to continue using all premium features.",
+                    $"您的 VIP 套餐已于 {expiresText} 到期。请续费以继续使用全部高级功能。"),
+                UiText("Đã hiểu", "OK", "知道了"),
+                AlertType.Warning);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AppShell] VIP expiry alert error: {ex.Message}");
+        }
+        finally
+        {
+            _isVipExpiryAlertVisible = false;
+        }
+    }
+
+    private string UiText(string vi, string en, string zh)
+        => _languageService.CurrentLanguage switch
+        {
+            "en" => en,
+            "zh" => zh,
+            _ => vi
+        };
 
     private void OnLanguageChanged(object? sender, string languageCode)
     {

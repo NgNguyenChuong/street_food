@@ -1,5 +1,6 @@
 using Microsoft.Maui.Storage;
 using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Helpers;
 using StreetFoodNarrator.App.Views;
 
 namespace StreetFoodNarrator.App;
@@ -25,6 +26,14 @@ public partial class App : Application
         {
             _ = remoteLocalizationService.RefreshAsync(languageCode);
         };
+
+        PageAppearing += OnPageAppearing;
+        UserPreferenceEffects.ApplyCurrentPreferences();
+    }
+
+    private void OnPageAppearing(object? sender, Page page)
+    {
+        UserPreferenceEffects.ApplyCurrentPreferences(page);
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
