@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Vendors - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="api.js"></script>
+    <script src="sidebar.js?v=20260406"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --warning: #F97316;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            transition: margin-left 0.3s;
+        }
+
+        /* ═══ Header ═══ */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* ═══ Buttons ═══ */
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: var(--gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            border-radius: 8px;
+        }
+
+        .btn-success { background: rgba(6,214,160,0.12); color: var(--success); border: 1px solid var(--success); }
+        .btn-success:hover { background: rgba(6,214,160,0.25); }
+        .btn-danger { background: rgba(239,71,111,0.12); color: var(--danger); border: 1px solid var(--danger); }
+        .btn-danger:hover { background: rgba(239,71,111,0.25); }
+        .btn-warning { background: rgba(249,115,22,0.12); color: var(--warning); border: 1px solid var(--warning); }
+        .btn-warning:hover { background: rgba(249,115,22,0.25); }
+        .btn-info { background: rgba(0,78,137,0.12); color: var(--secondary); border: 1px solid var(--secondary); }
+        .btn-info:hover { background: rgba(0,78,137,0.25); }
+
+        .btn-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--light);
+            color: var(--dark);
+            flex-shrink: 0;
+        }
+
+        .btn-icon:hover { background: var(--primary); color: white; }
+        .btn-icon.danger:hover { background: var(--danger); color: white; }
+
+        /* ═══ Stats Bar ═══ */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out backwards;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .stat-item:hover { transform: translateY(-4px); box-shadow: 0 8px 30px var(--shadow); }
+        .stat-item:nth-child(1) { animation-delay: 0.1s; }
+        .stat-item:nth-child(2) { animation-delay: 0.2s; }
+        .stat-item:nth-child(3) { animation-delay: 0.3s; }
+        .stat-item:nth-child(4) { animation-delay: 0.4s; }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .stat-icon.primary { background: rgba(255,107,53,0.12); color: var(--primary); }
+        .stat-icon.success { background: rgba(6,214,160,0.12); color: var(--success); }
+        .stat-icon.warning { background: rgba(249,115,22,0.12); color: var(--warning); }
+        .stat-icon.danger { background: rgba(239,71,111,0.12); color: var(--danger); }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label { color: #666; font-size: 0.9rem; }
+
+        /* ═══ Tabs ═══ */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out 0.3s backwards;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.875rem 1.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 12px;
+            color: #666;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'DM Sans', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .tab:hover { color: var(--primary); background: rgba(255,107,53,0.05); }
+
+        .tab.active {
+            background: var(--gradient);
+            color: white;
+        }
+
+        .tab-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--warning);
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 12px;
+            font-weight: 700;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .tab.active .tab-badge {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* ═══ Filter ═══ */
+        .filter-section {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.6s ease-out 0.4s backwards;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+
+        .filter-input {
+            width: 100%;
+            padding: 0.875rem 1.25rem 0.875rem 3rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .filter-select {
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            background: var(--light);
+            min-width: 180px;
+            cursor: pointer;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* ═══ Table ═══ */
+        .table-container {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out 0.5s backwards;
+            overflow-x: auto;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .table-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .table-count {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .pagination-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            background: white;
+            color: var(--dark);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .pagination-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .pagination-btn[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            color: #666;
+            margin: 0 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        thead {
+            background: linear-gradient(to right, #F8F9FA, #F0F4F8);
+        }
+
+        th {
+            padding: 0.875rem 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            color: #555;
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+
+        tr:hover td { background: rgba(255,107,53,0.02); }
+
+        .vendor-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .vendor-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .vendor-details h4 {
+            color: var(--dark);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            font-size: 0.95rem;
+        }
+
+        .vendor-details p {
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.375rem 0.875rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-badge.approved { background: rgba(6,214,160,0.15); color: var(--success); }
+        .status-badge.pending { background: rgba(255,210,63,0.15); color: #E0A800; }
+        .status-badge.rejected { background: rgba(239,71,111,0.15); color: var(--danger); }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.approved { background: var(--success); }
+        .status-dot.pending { background: #E0A800; }
+        .status-dot.rejected { background: var(--danger); }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* ═══ Modal ═══ */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(26, 26, 46, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 560px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(26, 26, 46, 0.2);
+            animation: modalIn 0.3s ease-out;
+        }
+
+        .modal-header {
+            padding: 1.75rem 2rem 0;
+        }
+
+        .modal-header h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-header p {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem 2rem;
+        }
+
+        .modal-footer {
+            padding: 0 2rem 1.75rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        /* Detail modal info rows */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-item {
+            padding: 1rem;
+            background: var(--light);
+            border-radius: 12px;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: #999;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.35rem;
+        }
+
+        .info-value {
+            font-size: 0.95rem;
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .poi-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--light);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .poi-item {
+            padding: 0.6rem 0;
+            color: #555;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .poi-item:last-child { border-bottom: none; }
+
+        .poi-item i { color: var(--primary); font-size: 0.85rem; }
+
+        /* Form groups */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group label .required { color: var(--danger); }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .form-group input::placeholder { color: #bbb; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* ═══ Empty State ═══ */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .empty-state i { font-size: 4rem; color: #ddd; margin-bottom: 1rem; }
+        .empty-state h3 { font-size: 1.25rem; color: var(--dark); margin-bottom: 0.5rem; }
+        .empty-state p { color: #999; font-size: 0.95rem; }
+
+        /* ═══ Loading ═══ */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .loading i { font-size: 2rem; color: var(--primary); animation: spin 1s linear infinite; }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        @media (max-width: 1024px) { .stats-bar { grid-template-columns: 1fr 1fr; } .info-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .main-content { margin-left: 0; } .stats-bar { grid-template-columns: 1fr; } .tabs { flex-wrap: wrap; } .form-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<main class="main-content">
+    <!-- Header -->
+    <header class="page-header">
+        <h1 class="page-title">Quản lý Vendors</h1>
+        <div class="header-actions">
+            <button class="btn btn-outline" onclick="openCreateAccountModal()">
+                <i class="fas fa-user-shield"></i> Tạo tài khoản
+            </button>
+        </div>
+    </header>
+
+    <section class="stats-bar">
+        <article class="stat-item" onclick="filterByStatus('')">
+            <div class="stat-icon primary"><i class="fas fa-store"></i></div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">Tổng Vendor</div>
+        </article>
+        <article class="stat-item" onclick="filterByStatus('approved')">
+            <div class="stat-icon success"><i class="fas fa-circle-check"></i></div>
+            <div class="stat-value" id="statApproved">0</div>
+            <div class="stat-label">Đã duyệt</div>
+        </article>
+        <article class="stat-item" onclick="filterByStatus('pending')">
+            <div class="stat-icon warning"><i class="fas fa-hourglass-half"></i></div>
+            <div class="stat-value" id="statPending">0</div>
+            <div class="stat-label">Chờ duyệt</div>
+        </article>
+        <article class="stat-item" onclick="filterByStatus('rejected')">
+            <div class="stat-icon danger"><i class="fas fa-ban"></i></div>
+            <div class="stat-value" id="statRejected">0</div>
+            <div class="stat-label">Từ chối</div>
+        </article>
+    </section>
+
+    <section class="tabs">
+        <button id="tabAll" class="tab active" onclick="switchTab('')">
+            <i class="fas fa-list"></i> Tất cả
+        </button>
+        <button id="tabPending" class="tab" onclick="switchTab('pending')">
+            <i class="fas fa-hourglass-half"></i> Chờ duyệt
+            <span class="tab-badge" id="pendingBadge">0</span>
+        </button>
+        <button id="tabApproved" class="tab" onclick="switchTab('approved')">
+            <i class="fas fa-circle-check"></i> Đã duyệt
+        </button>
+        <button id="tabRejected" class="tab" onclick="switchTab('rejected')">
+            <i class="fas fa-circle-xmark"></i> Từ chối
+        </button>
+    </section>
+
+    <section class="filter-section">
+        <div class="filter-row">
+            <div class="search-wrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input
+                    type="text"
+                    class="filter-input"
+                    id="searchInput"
+                    placeholder="Tìm theo tên quán, email, người liên hệ..."
+                >
+            </div>
+            <select class="filter-select" id="sortSelect">
+                <option value="">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+                <option value="name-asc">Tên A-Z</option>
+                <option value="pois-desc">Nhiều POI nhất</option>
+            </select>
+            <button class="btn btn-outline" onclick="loadVendors()">
+                <i class="fas fa-rotate"></i> Tải lại
+            </button>
+        </div>
+    </section>
+
+    <section class="table-container">
+        <div class="table-header">
+            <h2 class="table-title">Danh sách Vendor</h2>
+            <span class="table-count" id="tableCount">0 vendor</span>
+        </div>
+
+        <div id="loading" class="loading" style="display:none;">
+            <i class="fas fa-spinner"></i>
+            <p style="margin-top:0.75rem;color:#777;">Đang tải danh sách vendor...</p>
+        </div>
+
+        <table id="vendorTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Liên hệ</th>
+                    <th>Trạng thái</th>
+                    <th>POI</th>
+                    <th>Lượt xem</th>
+                    <th>Ngày tạo</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="vendorBody"></tbody>
+        </table>
+
+        <div class="pagination" id="vendorPagination" style="display:none;"></div>
+
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <i class="fas fa-store-slash"></i>
+            <h3>Không có vendor phù hợp</h3>
+            <p>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
+        </div>
+    </section>
+
+    <div class="table-container" style="margin-top:1.5rem;">
+        <div class="table-header">
+            <h2 class="table-title">Tài khoản vận hành (Admin & Vendor)</h2>
+            <span class="table-count" id="accountTableCount"></span>
+        </div>
+
+        <div class="filter-row" style="margin-bottom:1rem;">
+            <div class="search-wrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="filter-input" id="accountSearchInput" placeholder="Tìm theo tên, email, số điện thoại...">
+            </div>
+            <select class="filter-select" id="accountRoleFilter">
+                <option value="">Tất cả role</option>
+                <option value="Admin">Admin</option>
+                <option value="Vendor">Vendor</option>
+            </select>
+            <button class="btn btn-outline" onclick="loadAccounts()">
+                <i class="fas fa-rotate"></i> Tải lại
+            </button>
+        </div>
+
+        <table id="accountTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Tài khoản</th>
+                    <th>Role</th>
+                    <th>Vendor ID</th>
+                    <th>Trạng thái</th>
+                    <th>Tạo lúc</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="accountBody"></tbody>
+        </table>
+
+        <div class="pagination" id="accountPagination" style="display:none;"></div>
+
+        <div class="empty-state" id="accountEmptyState" style="display:none;">
+            <i class="fas fa-users-slash"></i>
+            <h3>Không có tài khoản nào</h3>
+            <p>Chưa có tài khoản khớp với bộ lọc hiện tại.</p>
+        </div>
+    </div>
+</main>
+
+<!-- Modal: Vendor Detail -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="detailTitle">Chi tiết Vendor</h2>
+            <p id="detailEmail">—</p>
+        </div>
+        <div class="modal-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Tên quán</div>
+                    <div class="info-value" id="detailBusiness">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Người liên hệ</div>
+                    <div class="info-value" id="detailContact">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Số điện thoại</div>
+                    <div class="info-value" id="detailPhone">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Trạng thái</div>
+                    <div class="info-value" id="detailStatus">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Địa chỉ</div>
+                    <div class="info-value" id="detailAddress">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Ngày tham gia</div>
+                    <div class="info-value" id="detailDate">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Lượt xem</div>
+                    <div class="info-value" id="detailViews">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Đánh giá</div>
+                    <div class="info-value" id="detailRating">—</div>
+                </div>
+            </div>
+
+            <div class="info-label" style="margin-bottom: 0.5rem;">Danh sách POIs</div>
+            <div class="poi-list" id="detailPOIs">
+                <div style="color: #999; text-align: center; padding: 1rem;">Chưa có POI</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline btn-sm" onclick="closeModal('detailModal')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Vendor -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2><i class="fas fa-edit" style="color:var(--secondary)"></i> Chỉnh sửa Vendor</h2>
+            <p id="editSubtitle">—</p>
+        </div>
+        <div class="modal-body">
+            <form id="editForm" onsubmit="return false;">
+                <input type="hidden" id="eVendorId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tên quán <span class="required">*</span></label>
+                        <input type="text" id="eBusiness" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Người đại diện</label>
+                        <input type="text" id="eName">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="eEmail">
+                    </div>
+                    <div class="form-group">
+                        <label>Số điện thoại</label>
+                        <input type="tel" id="ePhone">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Địa chỉ</label>
+                    <input type="text" id="eAddress">
+                </div>
+                <div class="form-group">
+                    <label>Mô tả</label>
+                    <textarea id="eDesc" rows="2"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline btn-sm" onclick="closeModal('editModal')">Hủy</button>
+            <button class="btn btn-primary btn-sm" onclick="submitEdit()">
+                <i class="fas fa-save"></i> Lưu
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Create Account -->
+<div class="modal-overlay" id="createAccountModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2><i class="fas fa-user-plus" style="color:var(--secondary)"></i> Tạo tài khoản vận hành</h2>
+            <p>Tạo nhanh tài khoản Admin hoặc Vendor ngay tại trang Vendors</p>
+        </div>
+        <div class="modal-body">
+            <form id="createAccountForm" onsubmit="return false;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Role <span class="required">*</span></label>
+                        <select id="caRole" onchange="toggleCreateAccountRoleFields()">
+                            <option value="Vendor">Vendor</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Họ tên / người đại diện <span class="required">*</span></label>
+                        <input type="text" id="caFullName" placeholder="Nguyễn Văn A" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email <span class="required">*</span></label>
+                        <input type="email" id="caEmail" placeholder="account@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Số điện thoại</label>
+                        <input type="tel" id="caPhone" placeholder="0901234567">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Mật khẩu <span class="required">*</span></label>
+                    <input type="text" id="caPassword" placeholder="Admin bắt buộc nhập; Vendor có thể bỏ trống để tự sinh">
+                </div>
+
+                <div id="vendorRoleFields">
+                    <div class="form-group">
+                        <label>Trạng thái vendor</label>
+                        <select id="caVendorStatus">
+                            <option value="pending">Chờ duyệt</option>
+                            <option value="approved">Duyệt ngay</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline btn-sm" onclick="closeModal('createAccountModal')">Hủy</button>
+            <button class="btn btn-primary btn-sm" onclick="submitCreateAccount()">
+                <i class="fas fa-check"></i> Tạo tài khoản
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ═══ State ═══
+    let currentTab = '';
+    let currentSort = '';
+    let searchTimer = null;
+    let vendorsAll = [];
+    let vendorPage = 1;
+    const vendorPageSize = 5;
+    let accountsAll = [];
+    let accountPage = 1;
+    const accountPageSize = 6;
+    let accountSearchTimer = null;
+
+    // ═══ Init ═══
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!requireAuth()) return;
+        const role = (TokenManager.getRoleContext() || '').toLowerCase();
+        if (role !== 'admin') {
+            window.location.href = 'dashboard';
+            return;
+        }
+
+        loadStats();
+        switchTab('');
+        loadAccounts();
+
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            vendorPage = 1;
+            searchTimer = setTimeout(() => loadVendors(), 350);
+        });
+
+        document.getElementById('sortSelect').addEventListener('change', () => {
+            vendorPage = 1;
+            loadVendors();
+        });
+
+        document.getElementById('accountSearchInput').addEventListener('input', () => {
+            clearTimeout(accountSearchTimer);
+            accountPage = 1;
+            accountSearchTimer = setTimeout(() => loadAccounts(), 350);
+        });
+
+        document.getElementById('accountRoleFilter').addEventListener('change', () => {
+            accountPage = 1;
+            loadAccounts();
+        });
+    });
+
+    // ═══ API Calls ═══
+    async function loadStats() {
+        if (!document.getElementById('statTotal')) return;
+        try {
+            const stats = await VendorApi.stats();
+            document.getElementById('statTotal').textContent = stats.total || 0;
+            document.getElementById('statApproved').textContent = stats.approved || 0;
+            document.getElementById('statPending').textContent = stats.pending || 0;
+            document.getElementById('statRejected').textContent = stats.rejected || 0;
+            document.getElementById('pendingBadge').textContent = stats.pending || 0;
+        } catch (err) {
+            console.error('Load stats error:', err);
+        }
+    }
+
+    async function loadVendors() {
+        if (!document.getElementById('vendorTable')) return;
+        const search = document.getElementById('searchInput').value.trim();
+        const sort = document.getElementById('sortSelect').value;
+
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('vendorTable').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'none';
+
+        try {
+            const res = await VendorApi.list({ search, status: currentTab, sort });
+            vendorsAll = res.data || [];
+            renderVendorPage();
+        } catch (err) {
+            console.error('Load vendors error:', err);
+            showToast('Lỗi tải danh sách vendors', 'error');
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    async function loadAccounts() {
+        const search = document.getElementById('accountSearchInput').value.trim() || undefined;
+        const role = document.getElementById('accountRoleFilter').value || undefined;
+
+        const body = document.getElementById('accountBody');
+        if (body) {
+            body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#999">Đang tải tài khoản...</td></tr>';
+        }
+        document.getElementById('accountTable').style.display = 'table';
+        document.getElementById('accountEmptyState').style.display = 'none';
+
+        try {
+            const first = await UsersApi.list({ page: 1, pageSize: 100, search, role });
+            const all = [...(first.data || [])];
+            const totalPages = Number(first.totalPages || 1);
+
+            for (let p = 2; p <= Math.min(totalPages, 20); p++) {
+                const next = await UsersApi.list({ page: p, pageSize: 100, search, role });
+                all.push(...(next.data || []));
+            }
+
+            accountsAll = all;
+            renderAccountPage();
+        } catch (err) {
+            console.error('Load accounts error:', err);
+            if (body) {
+                body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--danger)">Lỗi tải tài khoản: ${escapeHtml(err.message || 'Unknown error')}</td></tr>`;
+            }
+            document.getElementById('accountPagination').style.display = 'none';
+            document.getElementById('accountTableCount').textContent = 'Lỗi dữ liệu';
+        }
+    }
+
+    // ═══ Render ═══
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function getInitials(name) {
+        if (!name) return '?';
+        return name.split(' ').map(n => n.charAt(0)).join('').toUpperCase().substring(0, 2);
+    }
+
+    function statusLabel(status) {
+        const map = { approved: 'Đã duyệt', pending: 'Chờ duyệt', rejected: 'Từ chối' };
+        return map[status] || status;
+    }
+
+    function renderVendors(vendors) {
+        const tbody = document.getElementById('vendorBody');
+        const table = document.getElementById('vendorTable');
+        const empty = document.getElementById('emptyState');
+        const pagination = document.getElementById('vendorPagination');
+
+        if (!vendors.length) {
+            table.style.display = 'none';
+            empty.style.display = 'block';
+            pagination.style.display = 'none';
+            return;
+        }
+
+        table.style.display = 'table';
+        empty.style.display = 'none';
+
+        tbody.innerHTML = vendors.map(v => {
+            const vendorDisplayName = v.contactName || v.businessName || '—';
+            return `
+            <tr>
+                <td>
+                    <div class="vendor-info">
+                        <div class="vendor-avatar">${escapeHtml(getInitials(vendorDisplayName))}</div>
+                        <div class="vendor-details">
+                            <h4>${escapeHtml(vendorDisplayName)}</h4>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div>${escapeHtml(v.contactEmail || '—')}</div>
+                    <div style="color:#999;font-size:0.8rem;">${escapeHtml(v.contactPhone || '')}</div>
+                </td>
+                <td>
+                    <span class="status-badge ${v.verificationStatus}">
+                        <span class="status-dot ${v.verificationStatus}"></span>
+                        ${statusLabel(v.verificationStatus)}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-outline btn-sm" onclick="viewVendor(${v.vendorId})" title="Xem danh sách POI">
+                        ${v.poiCount || 0} POI
+                    </button>
+                </td>
+                <td>${(v.viewCount || 0).toLocaleString()}</td>
+                <td>${formatDateShort(v.createdAt)}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-icon" title="Xem chi tiết" onclick="viewVendor(${v.vendorId})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-icon" title="Chỉnh sửa" onclick="editVendor(${v.vendorId}, '${escapeAttr(v.businessName)}', '${escapeAttr(v.contactName)}', '${escapeAttr(v.contactEmail)}', '${escapeAttr(v.contactPhone)}', '${escapeAttr(v.address)}', '')">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        ${v.verificationStatus === 'pending' ? `
+                            <button class="btn-icon" title="Duyệt" style="background:rgba(6,214,160,0.12);color:var(--success)" onclick="changeStatus(${v.vendorId}, 'approved')">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn-icon danger" title="Từ chối" onclick="changeStatus(${v.vendorId}, 'rejected')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        ` : ''}
+                        ${v.verificationStatus === 'approved' ? `
+                            <button class="btn-icon danger" title="Từ chối" onclick="changeStatus(${v.vendorId}, 'rejected')">
+                                <i class="fas fa-ban"></i>
+                            </button>
+                        ` : ''}
+                        ${v.verificationStatus === 'rejected' ? `
+                            <button class="btn-icon" title="Duyệt lại" style="background:rgba(6,214,160,0.12);color:var(--success)" onclick="changeStatus(${v.vendorId}, 'approved')">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    function renderVendorPage() {
+        const total = vendorsAll.length;
+        const totalPages = Math.max(1, Math.ceil(total / vendorPageSize));
+        if (vendorPage > totalPages) vendorPage = totalPages;
+        if (vendorPage < 1) vendorPage = 1;
+
+        const start = (vendorPage - 1) * vendorPageSize;
+        const pageItems = vendorsAll.slice(start, start + vendorPageSize);
+
+        renderVendors(pageItems);
+        document.getElementById('tableCount').textContent = `${total} vendor`;
+
+        const pagination = document.getElementById('vendorPagination');
+
+        if (!total) {
+            pagination.style.display = 'none';
+            pagination.innerHTML = '';
+            return;
+        }
+
+        pagination.style.display = 'flex';
+        renderVendorPagination(totalPages, vendorPage, total);
+    }
+
+    function accountRoleBadge(role) {
+        const normalized = (role || '').toLowerCase();
+        if (normalized === 'admin') {
+            return '<span class="status-badge rejected"><span class="status-dot rejected"></span>Admin</span>';
+        }
+        return '<span class="status-badge approved"><span class="status-dot approved"></span>Vendor</span>';
+    }
+
+    function accountStatusBadge(isLocked) {
+        return isLocked
+            ? '<span class="status-badge rejected"><span class="status-dot rejected"></span>Đã khóa</span>'
+            : '<span class="status-badge approved"><span class="status-dot approved"></span>Đang hoạt động</span>';
+    }
+
+    function renderAccounts(rows) {
+        const body = document.getElementById('accountBody');
+        const table = document.getElementById('accountTable');
+        const empty = document.getElementById('accountEmptyState');
+
+        if (!rows.length) {
+            table.style.display = 'none';
+            empty.style.display = 'block';
+            return;
+        }
+
+        table.style.display = 'table';
+        empty.style.display = 'none';
+
+        body.innerHTML = rows.map(u => {
+            const role = (u.roles || [])[0] || 'Vendor';
+            const created = u.createdAt ? new Date(u.createdAt).toLocaleString('vi-VN') : '—';
+            return `
+                <tr>
+                    <td>
+                        <div><strong>${escapeHtml(u.fullName || 'N/A')}</strong></div>
+                        <div style="font-size:0.82rem;color:#888">${escapeHtml(u.email || '—')}</div>
+                        <div style="font-size:0.75rem;color:#999">${escapeHtml(u.phoneNumber || '')}</div>
+                    </td>
+                    <td>${accountRoleBadge(role)}</td>
+                    <td>${u.vendorId ?? '—'}</td>
+                    <td>${accountStatusBadge(!!u.isLocked)}</td>
+                    <td>${created}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon" title="Sửa" onclick="quickEditAccount('${u.id}', '${escapeAttr(u.fullName || '')}', '${escapeAttr(u.phoneNumber || '')}', '${escapeAttr(role)}')">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button class="btn-icon" title="${u.isLocked ? 'Mở khóa' : 'Khóa'}" onclick="toggleLockAccount('${u.id}', ${u.isLocked ? 'true' : 'false'})">
+                                <i class="fas ${u.isLocked ? 'fa-lock-open' : 'fa-lock'}"></i>
+                            </button>
+                            <button class="btn-icon danger" title="Xóa" onclick="deleteAccount('${u.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function renderAccountPage() {
+        const total = accountsAll.length;
+        const totalPages = Math.max(1, Math.ceil(total / accountPageSize));
+        if (accountPage > totalPages) accountPage = totalPages;
+        if (accountPage < 1) accountPage = 1;
+
+        const start = (accountPage - 1) * accountPageSize;
+        const items = accountsAll.slice(start, start + accountPageSize);
+        renderAccounts(items);
+
+        document.getElementById('accountTableCount').textContent = `${total} tài khoản`;
+
+        const pagination = document.getElementById('accountPagination');
+        if (!total || totalPages <= 1) {
+            pagination.style.display = 'none';
+            pagination.innerHTML = '';
+            return;
+        }
+
+        pagination.style.display = 'flex';
+        renderAccountPagination(totalPages, accountPage, total);
+    }
+
+    function renderAccountPagination(totalPages, currentPageNum, totalItems) {
+        const pagination = document.getElementById('accountPagination');
+        if (!pagination) return;
+
+        let html = `
+            <button class="pagination-btn" onclick="changeAccountPage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+
+        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToAccountPage(${i})">${i}</button>`;
+        }
+
+        if (totalPages > 5) {
+            html += `<span class="pagination-info">... ${totalPages}</span>`;
+        }
+
+        html += `
+            <button class="pagination-btn" onclick="changeAccountPage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <span class="pagination-info">${totalItems} tài khoản</span>
+        `;
+
+        pagination.innerHTML = html;
+    }
+
+    function changeAccountPage(direction) {
+        if (direction === 'prev' && accountPage > 1) {
+            accountPage--;
+        } else if (direction === 'next') {
+            accountPage++;
+        }
+        renderAccountPage();
+    }
+
+    function goToAccountPage(page) {
+        accountPage = page;
+        renderAccountPage();
+    }
+
+    function renderVendorPagination(totalPages, currentPageNum, totalItems) {
+        const pagination = document.getElementById('vendorPagination');
+        if (!pagination) return;
+
+        let html = `
+            <button class="pagination-btn" onclick="changeVendorPage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+
+        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToVendorPage(${i})">${i}</button>`;
+        }
+
+        if (totalPages > 5) {
+            html += `<span class="pagination-info">... ${totalPages}</span>`;
+        }
+
+        html += `
+            <button class="pagination-btn" onclick="changeVendorPage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <span class="pagination-info">${totalItems} vendor</span>
+        `;
+
+        pagination.innerHTML = html;
+    }
+
+    function changeVendorPage(direction) {
+        if (direction === 'prev' && vendorPage > 1) {
+            vendorPage--;
+        } else if (direction === 'next') {
+            vendorPage++;
+        }
+        renderVendorPage();
+    }
+
+    function goToVendorPage(page) {
+        vendorPage = page;
+        renderVendorPage();
+    }
+
+    function escapeAttr(str) {
+        if (!str) return '';
+        return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function formatDateShort(dateStr) {
+        if (!dateStr) return '—';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('vi-VN');
+    }
+
+    // ═══ Tabs ═══
+    function switchTab(status) {
+        currentTab = status;
+        vendorPage = 1;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+        if (status === '') document.getElementById('tabAll').classList.add('active');
+        else if (status === 'pending') document.getElementById('tabPending').classList.add('active');
+        else if (status === 'approved') document.getElementById('tabApproved').classList.add('active');
+        else if (status === 'rejected') document.getElementById('tabRejected').classList.add('active');
+
+        loadVendors();
+    }
+
+    function filterByStatus(status) {
+        switchTab(status);
+    }
+
+    // ═══ View Detail ═══
+    function getPoiListFromVendor(vendor) {
+        if (!vendor || typeof vendor !== 'object') return [];
+
+        const unwrapList = (value) => {
+            if (Array.isArray(value)) return value;
+            if (!value || typeof value !== 'object') return [];
+            if (Array.isArray(value.$values)) return value.$values;
+            if (Array.isArray(value.items)) return value.items;
+            if (Array.isArray(value.data)) return value.data;
+            return [];
+        };
+
+        const direct =
+            vendor.pOIs ||
+            vendor.POIs ||
+            vendor.pois ||
+            vendor.poIs ||
+            vendor.Pois ||
+            vendor.POIS ||
+            vendor.poiList ||
+            vendor.poisList;
+        const directList = unwrapList(direct);
+        if (directList.length) return directList;
+
+        const key = Object.keys(vendor).find(k => k.toLowerCase() === 'pois');
+        if (key) {
+            const keyedList = unwrapList(vendor[key]);
+            if (keyedList.length) return keyedList;
+        }
+
+        const nestedDataList = unwrapList(vendor.data);
+        if (nestedDataList.length) return nestedDataList;
+
+        return [];
+    }
+
+    async function viewVendor(vendorId) {
+        try {
+            const raw = await VendorApi.get(vendorId);
+            const v = raw && raw.data ? raw.data : raw;
+            document.getElementById('detailTitle').textContent = escapeHtml(v.businessName);
+            document.getElementById('detailEmail').textContent = v.contactEmail || '—';
+            document.getElementById('detailBusiness').textContent = v.businessName || '—';
+            document.getElementById('detailContact').textContent = v.contactName || '—';
+            document.getElementById('detailPhone').textContent = v.contactPhone || '—';
+            document.getElementById('detailAddress').textContent = v.address || '—';
+            document.getElementById('detailDate').textContent = formatDateShort(v.createdAt);
+            document.getElementById('detailViews').textContent = (v.viewCount || 0).toLocaleString();
+            document.getElementById('detailRating').textContent = v.rating ? `${v.rating.toFixed(1)} ⭐` : 'Chưa có';
+
+            const statusHtml = `<span class="status-badge ${v.verificationStatus}"><span class="status-dot ${v.verificationStatus}"></span> ${statusLabel(v.verificationStatus)}</span>`;
+            document.getElementById('detailStatus').innerHTML = statusHtml;
+
+            const poisEl = document.getElementById('detailPOIs');
+            // API có thể trả về POIs, pOIs, hoặc pois tùy theo JSON serialization
+            const poiList = getPoiListFromVendor(v);
+            if (poiList.length) {
+                poisEl.innerHTML = poiList.map((p, idx) => {
+                    // Hỗ trợ nhiều cách đặt tên field từ backend
+                    const id = p.pOI_ID ?? p.poI_ID ?? p.POI_ID ?? p.poi_ID ?? p.poiId ?? p.id ?? '';
+                    const name = p.name_Vi || p.name || p.Name || '?';
+                    const isActive = p.isActive ?? p.IsActive ?? true;
+                    const link = id ? `poi-detail?id=${id}` : null;
+                    return `
+                        <div class="poi-item">
+                                                        <span style="color:#999;font-size:0.85rem;min-width:20px;">${idx + 1}.</span>
+                            ${link
+                                ? `<a href="${link}" style="color:#111;text-decoration:none;font-weight:600">${escapeHtml(name)}</a>`
+                                : `<span style="font-weight:600;">${escapeHtml(name)}</span>`
+                            }
+                            ${!isActive ? '<span style="color:var(--danger);font-size:0.8rem;margin-left:4px;">(Inactive)</span>' : ''}
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                poisEl.innerHTML = '<div style="color:#999;text-align:center;padding:1rem;">Chưa có POI</div>';
+            }
+
+            openModal('detailModal');
+        } catch (err) {
+            showToast('Lỗi tải chi tiết vendor', 'error');
+        }
+    }
+
+    // ═══ Change Status ═══
+    async function changeStatus(vendorId, newStatus) {
+        const labels = { approved: 'duyệt', rejected: 'từ chối', pending: 'đặt chờ duyệt' };
+        const ok = await showConfirmPopup(`Bạn muốn ${labels[newStatus]} vendor này?`);
+        if (!ok) return;
+
+        try {
+            await VendorApi.updateStatus(vendorId, newStatus);
+            showToast(`Đã ${labels[newStatus]} vendor`, 'success');
+            loadStats();
+            loadVendors();
+        } catch (err) {
+            showToast('Lỗi cập nhật trạng thái', 'error');
+        }
+    }
+
+    function openCreateAccountModal() {
+        document.getElementById('createAccountForm').reset();
+        document.getElementById('caRole').value = 'Vendor';
+        toggleCreateAccountRoleFields();
+        openModal('createAccountModal');
+    }
+
+    function toggleCreateAccountRoleFields() {
+        const role = document.getElementById('caRole').value;
+        const vendorFields = document.getElementById('vendorRoleFields');
+        const passwordInput = document.getElementById('caPassword');
+
+        if (role === 'Vendor') {
+            vendorFields.style.display = 'block';
+            passwordInput.placeholder = 'Vendor có thể để trống để hệ thống tự sinh';
+        } else {
+            vendorFields.style.display = 'none';
+            passwordInput.placeholder = 'Admin bắt buộc nhập mật khẩu đủ mạnh';
+        }
+    }
+
+    async function submitCreateAccount() {
+        const role = document.getElementById('caRole').value;
+        const fullName = document.getElementById('caFullName').value.trim();
+        const email = document.getElementById('caEmail').value.trim();
+        const phone = document.getElementById('caPhone').value.trim();
+        const password = document.getElementById('caPassword').value.trim();
+
+        if (!fullName || !email) {
+            showToast('Vui lòng nhập họ tên và email', 'warning');
+            return;
+        }
+
+        try {
+            if (role === 'Admin') {
+                if (!password || password.length < 8) {
+                    showToast('Admin cần mật khẩu tối thiểu 8 ký tự', 'warning');
+                    return;
+                }
+
+                await UsersApi.create({
+                    email,
+                    password,
+                    fullName,
+                    phoneNumber: phone || null,
+                    role: 'Admin'
+                });
+
+                showToast('Đã tạo tài khoản Admin', 'success');
+            } else {
+                const vendorStatus = document.getElementById('caVendorStatus').value;
+                const createdVendor = await VendorApi.create({
+                    email,
+                    businessName: fullName,
+                    contactName: fullName,
+                    contactPhone: phone || null,
+                    password: password || null,
+                    status: vendorStatus
+                });
+
+                showToast('Đã tạo tài khoản Vendor', 'success');
+                if (createdVendor && createdVendor.temporaryPassword) {
+                    showToast(`Mật khẩu tạm thời: ${createdVendor.temporaryPassword}`, 'info', 9000);
+                }
+            }
+
+            closeModal('createAccountModal');
+            loadAccounts();
+        } catch (err) {
+            showToast(err.message || 'Lỗi tạo tài khoản', 'error');
+        }
+    }
+
+    async function toggleLockAccount(id, isLocked) {
+        const msg = isLocked ? 'Mở khóa tài khoản này?' : 'Khóa tài khoản này?';
+        const ok = await showConfirmPopup(msg);
+        if (!ok) return;
+
+        try {
+            if (isLocked) await UsersApi.unlock(id);
+            else await UsersApi.lock(id);
+            showToast(isLocked ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản', 'success');
+            loadAccounts();
+        } catch (err) {
+            showToast(err.message || 'Lỗi cập nhật trạng thái khóa', 'error');
+        }
+    }
+
+    async function deleteAccount(id) {
+        const ok = await showConfirmPopup('Xóa mềm tài khoản này?');
+        if (!ok) return;
+        try {
+            await UsersApi.delete(id);
+            showToast('Đã xóa tài khoản', 'success');
+            loadAccounts();
+        } catch (err) {
+            showToast(err.message || 'Lỗi xóa tài khoản', 'error');
+        }
+    }
+
+    async function quickEditAccount(id, fullName, phoneNumber, role) {
+        const newName = await showPromptPopup('Họ tên mới:', fullName || '');
+        if (newName === null) return;
+        const newPhone = await showPromptPopup('Số điện thoại mới:', phoneNumber || '');
+        if (newPhone === null) return;
+        const newRole = await showPromptPopup('Role (Admin/Vendor):', role || 'Vendor');
+        if (newRole === null) return;
+
+        try {
+            await UsersApi.update(id, {
+                fullName: newName,
+                phoneNumber: newPhone,
+                role: newRole
+            });
+            showToast('Đã cập nhật tài khoản', 'success');
+            loadAccounts();
+        } catch (err) {
+            showToast(err.message || 'Lỗi cập nhật tài khoản', 'error');
+        }
+    }
+
+    // ═══ Edit ═══
+    function editVendor(vendorId, business, name, email, phone, address, desc) {
+        document.getElementById('eVendorId').value = vendorId;
+        document.getElementById('eBusiness').value = business || '';
+        document.getElementById('eName').value = name || '';
+        document.getElementById('eEmail').value = email || '';
+        document.getElementById('ePhone').value = phone || '';
+        document.getElementById('eAddress').value = address || '';
+        document.getElementById('eDesc').value = desc || '';
+        document.getElementById('editSubtitle').textContent = `Vendor #${vendorId}`;
+        openModal('editModal');
+    }
+
+    async function submitEdit() {
+        const vendorId = document.getElementById('eVendorId').value;
+        const business = document.getElementById('eBusiness').value.trim();
+
+        if (!business) {
+            showToast('Tên quán không được để trống', 'warning');
+            return;
+        }
+
+        const data = {
+            businessName: business,
+            contactName: document.getElementById('eName').value.trim() || null,
+            contactEmail: document.getElementById('eEmail').value.trim() || null,
+            contactPhone: document.getElementById('ePhone').value.trim() || null,
+            address: document.getElementById('eAddress').value.trim() || null,
+            businessDescription: document.getElementById('eDesc').value.trim() || null
+        };
+
+        try {
+            await VendorApi.update(vendorId, data);
+            closeModal('editModal');
+            showToast('Cập nhật thành công!', 'success');
+            loadVendors();
+        } catch (err) {
+            showToast(err.message || 'Lỗi cập nhật', 'error');
+        }
+    }
+
+    function showConfirmPopup(message) {
+        if (window.UiFeedback?.confirm) {
+            return window.UiFeedback.confirm(message || '', {
+                title: 'Xác nhận',
+                confirmText: 'Đồng ý',
+                cancelText: 'Hủy'
+            });
+        }
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay active';
+            overlay.innerHTML = `
+                <div class="modal" style="max-width:420px;">
+                    <div class="modal-header"><h3>Xác nhận</h3></div>
+                    <div class="modal-body"><p>${escapeHtml(message || '')}</p></div>
+                    <div class="modal-footer" style="justify-content:flex-end;gap:.6rem;">
+                        <button class="btn btn-outline" id="cfNo">Hủy</button>
+                        <button class="btn btn-primary" id="cfYes">Đồng ý</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const cleanup = (val) => { overlay.remove(); resolve(val); };
+            overlay.querySelector('#cfNo')?.addEventListener('click', () => cleanup(false));
+            overlay.querySelector('#cfYes')?.addEventListener('click', () => cleanup(true));
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+        });
+    }
+
+    function showPromptPopup(label, defaultValue = '') {
+        if (window.UiFeedback?.prompt) {
+            return window.UiFeedback.prompt(label || '', defaultValue || '', {
+                title: 'Nhập thông tin',
+                confirmText: 'Xác nhận',
+                cancelText: 'Hủy'
+            });
+        }
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay active';
+            overlay.innerHTML = `
+                <div class="modal" style="max-width:460px;">
+                    <div class="modal-header"><h3>Nhập thông tin</h3></div>
+                    <div class="modal-body">
+                        <label style="display:block;font-weight:600;margin-bottom:.5rem;">${escapeHtml(label || '')}</label>
+                        <input id="pmInput" value="${escapeHtml(defaultValue || '')}" style="width:100%;padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:10px;" />
+                    </div>
+                    <div class="modal-footer" style="justify-content:flex-end;gap:.6rem;">
+                        <button class="btn btn-outline" id="pmNo">Hủy</button>
+                        <button class="btn btn-primary" id="pmYes">Xác nhận</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const input = overlay.querySelector('#pmInput');
+            const cleanup = (val) => { overlay.remove(); resolve(val); };
+            overlay.querySelector('#pmNo')?.addEventListener('click', () => cleanup(null));
+            overlay.querySelector('#pmYes')?.addEventListener('click', () => cleanup(input ? input.value : ''));
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(null); });
+            setTimeout(() => input?.focus(), 0);
+        });
+    }
+
+    // ═══ Modal Utils ═══
+    function openModal(id) {
+        document.getElementById(id).classList.add('active');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
+    }
+
+    // Close modal on overlay click
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) {
+            e.target.classList.remove('active');
+        }
+    });
+</script>
+</body>
+</html>
+

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="StreetFoodNarrator.App.Views.TourDetailPopupPage"
+             BackgroundColor="#CC000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid Padding="14,20">
+        <Border StrokeShape="RoundRectangle 24"
+                BackgroundColor="#0E1E17"
+                Stroke="#1C3024"
+                StrokeThickness="1"
+                VerticalOptions="Center"
+                MaximumHeightRequest="760">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <Grid>
+                    <Grid RowDefinitions="220,Auto" RowSpacing="0">
+                        <Grid Grid.Row="0">
+                            <Image Source="welcome_streetfood.jpg" Aspect="AspectFill"/>
+                            <Image Source="{Binding CoverImageUrl}" Aspect="AspectFill"/>
+                            <BoxView>
+                                <BoxView.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#22000000" Offset="0"/>
+                                        <GradientStop Color="#CC000000" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </BoxView.Background>
+                            </BoxView>
+
+                            <Border Margin="12,12,0,0"
+                                    HorizontalOptions="Start"
+                                    VerticalOptions="Start"
+                                    StrokeShape="RoundRectangle 10"
+                                    BackgroundColor="#F59E0B"
+                                    Padding="10,4">
+                                <Label x:Name="TourExperienceBadgeLabel" Text="TRẢI NGHIỆM TOUR"
+                                       FontSize="10"
+                                       FontAttributes="Bold"
+                                       TextColor="#1F2937"/>
+                            </Border>
+
+                            <Border Margin="0,12,12,0"
+                                    HorizontalOptions="End"
+                                    VerticalOptions="Start"
+                                    StrokeShape="RoundRectangle 14"
+                                    BackgroundColor="#111827CC"
+                                    Stroke="#374151"
+                                    WidthRequest="30"
+                                    HeightRequest="30">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnCloseTapped"/>
+                                </Border.GestureRecognizers>
+                                <Label Text="✕"
+                                       FontSize="14"
+                                       TextColor="White"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                        </Grid>
+
+                        <VerticalStackLayout Grid.Row="1" Padding="16,14,16,0" Spacing="8">
+                            <Label Text="{Binding Name}"
+                                   FontSize="34"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   LineBreakMode="TailTruncation"/>
+                            <Label Text="{Binding DescriptionQuote}"
+                                   FontSize="14"
+                                   TextColor="#9CA3AF"
+                                   LineBreakMode="WordWrap"/>
+                        </VerticalStackLayout>
+                    </Grid>
+                </Grid>
+
+                <ScrollView Grid.Row="1" Margin="0,8,0,0">
+                    <VerticalStackLayout Padding="16,6,16,10" Spacing="12">
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                            <Border Grid.Column="0" StrokeShape="RoundRectangle 12" BackgroundColor="#10251C" Stroke="#1C3024" Padding="8,10">
+                                <VerticalStackLayout Spacing="3" HorizontalOptions="Center">
+                                    <Label Text="&#xF0514;" FontFamily="MDI" FontSize="16" TextColor="#22C55E" HorizontalOptions="Center"/>
+                                    <Label x:Name="DurationTitleLabel" Text="THỜI LƯỢNG (DỰ KIẾN)" FontSize="9" TextColor="#6B7280" HorizontalOptions="Center"/>
+                                    <Label Text="{Binding DurationText}" FontSize="17" FontAttributes="Bold" TextColor="White" HorizontalOptions="Center"/>
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="#10251C" Stroke="#1C3024" Padding="8,10">
+                                <VerticalStackLayout Spacing="3" HorizontalOptions="Center">
+                                    <Label Text="&#xF04C2;" FontFamily="MDI" FontSize="16" TextColor="#FBBF24" HorizontalOptions="Center"/>
+                                    <Label x:Name="TourTypeTitleLabel" Text="KIỂU TOUR" FontSize="10" TextColor="#6B7280" HorizontalOptions="Center"/>
+                                    <Label Text="{Binding TourTypeText}" FontSize="17" FontAttributes="Bold" TextColor="White" HorizontalOptions="Center"/>
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border Grid.Column="2" StrokeShape="RoundRectangle 12" BackgroundColor="#10251C" Stroke="#1C3024" Padding="8,10">
+                                <VerticalStackLayout Spacing="3" HorizontalOptions="Center">
+                                    <Label Text="&#xF034E;" FontFamily="MDI" FontSize="16" TextColor="#F87171" HorizontalOptions="Center"/>
+                                    <Label x:Name="ThemeTitleLabel" Text="CHỦ ĐỀ / THỂ LOẠI" FontSize="9" TextColor="#6B7280" HorizontalOptions="Center"/>
+                                    <Label Text="{Binding ThemeText}" FontSize="17" FontAttributes="Bold" TextColor="White" HorizontalOptions="Center"/>
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+
+                        <Label x:Name="ItineraryTitleLabel" Text="Lịch trình tour"
+                               FontSize="22"
+                               FontAttributes="Bold"
+                               TextColor="White"
+                               Margin="0,2,0,2"/>
+
+                        <CollectionView ItemsSource="{Binding Stops}"
+                                        SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border StrokeShape="RoundRectangle 14"
+                                            BackgroundColor="#10251C"
+                                            Stroke="#1C3024"
+                                            Padding="10,8"
+                                            Margin="0,0,0,8">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                            <Border WidthRequest="26" HeightRequest="26" StrokeShape="RoundRectangle 13"
+                                                    BackgroundColor="#1E3A2D" VerticalOptions="Center">
+                                                <Label Text="●" TextColor="#34D399" HorizontalOptions="Center" VerticalOptions="Center" FontSize="11"/>
+                                            </Border>
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                                <Label Text="{Binding Title}"
+                                                       FontSize="14"
+                                                       TextColor="#D1D5DB"
+                                                       VerticalTextAlignment="Center"/>
+                                                <Label Text="{Binding Subtitle}"
+                                                       FontSize="11"
+                                                       TextColor="#9CA3AF"
+                                                       LineBreakMode="TailTruncation"
+                                                       MaxLines="2"/>
+                                                <Border BackgroundColor="#7F1D1D33"
+                                                        Stroke="#EF444466"
+                                                        StrokeShape="RoundRectangle 8"
+                                                        Padding="8,2"
+                                                        HorizontalOptions="Start"
+                                                        IsVisible="{Binding IsTemporarilyClosed}">
+                                                    <Label Text="{Binding ClosedStatusText}"
+                                                           FontSize="10"
+                                                           FontAttributes="Bold"
+                                                           TextColor="#FCA5A5"/>
+                                                </Border>
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </ScrollView>
+
+                <Grid Grid.Row="2" Padding="14,10,14,16" ColumnDefinitions="*,*" ColumnSpacing="10">
+                    <Button x:Name="SaveTourButton" Grid.Column="0"
+                            Text="Lưu tour"
+                            CornerRadius="14"
+                            HeightRequest="52"
+                            BackgroundColor="#122A1F"
+                            TextColor="#D1D5DB"
+                            Clicked="OnSaveClicked"/>
+                    <Button x:Name="StartNowButton" Grid.Column="1"
+                            Text="Bắt đầu tour ngay"
+                            CornerRadius="14"
+                            HeightRequest="52"
+                            BackgroundColor="#22C55E"
+                            TextColor="White"
+                            FontAttributes="Bold"
+                            Clicked="OnStartNowClicked"/>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</ContentPage>
+

@@ -1,0 +1,875 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý POI - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow);
+            cursor: pointer;
+        }
+
+        .stat-value { font-size: 2rem; font-weight: 700; color: var(--dark); margin-bottom: 0.25rem; }
+        .stat-label { color: #666; font-size: 0.9rem; }
+
+        /* Filter */
+        .filter-section {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .filter-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .filter-label { font-weight: 600; color: var(--dark); font-size: 0.9rem; }
+
+        .filter-input, .filter-select {
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .search-wrapper { position: relative; }
+        .search-icon { position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); color: #999; }
+        .filter-input.with-icon { padding-left: 3rem; }
+
+        /* Table */
+        .table-container {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            overflow-x: auto;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .table-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .bulk-actions { display: none; gap: 0.75rem; align-items: center; }
+        .bulk-actions.active { display: flex; }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        thead { background: linear-gradient(to right, #F8F9FA, #F0F4F8); }
+
+        th {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+
+        th:nth-child(1) { width: 40px; }
+        th:nth-child(2) { min-width: 160px; }
+        th:nth-child(3) { min-width: 180px; }
+        th:nth-child(4) { min-width: 110px; }
+        th:nth-child(5) { min-width: 160px; }
+        th:nth-child(6) { min-width: 130px; }
+        th:nth-child(7) { min-width: 90px; }
+        th:nth-child(8) { min-width: 90px; }
+        th:nth-child(9) { min-width: 130px; }
+        th:nth-child(10) { min-width: 130px; }
+
+        td {
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: #555;
+            font-size: 0.875rem;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        td:nth-child(3) {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        tr:hover td { background: rgba(255, 107, 53, 0.02); }
+
+        .poi-info { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+
+        .poi-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .poi-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        .poi-details {
+            min-width: 0;
+            max-width: 220px;
+        }
+
+        .poi-details h4 {
+            color: var(--dark);
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .poi-details p { font-size: 0.8rem; color: #999; }
+
+        .poi-qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+        .poi-qr-box {
+            width: 62px; height: 62px;
+            border-radius: 8px; border: 1px solid var(--border);
+            background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .poi-qr-box img, .poi-qr-box canvas { width: 58px; height: 58px; display: block; }
+        .poi-qr-link { font-size: 0.7rem; color: var(--secondary); text-decoration: none; }
+        .poi-qr-link:hover { text-decoration: underline; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.875rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-badge.active { background: rgba(6, 214, 160, 0.15); color: var(--success); }
+        .status-badge.inactive { background: rgba(239, 71, 111, 0.15); color: var(--danger); }
+
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .status-dot.active { background: var(--success); }
+        .status-dot.inactive { background: var(--danger); }
+
+        .action-buttons { display: flex; gap: 0.4rem; align-items: center; }
+
+        .btn-icon {
+            width: 34px; height: 34px;
+            border-radius: 8px; border: none;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s ease;
+            background: var(--light); color: var(--dark); flex-shrink: 0;
+        }
+
+        .btn-icon:hover { transform: scale(1.1); }
+        .btn-icon.edit:hover { background: rgba(0, 78, 137, 0.1); color: var(--secondary); }
+        .btn-icon.view:hover { background: rgba(255, 107, 53, 0.1); color: var(--primary); }
+        .btn-icon.approve:hover { background: rgba(6, 214, 160, 0.15); color: #059669; }
+        .btn-icon.reject:hover { background: rgba(239, 71, 111, 0.1); color: var(--danger); }
+
+        .checkbox { width: 18px; height: 18px; cursor: pointer; }
+
+        /* Vendor table simplification */
+        body.is-vendor .vendor-hide { display: none !important; }
+        body.is-admin .admin-hide { display: none !important; }
+
+        .pagination {
+            display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 2rem;
+        }
+
+        .pagination-btn {
+            width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--border);
+            background: white; color: var(--dark); font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+        }
+
+        .pagination-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .pagination-btn.active { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border-color: transparent; }
+        .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .app-confirm-overlay {
+            position: fixed; inset: 0; background: rgba(26,26,46,.5);
+            backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center;
+            z-index: 9999; padding: 1rem;
+        }
+        .app-confirm-overlay.active { display: flex; }
+        .app-confirm { background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.2); max-width: 420px; width: 100%; overflow: hidden; }
+        .app-confirm-header { padding: 1rem 1.25rem; border-bottom: 1px solid #eee; font-weight: 700; }
+        .app-confirm-body { padding: 1.1rem 1.25rem; color: #333; line-height: 1.5; }
+        .app-confirm-actions { display: flex; justify-content: flex-end; gap: .5rem; padding: 1rem 1.25rem; border-top: 1px solid #eee; background: #fafafa; }
+        .app-confirm-btn { padding: .55rem .9rem; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-weight: 600; }
+        .app-confirm-btn.primary { background: linear-gradient(135deg,#FF6B35 0%,#004E89 100%); border: none; color: #fff; }
+
+        .toast-wrap { position: fixed; top: 1rem; right: 1rem; z-index: 10020; display: flex; flex-direction: column; gap: .5rem; pointer-events: none; }
+        .toast-item { pointer-events: all; display: inline-flex; align-items: center; gap: .45rem; padding: .7rem .95rem; border-radius: 10px; color: #fff; font-weight: 600; box-shadow: 0 10px 26px rgba(0,0,0,.18); }
+        .toast-item.success { background: #0f766e; }
+        .toast-item.error { background: #b42318; }
+        .toast-item.info { background: #1f2937; }
+
+        @media (max-width: 1024px) {
+            .filter-grid { grid-template-columns: 1fr 1fr; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="page-header">
+        <h1 class="page-title">Quản lý POI</h1>
+        <button class="btn btn-outline" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i> Quay lại
+        </button>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-item" onclick="filterByReview('')">
+            <div class="stat-value" id="totalPOIsStat">0</div>
+            <div class="stat-label">Tổng POI</div>
+        </div>
+        <div class="stat-item" onclick="filterByActive('active')">
+            <div class="stat-value" id="activePOIsStat">0</div>
+            <div class="stat-label">Đang hoạt động</div>
+        </div>
+        <div class="stat-item" onclick="filterByReview('pending')" style="border-left:3px solid #F97316;">
+            <div class="stat-value" id="pendingPOIsStat" style="color:#F97316;">0</div>
+            <div class="stat-label">⏳ Chờ duyệt</div>
+        </div>
+        <div class="stat-item" onclick="filterByActive('inactive')">
+            <div class="stat-value" id="inactivePOIsStat">0</div>
+            <div class="stat-label">Đã tắt</div>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label class="filter-label">Tìm kiếm</label>
+                <div class="search-wrapper">
+                    <i class="search-icon fas fa-search"></i>
+                    <input type="text" class="filter-input with-icon" placeholder="Tìm theo tên, địa chỉ..." id="searchInput">
+                </div>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Danh mục</label>
+                <select class="filter-select" id="categoryFilter"><option value="">Tất cả</option></select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Duyệt</label>
+                <select class="filter-select" id="reviewFilter">
+                    <option value="">Tất cả</option>
+                    <option value="pending">Chờ duyệt</option>
+                    <option value="approved">Đã duyệt</option>
+                    <option value="rejected">Từ chối</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Trạng thái</label>
+                <select class="filter-select" id="statusFilter">
+                    <option value="">Tất cả</option>
+                    <option value="active">Đang hoạt động</option>
+                    <option value="inactive">Đã tắt</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Sắp xếp</label>
+                <select class="filter-select" id="sortFilter">
+                    <option value="newest">Mới nhất</option>
+                    <option value="oldest">Cũ nhất</option>
+                    <option value="name-asc">Tên A-Z</option>
+                    <option value="name-desc">Tên Z-A</option>
+                    <option value="views">Lượt xem</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button class="btn btn-primary" onclick="applyFilters()">
+                    <i class="fas fa-filter"></i> Lọc
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <div class="table-header">
+            <h2 class="table-title">Danh sách POI</h2>
+            <div class="bulk-actions" id="bulkActions">
+                <span style="color:#666;font-weight:600;"><span id="selectedCount">0</span> đã chọn</span>
+                <button class="btn btn-outline" id="batchApproveBtn" onclick="batchApprove()" style="display:none;background:rgba(6,214,160,0.1);color:#059669;border-color:#06D6A0;">
+                    <i class="fas fa-check-double"></i> Duyệt tất cả
+                </button>
+            </div>
+        </div>
+
+        <table id="poiTable">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                    <th>POI</th>
+                    <th class="vendor-hide admin-hide">ĐỊA CHỈ</th>
+                    <th>DANH MỤC</th>
+                    <th class="vendor-hide admin-hide">GIỜ MỞ CỬA</th>
+                    <th>SĐT</th>
+                    <th id="scoreOrAudioHeader">ĐÁNH GIÁ</th>
+                    <th class="vendor-hide admin-hide">QR POI</th>
+                    <th>TRẠNG THÁI</th>
+                    <th>HÀNH ĐỘNG</th>
+                </tr>
+            </thead>
+            <tbody id="poiTableBody">
+                <tr>
+                    <td colspan="10" style="text-align:center;padding:2rem;color:#999;">
+                        Kết nối API để tải dữ liệu...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="pagination" id="paginationContainer">
+            <button class="pagination-btn" onclick="changePage('prev')"><i class="fas fa-chevron-left"></i></button>
+            <button class="pagination-btn active" onclick="goToPage(1)">1</button>
+            <button class="pagination-btn" onclick="changePage('next')"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+</div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="api.js"></script>
+<script src="sidebar.js"></script>
+<script>
+    let currentPage = 1, currentPageSize = 5, currentTotalPages = 1;
+    let currentSearch = '', currentStatus = null, currentSort = 'newest';
+    let currentCategory = null, currentReviewStatus = null;
+    let selectedPOIs = new Set(), allPOIs = [], vendorAllPOIs = [];
+    let vendorContext = null, categoryCache = [];
+
+    const user = (typeof TokenManager !== 'undefined') ? TokenManager.getUser() : null;
+    if (!user && typeof TokenManager !== 'undefined') window.location.href = TokenManager.getLoginUrl();
+
+    const roles = user?.roles || [];
+    const roleContext = (typeof TokenManager !== 'undefined' && TokenManager.getRoleContext) ? TokenManager.getRoleContext() : null;
+    const isAdmin = roleContext ? roleContext === 'Admin' : roles.includes('Admin');
+    const isVendor = roleContext ? roleContext === 'Vendor' : roles.includes('Vendor');
+
+    if (isVendor) document.body.classList.add('is-vendor');
+    if (isAdmin) document.body.classList.add('is-admin');
+    const statusFilterEl = document.getElementById('statusFilter');
+    if (statusFilterEl && isAdmin) {
+        statusFilterEl.insertAdjacentHTML('beforeend', '<option value="closed">Đóng cửa vĩnh viễn</option>');
+    }
+    const scoreOrAudioHeader = document.getElementById('scoreOrAudioHeader');
+    if (scoreOrAudioHeader && isVendor) scoreOrAudioHeader.textContent = 'AUDIO';
+
+    const QR_LINK_EXPIRY_DAYS = 5;
+    const QR_LINK_EXPIRY_WINDOW_MS = QR_LINK_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+
+    function getCurrentQrExpiryEpochSeconds() {
+        const nowMs = Date.now();
+        const windowStartMs = Math.floor(nowMs / QR_LINK_EXPIRY_WINDOW_MS) * QR_LINK_EXPIRY_WINDOW_MS;
+        const windowEndMs = windowStartMs + QR_LINK_EXPIRY_WINDOW_MS;
+        return Math.floor(windowEndMs / 1000);
+    }
+
+    function getPoiQrLink(id) {
+        const exp = getCurrentQrExpiryEpochSeconds();
+        return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}?exp=${exp}`;
+    }
+
+    function formatCategory(cat) {
+        if (!cat) return '-';
+        const k = String(cat).trim().toLowerCase();
+        const m = { 'oc':'Ốc','pho':'Phở','bun':'Bún','banh-mi':'Bánh mì','com':'Cơm','com-tam':'Cơm tấm','lau':'Lẩu','hotpot':'Lẩu','nuong':'Nướng','hai-san':'Hải sản','seafood':'Hải sản','do-uong':'Đồ uống','trang-mieng':'Tráng miệng','snack':'Đồ ăn vặt','breakfast':'Ăn sáng','che':'Chè','khac':'Khác','other':'Khác','street entrance':'Cổng vào phố ẩm thực','snails restaurant':'Quán ốc','hot pot restaurant':'Quán lẩu','bbq & hot pot':'Nướng & lẩu','vietnamese traditional food':'Ẩm thực truyền thống Việt','vietnamese beef steak':'Bò né','late night dining':'Ăn khuya','late night seafood':'Hải sản đêm','vietnamese rice & noodles':'Cơm & bún Việt','vietnamese-chinese bbq':'Nướng Trung - Việt' };
+        return m[k] || (/[^\x00-\x7F]/.test(cat) ? cat : 'Khác');
+    }
+
+    function formatOpeningHours(text, list) {
+        const parts = (() => {
+            const t = (text || '').trim();
+            if (t) return t.split(';').map(p => p.trim()).filter(Boolean);
+            if (Array.isArray(list) && list.length) return list;
+            return [];
+        })();
+        if (!parts.length) return '-';
+        const entries = parts.map(p => {
+            const cleaned = p.replace(/^Thứ\s*(\d+)\s*:\s*/i, (m, d) => `T${d}: `).replace(/^Chủ\s*nhật\s*:\s*/i, 'CN: ').replace(/^CN\s*:\s*/i, 'CN: ');
+            const [day, time] = cleaned.split(':').map(s => s.trim());
+            return { day, time: time || '' };
+        }).filter(e => e.day && e.time);
+        const gt = d => entries.find(e => e.day === d)?.time || '';
+        const wd = [gt('T2'),gt('T3'),gt('T4'),gt('T5'),gt('T6'),gt('T7')].filter(Boolean);
+        const allSame = wd.length === 6 && wd.every(t => t === wd[0]);
+        const cn = gt('CN');
+        if (allSame) {
+            if (cn && cn === wd[0]) return `T2–CN: ${wd[0]}`;
+            if (cn) return `T2–T7: ${wd[0]}; CN: ${cn}`;
+            return `T2–T7: ${wd[0]}`;
+        }
+        return parts.join('; ');
+    }
+
+    function formatAudioAvailability(poi) {
+        const audioCount = Number(poi.audioCount ?? poi.AudioCount ?? 0);
+        const hasAudio = audioCount > 0;
+        return `<span class="status-badge ${hasAudio ? 'active' : 'inactive'}"><span class="status-dot ${hasAudio ? 'active' : 'inactive'}"></span>${hasAudio ? 'Đã có audio' : 'Chưa có audio'}</span>`;
+    }
+
+    function formatPriceRating(poi) {
+        if (isVendor) return formatAudioAvailability(poi);
+        const r = (poi.rating !== undefined && poi.rating !== null) ? `⭐ ${Number(poi.rating).toFixed(1)}` : '';
+        return r || '-';
+    }
+
+    function formatReviewBadge(poi) {
+        const review = (poi.reviewStatus || poi.ReviewStatus || 'approved').toLowerCase();
+        const isDeleted = !!(poi.isDeleted ?? poi.IsDeleted ?? poi.deletedAt ?? poi.DeletedAt);
+        const isActive = !!(poi.isActive ?? poi.IsActive);
+        if (isDeleted) {
+            return `<span class="status-badge inactive" style="background:rgba(127,29,29,0.12);color:#991B1B;border:1px solid rgba(127,29,29,0.35);"><span class="status-dot inactive" style="background:#991B1B;"></span>Đóng cửa vĩnh viễn</span>`;
+        }
+        if (review === 'pending') return `<span class="status-badge" style="background:rgba(249,115,22,0.12);color:#C2410C;border:1px solid rgba(249,115,22,0.4);"><span class="status-dot" style="background:#F97316;animation:none;"></span>Chờ duyệt</span>`;
+        if (review === 'rejected') return `<span class="status-badge inactive"><span class="status-dot inactive"></span>Từ chối</span>`;
+        return `<span class="status-badge ${isActive ? 'active' : 'inactive'}"><span class="status-dot ${isActive ? 'active' : 'inactive'}"></span>${isActive ? 'Hoạt động' : '⏸ Tạm dừng'}</span>`;
+    }
+
+    function isPermanentlyClosed(poi) {
+        return !!(poi?.isDeleted ?? poi?.IsDeleted ?? poi?.deletedAt ?? poi?.DeletedAt);
+    }
+
+    function applyStatusClientFilter(list, status) {
+        const src = Array.isArray(list) ? list : [];
+        if (status === 'closed') return src.filter(isPermanentlyClosed);
+        if (status === 'active') return src.filter(p => !isPermanentlyClosed(p) && !!(p.isActive ?? p.IsActive));
+        if (status === 'inactive') return src.filter(p => !isPermanentlyClosed(p) && !(p.isActive ?? p.IsActive));
+        return src;
+    }
+
+    function sortPois(list, key) {
+        const a = (list || []).slice();
+        switch (key) {
+            case 'oldest': return a.sort((x,y) => new Date(x.createdAt||0) - new Date(y.createdAt||0));
+            case 'name-asc': return a.sort((x,y) => String(x.name_Vi||'').localeCompare(String(y.name_Vi||''), 'vi'));
+            case 'name-desc': return a.sort((x,y) => String(y.name_Vi||'').localeCompare(String(x.name_Vi||''), 'vi'));
+            case 'views': return a.sort((x,y) => (y.viewCount||0) - (x.viewCount||0));
+            default: return a.sort((x,y) => new Date(y.createdAt||0) - new Date(x.createdAt||0));
+        }
+    }
+
+    function updateCategoryFilter(pois) {
+        const sel = document.getElementById('categoryFilter');
+        if (!sel) return;
+        const set = new Set(categoryCache);
+        (pois || []).forEach(p => { if (p.category) set.add(p.category); });
+        const list = Array.from(set).filter(Boolean).sort((a,b) => formatCategory(a).localeCompare(formatCategory(b), 'vi'));
+        categoryCache = list;
+        const cur = sel.value || '';
+        sel.innerHTML = '<option value="">Tất cả</option>' + list.map(c => `<option value="${String(c).replace(/"/g,'&quot;')}">${formatCategory(c)}</option>`).join('');
+        sel.value = cur;
+    }
+
+    function renderTable(pois) {
+        const tbody = document.getElementById('poiTableBody');
+        if (!pois || !pois.length) {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#999;">Chưa có POI nào. <a href="poi-create" style="color:var(--primary);">Tạo POI đầu tiên</a></td></tr>`;
+            return;
+        }
+        tbody.innerHTML = pois.map(poi => `
+            <tr>
+                <td><input type="checkbox" class="checkbox poi-checkbox" data-id="${poi.poI_ID}" onchange="toggleSelect(${poi.poI_ID})"></td>
+                <td>
+                    <div class="poi-info">
+                        <div class="poi-icon">${poi.imageUrl ? `<img src="${poi.imageUrl}" alt="${poi.name_Vi||'POI'}">` : '📍'}</div>
+                        <div class="poi-details"><h4 title="${poi.name_Vi||'N/A'}">${poi.name_Vi||'N/A'}</h4></div>
+                    </div>
+                </td>
+                <td class="vendor-hide admin-hide" title="${poi.address||''}">${poi.address||'-'}</td>
+                <td>${formatCategory(poi.category)}</td>
+                <td class="vendor-hide admin-hide">${formatOpeningHours(poi.openingHoursText, poi.openingHours)}</td>
+                <td>${poi.phoneNumber||'-'}</td>
+                <td>${formatPriceRating(poi)}</td>
+                <td class="vendor-hide admin-hide">
+                    <div class="poi-qr-wrap">
+                        <div class="poi-qr-box" id="poiQr_${poi.poI_ID}"></div>
+                        <a class="poi-qr-link" href="${getPoiQrLink(poi.poI_ID)}" target="_blank" rel="noopener noreferrer">Mở link</a>
+                    </div>
+                </td>
+                <td>${formatReviewBadge(poi)}</td>
+                <td>
+                    <div class="action-buttons">
+                        ${(isAdmin && (poi.reviewStatus||'').toLowerCase() === 'pending') ? `
+                        <button class="btn-icon approve" onclick="approvePOI(${poi.poI_ID})" title="Duyệt"><i class="fas fa-check"></i></button>
+                        <button class="btn-icon reject" onclick="rejectPOI(${poi.poI_ID})" title="Từ chối"><i class="fas fa-times"></i></button>
+                        <div style="width:1px;background:var(--border);margin:0 2px;height:20px;"></div>
+                        ` : ''}
+                        <button class="btn-icon view" onclick="viewPOI(${poi.poI_ID})" title="Xem"><i class="fas fa-eye"></i></button>
+                        ${isPermanentlyClosed(poi) ? '' : `<button class="btn-icon edit" onclick="editPOI(${poi.poI_ID})" title="Sửa"><i class="fas fa-edit"></i></button>`}
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        if (!isAdmin && !isVendor) renderPoiQrCodes(pois);
+    }
+
+    function renderPoiQrCodes(pois) {
+        if (!Array.isArray(pois) || !pois.length || typeof QRCode === 'undefined') return;
+        pois.forEach(poi => {
+            const box = document.getElementById(`poiQr_${poi.poI_ID}`);
+            if (!box) return;
+            box.innerHTML = '';
+            new QRCode(box, { text: getPoiQrLink(poi.poI_ID), width: 58, height: 58, colorDark: '#111', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
+        });
+    }
+
+    function renderPagination(totalPages, curPage) {
+        const container = document.getElementById('paginationContainer');
+        let html = `<button class="pagination-btn" onclick="changePage('prev')" ${curPage===1?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
+
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="pagination-btn ${i===curPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+        } else {
+            html += `<button class="pagination-btn ${curPage===1?'active':''}" onclick="goToPage(1)">1</button>`;
+
+            const start = Math.max(2, curPage - 1);
+            const end = Math.min(totalPages - 1, curPage + 1);
+
+            if (start > 2) {
+                html += `<span style="color:#666;padding:0 0.5rem">...</span>`;
+            }
+
+            for (let i = start; i <= end; i++) {
+                html += `<button class="pagination-btn ${i===curPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            if (end < totalPages - 1) {
+                html += `<span style="color:#666;padding:0 0.5rem">...</span>`;
+            }
+
+            html += `<button class="pagination-btn ${curPage===totalPages?'active':''}" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+        }
+
+        html += `<button class="pagination-btn" onclick="changePage('next')" ${curPage===totalPages?'disabled':''}><i class="fas fa-chevron-right"></i></button>`;
+        container.innerHTML = html;
+    }
+
+    async function loadPOIs() {
+        if (typeof api === 'undefined') return;
+        try {
+            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i><p style="margin-top:1rem;color:#999;">Đang tải...</p></td></tr>`;
+            const statusApiParam = currentStatus === 'active' ? true : currentStatus === 'inactive' ? false : null;
+            const raw = await api.getPOIs(1, 5000, currentSearch, statusApiParam, currentCategory, currentReviewStatus);
+            const statusFiltered = applyStatusClientFilter(raw.data || [], currentStatus);
+            const sorted = sortPois(statusFiltered, currentSort);
+            const total = sorted.length;
+            const totalPages = Math.max(1, Math.ceil(total / currentPageSize));
+            currentTotalPages = totalPages;
+            currentPage = Math.min(Math.max(1, currentPage), totalPages);
+            const start = (currentPage - 1) * currentPageSize;
+            allPOIs = sorted.slice(start, start + currentPageSize);
+            updateCategoryFilter(sorted);
+            renderTable(allPOIs);
+            renderPagination(totalPages, currentPage);
+            await loadPOIStats(sorted);
+        } catch (err) {
+            document.getElementById('poiTableBody').innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--danger);"><i class="fas fa-exclamation-triangle" style="font-size:2rem;"></i><p style="margin-top:1rem;">Lỗi: ${err.message}</p><button class="btn btn-primary" onclick="loadPOIs()" style="margin-top:1rem;"><i class="fas fa-redo"></i> Thử lại</button></td></tr>`;
+        }
+    }
+
+    async function loadPOIStats(allData) {
+        try {
+            if (allData) {
+                document.getElementById('totalPOIsStat').textContent = allData.length;
+                document.getElementById('activePOIsStat').textContent = allData.filter(p => p.isActive).length;
+                document.getElementById('inactivePOIsStat').textContent = allData.filter(p => !p.isActive).length;
+                const pendingEl = document.getElementById('pendingPOIsStat');
+                if (pendingEl) pendingEl.textContent = allData.filter(p => (p.reviewStatus||'').toLowerCase() === 'pending').length;
+                return;
+            }
+            if (typeof api === 'undefined') return;
+            const stats = await api.getPOIStats();
+            document.getElementById('totalPOIsStat').textContent = stats.totalPOIs ?? 0;
+            document.getElementById('activePOIsStat').textContent = stats.activePOIs ?? 0;
+            document.getElementById('inactivePOIsStat').textContent = stats.inactivePOIs ?? 0;
+            const pendingEl = document.getElementById('pendingPOIsStat');
+            if (pendingEl) pendingEl.textContent = stats.pendingPOIs ?? 0;
+        } catch {}
+    }
+
+    function applyFilters() {
+        currentSearch = document.getElementById('searchInput').value;
+        const sv = document.getElementById('statusFilter').value;
+        currentCategory = document.getElementById('categoryFilter').value || null;
+        currentSort = document.getElementById('sortFilter').value || 'newest';
+        currentReviewStatus = document.getElementById('reviewFilter')?.value || null;
+        currentStatus = sv || null;
+        currentPage = 1;
+        loadPOIs();
+    }
+
+    function filterByReview(status) {
+        currentReviewStatus = status || null;
+        const el = document.getElementById('reviewFilter');
+        if (el) el.value = status || '';
+        currentPage = 1; loadPOIs();
+    }
+
+    function filterByActive(status) {
+        currentStatus = status || null;
+        const el = document.getElementById('statusFilter');
+        if (el) el.value = status || '';
+        currentPage = 1; loadPOIs();
+    }
+
+    function changePage(dir) {
+        if (dir === 'prev' && currentPage > 1) { currentPage--; loadPOIs(); }
+        else if (dir === 'next' && currentPage < currentTotalPages) { currentPage++; loadPOIs(); }
+    }
+    function goToPage(p) {
+        const target = Math.min(Math.max(1, Number(p) || 1), currentTotalPages);
+        if (target === currentPage) return;
+        currentPage = target;
+        loadPOIs();
+    }
+
+    function toggleSelectAll() {
+        const all = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.poi-checkbox').forEach(cb => {
+            cb.checked = all;
+            if (all) selectedPOIs.add(parseInt(cb.dataset.id));
+            else selectedPOIs.delete(parseInt(cb.dataset.id));
+        });
+        updateBulkActions();
+    }
+    function toggleSelect(id) {
+        if (selectedPOIs.has(id)) selectedPOIs.delete(id);
+        else selectedPOIs.add(id);
+        updateBulkActions();
+    }
+    function updateBulkActions() {
+        const ba = document.getElementById('bulkActions');
+        const sc = document.getElementById('selectedCount');
+        const bb = document.getElementById('batchApproveBtn');
+        if (selectedPOIs.size > 0) {
+            ba.classList.add('active');
+            sc.textContent = selectedPOIs.size;
+            if (bb) { const hp = allPOIs.some(p => selectedPOIs.has(p.poI_ID) && (p.reviewStatus||'').toLowerCase() === 'pending'); bb.style.display = (isAdmin && hp) ? '' : 'none'; }
+        } else {
+            ba.classList.remove('active');
+            if (bb) bb.style.display = 'none';
+        }
+    }
+
+    function viewPOI(id) { window.location.href = `poi-detail?id=${id}`; }
+    function editPOI(id) { window.location.href = `poi-edit?id=${id}`; }
+
+    async function approvePOI(id) {
+        showConfirm('Duyệt POI này?', async () => {
+            try { await api.reviewPOI(id, { status: 'approved', note: '' }); showAlert('Đã duyệt!'); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
+        });
+    }
+    async function rejectPOI(id) {
+        const note = await showPrompt('Lý do từ chối (tùy chọn):');
+        if (note === null) return;
+        try { await api.reviewPOI(id, { status: 'rejected', note }); showAlert('Đã từ chối.'); loadPOIs(); } catch(e) { showAlert('Lỗi: ' + e.message); }
+    }
+    async function batchApprove() {
+        const ids = allPOIs.filter(p => selectedPOIs.has(p.poI_ID) && (p.reviewStatus||'').toLowerCase() === 'pending').map(p => p.poI_ID);
+        if (!ids.length) return;
+        showConfirm(`Duyệt ${ids.length} POI?`, async () => {
+            let ok = 0, fail = 0;
+            for (const id of ids) { try { await api.reviewPOI(id, { status: 'approved', note: '' }); ok++; } catch { fail++; } }
+            showAlert(`Đã duyệt ${ok} POI${fail>0?`, ${fail} lỗi`:''}.`);
+            selectedPOIs.clear(); updateBulkActions(); loadPOIs();
+        });
+    }
+
+    function ensureConfirmModal() {
+        if (document.getElementById('appConfirmModal')) return;
+        const el = document.createElement('div');
+        el.id = 'appConfirmModal'; el.className = 'app-confirm-overlay';
+        el.innerHTML = `<div class="app-confirm" role="dialog"><div class="app-confirm-header">Xác nhận</div><div class="app-confirm-body" id="appConfirmMessage"></div><div class="app-confirm-actions"><button class="app-confirm-btn" id="appConfirmCancel">Hủy</button><button class="app-confirm-btn primary" id="appConfirmOk">Đồng ý</button></div></div>`;
+        document.body.appendChild(el);
+    }
+    function showConfirm(msg, onOk) {
+        if (window.UiFeedback?.confirm) {
+            window.UiFeedback.confirm(msg || '', { title: 'Xác nhận', confirmText: 'Đồng ý', cancelText: 'Hủy' })
+                .then(ok => { if (ok) onOk && onOk(); });
+            return;
+        }
+        ensureConfirmModal();
+        const overlay = document.getElementById('appConfirmModal');
+        document.getElementById('appConfirmMessage').textContent = msg || '';
+        const close = () => overlay.classList.remove('active');
+        document.getElementById('appConfirmOk').onclick = () => { close(); onOk && onOk(); };
+        document.getElementById('appConfirmCancel').onclick = close;
+        overlay.onclick = e => { if (e.target === overlay) close(); };
+        const cancelBtn = document.getElementById('appConfirmCancel');
+        if (cancelBtn) cancelBtn.style.display = '';
+        document.getElementById('appConfirmOk').textContent = 'Đồng ý';
+        overlay.classList.add('active');
+    }
+    function showAlert(msg) {
+        showToast(msg, /^lỗi/i.test(String(msg || '')) ? 'error' : 'success');
+    }
+
+    function showPrompt(message) {
+        if (window.UiFeedback?.prompt) {
+            return window.UiFeedback.prompt(message || '', '', { title: 'Nhập thông tin', confirmText: 'Xác nhận', cancelText: 'Hủy' });
+        }
+        ensureConfirmModal();
+        const overlay = document.getElementById('appConfirmModal');
+        document.getElementById('appConfirmMessage').innerHTML = `${message || ''}<div style="margin-top:.75rem;"><input id="appPromptInput" class="filter-input" style="width:100%;" /></div>`;
+        return new Promise(resolve => {
+            const close = (val) => {
+                overlay.classList.remove('active');
+                resolve(val);
+            };
+            document.getElementById('appConfirmCancel').style.display = '';
+            document.getElementById('appConfirmOk').textContent = 'Xác nhận';
+            document.getElementById('appConfirmCancel').onclick = () => close(null);
+            document.getElementById('appConfirmOk').onclick = () => close(document.getElementById('appPromptInput')?.value || '');
+            overlay.onclick = e => { if (e.target === overlay) close(null); };
+            overlay.classList.add('active');
+            setTimeout(() => document.getElementById('appPromptInput')?.focus(), 0);
+        });
+    }
+
+    function showToast(message, type = 'info', timeout = 3200) {
+        if (window.UiFeedback?.toast) {
+            window.UiFeedback.toast(message, type, timeout);
+            return;
+        }
+        const wrap = document.getElementById('toastWrap');
+        if (!wrap || !message) return;
+        const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info';
+        const item = document.createElement('div');
+        item.className = `toast-item ${type}`;
+        item.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
+        wrap.appendChild(item);
+        setTimeout(() => item.remove(), timeout);
+    }
+
+    if (typeof api !== 'undefined') loadPOIs();
+    document.getElementById('searchInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    PinPopupView.xaml  –  Popup khi nhấn pin trên bản đồ Explore
+    Chứa: Ảnh, Tên, Rating, K/c, nút Yêu thích, nút Xem chi tiết
+    Binding: SelectedPinPOI từ MainViewModel
+-->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             x:DataType="vm:MainViewModel"
+             x:Class="StreetFoodNarrator.App.Views.Components.PinPopupView">
+
+    <!-- Dark Container matching Ảnh 2 -->
+    <Border StrokeShape="RoundRectangle 40,40,40,40"
+            Stroke="Transparent" BackgroundColor="#1E2922"
+            Margin="16,0,16,16" Padding="20">
+        
+        <!-- Optional shadow (if supported, MAUI 8 uses Shadow property) -->
+        <Border.Shadow>
+            <Shadow Brush="Black" Offset="0,10" Radius="20" Opacity="0.5"/>
+        </Border.Shadow>
+
+        <VerticalStackLayout Spacing="24">
+
+            <!-- POI info row -->
+            <Grid ColumnDefinitions="80,*,Auto" ColumnSpacing="16">
+                
+                <!-- Left: Circular Image -->
+                <Border Grid.Column="0" StrokeShape="RoundRectangle 40"
+                        BackgroundColor="#2A3C31" WidthRequest="80" HeightRequest="80"
+                        Stroke="White" StrokeThickness="2">
+                    <Image Source="{Binding SelectedPinPOI.DisplayImageUrl, TargetNullValue='dotnet_bot.png'}"
+                           Aspect="AspectFill" WidthRequest="80" HeightRequest="80"/>
+                </Border>
+                
+                <!-- Middle: Texts -->
+                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="6">
+                          <Label Text="{Binding SelectedPinPOI.DisplayName, TargetNullValue='Tên Quán'}"
+                           FontSize="18" FontAttributes="Bold" TextColor="White" LineBreakMode="TailTruncation"/>
+                    <HorizontalStackLayout Spacing="6">
+                        <!-- Rating with Star -->
+                        <Label FontSize="14" TextColor="#D1D5DB">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="⭐ " TextColor="#FBBF24"/>
+                                    <Span Text="{Binding SelectedPinPOI.Rating, StringFormat='{0:F1}', TargetNullValue='—'}"/>
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                        <Label Text="•" FontSize="14" TextColor="#6B7280"/>
+                        <!-- Distance -->
+                        <Label Text="{Binding SelectedPinPOI.DistanceFromUser, StringFormat='{0:F1} dặm'}"
+                               FontSize="14" TextColor="#9CA3AF"/>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+                
+                <!-- Right: Heart / Favorite Button -->
+                <Grid Grid.Column="2" VerticalOptions="Start" WidthRequest="40" HeightRequest="40">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSaveTapped"/>
+                    </Grid.GestureRecognizers>
+                    <!-- Icon heart, red when liked, otherwise gray -->
+                    <Label FontFamily="MDI" FontSize="24"
+                           HorizontalOptions="Center" VerticalOptions="Center"
+                           Text="{Binding SelectedPinPOI.IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='&#xF02D1;:&#xF02D1;', TargetNullValue='&#xF02D1;'}"
+                           TextColor="{Binding SelectedPinPOI.IsLikedByUser, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#22C55E:#4B5563', TargetNullValue='#4B5563'}">
+                    </Label>
+                </Grid>
+            </Grid>
+
+            <!-- Action button: XEM CHI TIẾT -> -->
+            <Border StrokeShape="RoundRectangle 24"
+                    BackgroundColor="#34D399" Stroke="Transparent"
+                    HeightRequest="48">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnViewDetailsTapped"/>
+                </Border.GestureRecognizers>
+                  <Label x:Name="ViewDetailActionLabel"
+                      Text="XEM CHI TIẾT &#x2192;" 
+                       FontSize="15" FontAttributes="Bold"
+                       TextColor="#064E3B" 
+                       HorizontalOptions="Center" VerticalOptions="Center"/>
+            </Border>
+
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

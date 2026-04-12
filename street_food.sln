@@ -1,0 +1,59 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "API", "API", "{D82C56D6-B2CD-F611-9E31-04638F7EC30E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StreetFoodNarrator.API", "API\StreetFoodNarrator.API\StreetFoodNarrator.API.csproj", "{2DD4998F-D227-11FA-D646-62DDDC273875}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MobileApp", "MobileApp", "{0FFEEB6A-E627-9A6A-8363-9175E7389C0B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StreetFoodNarrator.App", "MobileApp\StreetFoodNarrator.App\StreetFoodNarrator.App.csproj", "{653AF672-E202-475F-A768-CF3502AA7E00}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Debug|x64.Build.0 = Debug|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Debug|x86.Build.0 = Debug|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Release|x64.ActiveCfg = Release|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Release|x64.Build.0 = Release|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Release|x86.ActiveCfg = Release|Any CPU
+		{2DD4998F-D227-11FA-D646-62DDDC273875}.Release|x86.Build.0 = Release|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Debug|x64.Build.0 = Debug|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Debug|x86.Build.0 = Debug|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Release|Any CPU.Build.0 = Release|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Release|x64.ActiveCfg = Release|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Release|x64.Build.0 = Release|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Release|x86.ActiveCfg = Release|Any CPU
+		{653AF672-E202-475F-A768-CF3502AA7E00}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2DD4998F-D227-11FA-D646-62DDDC273875} = {D82C56D6-B2CD-F611-9E31-04638F7EC30E}
+		{653AF672-E202-475F-A768-CF3502AA7E00} = {0FFEEB6A-E627-9A6A-8363-9175E7389C0B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B4E6BB3C-4C00-4AC6-9538-E737B3AEF0FF}
+	EndGlobalSection
+EndGlobal

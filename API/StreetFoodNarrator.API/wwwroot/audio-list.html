@@ -1,0 +1,1872 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Audio - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Be+Vietnam+Pro:wght@400;500&family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js?v=20260406"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--secondary) 0%, #1A659E 100%);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 78, 137, 0.3);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out backwards;
+        }
+
+        .stat-item:nth-child(1) { animation-delay: 0.1s; }
+        .stat-item:nth-child(2) { animation-delay: 0.2s; }
+        .stat-item:nth-child(3) { animation-delay: 0.3s; }
+        .stat-item:nth-child(4) { animation-delay: 0.4s; }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+
+        /* Filter Section */
+        .filter-section {
+            background: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.6s ease-out 0.1s backwards;
+        }
+        .bulk-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            margin: -1rem 0 2rem;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.9rem;
+        }
+
+        .filter-input,
+        .filter-select {
+            padding: 0.875rem 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .filter-input:focus,
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .pagination-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            background: white;
+            color: var(--dark);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .pagination-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .pagination-btn[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            color: #666;
+            margin: 0 1rem;
+        }
+
+        /* Audio Grid */
+        .audio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .audio-card {
+            background: #FFFFFF;
+            border-radius: 28px;
+            padding: 1.75rem;
+            box-shadow: 0 10px 30px rgba(26, 26, 46, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: fadeInUp 0.6s ease-out backwards;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .audio-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 18px 50px rgba(26, 26, 46, 0.12);
+        }
+
+        .audio-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .audio-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #FF7A3E 0%, #F3572F 100%);
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            color: white;
+            box-shadow: 0 10px 18px rgba(255, 122, 62, 0.35);
+        }
+
+        .audio-info h3 {
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+            font-size: 1.15rem;
+        }
+
+        .audio-info p {
+            font-size: 0.85rem;
+            color: #9AA3AE;
+        }
+
+        .audio-meta {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin: 1rem 0 1.25rem;
+            padding: 1rem;
+            background: #F7F8FA;
+            border-radius: 16px;
+        }
+
+        .meta-item {
+            text-align: center;
+        }
+
+        .meta-value {
+            font-weight: 800;
+            color: #FF6B35;
+            margin-bottom: 0.25rem;
+        }
+
+        .meta-label {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        /* Audio Player */
+        .audio-player {
+            margin-bottom: 1.25rem;
+        }
+
+        .audio-script {
+            margin-bottom: 1rem;
+            padding: 0.75rem 0.9rem;
+            background: #F7F8FA;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .audio-script-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .audio-script-text {
+            font-size: 0.88rem;
+            line-height: 1.5;
+            color: #1F2937;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .audio-script-input {
+            width: 100%;
+            min-height: 96px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.65rem 0.75rem;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            resize: vertical;
+            background: #fff;
+            color: #1F2937;
+        }
+
+        .audio-script-input[readonly] {
+            background: #F8FAFC;
+            color: #64748B;
+        }
+
+        .audio-script-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.12);
+        }
+
+        .audio-script-actions {
+            margin-top: 0.6rem;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-script {
+            border: none;
+            border-radius: 9px;
+            padding: 0.45rem 0.7rem;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .btn-script-save {
+            background: #E8F2FF;
+            color: #0B4A8A;
+        }
+
+        .btn-script-edit {
+            background: #E8F2FF;
+            color: #0B4A8A;
+        }
+
+        .btn-script-generate {
+            background: #FFF0E9;
+            color: #B45309;
+        }
+
+        /* Audio Bar */
+        .audio-bar {
+            width: 100%;
+            background: #fef3e0;
+            border-radius: 14px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            border-top: 4px solid #c0392b;
+        }
+        .audio-bar .play-btn {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 38% 32%, #e74c3c, #8b1a0a);
+            border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 3px 10px rgba(192,57,43,0.5);
+            transition: transform 0.1s, box-shadow 0.15s;
+        }
+        .audio-bar .play-btn:hover { transform: scale(1.07); box-shadow: 0 5px 16px rgba(192,57,43,0.7); }
+        .audio-bar .play-btn:active { transform: scale(0.95); }
+        .audio-bar .middle { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+        .audio-bar .progress-wrap {
+            background: #5d3a1a;
+            padding: 3px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .audio-bar .progress-track {
+            height: 10px;
+            background: #c8a878;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+        .audio-bar .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #c0392b, #e67e22, #f39c12);
+            border-radius: 2px;
+            transition: width 0.15s linear;
+            position: relative;
+        }
+        .audio-bar .progress-fill::after {
+            content: '🔥';
+            font-size: 13px;
+            position: absolute;
+            right: -9px; top: 50%;
+            transform: translateY(-52%);
+            animation: fw 0.4s ease-in-out infinite alternate;
+        }
+        @keyframes fw {
+            from { transform: translateY(-52%) rotate(-6deg); }
+            to   { transform: translateY(-60%) rotate(6deg) scale(1.1); }
+        }
+        .audio-bar .time-row {
+            display: flex; justify-content: space-between;
+            font-family: 'Baloo 2', cursive;
+            font-size: 12px; font-weight: 700;
+            color: #7a4f25;
+        }
+        .audio-bar .vol-wrap {
+            display: flex; align-items: center; gap: 6px;
+            flex-shrink: 0;
+        }
+        .audio-bar .vol-icon {
+            color: #7a4f25;
+            display: flex; align-items: center;
+            cursor: pointer;
+        }
+        .audio-bar input[type=range] {
+            -webkit-appearance: none;
+            width: 64px; height: 4px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #c0392b var(--val, 70%), #c8a878 var(--val, 70%));
+            outline: none; cursor: pointer;
+        }
+        .audio-bar input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #c0392b;
+            box-shadow: 0 0 4px rgba(192,57,43,0.6);
+            transition: transform 0.1s;
+        }
+        .audio-bar input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .play-btn {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: #E8ECF1;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .time-display {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 600;
+        }
+
+        /* Language Badges */
+        .language-badges {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .lang-badge {
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, rgba(0, 78, 137, 0.1) 0%, rgba(0, 78, 137, 0.05) 100%);
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        /* Action Buttons */
+        .audio-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: none;
+            letter-spacing: 0.01em;
+            margin-top: 0.35rem;
+        }
+
+        .status-draft {
+            background: rgba(0, 78, 137, 0.1);
+            color: var(--secondary);
+        }
+
+        .status-pending {
+            background: rgba(255, 210, 63, 0.24);
+            color: #A76A00;
+        }
+
+        .status-approved,
+        .status-published {
+            background: rgba(6, 214, 160, 0.22);
+            color: #0C7A5B;
+        }
+
+        .status-rejected {
+            background: rgba(239, 71, 111, 0.22);
+            color: #B0284C;
+        }
+
+        .language-pills {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 0.75rem 0 0.25rem;
+        }
+
+        .lang-pill {
+            background: #EEF2F6;
+            color: #0F3D6E;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 0.35rem 0.8rem;
+            font-size: 0.78rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .lang-pill-active {
+            background: #DCE7F6;
+            color: #0B3360;
+            box-shadow: inset 0 0 0 1px rgba(11, 51, 96, 0.12);
+        }
+
+        .btn-icon {
+            padding: 0.9rem;
+            border-radius: 14px;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-weight: 700;
+            font-size: 0.92rem;
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, #0BD4A5 0%, #06B487 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(11, 212, 165, 0.28);
+        }
+
+        .btn-download:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-delete {
+            background: linear-gradient(135deg, #F04A77 0%, #D63D5F 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(240, 74, 119, 0.25);
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #18C58F 0%, #0FA36C 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(24, 197, 143, 0.25);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #FF8B5E 0%, #F3572F 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(243, 87, 47, 0.25);
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #2F7CFF 0%, #2155C5 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(47, 124, 255, 0.22);
+        }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #6C5CE7 0%, #5B4BD6 100%);
+            color: white;
+            box-shadow: 0 10px 16px rgba(108, 92, 231, 0.22);
+        }
+
+        .btn-delete:hover {
+            transform: scale(1.05);
+        }
+
+        /* Upload Modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            z-index: 2000;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+        }
+
+        .modal {
+            width: 100%;
+            max-width: 560px;
+            background: white;
+            border-radius: 22px;
+            padding: 1.75rem;
+            box-shadow: 0 18px 50px rgba(15, 23, 42, 0.25);
+            animation: fadeInUp 0.2s ease-out;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+        }
+
+        .modal-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--dark);
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 1.25rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .modal-body .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .modal-body label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .modal-body input,
+        .modal-body select,
+        .modal-body textarea {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            background: var(--light);
+        }
+
+        .modal-body input:focus,
+        .modal-body select:focus,
+        .modal-body textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .modal-actions .btn {
+            width: auto;
+        }
+
+        /* Confirm popup */
+        .confirm-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 3000;
+            backdrop-filter: blur(2px);
+        }
+        .confirm-dialog {
+            background: #fff;
+            border-radius: 18px;
+            padding: 1.5rem 1.75rem;
+            width: 420px;
+            max-width: 92vw;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+        }
+        .confirm-title { font-weight: 800; margin-bottom: 0.4rem; }
+        .confirm-msg { color: #475569; margin-bottom: 1rem; }
+        .confirm-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+
+        .toast-wrap {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 3100;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+        }
+
+        .toast-item {
+            pointer-events: all;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+            font-weight: 600;
+            color: #fff;
+            background: #1A1A2E;
+            animation: fadeInUp 0.2s ease;
+        }
+
+        .toast-item.success { background: #0f766e; }
+        .toast-item.error { background: #b42318; }
+        .toast-item.warning { background: #a16207; }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .audio-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="toast-wrap" id="toastWrap"></div>
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Quản lý Audio</h1>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="window.history.back()">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Quay lại</span>
+                </button>
+                <button class="btn btn-secondary" id="bulkGenerateBtn" onclick="openBulkGenerate()">
+                    <i class="fas fa-magic"></i>
+                    <span>TTS Hàng loạt</span>
+                </button>
+            </div>
+        </div>
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value" id="totalAudioStat">0</div>
+                <div class="stat-label">Tổng file audio</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="poiWithAudioStat">0</div>
+                <div class="stat-label">POI có audio</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="languageCountStat">0</div>
+                <div class="stat-label">Ngôn ngữ</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalSizeStat">0</div>
+                <div class="stat-label">Tổng dung lượng</div>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label">Ngôn ngữ</label>
+                    <select class="filter-select" id="languageFilter">
+                        <option value="">Tất cả</option>
+                        <option value="vi-VN">Tiếng Việt</option>
+                        <option value="en-US">English</option>
+                        <option value="zh-CN">中文</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">POI (ID hoặc tên)</label>
+                    <input type="text" class="filter-input" id="poiFilter" placeholder="VD: 12 hoặc Óc Vũ">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Số dùng</label>
+                    <select class="filter-select" id="pageSizeFilter">
+                        <option value="5" selected>5</option>
+                        <option value="6">6</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Trạng thái</label>
+                    <select class="filter-select" id="statusFilter">
+                        <option value="">Tất cả</option>
+                        <option value="draft">Nháp</option>
+                        <option value="pending">Đang chờ</option>
+                        <option value="approved">Đã duyệt</option>
+                        <option value="rejected">Bị từ chối</option>
+                        <option value="published">Đã xuất bản</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <button class="btn btn-primary" onclick="applyFilters()">
+                        <i class="fas fa-filter"></i>
+                        Lọc
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio Grid -->
+        <div class="audio-grid" id="audioGrid"></div>
+
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+<script src="api.js"></script>
+<script>
+    const user = TokenManager.getUser();
+    if (!user) {
+        window.location.href = TokenManager.getLoginUrl();
+    }
+
+    const isAdmin = user?.roles?.includes('Admin');
+    const isVendor = user?.roles?.includes('Vendor');
+
+    async function ensureVendorPremiumAudioAccess() {
+        if (!isVendor) return true;
+
+        try {
+            const premium = await api.request('/Payments/me/premium-status');
+            if (premium?.isPremiumActive) return true;
+
+            alert('Bạn cần đăng ký gói Premium trước khi dùng chức năng âm thanh. Vui lòng vào mục Thanh toán gói dịch vụ.');
+            window.location.href = 'payment-management';
+            return false;
+        } catch (error) {
+            alert('Không thể kiểm tra trạng thái Premium. Vui lòng thử lại sau.');
+            window.location.href = 'dashboard';
+            return false;
+        }
+    }
+
+    const bulkGenerateBtn = document.getElementById('bulkGenerateBtn');
+    if (bulkGenerateBtn && isAdmin) {
+        bulkGenerateBtn.style.display = 'none';
+    }
+
+    let currentPage     = 1;
+    let currentTotalPages = 1;
+    let groupsPerPage   = 5;   // Number of POI cards shown per page
+    let currentLanguage = '';
+    let currentPoiQuery = '';
+    let currentStatus   = '';
+    let allGroups       = [];  // All POI groups fetched (used for frontend pagination)
+    const backendPageSize = 200;
+
+    async function loadAudios() {
+        const grid = document.getElementById('audioGrid');
+        grid.innerHTML = '<div class="loading">Đang tải dữ liệu...</div>';
+
+        try {
+            const poiInput = currentPoiQuery.trim();
+            const poiId    = poiInput && /^\d+$/.test(poiInput) ? parseInt(poiInput, 10) : null;
+            const poiName  = poiInput && !poiId ? poiInput : null;
+
+            const firstPage = await api.getAudioList(
+                1,
+                backendPageSize,
+                currentLanguage || null,
+                poiId,
+                currentStatus || null,
+                poiName
+            );
+            let audios = firstPage.data || [];
+            const totalPages = Number(firstPage.totalPages || 1);
+
+            for (let p = 2; p <= totalPages; p++) {
+                const next = await api.getAudioList(
+                    p,
+                    backendPageSize,
+                    currentLanguage || null,
+                    poiId,
+                    currentStatus || null,
+                    poiName
+                );
+                audios = audios.concat(next.data || []);
+            }
+
+            await updateStats(audios, firstPage.total || audios.length);
+
+            if (audios.length === 0) {
+                allGroups = [];
+                renderPage();
+                return;
+            }
+
+            // Group all fetched audios by POI
+            allGroups = groupAudiosByPoi(audios);
+            window.__audioGroupStore = allGroups.reduce((acc, g) => {
+                acc[g.key] = g.items;
+                return acc;
+            }, {});
+
+            renderPage();
+        } catch (error) {
+            console.error('Error loading audios:', error);
+            grid.innerHTML = `<div class="empty">Không thể tải audio: ${error.message}</div>`;
+        }
+    }
+
+    function renderPage() {
+        const grid = document.getElementById('audioGrid');
+        const totalGroups = allGroups.length;
+        const totalPages  = Math.max(1, Math.ceil(totalGroups / groupsPerPage));
+        currentTotalPages = totalPages;
+        // Clamp currentPage
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const start  = (currentPage - 1) * groupsPerPage;
+        const slice  = allGroups.slice(start, start + groupsPerPage);
+
+        if (slice.length === 0) {
+            grid.innerHTML = '<div class="empty">Chưa có audio nào.</div>';
+        } else {
+            grid.innerHTML = slice.map(group => renderAudioCard(group)).join('');
+            wireLanguageSwitch();
+            initAudioBars();
+        }
+
+        renderPagination(totalPages, currentPage, totalGroups);
+    }
+
+    async function updateStats(audios, total) {
+        const statsAudios = audios || [];
+        const totalCount = total ?? statsAudios.length;
+        const poiSet = new Set();
+        statsAudios.forEach(a => {
+            const poiId = a.poi_ID ?? a.POI_ID ?? a.poiId ?? a.poiID ?? a.poi_Id;
+            if (poiId !== undefined && poiId !== null && String(poiId).trim() !== '') {
+                poiSet.add(String(poiId));
+                return;
+            }
+            if (a.poiName) {
+                poiSet.add(`name:${String(a.poiName).trim().toLowerCase()}`);
+            }
+        });
+        const langSet = new Set(statsAudios.map(a => a.language || '').filter(Boolean));
+        const totalSize = statsAudios.reduce((sum, a) => sum + (a.fileSize || 0), 0);
+
+        document.getElementById('totalAudioStat').textContent = totalCount;
+        document.getElementById('poiWithAudioStat').textContent = poiSet.size;
+        document.getElementById('languageCountStat').textContent = langSet.size;
+        document.getElementById('totalSizeStat').textContent = formatFileSize(totalSize);
+    }
+
+    function applyFilters() {
+        currentLanguage = document.getElementById('languageFilter').value;
+        currentPoiQuery = document.getElementById('poiFilter').value.trim();
+        groupsPerPage   = parseInt(document.getElementById('pageSizeFilter').value, 10) || 5;
+        currentStatus   = document.getElementById('statusFilter').value;
+        currentPage     = 1;
+        loadAudios();
+    }
+
+    function renderPagination(totalPages, currentPageNum, totalItems) {
+        const pagination = document.getElementById('pagination');
+        if (!pagination) return;
+
+        if (totalItems <= 0) {
+            pagination.innerHTML = '';
+            return;
+        }
+
+        let html = `
+            <button class="pagination-btn" onclick="changePage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+        } else {
+            html += `<button class="pagination-btn ${currentPageNum === 1 ? 'active' : ''}" onclick="goToPage(1)">1</button>`;
+
+            const start = Math.max(2, currentPageNum - 1);
+            const end = Math.min(totalPages - 1, currentPageNum + 1);
+
+            if (start > 2) {
+                html += `<span class="pagination-info">...</span>`;
+            }
+
+            for (let i = start; i <= end; i++) {
+                html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            if (end < totalPages - 1) {
+                html += `<span class="pagination-info">...</span>`;
+            }
+
+            html += `<button class="pagination-btn ${currentPageNum === totalPages ? 'active' : ''}" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+        }
+
+        html += `
+            <button class="pagination-btn" onclick="changePage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <span class="pagination-info">${totalItems} POI</span>
+        `;
+
+        pagination.innerHTML = html;
+    }
+
+    function changePage(direction) {
+        if (direction === 'prev' && currentPage > 1) {
+            currentPage--;
+        } else if (direction === 'next' && currentPage < currentTotalPages) {
+            currentPage++;
+        }
+        renderPage();
+    }
+
+    function goToPage(page) {
+        currentPage = Math.min(Math.max(1, Number(page) || 1), currentTotalPages);
+        renderPage();
+    }
+
+    function openBulkGenerate() {
+        if (isAdmin) {
+            return;
+        }
+        window.location.href = `audio-bulk-generate?v=${Date.now()}`;
+    }
+
+    function renderStatusBadge(status) {
+        const labelMap = {
+            draft: 'Draft',
+            pending: 'Pending',
+            approved: 'Approved',
+            rejected: 'Rejected',
+            published: 'Published'
+        };
+        const label = labelMap[status] || 'Published';
+        return `<span class="status-badge status-${status}">${label}</span>`;
+    }
+
+    function findAudioById(id) {
+        const store = window.__audioGroupStore || {};
+        const keys = Object.keys(store);
+        for (const key of keys) {
+            const found = (store[key] || []).find(a => String(a.audioContent_ID) === String(id));
+            if (found) return found;
+        }
+        return null;
+    }
+
+    function getPoiIdLabel(audio) {
+        const raw = audio.poi_ID ?? audio.poiId ?? audio.poiID ?? audio.poi_Id ?? audio.POI_ID;
+        return raw !== undefined && raw !== null ? raw : 'N/A';
+    }
+
+    function getLanguageLabel(language) {
+        const normalized = normalizeLanguageKey(language);
+        const map = {
+            vi: 'VN Tiếng Việt',
+            en: 'GB English',
+            zh: 'CN 中文'
+        };
+        return map[normalized] || (language || 'N/A');
+    }
+
+    function normalizeLanguageKey(language) {
+        if (!language) return '';
+        const lang = String(language).toLowerCase();
+        if (lang.startsWith('vi')) return 'vi';
+        if (lang.startsWith('en')) return 'en';
+        if (lang.startsWith('ja')) return 'ja';
+        if (lang.startsWith('ko')) return 'ko';
+        if (lang.startsWith('zh')) return 'zh';
+        if (lang.startsWith('fr')) return 'fr';
+        return lang;
+    }
+
+    function sanitizeTitle(title, poiName) {
+        const raw = (title || '').trim();
+        const hasMojibake = /[Ãƒï¿½Ã¢â‚¬Â¢Ã°Å¸]/.test(raw);
+        if (!raw || hasMojibake) {
+            return poiName || 'Audio';
+        }
+        const withoutLang = raw.replace(/\s*-\s*((VN|GB|JP|KR|CN|FR|US)\b.*|tieng\s+viet|tieng\s+anh|english|francais).*/i, '').trim();
+        return withoutLang || (poiName || 'Audio');
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getAudioScriptText(audio) {
+        return (audio?.ttsText || audio?.TTSText || '').trim();
+    }
+
+    function groupAudiosByPoi(audios) {
+        const map = new Map();
+        audios.forEach(a => {
+            const rawKey = (a.poi_ID ?? a.poiId ?? a.poiID ?? a.poi_Id);
+            const nameKey = (a.poiName || '').trim().toLowerCase();
+            let safeKey = null;
+            if (nameKey && map.has(`name-${nameKey}`)) {
+                safeKey = `name-${nameKey}`;
+            } else if (rawKey !== undefined && rawKey !== null) {
+                safeKey = `poi-${rawKey}`;
+            } else if (nameKey) {
+                safeKey = `name-${nameKey}`;
+            } else {
+                safeKey = `audio-${a.audioContent_ID}`;
+            }
+            if (!map.has(safeKey)) {
+                map.set(safeKey, {
+                    key: safeKey,
+                    poiId: rawKey,
+                    poiName: a.poiName || '',
+                    items: []
+                });
+            }
+            const group = map.get(safeKey);
+            if (!group.poiName && a.poiName) {
+                group.poiName = a.poiName;
+            }
+            group.items.push(a);
+        });
+        return Array.from(map.values());
+    }
+
+    function pickDefaultAudio(items) {
+        const vi = items.find(a => normalizeLanguageKey(a.language) === 'vi');
+        if (vi) return vi;
+        const en = items.find(a => normalizeLanguageKey(a.language) === 'en');
+        if (en) return en;
+        const zh = items.find(a => normalizeLanguageKey(a.language) === 'zh');
+        if (zh) return zh;
+        return items[0];
+    }
+
+    function renderAudioCard(group) {
+        const selected = pickDefaultAudio(group.items);
+        const audioUrl = resolveAudioUrl(selected.audioUrl);
+        const status = (selected.status || 'published').toLowerCase();
+        const displayTitle = group.poiName || sanitizeTitle(selected.title, group.poiName);
+        const duration = selected.duration ? `${Math.floor(selected.duration / 60)}:${String(selected.duration % 60).padStart(2, '0')}` : 'N/A';
+        const fileSize = formatFileSize(selected.fileSize);
+        const uniqueItems = getUniqueLanguageItems(group.items);
+        const scriptText = getAudioScriptText(selected);
+
+        return `
+            <div class="audio-card" data-group-key="${group.key}" data-poi-id="${group.poiId}" data-selected-id="${selected.audioContent_ID}">
+                <div class="audio-header">
+                    <div class="audio-icon">🏬</div>
+                    <div class="audio-info">
+                        <h3 class="audio-title">${displayTitle}</h3>
+                        <p>${group.poiName ? `POI: ${group.poiName}` : `POI #${group.poiId}`}</p>
+                        <div class="audio-status">${renderStatusBadge(status)}</div>
+                    </div>
+                </div>
+
+                <div class="language-pills">
+                    ${uniqueItems.map(a => {
+                        const label = getLanguageLabel(a.language);
+                        const activeClass = a.audioContent_ID === selected.audioContent_ID ? ' lang-pill-active' : '';
+                        return `<button class="lang-pill${activeClass}" data-audio-id="${a.audioContent_ID}" data-group-key="${group.key}" data-poi-id="${group.poiId}">${label}</button>`;
+                    }).join('')}
+                </div>
+
+                <div class="audio-meta">
+                    <div class="meta-item">
+                        <div class="meta-value audio-duration">${duration}</div>
+                        <div class="meta-label">Thời lượng</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-value audio-size">${fileSize}</div>
+                        <div class="meta-label">Dung lượng</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-value audio-lang">${selected.language || 'N/A'}</div>
+                        <div class="meta-label">Ngôn ngữ</div>
+                    </div>
+                </div>
+
+                <div class="audio-player">
+                    ${renderAudioPlayer(audioUrl, selected.audioContent_ID)}
+                </div>
+
+                ${(isVendor || isAdmin) ? `
+                    <div class="audio-script">
+                        <div class="audio-script-title">Nội dung audio (text)</div>
+                        ${isVendor ? `
+                            <textarea class="audio-script-input" data-audio-id="${selected.audioContent_ID}" placeholder="Nhập script audio..." readonly>${escapeHtml(scriptText || '')}</textarea>
+                            <div class="audio-script-actions">
+                                <button class="btn-script btn-script-edit" data-action="start-edit-regenerate" data-id="${selected.audioContent_ID}">
+                                    <i class="fas fa-pen-to-square"></i>
+                                    <span>Chỉnh sửa & tạo lại audio</span>
+                                </button>
+                                <button class="btn-script btn-script-generate" data-action="confirm-regenerate" data-id="${selected.audioContent_ID}" style="display:none;">
+                                    <i class="fas fa-rotate"></i>
+                                    <span>Xác nhận tạo lại</span>
+                                </button>
+                            </div>
+                        ` : isAdmin ? `
+                            <textarea class="audio-script-input" data-audio-id="${selected.audioContent_ID}" readonly>${escapeHtml(scriptText || 'Chưa có nội dung text cho audio này.')}</textarea>
+                        ` : `
+                            <div class="audio-script-text">${escapeHtml(scriptText || 'Chưa có nội dung text cho audio này.')}</div>
+                        `}
+                    </div>
+                ` : ''}
+
+                <div class="audio-actions">
+                    ${renderActionButtons(selected, audioUrl, group.key)}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderActionButtons(audio, audioUrl, groupKey) {
+        const status = (audio.status || 'published').toLowerCase();
+        const canSubmit = isVendor && (status === 'draft' || status === 'rejected');
+        const canApprove = isAdmin && status === 'pending';
+        const canReject = isAdmin && status === 'pending';
+        const canDownload = !isVendor && !isAdmin;
+
+        return `
+            ${canDownload ? `
+                <button class="btn-icon btn-download" data-action="download" data-url="${audioUrl}">
+                    <i class="fas fa-download"></i>
+                    <span>Tải về</span>
+                </button>
+            ` : ''}
+            ${canSubmit ? `
+                <button class="btn-icon btn-submit" data-action="submit" data-id="${audio.audioContent_ID}">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Gửi duyệt bộ 3 ngôn ngữ</span>
+                </button>
+            ` : ''}
+            ${canApprove ? `
+                <button class="btn-icon btn-approve" data-action="approve" data-id="${audio.audioContent_ID}">
+                    <i class="fas fa-check"></i>
+                    <span>Duyệt bộ 3 ngôn ngữ</span>
+                </button>
+            ` : ''}
+            ${canReject ? `
+                <button class="btn-icon btn-reject" data-action="reject" data-id="${audio.audioContent_ID}">
+                    <i class="fas fa-times"></i>
+                    <span>Từ chối cả bộ</span>
+                </button>
+            ` : ''}
+        `;
+    }
+
+    function getUniqueLanguageItems(items) {
+        const map = new Map();
+        items.forEach(item => {
+            const key = normalizeLanguageKey(item.language);
+            if (!map.has(key)) {
+                map.set(key, item);
+                return;
+            }
+            const existing = map.get(key);
+            if (!existing.audioUrl && item.audioUrl) {
+                map.set(key, item);
+            }
+        });
+        return Array.from(map.values());
+    }
+
+    function wireLanguageSwitch() {
+        document.querySelectorAll('.lang-pill').forEach(btn => {
+            btn.onclick = () => {
+                const groupKey = btn.getAttribute('data-group-key');
+                const poiId = btn.getAttribute('data-poi-id');
+                const audioId = btn.getAttribute('data-audio-id');
+                const card = document.querySelector(`.audio-card[data-group-key="${groupKey}"]`) ||
+                    document.querySelector(`.audio-card[data-poi-id="${poiId}"]`);
+                if (!card) return;
+                const current = Array.from(document.querySelectorAll('.lang-pill')).find(p =>
+                    p.classList.contains('lang-pill-active') && p.getAttribute('data-group-key') === groupKey
+                );
+                if (current) current.classList.remove('lang-pill-active');
+                btn.classList.add('lang-pill-active');
+
+                const audio = findAudioInCard(groupKey, audioId);
+                if (!audio) return;
+                updateCard(card, audio);
+            };
+        });
+
+        document.querySelectorAll('.audio-actions button').forEach(btn => {
+            const action = btn.getAttribute('data-action');
+            if (!action) return;
+            btn.onclick = () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                const url = btn.getAttribute('data-url');
+                if (action === 'download') return downloadAudio(url);
+                if (action === 'submit') return submitAudio(id);
+                if (action === 'approve') return approveAudio(id);
+                if (action === 'reject') return rejectAudio(id);
+            };
+        });
+
+        document.querySelectorAll('.audio-script-actions button').forEach(btn => {
+            const action = btn.getAttribute('data-action');
+            if (!action) return;
+            btn.onclick = () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                if (Number.isNaN(id)) return;
+                const card = btn.closest('.audio-card');
+                const input = card?.querySelector('.audio-script-input');
+                const script = input?.value?.trim() || '';
+                if (action === 'start-edit-regenerate') {
+                    return toggleScriptEditMode(card, true);
+                }
+                if (action === 'confirm-regenerate') {
+                    return regenerateAudioFromScript(id, script, btn);
+                }
+            };
+        });
+    }
+
+    function toggleScriptEditMode(card, isEditing) {
+        if (!card) return;
+        const input = card.querySelector('.audio-script-input');
+        const editBtn = card.querySelector('button[data-action="start-edit-regenerate"]');
+        const confirmBtn = card.querySelector('button[data-action="confirm-regenerate"]');
+        if (!input || !editBtn || !confirmBtn) return;
+
+        card.dataset.scriptEditMode = isEditing ? '1' : '0';
+        input.readOnly = !isEditing;
+        editBtn.style.display = isEditing ? 'none' : 'inline-flex';
+        confirmBtn.style.display = isEditing ? 'inline-flex' : 'none';
+
+        if (isEditing) {
+            setTimeout(() => input.focus(), 0);
+        }
+    }
+
+    function findAudioInCard(groupKey, audioId) {
+        const store = window.__audioGroupStore || {};
+        const list = store[groupKey] || [];
+        return list.find(a => String(a.audioContent_ID) === String(audioId)) || null;
+    }
+
+    function updateCard(card, audio) {
+        const audioUrl = resolveAudioUrl(audio.audioUrl);
+        const status = (audio.status || 'published').toLowerCase();
+        const displayTitle = audio.poiName || sanitizeTitle(audio.title, audio.poiName);
+        const duration = audio.duration ? `${Math.floor(audio.duration / 60)}:${String(audio.duration % 60).padStart(2, '0')}` : 'N/A';
+        const fileSize = formatFileSize(audio.fileSize);
+
+        card.setAttribute('data-selected-id', audio.audioContent_ID);
+        card.querySelector('.audio-title').textContent = displayTitle;
+        card.querySelector('.audio-status').innerHTML = renderStatusBadge(status);
+        card.querySelector('.audio-duration').textContent = duration;
+        card.querySelector('.audio-size').textContent = fileSize;
+        card.querySelector('.audio-lang').textContent = audio.language || 'N/A';
+        const scriptInput = card.querySelector('.audio-script-input');
+        if (scriptInput) {
+            scriptInput.value = getAudioScriptText(audio) || '';
+            scriptInput.setAttribute('data-audio-id', String(audio.audioContent_ID));
+            card.querySelectorAll('.audio-script-actions button').forEach(btn => {
+                btn.setAttribute('data-id', String(audio.audioContent_ID));
+            });
+            toggleScriptEditMode(card, false);
+        }
+
+        const player = card.querySelector('.audio-player');
+        player.innerHTML = renderAudioPlayer(audioUrl, audio.audioContent_ID);
+
+        const actions = card.querySelector('.audio-actions');
+        actions.innerHTML = renderActionButtons(audio, audioUrl, card.getAttribute('data-group-key'));
+
+        wireLanguageSwitch();
+        initAudioBars();
+    }
+
+    function renderAudioPlayer(audioUrl, audioId) {
+        if (!audioUrl) return '<div class="empty">Chưa có file audio</div>';
+        return `
+            <div class="audio-bar" data-audio-url="${audioUrl}" data-audio-id="${audioId}">
+                <button class="play-btn" type="button" aria-label="Play/Pause">
+                    <svg class="icon" width="13" height="15" viewBox="0 0 10 12" fill="white">
+                        <polygon points="1,0 10,6 1,12"></polygon>
+                    </svg>
+                </button>
+
+                <div class="middle">
+                       <div class="time-row">
+                        <span class="cur">0:00</span>
+                        <span class="tot">0:00</span>
+                    </div>
+                    <div class="progress-wrap">
+                        <div class="progress-track">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                 
+                </div>
+
+                <div class="vol-wrap">
+                    <div class="vol-icon" aria-label="Mute">
+                        <svg class="vol-svg" width="15" height="13" viewBox="0 0 20 16" fill="none" stroke="#7a4f25" stroke-width="1.8">
+                            <path d="M3 5H1v6h2l5 4V1L3 5z"/>
+                            <path class="v1" d="M15 1c2.4 1.5 4 4.1 4 7s-1.6 5.5-4 7"/>
+                            <path class="v2" d="M12 4c1.2.8 2 2.2 2 3.8s-.8 3-2 3.8"/>
+                        </svg>
+                    </div>
+                    <input class="vol" type="range" min="0" max="100" value="70">
+                </div>
+            </div>
+        `;
+    }
+
+    function resolveAudioUrl(rawUrl) {
+        if (!rawUrl) return '';
+        if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+        const apiRoot = API_BASE_URL.replace(/\/api\/?$/, '');
+        if (rawUrl.startsWith('/')) return `${apiRoot}${rawUrl}`;
+        return `${apiRoot}/${rawUrl}`;
+    }
+
+    function downloadAudio(url) {
+        if (!url) {
+            showToast('Audio chưa có file.', 'warning');
+            return;
+        }
+        window.open(url, '_blank');
+    }
+
+    async function submitAudio(id) {
+        try {
+            await api.submitAudio(id);
+            loadAudios();
+        } catch (error) {
+            showToast('Không thể gửi duyệt: ' + error.message, 'error');
+        }
+    }
+
+    async function approveAudio(id) {
+        try {
+            await api.approveAudio(id);
+            loadAudios();
+        } catch (error) {
+            showToast('Không thể duyệt audio: ' + error.message, 'error');
+        }
+    }
+
+    async function rejectAudio(id) {
+        const reason = (await showPrompt('Nhập lý do từ chối (tùy chọn):')) || '';
+        try {
+            await api.rejectAudio(id, reason);
+            loadAudios();
+        } catch (error) {
+            showToast('Không thể từ chối audio: ' + error.message, 'error');
+        }
+    }
+
+    async function regenerateAudioFromScript(id, script, triggerBtn) {
+        if (!isVendor) {
+            showToast('Admin không được phép tạo lại audio.', 'warning');
+            return;
+        }
+        if (!script) {
+            showToast('Vui lòng nhập nội dung script trước khi tạo lại audio.', 'warning');
+            return;
+        }
+
+        const originalHtml = triggerBtn ? triggerBtn.innerHTML : '';
+        if (triggerBtn) {
+            triggerBtn.disabled = true;
+            triggerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Đang tạo...</span>';
+        }
+
+        try {
+            const card = triggerBtn?.closest('.audio-card');
+            const audio = findAudioById(id);
+            const currentScript = getAudioScriptText(audio) || '';
+            const newScript = (script || '').trim();
+            const hasChangedScript = newScript !== currentScript.trim();
+
+            if (hasChangedScript) {
+                try {
+                    await api.updateAudio(id, { ttsText: newScript });
+                } catch (error) {
+                    const message = (error?.message || '').toLowerCase();
+                    const isApprovedEditBlocked = message.includes('approved audio cannot be edited by vendor');
+                    if (isApprovedEditBlocked) {
+                        showToast('Audio đã duyệt nên Vendor không thể sửa script. Hệ thống sẽ tạo lại bằng script hiện tại.', 'warning');
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+
+            await api.request(`/Audio/${id}/generate-file`, { method: 'POST' });
+            if (card) {
+                toggleScriptEditMode(card, false);
+            }
+            await loadAudios();
+        } catch (error) {
+            showToast('Không thể tạo lại audio: ' + error.message, 'error');
+        } finally {
+            if (triggerBtn) {
+                triggerBtn.disabled = false;
+                triggerBtn.innerHTML = originalHtml;
+            }
+        }
+    }
+
+    function showConfirm(message, infoOnly = false) {
+        if (window.UiFeedback?.confirm) {
+            return window.UiFeedback.confirm(message || '', {
+                title: 'Xác nhận',
+                confirmText: infoOnly ? 'Đã hiểu' : 'Đồng ý',
+                cancelText: 'Hủy'
+            }).then(ok => (infoOnly ? true : ok));
+        }
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-dialog">
+                    <div class="confirm-title">${infoOnly ? 'Thông báo' : 'Xác nhận'}</div>
+                    <div class="confirm-msg">${message}</div>
+                    <div class="confirm-actions">
+                        ${infoOnly ? '' : '<button class="btn btn-outline" id="confirmNo">Hủy</button>'}
+                        <button class="btn btn-primary" id="confirmYes">${infoOnly ? 'Đóng' : 'Đồng ý'}</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const cleanup = (val) => { overlay.remove(); resolve(val); };
+            if (!infoOnly) {
+                document.getElementById('confirmNo').onclick = () => cleanup(false);
+            }
+            document.getElementById('confirmYes').onclick = () => cleanup(infoOnly ? true : true);
+        });
+    }
+
+    function showPrompt(message) {
+        if (window.UiFeedback?.prompt) {
+            return window.UiFeedback.prompt(message || '', '', {
+                title: 'Nhập thông tin',
+                confirmText: 'Xác nhận',
+                cancelText: 'Hủy'
+            });
+        }
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-dialog">
+                    <div class="confirm-title">Nhập thông tin</div>
+                    <div class="confirm-msg">${message || ''}</div>
+                    <input id="promptInput" class="filter-input" style="margin:0.75rem 0 0.5rem" />
+                    <div class="confirm-actions">
+                        <button class="btn btn-outline" id="promptNo">Hủy</button>
+                        <button class="btn btn-primary" id="promptYes">Xác nhận</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const input = overlay.querySelector('#promptInput');
+            const cleanup = (val) => { overlay.remove(); resolve(val); };
+            overlay.querySelector('#promptNo').onclick = () => cleanup(null);
+            overlay.querySelector('#promptYes').onclick = () => cleanup(input ? input.value : '');
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(null); });
+            setTimeout(() => input?.focus(), 0);
+        });
+    }
+
+    function showToast(message, type = 'info', timeout = 3200) {
+        if (window.UiFeedback?.toast) {
+            window.UiFeedback.toast(message, type, timeout);
+            return;
+        }
+        const wrap = document.getElementById('toastWrap');
+        if (!wrap || !message) return;
+        const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-circle-exclamation' : type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-info';
+        const item = document.createElement('div');
+        item.className = `toast-item ${type}`;
+        item.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
+        wrap.appendChild(item);
+        setTimeout(() => item.remove(), timeout);
+    }
+
+    const audioBarState = {
+        players: new Map(),
+        currentId: null
+    };
+
+    function updateCardDuration(card, seconds) {
+        if (!card || !Number.isFinite(seconds) || seconds <= 0) return;
+        const mm = Math.floor(seconds / 60);
+        const ss = String(Math.floor(seconds % 60)).padStart(2, '0');
+        const label = `${mm}:${ss}`;
+        const meta = card.querySelector('.audio-duration');
+        if (meta) meta.textContent = label;
+    }
+
+    function initAudioBars() {
+        document.querySelectorAll('.audio-bar').forEach(bar => {
+            if (bar.dataset.inited === '1') return;
+            bar.dataset.inited = '1';
+
+            const url = bar.getAttribute('data-audio-url');
+            if (!url) return;
+
+            const audioId = bar.getAttribute('data-audio-id') || url;
+            const audio = new Audio(url);
+            audio.preload = 'metadata';
+            audio.volume = 0.7;
+
+            audioBarState.players.set(audioId, { audio, bar });
+
+            const playBtn = bar.querySelector('.play-btn');
+            const icon = bar.querySelector('.icon');
+            const fill = bar.querySelector('.progress-fill');
+            const cur = bar.querySelector('.cur');
+            const tot = bar.querySelector('.tot');
+            const progressWrap = bar.querySelector('.progress-wrap');
+            const vol = bar.querySelector('.vol');
+            const volIcon = bar.querySelector('.vol-icon');
+            const v1 = bar.querySelector('.v1');
+            const v2 = bar.querySelector('.v2');
+
+            const fmt = s => {
+                if (!Number.isFinite(s)) return '0:00';
+                return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+            };
+
+            const update = () => {
+                const duration = audio.duration || 0;
+                const pct = duration ? (audio.currentTime / duration) * 100 : 0;
+                fill.style.width = `${pct}%`;
+                cur.textContent = fmt(audio.currentTime);
+                tot.textContent = fmt(duration);
+            };
+
+            audio.addEventListener('loadedmetadata', () => {
+                update();
+                const card = bar.closest('.audio-card');
+                updateCardDuration(card, audio.duration);
+            });
+            audio.addEventListener('timeupdate', update);
+            audio.addEventListener('ended', () => {
+                audio.currentTime = 0;
+                audio.pause();
+                icon.innerHTML = '<polygon points="1,0 10,6 1,12" fill="white"></polygon>';
+                update();
+            });
+
+            playBtn.addEventListener('click', () => {
+                if (audioBarState.currentId && audioBarState.currentId !== audioId) {
+                    const other = audioBarState.players.get(audioBarState.currentId);
+                    if (other) {
+                        other.audio.pause();
+                        const otherIcon = other.bar.querySelector('.icon');
+                        otherIcon.innerHTML = '<polygon points="1,0 10,6 1,12" fill="white"></polygon>';
+                    }
+                }
+                if (audio.paused) {
+                    audio.play();
+                    audioBarState.currentId = audioId;
+                    icon.innerHTML = '<rect x="0" y="0" width="3.5" height="12" fill="white"></rect><rect x="6" y="0" width="3.5" height="12" fill="white"></rect>';
+                } else {
+                    audio.pause();
+                    icon.innerHTML = '<polygon points="1,0 10,6 1,12" fill="white"></polygon>';
+                }
+            });
+
+            progressWrap.addEventListener('click', (e) => {
+                const rect = progressWrap.getBoundingClientRect();
+                const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                audio.currentTime = (audio.duration || 0) * ratio;
+                update();
+            });
+
+            vol.addEventListener('input', () => {
+                const value = parseInt(vol.value, 10) || 0;
+                const pct = Math.max(0, Math.min(100, value));
+                vol.style.setProperty('--val', pct + '%');
+                vol.style.background = `linear-gradient(90deg, #c0392b ${pct}%, #c8a878 ${pct}%)`;
+                audio.volume = pct / 100;
+                audio.muted = pct === 0;
+                v1.style.opacity = audio.muted ? '0.2' : '1';
+                v2.style.opacity = audio.muted ? '0.2' : '1';
+            });
+
+            volIcon.addEventListener('click', () => {
+                audio.muted = !audio.muted;
+                v1.style.opacity = audio.muted ? '0.2' : '1';
+                v2.style.opacity = audio.muted ? '0.2' : '1';
+            });
+
+            update();
+            vol.dispatchEvent(new Event('input'));
+        });
+    }
+
+    window.addEventListener('load', async function() {
+        const canAccess = await ensureVendorPremiumAudioAccess();
+        if (!canAccess) return;
+        applyFilters();
+    });
+</script>
+</body>
+</html>
+

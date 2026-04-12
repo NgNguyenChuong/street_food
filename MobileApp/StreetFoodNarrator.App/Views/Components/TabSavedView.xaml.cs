@@ -1,0 +1,210 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TabSavedView.xaml.cs
+// Tab 3: Đã lưu – hiển thị danh sách POI đã thích
+// Card tap → POIDetailPage, Heart tap → bỏ thích (toggle)
+// ─────────────────────────────────────────────────────────────────────────────
+
+using StreetFoodNarrator.App.Core.Models;
+using StreetFoodNarrator.App.Core.Services;
+using StreetFoodNarrator.App.Resources.Strings;
+using StreetFoodNarrator.App.ViewModels;
+using StreetFoodNarrator.App.Views;
+
+namespace StreetFoodNarrator.App.Views.Components;
+
+public partial class TabSavedView : ContentView
+{
+    private bool _showingSavedTours = true;
+
+    public TabSavedView()
+    {
+        InitializeComponent();
+        if (BindingContext == null)
+            BindingContext = MauiProgram.Services.GetRequiredService<MainViewModel>();
+
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+        ApplyLocalizedTexts();
+        ApplySavedSegmentVisualState();
+    }
+
+    private void OnLoaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+        LanguageService.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        LanguageService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, string languageCode)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ApplyLocalizedTexts();
+            ApplySavedSegmentVisualState();
+            RefreshTourCardBindings();
+        });
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        SavedHeaderTitleLabel.Text = AppStrings.Get("Saved_Tab_Saved");
+        SavedHeaderSubtitleLabel.Text = AppStrings.Get("TabSaved_Subtitle");
+        SavedTourLabel.Text = AppStrings.Get("TabSaved_Segment_Tours");
+        SavedPoiLabel.Text = AppStrings.Get("TabSaved_Segment_Pois");
+        EmptySavedTourTitleLabel.Text = AppStrings.Get("TabSaved_EmptyTour_Title");
+        EmptySavedTourSubtitleLabel.Text = AppStrings.Get("TabSaved_EmptyTour_Subtitle");
+        EmptySavedPoiTitleLabel.Text = AppStrings.Get("TabSaved_EmptyPoi_Title");
+        EmptySavedPoiSubtitleLabel.Text = AppStrings.Get("TabSaved_EmptyPoi_Subtitle");
+    }
+
+    private void RefreshTourCardBindings()
+    {
+        if (SavedTourList == null)
+            return;
+
+        var source = SavedTourList.ItemsSource;
+        SavedTourList.ItemsSource = null;
+        SavedTourList.ItemsSource = source;
+    }
+
+    private async void OnCardSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // Deselect immediately so user can tap the same card again
+        SavedPoiList.SelectedItem = null;
+
+        if (e.CurrentSelection.FirstOrDefault() is POI poi)
+        {
+            var vm = BindingContext as MainViewModel;
+            if (vm == null || !vm.IsPoiAccessibleForCurrentSubscription(poi))
+            {
+                await PremiumTourPaywallPage.ShowAsync(
+                    Shell.Current?.Navigation ?? Navigation,
+                    poi.GetDisplayName(),
+                    vm);
+                return;
+            }
+
+            await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi, keepCurrentAudio: true), false);
+        }
+    }
+
+    private void OnHeartTapped(object sender, EventArgs e)
+    {
+        if (sender is VisualElement el && el.BindingContext is POI poi)
+        {
+            var vm = BindingContext as MainViewModel;
+            vm?.ToggleSavePOICommand.Execute(poi);
+        }
+    }
+
+    private void OnSavedTourSegmentTapped(object sender, EventArgs e)
+    {
+        if (_showingSavedTours)
+            return;
+
+        _showingSavedTours = true;
+        ApplySavedSegmentVisualState();
+    }
+
+    private void OnSavedPoiSegmentTapped(object sender, EventArgs e)
+    {
+        if (!_showingSavedTours)
+            return;
+
+        _showingSavedTours = false;
+        ApplySavedSegmentVisualState();
+    }
+
+    private void ApplySavedSegmentVisualState()
+    {
+        SavedTourList.IsVisible = _showingSavedTours;
+        SavedPoiList.IsVisible = !_showingSavedTours;
+
+        SavedTourSegment.BackgroundColor = _showingSavedTours
+            ? Color.FromArgb("#F5A623")
+            : Color.FromArgb("#1C3024");
+        SavedTourLabel.TextColor = _showingSavedTours
+            ? Colors.White
+            : Color.FromArgb("#6B7280");
+        SavedTourLabel.FontAttributes = _showingSavedTours
+            ? FontAttributes.Bold
+            : FontAttributes.None;
+
+        SavedPoiSegment.BackgroundColor = !_showingSavedTours
+            ? Color.FromArgb("#F5A623")
+            : Color.FromArgb("#1C3024");
+        SavedPoiLabel.TextColor = !_showingSavedTours
+            ? Colors.White
+            : Color.FromArgb("#6B7280");
+        SavedPoiLabel.FontAttributes = !_showingSavedTours
+            ? FontAttributes.Bold
+            : FontAttributes.None;
+    }
+
+    private async void OnSavedTourDetailClicked(object sender, EventArgs e)
+    {
+        if (sender is BindableObject bindable && bindable.BindingContext is MainViewModel.TourListItem tour)
+        {
+            var vm = BindingContext as MainViewModel;
+            if (vm != null)
+            {
+                if (vm.IsTourLockedByFreeTrial(tour))
+                {
+                    await PremiumTourPaywallPage.ShowAsync(Navigation, tour.Name, vm);
+                    return;
+                }
+
+                await Navigation.PushModalAsync(new TourDetailPopupPage(vm, tour), false);
+            }
+        }
+    }
+
+    private async void OnSavedTourStartClicked(object sender, EventArgs e)
+    {
+        if (sender is BindableObject bindable && bindable.BindingContext is MainViewModel.TourListItem tour)
+        {
+            var vm = BindingContext as MainViewModel;
+            if (vm != null)
+            {
+                if (vm.IsTourLockedByFreeTrial(tour))
+                {
+                    await PremiumTourPaywallPage.ShowAsync(Navigation, tour.Name, vm);
+                    return;
+                }
+
+                await vm.StartTourNowCommand.ExecuteAsync(tour);
+            }
+        }
+    }
+
+    private void OnSavedTourHeartTapped(object sender, EventArgs e)
+    {
+        if (sender is BindableObject bindable && bindable.BindingContext is MainViewModel.TourListItem tour)
+        {
+            var vm = BindingContext as MainViewModel;
+            vm?.ToggleSaveTourCommand.Execute(tour);
+        }
+    }
+
+    private async void OnDetailTapped(object sender, EventArgs e)
+    {
+        if (sender is BindableObject bindable && bindable.BindingContext is POI poi)
+        {
+            var vm = BindingContext as MainViewModel;
+            if (vm == null || !vm.IsPoiAccessibleForCurrentSubscription(poi))
+            {
+                await PremiumTourPaywallPage.ShowAsync(
+                    Shell.Current?.Navigation ?? Navigation,
+                    poi.GetDisplayName(),
+                    vm);
+                return;
+            }
+
+            await Shell.Current.Navigation.PushModalAsync(new POIDetailPage(poi, keepCurrentAudio: true), false);
+        }
+    }
+}

@@ -1,0 +1,2789 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thống kê người dùng — Street Food Narrator</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="sidebar.js"></script>
+  <style>
+    /* ── TOKENS ─────────────────────────────────── */
+    :root {
+      --bg: #0D0F14;
+      --bg2: #13161D;
+      --bg3: #1A1E28;
+      --border: rgba(255, 255, 255, 0.07);
+      --border2: rgba(255, 255, 255, 0.13);
+      --text: #E8EAF0;
+      --muted: #7C8497;
+      --orange: #FF6B35;
+      --orange2: #FF8C5A;
+      --blue: #4A9EFF;
+      --teal: #2DD4BF;
+      --green: #22C55E;
+      --yellow: #F59E0B;
+      --pink: #EC4899;
+      --purple: #8B5CF6;
+      --card-r: 16px;
+      --r: 10px;
+    }
+
+    /* ── BASE ─────────────────────────────────── */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── LAYOUT ─────────────────────────────────── */
+    .shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* SIDEBAR */
+    .legacy-sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .legacy-sidebar .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .legacy-sidebar .logo-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--orange), #c04b1f);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .95rem;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .legacy-sidebar .logo-text {
+      font-size: .85rem;
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
+    .legacy-sidebar .logo-text span {
+      display: block;
+      font-size: .68rem;
+      font-weight: 400;
+      color: var(--muted);
+    }
+
+    .legacy-sidebar .nav-label {
+      font-size: .62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      padding: .5rem .5rem .3rem;
+      margin-bottom: .2rem;
+    }
+
+    .legacy-sidebar .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: .55rem .65rem;
+      border-radius: var(--r);
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .18s;
+      text-decoration: none;
+      margin-bottom: 2px;
+    }
+
+    .legacy-sidebar .nav-item:hover {
+      background: rgba(255, 255, 255, .05);
+      color: var(--text);
+    }
+
+    .legacy-sidebar .nav-item.active {
+      background: rgba(255, 107, 53, .12);
+      color: var(--orange);
+    }
+
+    .legacy-sidebar .nav-item i {
+      width: 16px;
+      text-align: center;
+      font-size: .82rem;
+    }
+
+    .legacy-sidebar .sidebar-footer {
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      overflow-x: hidden;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: .85rem 1.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .page-sub {
+      font-size: .73rem;
+      color: var(--muted);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+
+    .ctrl-select {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: var(--r);
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      font-size: .75rem;
+      padding: .5rem .8rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .ctrl-select:focus {
+      border-color: var(--orange);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: .5rem .9rem;
+      border-radius: var(--r);
+      font-family: 'Sora', sans-serif;
+      font-size: .75rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .18s;
+    }
+
+    .btn-primary {
+      background: var(--orange);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--orange2);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--border2);
+      background: rgba(255, 255, 255, .06);
+    }
+
+    /* CONTENT */
+    .content {
+      padding: 1.5rem 1.75rem;
+    }
+
+    /* ── KPI ROW ─────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .85rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .kpi-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--card-r);
+      padding: 1.1rem 1.2rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .kpi-card:hover {
+      border-color: var(--border2);
+    }
+
+    .kpi-accent {
+      position: absolute;
+      inset: 0;
+      opacity: .04;
+      pointer-events: none;
+    }
+
+    .kpi-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .82rem;
+      margin-bottom: .75rem;
+      flex-shrink: 0;
+    }
+
+    .kpi-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.65rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: .25rem;
+    }
+
+    .kpi-label {
+      font-size: .71rem;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+
+    .kpi-delta {
+      font-size: .68rem;
+      font-weight: 600;
+      margin-top: .4rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .delta-up {
+      color: var(--green);
+    }
+
+    .delta-dn {
+      color: var(--pink);
+    }
+
+    /* ── SECTION GRID ─────────────────────────────── */
+    .row {
+      display: grid;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .row-2 {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .row-2l {
+      grid-template-columns: 1.5fr 1fr;
+    }
+
+    .row-3 {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--card-r);
+      padding: 1.2rem 1.25rem;
+      overflow: hidden;
+    }
+
+    .avg-listen-table-wrap {
+      width: 100%;
+      height: 280px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+    }
+    .avg-listen-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .8rem;
+    }
+    .avg-listen-table th,
+    .avg-listen-table td {
+      padding: .55rem .7rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .avg-listen-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #F6F8FB;
+      color: #334155;
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .avg-listen-table tbody tr:hover {
+      background: rgba(255, 107, 53, 0.04);
+    }
+    .avg-listen-table td:nth-child(1),
+    .avg-listen-table td:nth-child(3),
+    .avg-listen-table td:nth-child(4),
+    .avg-listen-table td:nth-child(5) {
+      color: #475569;
+    }
+    .avg-listen-table td:nth-child(2) {
+      color: #0f172a;
+      font-weight: 600;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .avg-listen-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .6rem;
+      margin-top: .65rem;
+      flex-wrap: wrap;
+    }
+    .avg-listen-page-info {
+      font-size: .74rem;
+      color: #64748b;
+    }
+    .avg-listen-pagination-buttons {
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+    }
+    .avg-listen-page-btn {
+      min-width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid var(--border2);
+      background: #fff;
+      color: #334155;
+      font-size: .75rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0 .45rem;
+    }
+    .avg-listen-page-btn:hover:not(:disabled) {
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+    .avg-listen-page-btn.active {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: #fff;
+    }
+    .avg-listen-page-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: .9rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      color: var(--text);
+    }
+
+    .card-title i {
+      color: var(--orange);
+      font-size: .82rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: .18rem .55rem;
+      border-radius: 999px;
+      font-size: .65rem;
+      font-weight: 700;
+    }
+
+    .badge-orange {
+      background: rgba(255, 107, 53, .15);
+      color: var(--orange);
+    }
+
+    .badge-blue {
+      background: rgba(74, 158, 255, .15);
+      color: var(--blue);
+    }
+
+    .badge-teal {
+      background: rgba(45, 212, 191, .15);
+      color: var(--teal);
+    }
+
+    .badge-muted {
+      background: rgba(255, 255, 255, .07);
+      color: var(--muted);
+    }
+
+    .badge-green {
+      background: rgba(34, 197, 94, .15);
+      color: var(--green);
+    }
+
+    .badge-yellow {
+      background: rgba(245, 158, 11, .15);
+      color: var(--yellow);
+    }
+
+    /* ── CHARTS ─────────────────────────────────── */
+    .chart-box {
+      position: relative;
+      width: 100%;
+    }
+
+    /* ── MAP ─────────────────────────────────── */
+    .map-wrap {
+      height: 480px;
+      border-radius: var(--r);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    /* ── HEATMAP LEGEND ─────────────────────────────── */
+    .heat-legend {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-top: .65rem;
+      font-size: .68rem;
+      color: var(--muted);
+    }
+
+    .heat-legend-bar {
+      flex: 1;
+      height: 10px;
+      border-radius: 5px;
+      background: linear-gradient(to right, #1D4ED8, #06B6D4, #22C55E, #F59E0B, #EF4444);
+    }
+
+    .poi-map-label {
+      background: rgba(255, 255, 255, 0.93);
+      border: 2px solid #FF6B35;
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #1A1A2E;
+      white-space: nowrap;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+      pointer-events: none;
+    }
+
+    /* ── ROUTES ─────────────────────────────────── */
+    .route-list-wrap {
+      max-height: 300px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      padding-right: 4px;
+    }
+
+    .route-item {
+      padding: .65rem .8rem;
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all .18s;
+      background: var(--bg3);
+    }
+
+    .route-item:hover {
+      border-color: var(--border2);
+    }
+
+    .route-item.active {
+      border-color: var(--orange);
+      background: rgba(255, 107, 53, .08);
+    }
+
+    .route-name {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .route-meta {
+      font-size: .68rem;
+      color: var(--muted);
+      margin-top: .2rem;
+    }
+
+    /* ── ACTIVITY HEATMAP ─────────────────────────── */
+    .hour-grid {
+      display: grid;
+      grid-template-columns: repeat(24, 1fr);
+      gap: 3px;
+      margin-top: .6rem;
+    }
+
+    .hour-cell {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      background: rgba(255, 107, 53, .07);
+      cursor: pointer;
+      transition: transform .15s;
+      position: relative;
+    }
+
+    .hour-cell:hover {
+      transform: scale(1.15);
+    }
+
+    .hour-labels {
+      display: grid;
+      grid-template-columns: repeat(24, 1fr);
+      gap: 3px;
+      margin-top: 3px;
+    }
+
+    .hour-lbl {
+      font-size: .52rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ── DIVIDER LINE ─────────────────────────────── */
+    .section-divider {
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      margin: .6rem 0 .9rem;
+    }
+
+    .section-divider::before,
+    .section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── EMPTY ─────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--muted);
+      font-size: .8rem;
+      border: 1px dashed var(--border2);
+      border-radius: var(--r);
+    }
+
+    .empty-state i {
+      font-size: 1.8rem;
+      margin-bottom: .7rem;
+      display: block;
+      opacity: .4;
+    }
+
+    /* ── TOAST ─────────────────────────────────── */
+    .toast-area {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+    }
+
+    .toast {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      padding: .65rem 1rem;
+      border-radius: var(--r);
+      font-size: .76rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .4);
+      animation: slideIn .25s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .toast.success {
+      border-color: rgba(34, 197, 94, .3);
+    }
+
+    .toast.error {
+      border-color: rgba(236, 72, 153, .3);
+    }
+
+    /* ── ANIMATIONS ─────────────────────────────── */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .anim {
+      animation: fadeUp .45s ease backwards;
+    }
+
+    .anim:nth-child(1) {
+      animation-delay: .04s
+    }
+
+    .anim:nth-child(2) {
+      animation-delay: .08s
+    }
+
+    .anim:nth-child(3) {
+      animation-delay: .12s
+    }
+
+    .anim:nth-child(4) {
+      animation-delay: .16s
+    }
+
+    .anim:nth-child(5) {
+      animation-delay: .2s
+    }
+
+    .anim:nth-child(6) {
+      animation-delay: .24s
+    }
+
+    .anim:nth-child(7) {
+      animation-delay: .28s
+    }
+
+    .anim:nth-child(8) {
+      animation-delay: .32s
+    }
+
+    .anim:nth-child(9) {
+      animation-delay: .36s
+    }
+
+    /* ── RESPONSIVE ─────────────────────────────── */
+    @media(max-width:1100px) {
+
+      .row-2l,
+      .row-2,
+      .row-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .shell>.legacy-sidebar {
+        display: none;
+      }
+    }
+
+    @media(max-width:640px) {
+      .content {
+        padding: 1rem;
+      }
+
+      .topbar {
+        padding: .7rem 1rem;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* ── TOOLTIP ICON ─────────────────────────────── */
+    .tip-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .1);
+      color: var(--muted);
+      font-size: .6rem;
+      font-weight: 700;
+      cursor: help;
+      border: 1px solid var(--border2);
+      flex-shrink: 0;
+    }
+
+    .movement-table-head,
+    .movement-row {
+      display: grid;
+      grid-template-columns: 1.2fr 1.3fr 1.5fr 1.1fr 1fr;
+      align-items: center;
+      gap: .8rem;
+      padding: .65rem .95rem;
+    }
+
+    .movement-table-head {
+      background: linear-gradient(to right, #F8F9FA, #F0F4F8);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      border-radius: var(--r) var(--r) 0 0;
+    }
+
+    .movement-col {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .movement-list-wrap {
+      max-height: 430px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--r) var(--r);
+      background: #fff;
+    }
+
+    .movement-row {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .movement-row:last-child {
+      border-bottom: none;
+    }
+
+    .movement-row:hover {
+      background: rgba(255, 107, 53, .04);
+    }
+
+    .movement-cell {
+      font-size: .9rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .movement-cell.muted {
+      color: var(--muted);
+    }
+
+    .movement-cell.mono {
+      font-family: monospace;
+    }
+
+    .action-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: .24rem .58rem;
+      border-radius: 999px;
+      background: #F3F5F8;
+      color: #4F5F72;
+      font-size: .8rem;
+      font-weight: 700;
+    }
+
+    .movement-filter {
+      display: flex;
+      align-items: center;
+      gap: .55rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .movement-filter .ctrl-select {
+      min-width: 150px;
+    }
+
+    /* old card-style items (kept for compat) */
+    .route-group-header {
+      display: none;
+    }
+
+    .route-group-count {
+      display: none;
+    }
+
+    /* ── SCROLLBAR ─────────────────────────────── */
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 4px;
+    }
+
+    /* Leaflet dark override */
+    .leaflet-tile-pane {
+      filter: brightness(.72) saturate(.8);
+    }
+
+    .leaflet-container {
+      background: #0d0f14 !important;
+    }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+
+    .leaflet-popup-close-button {
+      color: var(--muted) !important;
+    }
+
+    /* Theme sync with other admin pages */
+    :root {
+      --bg: #F0F4F8;
+      --bg2: #FFFFFF;
+      --bg3: #F8F9FA;
+      --border: #E8ECF1;
+      --border2: #DCE3EB;
+      --text: #1A1A2E;
+      --muted: #6B7280;
+      --orange: #FF6B35;
+      --orange2: #E85A2A;
+      --blue: #004E89;
+      --teal: #06D6A0;
+      --green: #06D6A0;
+      --yellow: #F59E0B;
+      --pink: #EF476F;
+      --shadow: rgba(26, 26, 46, 0.08);
+      --gradient: linear-gradient(135deg, var(--orange) 0%, var(--blue) 100%);
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+      color: var(--text);
+    }
+
+    .shell {
+      display: block;
+      min-height: 100vh;
+    }
+
+    .shell>.legacy-sidebar {
+      display: none !important;
+    }
+
+    .main {
+      width: 100%;
+      overflow-x: hidden;
+    }
+
+    .topbar {
+      background: transparent;
+      border-bottom: none;
+      padding: 2rem 2rem 1rem;
+      position: static;
+    }
+
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.15rem;
+      font-weight: 900;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-sub {
+      font-size: 0.9rem;
+      color: #667085;
+    }
+
+    .ctrl-select {
+      background: #fff;
+      color: var(--text);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .ctrl-select:focus {
+      border-color: var(--orange);
+    }
+
+    .btn {
+      font-family: 'DM Sans', sans-serif;
+      border-radius: 12px;
+      font-size: 0.86rem;
+    }
+
+    .btn-primary {
+      background: var(--gradient);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--gradient);
+      box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .btn-ghost {
+      background: #fff;
+      border: 2px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-ghost:hover {
+      background: #fff;
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
+    .content {
+      padding: 0 2rem 2rem;
+    }
+
+    .content {
+      font-size: 1.04rem;
+    }
+
+    .kpi-card,
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+
+    .card-head {
+      border-bottom: 2px solid var(--border);
+    }
+
+    .badge-muted {
+      background: #F3F5F8;
+      color: #697586;
+    }
+
+    .tip-icon {
+      background: #fff;
+      border: 1px solid var(--border2);
+    }
+
+    .toast {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border2);
+      box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .leaflet-tile-pane {
+      filter: none;
+    }
+
+    .leaflet-container {
+      background: #EAF0F6 !important;
+    }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    @media (max-width: 768px) {
+      .topbar {
+        padding: 1.2rem 1rem 0.8rem;
+      }
+
+      .content {
+        padding: 0 1rem 1rem;
+      }
+
+      .topbar-right {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+    }
+
+    /* Larger scale similar to Vendors page */
+    .topbar-right .ctrl-select,
+    .topbar-right .btn {
+      min-height: 44px;
+    }
+
+    .kpi-grid {
+      gap: 1.1rem;
+      margin-bottom: 1.8rem;
+    }
+
+    .kpi-card {
+      padding: 1.35rem 1.35rem;
+    }
+
+    .kpi-icon {
+      width: 42px;
+      height: 42px;
+      font-size: 1rem;
+      margin-bottom: 0.95rem;
+    }
+
+    .kpi-val {
+      font-size: 2rem;
+    }
+
+    .kpi-label {
+      font-size: 0.82rem;
+    }
+
+    .card {
+      padding: 1.45rem 1.45rem;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+    }
+
+    .badge {
+      font-size: 0.74rem;
+      padding: 0.28rem 0.68rem;
+    }
+
+    .rtcol {
+      font-size: 0.72rem;
+    }
+
+    .rtcell,
+    .rtcell.muted,
+    .rtcell.mono {
+      font-size: 0.82rem;
+    }
+
+    .route-group-title {
+      font-size: 0.74rem;
+    }
+
+    .route-list-wrap {
+      max-height: 520px;
+    }
+
+    .map-wrap {
+      height: 380px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+
+    <!-- SIDEBAR -->
+    <aside class="legacy-sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-mark"><i class="fas fa-bowl-food"></i></div>
+        <div class="logo-text">Street Food<span>Narrator Admin</span></div>
+      </div>
+
+      <div class="nav-label">Tổng quan</div>
+      <a href="#" class="nav-item"><i class="fas fa-house"></i>Dashboard</a>
+      <a href="#" class="nav-item active"><i class="fas fa-chart-line"></i>Thống kê</a>
+
+      <div class="nav-label" style="margin-top:.8rem">Nội dung</div>
+      <a href="#" class="nav-item"><i class="fas fa-location-dot"></i>Địa điểm (POI)</a>
+      <a href="#" class="nav-item"><i class="fas fa-headphones"></i>Audio</a>
+      <a href="#" class="nav-item"><i class="fas fa-map-pin"></i>Bản đồ</a>
+
+      <div class="nav-label" style="margin-top:.8rem">Hệ thống</div>
+      <a href="#" class="nav-item"><i class="fas fa-mobile-screen-button"></i>Thiết bị</a>
+      <a href="#" class="nav-item"><i class="fas fa-gear"></i>Cài đặt</a>
+
+      <div class="sidebar-footer">
+        <div class="nav-item" style="cursor:default">
+          <i class="fas fa-circle-dot" style="color:var(--green);font-size:.6rem"></i>
+          <span style="font-size:.7rem;color:var(--muted)">Hệ thống hoạt động</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div>
+            <div class="page-title">Lịch sử sử dụng App</div>
+            <div class="page-sub">Phân tích hành vi người dùng theo thời gian thực</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <select id="rangeSelect" class="ctrl-select" onchange="refreshDashboard()">
+            <option value="7">7 ngày qua</option>
+            <option value="30" selected>30 ngày qua</option>
+            <option value="90">90 ngày qua</option>
+          </select>
+          <button class="btn btn-ghost" onclick="refreshDashboard()"><i class="fas fa-rotate"></i> Làm mới</button>
+          <button class="btn btn-primary"><i class="fas fa-download"></i> Xuất CSV</button>
+        </div>
+      </header>
+
+      <!-- CONTENT -->
+      <div class="content">
+
+        <!-- KPI ROW -->
+        <div class="kpi-grid" id="kpiGrid">
+          <!-- filled by JS -->
+        </div>
+
+        <div class="section-divider">Phân tích địa điểm & hành vi</div>
+
+        <!-- CHARTS ROW 1 -->
+        <div class="row row-2l">
+          <!-- TOP POIs -->
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-fire"></i>Top POI được kích hoạt</div>
+              <span class="badge badge-orange" id="topPoiBadge">Top 10</span>
+            </div>
+            <div class="chart-box" style="height:280px"><canvas id="topPoisChart"></canvas></div>
+          </div>
+          <!-- AVG LISTEN -->
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-hourglass-half"></i>Thời gian nghe TB</div>
+            </div>
+            <div class="avg-listen-table-wrap">
+              <table class="avg-listen-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>POI</th>
+                    <th>Lượt nghe</th>
+                    <th>Trung bình</th>
+                    <th>Tổng thời gian</th>
+                  </tr>
+                </thead>
+                <tbody id="avgListenBody">
+                  <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.25rem">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="avg-listen-pagination" id="avgListenPaginationWrap">
+              <span class="avg-listen-page-info" id="avgListenPageInfo"></span>
+              <div class="avg-listen-pagination-buttons" id="avgListenPagination"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row row-2">
+          <!-- HOURLY -->
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-clock"></i>Hoạt động theo giờ</div>
+              <span class="badge badge-teal" id="peakHourBadge">—</span>
+            </div>
+            <div class="chart-box" style="height:200px"><canvas id="hourlyChart"></canvas></div>
+          </div>
+          <!-- DONUT ROW -->
+          <div class="row row-2" style="margin-bottom:0">
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><i class="fas fa-bolt"></i>Cách người dùng mở thuyết minh
+                  <span class="tip-icon"
+                    title="Chỉ tính các lượt nghe thực tế (ActionType = NarrationPlayed hoặc WasPlayed = true)&#10;• Nghe tự động: hệ thống tự phát khi vào vùng&#10;• Nghe ở chi tiết quán: người dùng chủ động bấm nghe từ giao diện chi tiết POI">?</span>
+                </div>
+              </div>
+              <div class="chart-box" style="height:170px"><canvas id="triggerChart"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><i class="fas fa-language"></i>Ngôn ngữ nghe nhiều nhất</div>
+              </div>
+              <div class="chart-box" style="height:170px"><canvas id="platformChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-divider">Bản đồ & Di chuyển ẩn danh</div>
+
+        <!-- MAP ROW: heatmap chiem toan bo chieu rong -->
+        <div class="row" style="grid-template-columns:1fr;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-map-location-dot"></i>Heatmap tuong tac</div>
+              <div style="display:flex;gap:.4rem">
+                <span class="badge badge-teal" id="heatPointCount">0 diem</span>
+                <span class="badge badge-yellow" id="syntheticTag">Mau: 0</span>
+              </div>
+            </div>
+            <div id="heatmapMap" class="map-wrap"></div>
+            <div class="heat-legend" style="display:flex;align-items:center;gap:.5rem;margin-top:.75rem;padding:0;background:none;box-shadow:none;border:none;font-size:.7rem;color:var(--muted)">
+              <span style="white-space:nowrap;">Bức xạ: Ít</span>
+              <div style="flex:1;max-width:180px;height:6px;border-radius:3px;background:linear-gradient(to right,#1D4ED8,#06B6D4,#22C55E,#F59E0B,#EF4444);"></div>
+              <span style="white-space:nowrap;">Nhiều</span>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.6rem">
+              <button class="btn btn-ghost" type="button" onclick="focusHeatMapAll()">
+                <i class="fas fa-crosshairs"></i> Focus map
+              </button>
+              <select id="heatPoiFocusSelect" class="ctrl-select" onchange="focusHeatMapPoi(this.value)" style="min-width:220px">
+                <option value="">Focus theo POI...</option>
+              </select>
+              <button id="togglePoiBtn" class="btn btn-ghost" type="button" onclick="togglePoiMarkers()">
+                <i class="fas fa-location-dot"></i> Ẩn điểm
+              </button>
+            </div>
+            <div id="poiChips" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;"></div>
+          </div>
+        </div>
+
+        <!-- ROUTES row -->
+        <div class="row" style="grid-template-columns:1fr;">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><i class="fas fa-location-arrow"></i>Tuyến di chuyển ẩn danh</div>
+              <span class="badge badge-muted route-count-badge">0 tuyến</span>
+            </div>
+            <div id="routeMap" class="map-wrap"></div>
+            <div style="display:flex;align-items:center;gap:.5rem;margin-top:.65rem">
+              <select id="routeSelect" class="ctrl-select" style="flex:1"></select>
+              <button class="btn btn-ghost" onclick="saveRouteSnapshot()" style="white-space:nowrap">
+                <i class="fas fa-floppy-disk"></i> Luu
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MOVEMENT LOG LIST -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-head" style="flex-wrap:wrap;gap:.75rem">
+            <div class="card-title"><i class="fas fa-list-ul"></i>Danh sách log di chuyển ẩn danh
+            </div>
+            <div class="movement-filter">
+              <div style="position:relative;display:flex;align-items:center">
+                <i class="fas fa-search"
+                  style="position:absolute;left:9px;color:var(--muted);font-size:.75rem;pointer-events:none"></i>
+                <input id="movementSearch" class="ctrl-select" type="text"
+                  placeholder="Tìm Session, POI, tọa độ..."
+                  style="padding-left:2rem;min-width:160px;" oninput="movementPage=1;refreshMovementLogsByFilter()">
+              </div>
+              <select id="movementActionFilter" class="ctrl-select" onchange="movementPage=1;refreshMovementLogsByFilter()">
+                <option value="">Mọi hành động</option>
+                <option value="NarrationPlayed">Nghe Audio</option>
+                <option value="LocationPing">Pings</option>
+                <option value="GeofenceEnter">Vào Vùng</option>
+                <option value="ManualTap">Bấm Tay</option>
+              </select>
+              <select id="movementSort" class="ctrl-select" onchange="movementPage=1;refreshMovementLogsByFilter()">
+                <option value="desc">Mới nhất trước</option>
+                <option value="asc">Cũ nhất trước</option>
+              </select>
+              <div style="display:flex;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:0 .4rem">
+                <span class="muted" style="font-size:.75rem;padding-right:.4rem">Từ</span>
+                <input id="movementFrom" type="date" style="border:none;outline:none;background:transparent;font-size:.8rem;height:34px;color:var(--text)" onchange="movementPage=1;refreshMovementLogsByFilter()">
+              </div>
+              <div style="display:flex;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:0 .4rem">
+                <span class="muted" style="font-size:.75rem;padding-right:.4rem">Đến</span>
+                <input id="movementTo" type="date" style="border:none;outline:none;background:transparent;font-size:.8rem;height:34px;color:var(--text)" onchange="movementPage=1;refreshMovementLogsByFilter()">
+              </div>
+              <button class="btn btn-ghost" type="button" onclick="clearMovementTimeFilter()">
+                <i class="fas fa-xmark"></i>
+              </button>
+            </div>
+            <span class="badge badge-muted" id="movementCountBadge">0 log</span>
+          </div>
+
+          <div class="movement-table-head" style="grid-template-columns: 1.2fr 1.3fr 1.5fr .95fr .8fr;">
+            <div class="movement-col">Thời gian</div>
+            <div class="movement-col">Session (ẩn danh)</div>
+            <div class="movement-col">Tọa độ GPS</div>
+            <div class="movement-col">Hành động</div>
+            <div class="movement-col">Thời gian ở lại (~ là ước tính)</div>
+          </div>
+
+          <div id="routeList" class="movement-list-wrap"></div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /shell -->
+
+  <!-- TOASTS -->
+  <div class="toast-area" id="toastArea"></div>
+
+  <!-- SCRIPTS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="api.js"></script>
+
+  <script>
+    /* ── MOCK DATA LAYER ──────────────────────────────────────────── */
+    // In production, replace these with real API calls (AnalyticsApi, POIApi, etc.)
+
+    const MOCK_POIS = [
+      { poiId: 1, poiName: 'Bánh mì Hòa Mã', lat: 10.7721, lon: 106.6903, address: 'Đường Cao Thắng, Q.3' },
+      { poiId: 2, poiName: 'Phở Hùng', lat: 10.7698, lon: 106.6878, address: 'Nguyễn Trãi, Q.1' },
+      { poiId: 3, poiName: 'Cơm tấm Bà Ghẻ', lat: 10.7756, lon: 106.6965, address: 'Phạm Ngũ Lão, Q.1' },
+      { poiId: 4, poiName: 'Hủ tiếu Nam Vang', lat: 10.7667, lon: 106.6944, address: 'Trần Hưng Đạo, Q.5' },
+      { poiId: 5, poiName: 'Bún bò Huế 63', lat: 10.7788, lon: 106.6999, address: 'Đinh Tiên Hoàng, Q.Bình Thạnh' },
+      { poiId: 6, poiName: 'Bánh cuốn Thanh Trì', lat: 10.7643, lon: 106.6820, address: 'Nguyễn Văn Cừ, Q.5' },
+      { poiId: 7, poiName: 'Cháo lòng Cô Loan', lat: 10.7711, lon: 106.7010, address: 'Hai Bà Trưng, Q.3' },
+      { poiId: 8, poiName: 'Gỏi cuốn Bến Thành', lat: 10.7725, lon: 106.6980, address: 'Lê Lợi, Q.1' },
+    ];
+
+    const MOCK_AUDIOS = [
+      { poi_ID: 1, duration: 82 }, { poi_ID: 2, duration: 95 }, { poi_ID: 3, duration: 74 },
+      { poi_ID: 4, duration: 110 }, { poi_ID: 5, duration: 88 }, { poi_ID: 6, duration: 64 },
+      { poi_ID: 7, duration: 91 }, { poi_ID: 8, duration: 78 },
+    ];
+
+    const MOCK_OVERVIEW = {
+      totalDevices: 342, activeDevicesLast7Days: 87,
+      totalNarrations: 1248, totalAudioPlayed: 934
+    };
+
+    const MOCK_DEVICES = Array.from({ length: 342 }, (_, i) => (
+      {
+        deviceId: `dev-${i}`,
+        platform: 'Android',
+        totalSessions: Math.floor(Math.random() * 8) + 1
+      }
+    ));
+
+    /* ── CHART COLORS ──────────────────────────────────────────── */
+    const CC = ['#FF6B35', '#4A9EFF', '#2DD4BF', '#F59E0B', '#EC4899', '#8B5CF6', '#22C55E', '#FB923C'];
+
+    /* ── GLOBAL STATE ─────────────────────────────────────────── */
+    const DEFAULT_CENTER = [10.762094, 106.701912];
+    const VINH_KHANH_BOUNDS = Object.freeze({
+      latMin: 10.7528,
+      latMax: 10.7728,
+      lonMin: 106.6928,
+      lonMax: 106.7128
+    });
+    let heatMapInst = null, routeMapInst = null, heatLayer = null;
+    let routeLayerGrp = null, poiLayerGrp = null;
+    let heatPoiMarkersVisible = true;
+    let allRoutes = [];
+    let globalPois = [];
+    let movementPage = 1;
+    let movementPageSize = 7;
+    let avgListenRowsCache = [];
+    let avgListenPage = 1;
+    const AVG_LISTEN_PAGE_SIZE = 6;
+    let globalAudioMap = new Map();
+    let devicePreferredLanguageMap = new Map();
+    const chartInst = {};
+
+    /* ── UTILS ─────────────────────────────────────────────────── */
+    function num(n) { return Number(n || 0).toLocaleString('vi-VN'); }
+    function fmt(sec) { const t = Math.max(0, Math.round(Number(sec || 0))); const m = Math.floor(t / 60); const s = t % 60; return m ? `${m}m${s}s` : `${s}s`; }
+    function rand(a, b) { return a + (Math.random() * (b - a)); }
+    function esc(str) { return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+    function anonId(raw) { let h = 0; for (let c of String(raw)) { h = ((h << 5) - h) + c.charCodeAt(0); h |= 0; } return `U-${Math.abs(h).toString(36).toUpperCase().padStart(6, '0').slice(0, 6)}`; }
+    function removeAccents(str) { return String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+    function normalizePlatformName(raw) {
+      const value = String(raw || '').trim().toLowerCase();
+      if (!value) return '';
+      return value.includes('android') ? 'Android' : '';
+    }
+
+    function toTimestamp(raw) {
+      const ts = new Date(raw || '').getTime();
+      return Number.isFinite(ts) ? ts : 0;
+    }
+
+    function getLogPoiId(log) {
+      return Number(log?.poI_ID ?? log?.poiId ?? log?.poi_ID ?? log?.POI_ID ?? 0);
+    }
+
+    function getLogSessionKey(log) {
+      return String(log?.sessionId ?? log?.SessionId ?? log?.userId ?? log?.UserId ?? '').trim();
+    }
+
+    function distanceMeters(lat1, lon1, lat2, lon2) {
+      const rad = Math.PI / 180;
+      const dLat = (lat2 - lat1) * rad;
+      const dLon = (lon2 - lon1) * rad;
+      const a = Math.sin(dLat / 2) ** 2
+        + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+      return 6371000 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+
+    function isInsideVinhKhanh(lat, lon) {
+      return Number.isFinite(lat)
+        && Number.isFinite(lon)
+        && lat >= VINH_KHANH_BOUNDS.latMin
+        && lat <= VINH_KHANH_BOUNDS.latMax
+        && lon >= VINH_KHANH_BOUNDS.lonMin
+        && lon <= VINH_KHANH_BOUNDS.lonMax;
+    }
+
+    function isVinhKhanhNarrationLog(log) {
+      const lat = Number(log?.userLatitude ?? log?.UserLatitude);
+      const lon = Number(log?.userLongitude ?? log?.UserLongitude);
+      return isInsideVinhKhanh(lat, lon);
+    }
+
+    function showToast(msg, type = 'info') {
+      if (window.UiFeedback?.toast) {
+        window.UiFeedback.toast(msg, type, 3200);
+        return;
+      }
+      const area = document.getElementById('toastArea');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      const ic = { info: 'circle-info', success: 'circle-check', error: 'circle-xmark', warning: 'triangle-exclamation' }[type] || 'circle-info';
+      t.innerHTML = `<i class="fas fa-${ic}" style="color:${type === 'success' ? 'var(--green)' : type === 'error' ? 'var(--pink)' : 'var(--blue)'}"></i>${msg}`;
+      area.appendChild(t);
+      setTimeout(() => t.remove(), 3200);
+    }
+
+    function setRouteCountBadges(text) {
+      document.querySelectorAll('.route-count-badge').forEach(el => { el.textContent = text; });
+    }
+
+    /* ── KPI CARDS ─────────────────────────────────────────────── */
+    function renderKpis(overview, logs, routes, pois, devices, avgRows) {
+      const avgListen = avgRows.length ? avgRows.reduce((s, r) => s + r.avgDuration, 0) / avgRows.length : 0;
+      const played = Number(overview.totalAudioPlayed || 0);
+      const narr = Number(overview.totalNarrations || 0);
+      const compRate = narr > 0 ? Math.round(played / narr * 100) : 0;
+      const androidDevices = (devices || []).filter(d => normalizePlatformName(d.platform ?? d.Platform) === 'Android');
+      const hasLastSeen = androidDevices.some(d => !!(d.lastSeen ?? d.LastSeen));
+      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      const activeAndroidDevices = hasLastSeen
+        ? androidDevices.filter(d => {
+          const ts = new Date(d.lastSeen ?? d.LastSeen).getTime();
+          return Number.isFinite(ts) && ts >= sevenDaysAgo;
+        }).length
+        : Number(overview.activeDevicesLast7Days || 0);
+
+      const cards = [
+        {
+          icon: 'fas fa-mobile-screen-button', color: '#4A9EFF', bg: 'rgba(74,158,255,.1)',
+          val: num(androidDevices.length), label: 'Tổng thiết bị',
+          sub: `${num(activeAndroidDevices)} hoạt động 7 ngày qua`
+        },
+        {
+          icon: 'fas fa-headphones', color: '#FF6B35', bg: 'rgba(255,107,53,.1)',
+          val: num(overview.totalAudioPlayed), label: 'Lượt nghe audio',
+          sub: `${compRate}% hoàn thành / ${num(narr)} lần kích hoạt`
+        },
+        {
+          icon: 'fas fa-clock', color: '#2DD4BF', bg: 'rgba(45,212,191,.1)',
+          val: avgRows.length ? fmt(avgListen) : '-', label: 'Thời gian nghe trung bình /POI  ',
+          sub: 'Trung bình toàn bộ POI có audio'
+        },
+        {
+          icon: 'fas fa-route', color: '#8B5CF6', bg: 'rgba(139,92,246,.1)',
+          val: num(routes.length), label: 'Hành trình ghi nhận',
+          sub: 'Lộ trình ẩn danh ≥ 2 điểm dừng'
+        },
+        {
+          icon: 'fas fa-store', color: '#22C55E', bg: 'rgba(34,197,94,.1)',
+          val: num(pois.length), label: 'Địa điểm đang hoạt động',
+          sub: 'POI có audio đã phát hành'
+        },
+      ];
+
+      document.getElementById('kpiGrid').innerHTML = cards.map((c, i) => `
+    <div class="kpi-card anim" style="animation-delay:${i * .04}s">
+      <div style="position:absolute;inset:0;background:${c.bg};border-radius:var(--card-r);opacity:.3;"></div>
+      <div class="kpi-icon" style="background:${c.bg};color:${c.color}"><i class="${c.icon}"></i></div>
+      <div class="kpi-val">${c.val}</div>
+      <div class="kpi-label">${c.label}</div>
+      <div style="font-size:.67rem;color:var(--muted);margin-top:.3rem;line-height:1.4">${c.sub}</div>
+    </div>
+  `).join('');
+    }
+
+    /* ── TOP POIs CHART ─────────────────────────────────────────── */
+    function normalizeTopPoiRows(rows, limit = 10) {
+      return (rows || [])
+        .map(r => {
+          const id = Number(r.poiId || r.poI_ID || r.POI_ID || r.poi_ID || 0);
+          const count = Number(r.count || r.viewCount || r.ViewCount || r.playCount || r.PlayCount || 0);
+          return {
+            poiId: id,
+            poiName: r.poiName || r.poiName_Vi || r.POIName || r.name_Vi || r.Name_Vi || `POI ${id || '?'}`,
+            count: Math.max(0, Math.round(count))
+          };
+        })
+        .filter(r => r.poiId > 0 && r.count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+    }
+
+    function buildTopPoiRows(logs, limit = 10) {
+      const m = new Map();
+      for (const l of logs) {
+        const id = Number(l.poI_ID || l.poiId || l.poi_ID || 0); if (!id) continue;
+        if (!m.has(id)) m.set(id, { poiId: id, poiName: l.poiName || `POI ${id}`, count: 0 });
+        m.get(id).count++;
+      }
+      return [...m.values()].sort((a, b) => b.count - a.count).slice(0, limit);
+    }
+
+    function renderTopPoisChart(rows) {
+      if (chartInst.top) { chartInst.top.destroy(); chartInst.top = null; }
+      if (!rows.length) return;
+      document.getElementById('topPoiBadge').textContent = `Top ${rows.length}`;
+      const ctx = document.getElementById('topPoisChart').getContext('2d');
+      chartInst.top = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: rows.map(x => x.poiName.length > 20 ? x.poiName.slice(0, 20) + '…' : x.poiName),
+          datasets: [{
+            label: 'Lượt kích hoạt',
+            data: rows.map(x => x.count),
+            backgroundColor: rows.map((_, i) => CC[i % CC.length] + 'CC'),
+            borderColor: rows.map((_, i) => CC[i % CC.length]),
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          indexAxis: 'y', maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${num(c.parsed.x)} lượt` } } },
+          scales: {
+            x: { ticks: { color: '#7C8497', callback: v => num(v) }, grid: { color: 'rgba(255,255,255,.05)' }, border: { color: 'rgba(255,255,255,.05)' } },
+            y: { ticks: { color: '#B0B6C6', font: { size: 11 } }, grid: { display: false }, border: { display: false } }
+          }
+        }
+      });
+    }
+
+    /* ── AVG LISTEN CHART ─────────────────────────────────────────── */
+    function readPoiListenMetrics(poi) {
+      const playsRaw = Number(poi.playCount ?? poi.PlayCount ?? 0);
+      const meanRaw = Number(poi.meanPlay ?? poi.MeanPlay ?? 0);
+      const totalRaw = Number(poi.totalListenSeconds ?? poi.TotalListenSeconds ?? 0);
+
+      const plays = Math.max(0, Math.round(playsRaw));
+      const mean = Math.max(0, meanRaw);
+      const total = totalRaw > 0 ? Math.max(0, totalRaw) : (plays * mean);
+
+      return { plays, mean, total };
+    }
+
+    function buildAvgListenRows(logs, audioMap, pois) {
+      const persistedRows = (pois || []).map(p => {
+        const id = Number(p.poiId || p.poI_ID || p.POI_ID || p.poi_ID || 0);
+        if (!id) return null;
+        const metrics = readPoiListenMetrics(p);
+        return {
+          poiId: id,
+          poiName: p.poiName || p.name_Vi || p.nameVi || p.Name_Vi || `POI ${id}`,
+          plays: metrics.plays,
+          avgDuration: metrics.mean,
+          totalDuration: metrics.total
+        };
+      }).filter(Boolean);
+
+      const hasPersistedStats = persistedRows.some(r => r.plays > 0 || r.avgDuration > 0);
+      if (hasPersistedStats) {
+        return persistedRows.sort((a, b) => {
+          if (b.totalDuration !== a.totalDuration) return b.totalDuration - a.totalDuration;
+          if (b.plays !== a.plays) return b.plays - a.plays;
+          return String(a.poiName).localeCompare(String(b.poiName), 'vi');
+        });
+      }
+
+      // Legacy fallback (when POI stats have not been persisted yet): use logs + full audio duration.
+      const m = new Map();
+      for (const p of (pois || [])) {
+        const id = Number(p.poiId || p.poI_ID || p.POI_ID || p.poi_ID || 0);
+        if (!id) continue;
+        m.set(id, {
+          poiId: id,
+          poiName: p.poiName || p.name_Vi || p.nameVi || p.Name_Vi || `POI ${id}`,
+          plays: 0
+        });
+      }
+
+      for (const l of logs) {
+        if (l.actionType !== 'NarrationPlayed' && !l.wasPlayed) continue;
+        const id = Number(l.poI_ID || l.poiId || l.poi_ID || 0);
+        if (!id) continue;
+        if (!m.has(id)) m.set(id, { poiId: id, poiName: l.poiName || `POI ${id}`, plays: 0 });
+        m.get(id).plays++;
+      }
+
+      return [...m.values()].map(x => {
+        const fullDur = Number(audioMap.get(x.poiId) || 0);
+        const avg = (x.plays > 0 && fullDur > 0) ? fullDur : 0;
+        return {
+          ...x,
+          avgDuration: avg,
+          totalDuration: avg * x.plays
+        };
+      }).sort((a, b) => {
+        if (b.totalDuration !== a.totalDuration) return b.totalDuration - a.totalDuration;
+        if (b.plays !== a.plays) return b.plays - a.plays;
+        return String(a.poiName).localeCompare(String(b.poiName), 'vi');
+      });
+    }
+
+    function renderAvgListenChart(rows) {
+      const body = document.getElementById('avgListenBody');
+      const pageInfo = document.getElementById('avgListenPageInfo');
+      const pageNav = document.getElementById('avgListenPagination');
+      if (!body) return;
+
+      avgListenRowsCache = Array.isArray(rows) ? rows : [];
+
+      if (!avgListenRowsCache.length) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.25rem">Chưa có dữ liệu POI.</td></tr>';
+        if (pageInfo) pageInfo.textContent = '';
+        if (pageNav) pageNav.innerHTML = '';
+        return;
+      }
+
+      const totalPages = Math.max(1, Math.ceil(avgListenRowsCache.length / AVG_LISTEN_PAGE_SIZE));
+      if (avgListenPage > totalPages) avgListenPage = totalPages;
+      if (avgListenPage < 1) avgListenPage = 1;
+
+      const start = (avgListenPage - 1) * AVG_LISTEN_PAGE_SIZE;
+      const pageRows = avgListenRowsCache.slice(start, start + AVG_LISTEN_PAGE_SIZE);
+
+      body.innerHTML = pageRows.map((r, i) => {
+        const avgText = r.plays > 0 ? fmt(r.avgDuration) : '—';
+        const totalText = r.totalDuration > 0 ? fmt(r.totalDuration) : '—';
+        return `
+          <tr>
+            <td>${start + i + 1}</td>
+            <td title="${esc(r.poiName)}">${esc(r.poiName)}</td>
+            <td>${num(r.plays)}</td>
+            <td>${avgText}</td>
+            <td>${totalText}</td>
+          </tr>
+        `;
+      }).join('');
+
+      if (pageInfo) {
+        pageInfo.textContent = `Hiển thị ${start + 1} - ${Math.min(start + AVG_LISTEN_PAGE_SIZE, avgListenRowsCache.length)} trên ${avgListenRowsCache.length} POI`;
+      }
+
+      if (pageNav) {
+        let navHtml = '';
+        navHtml += `<button class="avg-listen-page-btn" onclick="changeAvgListenPage(-1)" ${avgListenPage === 1 ? 'disabled' : ''}>‹</button>`;
+
+        const maxPages = Math.min(totalPages, 5);
+        for (let p = 1; p <= maxPages; p++) {
+          navHtml += `<button class="avg-listen-page-btn ${p === avgListenPage ? 'active' : ''}" onclick="setAvgListenPage(${p})">${p}</button>`;
+        }
+
+        if (totalPages > 5) {
+          navHtml += `<span class="avg-listen-page-info">... ${totalPages}</span>`;
+        }
+
+        navHtml += `<button class="avg-listen-page-btn" onclick="changeAvgListenPage(1)" ${avgListenPage === totalPages ? 'disabled' : ''}>›</button>`;
+        pageNav.innerHTML = navHtml;
+      }
+    }
+
+    function setAvgListenPage(page) {
+      avgListenPage = Number(page) || 1;
+      renderAvgListenChart(avgListenRowsCache);
+    }
+
+    function changeAvgListenPage(delta) {
+      avgListenPage += Number(delta) || 0;
+      renderAvgListenChart(avgListenRowsCache);
+    }
+
+    /* ── HOURLY CHART ─────────────────────────────────────────────── */
+    function renderHourlyChart(logs) {
+      if (chartInst.hourly) { chartInst.hourly.destroy(); chartInst.hourly = null; }
+      const bucket = new Array(24).fill(0);
+      for (const l of logs) { const h = new Date(l.triggeredAt).getHours(); if (h >= 0 && h <= 23) bucket[h]++; }
+      const peak = bucket.indexOf(Math.max(...bucket));
+      document.getElementById('peakHourBadge').textContent = `Cao điểm ${peak}:00`;
+      const ctx = document.getElementById('hourlyChart').getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 0, 200);
+      grad.addColorStop(0, 'rgba(45,212,191,.35)');
+      grad.addColorStop(1, 'rgba(45,212,191,.02)');
+      chartInst.hourly = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}`),
+          datasets: [{ label: 'Lượt', data: bucket, fill: true, borderColor: '#2DD4BF', backgroundColor: grad, pointRadius: 2, pointHoverRadius: 5, tension: .4 }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${num(c.parsed.y)} lượt` } } },
+          scales: {
+            x: { ticks: { color: '#7C8497', font: { size: 10 } }, grid: { display: false }, border: { display: false } },
+            y: { ticks: { color: '#7C8497', callback: v => num(v) }, grid: { color: 'rgba(255,255,255,.05)' }, border: { display: false } }
+          }
+        }
+      });
+    }
+
+    /* ── DONUT CHARTS ─────────────────────────────────────────────── */
+    function renderDonut(canvasId, key, logs, fieldFn, labelSuffix) {
+      if (chartInst[key]) { chartInst[key].destroy(); chartInst[key] = null; }
+      const m = new Map();
+      for (const l of logs) {
+        const k = fieldFn(l);
+        if (!k) continue;
+        m.set(k, (m.get(k) || 0) + 1);
+      }
+      const labels = [...m.keys()], vals = [...m.values()];
+      if (!labels.length) return;
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      chartInst[key] = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: vals, backgroundColor: labels.map((_, i) => CC[i % CC.length] + 'DD'), borderWidth: 0, hoverOffset: 6 }] },
+        options: {
+          maintainAspectRatio: false, cutout: '66%',
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#7C8497', font: { size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+            tooltip: { callbacks: { label: c => `${c.label}: ${num(c.parsed)}${labelSuffix}` } }
+          }
+        }
+      });
+    }
+
+    /* ── MAPS ─────────────────────────────────────────────────────── */
+    const POI_DOT_COLORS = ['#FF6B35', '#4A9EFF', '#2DD4BF', '#F59E0B', '#EC4899', '#8B5CF6', '#22C55E', '#FB923C', '#EF4444', '#0EA5E9'];
+
+    function makePOIIcon(color, name) {
+      return L.divIcon({
+        className: '',
+        html: `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div class="poi-map-label" style="border-color:${color}">${name}</div>
+      <div style="width:14px;height:14px;background:${color};border:2.5px solid #fff;border-radius:50%;box-shadow:0 0 10px ${color}88;flex-shrink:0;"></div>
+    </div>`,
+        iconSize: [120, 42],
+        iconAnchor: [60, 42]
+      });
+    }
+
+    function ensureMaps() {
+      if (!heatMapInst) {
+        heatMapInst = L.map('heatmapMap', { zoomControl: true, scrollWheelZoom: false }).setView(DEFAULT_CENTER, 18);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }).addTo(heatMapInst);
+        poiLayerGrp = L.layerGroup().addTo(heatMapInst);
+      }
+      if (!routeMapInst) {
+        routeMapInst = L.map('routeMap', { zoomControl: true, scrollWheelZoom: false }).setView(DEFAULT_CENTER, 17);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }).addTo(routeMapInst);
+        routeLayerGrp = L.layerGroup().addTo(routeMapInst);
+      }
+    }
+
+    function renderHeatMap(logs, pois, synCount) {
+      ensureMaps();
+      if (heatLayer) { heatMapInst.removeLayer(heatLayer); heatLayer = null; }
+      poiLayerGrp.clearLayers();
+
+      const safePois = (Array.isArray(pois) ? pois : []).filter(p => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lon)));
+      const fallbackPoiMap = new Map();
+      if (!safePois.length) {
+        for (const l of (logs || [])) {
+          const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
+          if (!isFinite(lat) || !isFinite(lon)) continue;
+          const id = Number(l.poI_ID || l.poiId || l.poi_ID || 0);
+          const key = `${lat.toFixed(5)}|${lon.toFixed(5)}|${id}`;
+          if (!fallbackPoiMap.has(key)) {
+            fallbackPoiMap.set(key, {
+              poiId: id || fallbackPoiMap.size + 1,
+              poiName: l.poiName || `Điểm ${fallbackPoiMap.size + 1}`,
+              lat, lon,
+              address: ''
+            });
+          }
+        }
+      }
+      const mapPois = safePois.length ? safePois : Array.from(fallbackPoiMap.values());
+
+      // POI chips
+      const chips = document.getElementById('poiChips');
+      chips.innerHTML = mapPois.slice(0, 16).map(p => `
+    <span class="badge badge-muted" style="cursor:default;font-size:.7rem">📍 ${p.poiName}</span>
+  `).join('') || '<span class="badge badge-muted" style="font-size:.7rem">Chưa có điểm POI trong khoảng thời gian này</span>';
+
+      const focusSel = document.getElementById('heatPoiFocusSelect');
+      if (focusSel) {
+        focusSel.innerHTML = '<option value="">Focus theo POI...</option>' + mapPois.slice(0, 60).map((p, i) => {
+          const id = p.poiId || `poi-${i}`;
+          return `<option value="${String(id)}">${p.poiName}</option>`;
+        }).join('');
+      }
+
+      // POI markers — rõ ràng và có tên hiển thị
+      mapPois.forEach((poi, i) => {
+        const color = POI_DOT_COLORS[i % POI_DOT_COLORS.length];
+        L.marker([poi.lat, poi.lon], { icon: makePOIIcon(color, poi.poiName) })
+          .bindPopup(`<b style="color:${color}">${poi.poiName}</b><br><span style="font-size:11px;color:#666">${poi.address || ''}</span>`)
+          .addTo(poiLayerGrp);
+      });
+      if (!heatPoiMarkersVisible) poiLayerGrp.clearLayers();
+
+      const hpCount = document.getElementById('heatPointCount');
+      if (hpCount) hpCount.textContent = `${num(logs.length)} log`;
+
+      const synTag = document.getElementById('syntheticTag');
+
+      const heat = [];
+      const poiById = new Map(
+        mapPois.map(p => [String(Number(p.poiId || 0)), p]).filter(([id]) => id !== '0')
+      );
+      const bucket = new Map();
+      for (const l of logs) {
+        const poiId = String(Number(l.poI_ID || l.poiId || l.poi_ID || 0));
+        const poi = poiById.get(poiId);
+        if (!poi) continue;
+        const dwellSeconds = Number(l.dwellSeconds || 0);
+        const weight = 1 + (dwellSeconds > 0 ? Math.min(5, dwellSeconds / 20) : 0);
+        bucket.set(poiId, (bucket.get(poiId) || 0) + weight);
+      }
+      const max = Math.max(1, ...bucket.values());
+      for (const [poiId, c] of bucket) {
+        const poi = poiById.get(poiId);
+        if (!poi) continue;
+        const lat = Number(poi.lat);
+        const lon = Number(poi.lon);
+        heat.push([lat, lon, Math.max(.1, c / max)]);
+      }
+      if (synTag) synTag.textContent = `POI nóng: ${num(bucket.size)}`;
+
+      if (heat.length && typeof L.heatLayer === 'function') {
+        heatLayer = L.heatLayer(heat, {
+          radius: 28, blur: 18, maxZoom: 18, minOpacity: .1,
+          gradient: { 0.1: '#1D4ED8', 0.3: '#06B6D4', 0.5: '#22C55E', 0.75: '#F59E0B', 1: '#EF4444' }
+        }).addTo(heatMapInst);
+      }
+
+      // Zoom chủ yếu vào các POI (khu vực cụ thể)
+      const poiCoords = mapPois.map(p => [p.lat, p.lon]);
+      const allCoords = poiCoords.length ? poiCoords : heat.map(h => [h[0], h[1]]);
+      if (allCoords.length) {
+        const b = L.latLngBounds(allCoords);
+        if (b.isValid()) {
+          heatMapInst.fitBounds(b.pad(.05), { maxZoom: 18 });
+          const z = heatMapInst.getZoom();
+          // Đảm bảo zoom đủ sâu để thấy rõ từng POI
+          if (z < 17) heatMapInst.setZoom(17);
+        }
+      }
+      setTimeout(() => heatMapInst?.invalidateSize?.(), 0);
+    }
+
+    function focusHeatMapAll() {
+      if (!heatMapInst || !globalPois?.length) return;
+      const coords = globalPois.filter(p => isFinite(p.lat) && isFinite(p.lon)).map(p => [p.lat, p.lon]);
+      if (!coords.length) return;
+      const b = L.latLngBounds(coords);
+      if (b.isValid()) heatMapInst.fitBounds(b.pad(.08), { maxZoom: 18 });
+      const sel = document.getElementById('heatPoiFocusSelect');
+      if (sel) sel.value = '';
+    }
+
+    function focusHeatMapPoi(poiId) {
+      if (!poiId || !globalPois?.length || !heatMapInst) return;
+      const t = globalPois.find(p => String(p.poiId) === String(poiId));
+      if (!t || !isFinite(t.lat) || !isFinite(t.lon)) return;
+      heatMapInst.flyTo([t.lat, t.lon], Math.max(18, heatMapInst.getZoom() || 18), { duration: 0.35 });
+    }
+
+    function togglePoiMarkers() {
+      if (!heatMapInst || !poiLayerGrp) return;
+      heatPoiMarkersVisible = !heatPoiMarkersVisible;
+      if (heatPoiMarkersVisible) {
+        poiLayerGrp.addTo(heatMapInst);
+      } else {
+        poiLayerGrp.removeFrom(heatMapInst);
+      }
+      const btn = document.getElementById('togglePoiBtn');
+      if (btn) btn.innerHTML = heatPoiMarkersVisible
+        ? '<i class="fas fa-location-dot"></i> Ẩn điểm'
+        : '<i class="fas fa-location-dot"></i> Hiện điểm';
+    }
+
+    /* ── ROUTES ─────────────────────────────────────────────────── */
+    function buildRoutes(logs) {
+      const m = new Map();
+      for (const l of logs) {
+        const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
+        if (!isFinite(lat) || !isFinite(lon)) continue;
+        const u = l.sessionId || l.userId;
+        if (!u) continue;
+        if (!m.has(u)) m.set(u, []);
+        m.get(u).push({
+          lat,
+          lon,
+          at: l.triggeredAt,
+          poiName: l.poiName || '—',
+          poiId: getLogPoiId(l),
+          actionType: l.actionType || '',
+          triggerType: l.triggerType || '',
+          dwellSeconds: l.dwellSeconds
+        });
+      }
+      return [...m.entries()].map(([u, pts]) => {
+        pts.sort((a, b) => new Date(a.at) - new Date(b.at));
+        return { key: anonId(u), rawUser: u, points: pts, pointCount: pts.length, startedAt: pts[0]?.at, endedAt: pts[pts.length - 1]?.at };
+      }).filter(r => r.pointCount >= 2).sort((a, b) => b.pointCount - a.pointCount);
+    }
+
+    function isTrailPoint(point) {
+      const action = String(point?.actionType || '').toLowerCase();
+      const trigger = String(point?.triggerType || '').toLowerCase();
+      return action === 'locationping' || trigger === 'proximity' || action === 'exitzone';
+    }
+
+    function buildTrailSegments(points) {
+      const ordered = [...(points || [])].sort((a, b) => toTimestamp(a.at) - toTimestamp(b.at));
+      const preferred = ordered.filter(isTrailPoint);
+      const source = preferred.length >= 2 ? preferred : ordered;
+
+      const cleaned = [];
+      for (const p of source) {
+        const lat = Number(p.lat);
+        const lon = Number(p.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        const prev = cleaned[cleaned.length - 1];
+        if (!prev) {
+          cleaned.push(p);
+          continue;
+        }
+
+        const d = distanceMeters(prev.lat, prev.lon, lat, lon);
+        if (d < 2) continue;
+        cleaned.push(p);
+      }
+
+      if (cleaned.length < 2) return [];
+
+      const segments = [];
+      let current = [[cleaned[0].lat, cleaned[0].lon]];
+
+      for (let i = 1; i < cleaned.length; i++) {
+        const prev = cleaned[i - 1];
+        const cur = cleaned[i];
+        const d = distanceMeters(prev.lat, prev.lon, cur.lat, cur.lon);
+        const dt = Math.max(0, (toTimestamp(cur.at) - toTimestamp(prev.at)) / 1000);
+
+        // Break trail on unrealistic jump or very large time gap.
+        if (d > 260 || dt > 900) {
+          if (current.length >= 2) segments.push(current);
+          current = [[cur.lat, cur.lon]];
+          continue;
+        }
+
+        current.push([cur.lat, cur.lon]);
+      }
+
+      if (current.length >= 2) segments.push(current);
+      return segments;
+    }
+
+    function drawTrailSegments(layer, segments, color, focused = false) {
+      for (const seg of segments) {
+        L.polyline(seg, {
+          color,
+          weight: focused ? 8 : 4,
+          opacity: focused ? 0.18 : 0.22,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(layer);
+
+        L.polyline(seg, {
+          color,
+          weight: focused ? 4.6 : 2.6,
+          opacity: focused ? 0.9 : 0.58,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(layer);
+      }
+    }
+
+    function addRoutePoiMarkers(layer) {
+      const maxPoiMarkers = 120;
+      (globalPois || []).slice(0, maxPoiMarkers).forEach((p, i) => {
+        const lat = Number(p?.lat);
+        const lon = Number(p?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        const color = POI_DOT_COLORS[i % POI_DOT_COLORS.length];
+        L.circleMarker([lat, lon], {
+          radius: 5.2,
+          color,
+          weight: 1.6,
+          fillColor: color,
+          fillOpacity: 0.72
+        })
+          .bindPopup(`<b style="color:${color}">${esc(p.poiName || 'POI')}</b><br><span style="font-size:11px;color:#666">${esc(p.address || '')}</span>`)
+          .addTo(layer);
+      });
+    }
+
+    let movementLogs = [];
+
+    /* translate trigger type to Vietnamese */
+    function triggerLabel(raw) {
+      const key = String(raw || '').trim().toLowerCase();
+      const map = {
+        geofenceenter: 'Vào vùng',
+        proximity: 'Gần kề',
+        manualtap: 'Bấm tay',
+        geofenceexit: 'Rời vùng',
+        exitzone: 'Rời vùng',
+        locationping: 'Theo dõi vị trí',
+        narrationplayed: 'Nghe audio'
+      };
+      return map[key] || String(raw || '—');
+    }
+
+    function isRealPlaybackLog(log) {
+      if (!log) return false;
+      if (log.wasPlayed === true) return true;
+      const action = String(log.actionType || '').trim().toLowerCase();
+      return action === 'narrationplayed';
+    }
+
+    function playbackMethodLabel(log) {
+      if (!isRealPlaybackLog(log)) return null;
+
+      const trigger = String(log.triggerType || '').trim().toLowerCase();
+      if (trigger === 'manualtap' || trigger === 'manual') {
+        return 'Nghe ở chi tiết quán';
+      }
+
+      if (trigger === 'geofenceenter' || trigger === 'auto' || trigger === 'proximity') {
+        return 'Nghe tự động';
+      }
+
+      return null;
+    }
+    
+    function narrationLanguageCode(log) {
+      if (!isRealPlaybackLog(log)) return null;
+
+      const deviceId = String(log.deviceId ?? log.DeviceId ?? '').trim().toLowerCase();
+      const raw = String(
+        log.language
+        ?? log.Language
+        ?? log.lang
+        ?? log.Lang
+        ?? log.audioLanguage
+        ?? log.AudioLanguage
+        ?? (deviceId ? devicePreferredLanguageMap.get(deviceId) : '')
+        ?? ''
+      ).trim().toLowerCase();
+
+      if (raw.startsWith('vi')) return 'vi';
+      if (raw.startsWith('en')) return 'en';
+      if (raw.startsWith('zh') || raw.startsWith('cn')) return 'zh';
+      return null;
+    }
+
+    function renderLanguageDonut(logs) {
+      if (chartInst.platform) { chartInst.platform.destroy(); chartInst.platform = null; }
+
+      const counts = { vi: 0, en: 0, zh: 0 };
+      for (const l of logs || []) {
+        const code = narrationLanguageCode(l);
+        if (!code || !(code in counts)) continue;
+        counts[code]++;
+      }
+
+      const labels = ['Tiếng Việt', 'Tiếng Anh', 'Tiếng Trung'];
+      const vals = [counts.vi, counts.en, counts.zh];
+      const total = vals.reduce((s, v) => s + v, 0);
+
+      const ctx = document.getElementById('platformChart').getContext('2d');
+      if (total <= 0) {
+        chartInst.platform = new Chart(ctx, {
+          type: 'doughnut',
+          data: { labels: ['Chưa có dữ liệu nghe'], datasets: [{ data: [1], backgroundColor: ['#CBD5E1'], borderWidth: 0 }] },
+          options: {
+            maintainAspectRatio: false,
+            cutout: '66%',
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#7C8497', font: { size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+              tooltip: { callbacks: { label: () => 'Chưa có dữ liệu ngôn ngữ' } }
+            }
+          }
+        });
+        return;
+      }
+
+      chartInst.platform = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: vals,
+            backgroundColor: ['#FF6B35DD', '#4A9EFFDD', '#2DD4BFDD'],
+            borderWidth: 0,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          cutout: '66%',
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#7C8497', font: { size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+            tooltip: {
+              callbacks: {
+                label: c => `${c.label}: ${num(c.parsed)} lượt nghe`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    /* coordinate → short label using nearest POI */
+    function nearestPoiName(lat, lon, pois) {
+      if (!pois.length) return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+      let best = null, bestD = Infinity;
+      for (const p of pois) {
+        const d = Math.abs(p.lat - lat) + Math.abs(p.lon - lon);
+        if (d < bestD) { bestD = d; best = p; }
+      }
+      return bestD < 0.01 ? best.poiName : `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    }
+
+    function renderRouteList(routes, logs) {
+      ensureMaps();
+      allRoutes = [...routes];
+      movementLogs = [...logs];
+      const sel = document.getElementById('routeSelect');
+      const movementCount = document.getElementById('movementCountBadge');
+
+      if (!routes.length) {
+        if (logs.length) {
+          renderMovementLogTable(logs);
+        } else {
+          document.getElementById('routeList').innerHTML = `<div class="empty-state"><i class="fas fa-route"></i>Chưa có log di chuyển từ mobile app.</div>`;
+        }
+        sel.innerHTML = '<option>Không có tuyến</option>';
+        setRouteCountBadges('0 tuyến');
+        if (movementCount) movementCount.textContent = `${num(logs.length)} log`;
+        return;
+      }
+
+      sel.innerHTML = `<option value="-1">Tất cả tuyến — ${num(logs.length)} log</option>`
+        + routes.map((r, i) => `<option value="${i}">${r.key} — ${r.pointCount} điểm</option>`).join('');
+      setRouteCountBadges(`${num(routes.length)} / ${num(routes.length)} tuyến`);
+      selectRoute(-1);
+    }
+
+    function getMovementLogsByCurrentRoute() {
+      const sel = document.getElementById('routeSelect');
+      const idx = Number(sel?.value || -1);
+      if (idx < 0) return movementLogs;
+      const r = allRoutes[idx];
+      if (!r) return movementLogs;
+      const routeLogs = movementLogs.filter(l => {
+        const key = l.sessionId || l.userId || '';
+        return key === r.rawUser;
+      });
+      return routeLogs.length ? routeLogs : movementLogs;
+    }
+
+    function applyMovementFilter(logs) {
+      const search = (document.getElementById('movementSearch')?.value || '').trim().toLowerCase();
+      const actionFilter = document.getElementById('movementActionFilter')?.value || '';
+      const fromRaw = document.getElementById('movementFrom')?.value || '';
+      const toRaw = document.getElementById('movementTo')?.value || '';
+
+      const fromDate = fromRaw ? new Date(`${fromRaw}T00:00:00`) : null;
+      const toDate = toRaw ? new Date(`${toRaw}T23:59:59`) : null;
+
+      return logs.filter(l => {
+        if (fromDate || toDate) {
+          const ts = l.triggeredAt ? new Date(l.triggeredAt) : null;
+          if (!ts || Number.isNaN(ts.getTime())) return false;
+          if (fromDate && ts < fromDate) return false;
+          if (toDate && ts > toDate) return false;
+        }
+        if (actionFilter) {
+          const action = (l.actionType || l.triggerType || '').toLowerCase();
+          if (!action.includes(actionFilter.toLowerCase())) return false;
+        }
+        if (search) {
+          const sText = removeAccents(search);
+          const sessionRaw = removeAccents(l.sessionId || l.userId || '');
+          const sessionAnon = removeAccents(anonId(sessionRaw));
+          const poiName = removeAccents(l.poiName || '');
+          const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
+          const gps = `${lat.toFixed(4)} ${lon.toFixed(4)}`;
+          if (!sessionRaw.includes(sText) && !sessionAnon.includes(sText) && !poiName.includes(sText) && !gps.includes(sText)) return false;
+        }
+        return true;
+      });
+    }
+
+    function refreshMovementLogsByFilter() {
+      renderMovementLogTable(getMovementLogsByCurrentRoute());
+    }
+
+    function clearMovementTimeFilter() {
+      const s = document.getElementById('movementSearch');
+      const a = document.getElementById('movementActionFilter');
+      const f = document.getElementById('movementFrom');
+      const t = document.getElementById('movementTo');
+      if (s) s.value = '';
+      if (a) a.value = '';
+      if (f) f.value = '';
+      if (t) t.value = '';
+      movementPage = 1;
+      refreshMovementLogsByFilter();
+    }
+
+    function buildDwellDisplayByRow(sortedLogs) {
+      const rows = (sortedLogs || []).map((l, rowIndex) => {
+        const ts = toTimestamp(l.triggeredAt);
+        const poiId = getLogPoiId(l);
+        const sessionKey = getLogSessionKey(l);
+        const action = String(l.actionType || '').toLowerCase();
+        const trigger = String(l.triggerType || '').toLowerCase();
+        const dwellRaw = Number(l.dwellSeconds);
+
+        return {
+          rowIndex,
+          ts,
+          poiId,
+          sessionKey,
+          action,
+          trigger,
+          dwellSeconds: Number.isFinite(dwellRaw) && dwellRaw >= 0 ? dwellRaw : null,
+          isExit: action === 'exitzone' || trigger === 'geofenceexit'
+        };
+      });
+
+      const exitsByKey = new Map();
+      for (const r of rows) {
+        if (!r.isExit || !r.sessionKey || r.poiId <= 0 || r.ts <= 0) continue;
+        const key = `${r.sessionKey}|${r.poiId}`;
+        if (!exitsByKey.has(key)) exitsByKey.set(key, []);
+        exitsByKey.get(key).push(r);
+      }
+
+      for (const list of exitsByKey.values()) {
+        list.sort((a, b) => a.ts - b.ts);
+      }
+
+      const displayByRow = new Map();
+      for (const r of rows) {
+        if (r.dwellSeconds != null) {
+          displayByRow.set(r.rowIndex, `${Math.round(r.dwellSeconds)}s`);
+          continue;
+        }
+
+        if (!r.sessionKey || r.poiId <= 0 || r.ts <= 0) continue;
+        const key = `${r.sessionKey}|${r.poiId}`;
+        const exits = exitsByKey.get(key);
+        if (!exits?.length) continue;
+
+        // Estimate from nearest future ExitZone in same session+POI, max 30 minutes.
+        const matchedExit = exits.find(e => e.ts >= r.ts && ((e.ts - r.ts) / 1000) <= 1800);
+        if (!matchedExit) continue;
+
+        if (matchedExit.dwellSeconds != null) {
+          displayByRow.set(r.rowIndex, `~${Math.round(matchedExit.dwellSeconds)}s`);
+        }
+      }
+
+      return displayByRow;
+    }
+
+    function renderMovementLogTable(logs) {
+      const list = document.getElementById('routeList');
+      const movementCount = document.getElementById('movementCountBadge');
+      const filteredLogs = applyMovementFilter(logs);
+
+      let pageInfo = document.getElementById('movementPageInfo');
+      let pageBtns = document.getElementById('movementPagination');
+      if (!pageInfo) {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:.75rem;padding:.5rem;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)';
+        wrap.innerHTML = '<span id="movementPageInfo" style="font-size:.75rem;color:var(--muted)"></span><div style="display:flex;gap:.25rem" id="movementPagination"></div>';
+        list.parentNode.insertBefore(wrap, list.nextSibling);
+        pageInfo = document.getElementById('movementPageInfo');
+        pageBtns = document.getElementById('movementPagination');
+      }
+
+      if (!filteredLogs.length) {
+        list.innerHTML = `<div class="empty-state" style="margin:.5rem"><i class="fas fa-magnifying-glass"></i>Không có log di chuyển nào.</div>`;
+        if (movementCount) movementCount.textContent = `0 / ${num(logs.length)} log`;
+        pageInfo.textContent = '';
+        pageBtns.innerHTML = '';
+        return;
+      }
+      if (movementCount) movementCount.textContent = `${num(filteredLogs.length)} / ${num(logs.length)} log`;
+
+      const sortDir = document.getElementById('movementSort')?.value || 'desc';
+      const sorted = [...filteredLogs].sort((a, b) => {
+        const timeA = new Date(a.triggeredAt).getTime();
+        const timeB = new Date(b.triggeredAt).getTime();
+        return sortDir === 'asc' ? timeA - timeB : timeB - timeA;
+      });
+      const dwellDisplayByRow = buildDwellDisplayByRow(sorted);
+      
+      const totalPages = Math.ceil(sorted.length / movementPageSize);
+      if (movementPage > totalPages) movementPage = totalPages;
+      if (movementPage < 1) movementPage = 1;
+      
+      const startIdx = (movementPage - 1) * movementPageSize;
+      const pagedLogs = sorted.slice(startIdx, startIdx + movementPageSize);
+
+      let html = '';
+      for (let rowOffset = 0; rowOffset < pagedLogs.length; rowOffset++) {
+        const l = pagedLogs[rowOffset];
+        const globalRowIndex = startIdx + rowOffset;
+        const timeText = l.triggeredAt ? new Date(l.triggeredAt).toLocaleString('vi-VN') : '—';
+        const sessionRaw = l.sessionId || l.userId || 'ẩn danh';
+        const sessionText = anonId(sessionRaw);
+        const lat = Number(l.userLatitude), lon = Number(l.userLongitude);
+        const gpsText = (isFinite(lat) && isFinite(lon)) ? `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E` : '—';
+        const poiText = l.poiName || ((isFinite(lat) && isFinite(lon)) ? nearestPoiName(lat, lon, globalPois || []) : '—');
+        const actionRaw = l.actionType || l.triggerType || 'LocationPing';
+        const actionText = triggerLabel(actionRaw);
+        const dwellRaw = Number(l.dwellSeconds);
+        const hasRawDwell = Number.isFinite(dwellRaw) && dwellRaw >= 0;
+        const estimatedDwell = hasRawDwell ? '' : (dwellDisplayByRow.get(globalRowIndex) || '');
+        const dwellText = hasRawDwell
+          ? `${Math.round(dwellRaw)}s`
+          : (estimatedDwell || 'Chờ ExitZone');
+        const dwellTitle = hasRawDwell
+          ? 'Thời gian ở lại lưu trực tiếp từ app'
+          : (estimatedDwell
+            ? 'Ước tính từ log rời vùng gần nhất cùng phiên và POI'
+            : 'Chưa có log rời vùng (ExitZone) để tính thời gian ở lại');
+
+        html += `<div class="movement-row" style="grid-template-columns: 1.2fr 1.3fr 1.5fr .95fr .8fr;">
+      <div class="movement-cell" style="font-size:.85rem">${timeText}</div>
+      <div class="movement-cell mono" style="font-size:.85rem">${sessionText}</div>
+      <div class="movement-cell mono muted" style="font-size:.8rem">${gpsText}<div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">POI: ${esc(poiText)}</div></div>
+      <div class="movement-cell"><span class="action-pill" style="font-size:.7rem">${actionText}</span></div>
+      <div class="movement-cell muted" title="${dwellTitle}">${dwellText}</div>
+    </div>`;
+      }
+
+      list.innerHTML = html;
+      
+      pageInfo.textContent = `Hiển thị ${startIdx + 1} - ${Math.min(startIdx + movementPageSize, sorted.length)} trên tổng ${sorted.length}`;
+      let btnHtml = '';
+      btnHtml += `<button class="btn btn-ghost" style="padding:.2rem .6rem;border:1px solid ${movementPage === 1 ? 'transparent' : 'var(--border)'};border-radius:4px" onclick="movementPage=Math.max(1, movementPage-1);refreshMovementLogsByFilter()" ${movementPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+      
+      const maxPages = Math.min(totalPages, 5);
+      for(let i = 1; i <= maxPages; i++) {
+        const isAct = i === movementPage;
+        const bg = isAct ? 'var(--orange)' : 'transparent';
+        const fg = isAct ? '#fff' : 'var(--text)';
+        const bd = isAct ? 'var(--orange)' : 'var(--border)';
+        btnHtml += `<button class="btn btn-ghost" style="width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;border:1px solid ${bd};background:${bg};color:${fg};margin:0 .15rem;font-size:.8rem" onclick="movementPage=${i};refreshMovementLogsByFilter()">${i}</button>`;
+      }
+      
+      if (totalPages > 5) {
+        btnHtml += `<span style="font-size:.8rem;padding:0 .5rem;align-self:center;color:var(--muted)">... ${totalPages}</span>`;
+      }
+      
+      btnHtml += `<button class="btn btn-ghost" style="padding:.2rem .6rem;border:1px solid ${movementPage >= totalPages ? 'transparent' : 'var(--border)'};border-radius:4px" onclick="movementPage=Math.min(${totalPages}, movementPage+1);refreshMovementLogsByFilter()" ${movementPage >= totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+      pageBtns.innerHTML = btnHtml;
+    }
+
+    function saveRouteSingle(idx) {
+      const r = allRoutes[idx];
+      if (!r) return;
+      try {
+        localStorage.setItem('route_snap_' + r.key, JSON.stringify({ savedAt: new Date().toISOString(), ...r }));
+        showToast(`Đã lưu snapshot ${r.key}`, 'success');
+      } catch (e) { showToast('Lỗi khi lưu', 'error'); }
+    }
+
+    function saveRouteSnapshot() {
+      const idx = Number(document.getElementById('routeSelect').value || 0);
+      if (idx < 0) {
+        showToast('Vui lòng chọn một tuyến cụ thể để lưu snapshot', 'warning');
+        return;
+      }
+      saveRouteSingle(idx);
+    }
+
+    function selectRoute(idx) {
+      const sel = document.getElementById('routeSelect');
+      if (sel) sel.value = String(idx);
+
+      movementPage = 1;
+      renderMovementLogTable(getMovementLogsByCurrentRoute());
+
+      if (!routeLayerGrp) return;
+      routeLayerGrp.clearLayers();
+
+      // POI tĩnh để đối chiếu bối cảnh với đường di chuyển
+      addRoutePoiMarkers(routeLayerGrp);
+
+      if (idx < 0) {
+        const routeSample = allRoutes.slice(0, 80);
+        const coords = [];
+        routeSample.forEach((route, i) => {
+          const segs = buildTrailSegments(route.points || []);
+          if (!segs.length) return;
+          segs.forEach(seg => coords.push(...seg));
+          drawTrailSegments(routeLayerGrp, segs, CC[i % CC.length], false);
+        });
+
+        if (coords.length) {
+          const bAll = L.latLngBounds(coords);
+          if (bAll.isValid()) routeMapInst.fitBounds(bAll.pad(.08), { maxZoom: 18 });
+        }
+        return;
+      }
+
+      const r = allRoutes[idx];
+      if (!r) {
+        if (allRoutes.length) selectRoute(-1);
+        return;
+      }
+
+      const segs = buildTrailSegments(r.points || []);
+      const ll = segs.flat();
+      if (segs.length) {
+        drawTrailSegments(routeLayerGrp, segs, '#FF6B35', true);
+      } else {
+        const fallback = (r.points || []).map(p => [p.lat, p.lon]).filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+        if (fallback.length >= 2) {
+          drawTrailSegments(routeLayerGrp, [fallback], '#FF6B35', true);
+          ll.push(...fallback);
+        }
+      }
+
+      const f = r.points[0], la = r.points[r.points.length - 1];
+      L.circleMarker([f.lat, f.lon], { radius: 6, color: '#2DD4BF', fillColor: '#2DD4BF', fillOpacity: 1 })
+        .bindPopup(`<b>Bắt đầu</b><br>${new Date(f.at).toLocaleString('vi-VN')}<br>${f.poiName || ''}`)
+        .addTo(routeLayerGrp);
+      L.circleMarker([la.lat, la.lon], { radius: 6, color: '#EF4444', fillColor: '#EF4444', fillOpacity: 1 })
+        .bindPopup(`<b>Kết thúc</b><br>${new Date(la.at).toLocaleString('vi-VN')}<br>${la.poiName || ''}`)
+        .addTo(routeLayerGrp);
+
+      // Đánh dấu các POI đã đi qua trên chính tuyến này
+      const visitedPoiMap = new Map();
+      for (const p of r.points || []) {
+        const pid = Number(p.poiId || 0);
+        if (!pid || visitedPoiMap.has(pid)) continue;
+        const poi = (globalPois || []).find(x => Number(x.poiId) === pid);
+        if (!poi || !Number.isFinite(Number(poi.lat)) || !Number.isFinite(Number(poi.lon))) continue;
+        visitedPoiMap.set(pid, poi);
+      }
+      for (const [pid, poi] of visitedPoiMap.entries()) {
+        L.circleMarker([poi.lat, poi.lon], {
+          radius: 7.6,
+          color: '#F59E0B',
+          weight: 2,
+          fillColor: '#FBBF24',
+          fillOpacity: 0.9
+        })
+          .bindPopup(`<b>POI trên tuyến</b><br>${esc(poi.poiName || `POI ${pid}`)}`)
+          .addTo(routeLayerGrp);
+      }
+
+      const b = L.latLngBounds(ll);
+      if (b.isValid()) routeMapInst.fitBounds(b.pad(.08), { maxZoom: 19 });
+    }
+
+    async function fetchAllNarrationLogs(from, to) {
+      if (typeof AnalyticsApi === 'undefined') throw new Error('AnalyticsApi unavailable');
+      const pageSize = 200;
+      const maxPages = 25;
+      let page = 1;
+      const all = [];
+
+      while (page <= maxPages) {
+        const res = await AnalyticsApi.narrationLogs({
+          page,
+          pageSize,
+          fromDate: from.toISOString(),
+          toDate: to.toISOString()
+        });
+        const data = res?.data || [];
+        all.push(...data);
+        const totalPages = Number(res?.totalPages || 1);
+        if (page >= totalPages) break;
+        page++;
+      }
+
+      return all;
+    }
+
+    async function fetchAllPoisForDashboard() {
+      if (typeof POIApi === 'undefined') throw new Error('POIApi unavailable');
+      const pageSize = 200;
+      const maxPages = 20;
+      const first = await POIApi.list({ page: 1, pageSize, isActive: true });
+      const rows = [...(first?.data || [])];
+      const totalPages = Number(first?.totalPages || 1);
+
+      for (let p = 2; p <= Math.min(totalPages, maxPages); p++) {
+        const next = await POIApi.list({ page: p, pageSize, isActive: true });
+        rows.push(...(next?.data || []));
+      }
+
+      return rows.map(p => {
+        const lat = Number(p.latitude ?? p.Latitude ?? p.location?.latitude ?? p.Location?.Latitude);
+        const lon = Number(p.longitude ?? p.Longitude ?? p.location?.longitude ?? p.Location?.Longitude);
+        const poiId = Number(p.poiId ?? p.POI_ID ?? p.poi_ID ?? p.poI_ID ?? 0);
+        const playCount = Number(p.playCount ?? p.PlayCount ?? 0);
+        const meanPlay = Number(p.meanPlay ?? p.MeanPlay ?? 0);
+        return {
+          poiId,
+          poiName: p.name_Vi || p.name_En || p.Name_Vi || p.Name_En || `POI ${poiId || '?'}`,
+          lat,
+          lon,
+          address: p.address || p.Address || 'Không rõ địa chỉ',
+          playCount,
+          meanPlay,
+          totalListenSeconds: Number((p.totalListenSeconds ?? p.TotalListenSeconds ?? (playCount * meanPlay)) || 0)
+        };
+      }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+    }
+
+    async function fetchAllDevicesForDashboard() {
+      if (typeof AnalyticsApi === 'undefined') throw new Error('AnalyticsApi unavailable');
+      const pageSize = 200;
+      const maxPages = 20;
+      const first = await AnalyticsApi.devices({ page: 1, pageSize });
+      const rows = [...(first?.data || [])];
+      const totalPages = Number(first?.totalPages || 1);
+
+      for (let p = 2; p <= Math.min(totalPages, maxPages); p++) {
+        const next = await AnalyticsApi.devices({ page: p, pageSize });
+        rows.push(...(next?.data || []));
+      }
+
+      return rows
+        .map(d => ({ ...d, platform: normalizePlatformName(d.platform ?? d.Platform) }))
+        .filter(d => d.platform === 'Android');
+    }
+
+    async function fetchAllAudiosForDashboard() {
+      if (typeof AudioApi === 'undefined') throw new Error('AudioApi unavailable');
+      const pageSize = 300;
+      const maxPages = 12;
+      const first = await AudioApi.list({ page: 1, pageSize, status: 'published' });
+      const rows = [...(first?.data || [])];
+      const totalPages = Number(first?.totalPages || 1);
+
+      for (let p = 2; p <= Math.min(totalPages, maxPages); p++) {
+        const next = await AudioApi.list({ page: p, pageSize, status: 'published' });
+        rows.push(...(next?.data || []));
+      }
+
+      return rows;
+    }
+
+    async function loadDashboardDataFromApi(from, to) {
+      const [overview, realLogs, pois, devices, audios, topPois] = await Promise.all([
+        AnalyticsApi.overview(),
+        fetchAllNarrationLogs(from, to),
+        fetchAllPoisForDashboard(),
+        fetchAllDevicesForDashboard(),
+        fetchAllAudiosForDashboard(),
+        AnalyticsApi.topPOIs(10)
+      ]);
+
+      return { overview, realLogs, pois, devices, audios, topPois };
+    }
+
+    /* ── MAIN REFRESH ─────────────────────────────────────────────── */
+    async function refreshDashboard() {
+      showToast('Đang tải dữ liệu…', 'info');
+      const days = Number(document.getElementById('rangeSelect').value || 30);
+      const to = new Date();
+      const from = new Date(to); from.setDate(from.getDate() - days);
+
+      try {
+        let overview;
+        let devices;
+        let pois;
+        let realLogs;
+        let audios;
+        let topPois = [];
+        let source = 'database';
+
+        try {
+          if (typeof requireAuth === 'function' && !requireAuth()) return;
+          const role = (typeof TokenManager !== 'undefined' ? (TokenManager.getRoleContext() || '').toLowerCase() : 'admin');
+          if (role !== 'admin') {
+            window.location.href = 'dashboard';
+            return;
+          }
+
+          const apiData = await loadDashboardDataFromApi(from, to);
+          overview = apiData.overview;
+          devices = apiData.devices;
+          pois = apiData.pois;
+          realLogs = apiData.realLogs;
+          audios = apiData.audios;
+          topPois = apiData.topPois || [];
+        } catch (apiErr) {
+          console.warn('Fallback to mock data:', apiErr);
+          source = 'mock';
+          overview = MOCK_OVERVIEW;
+          devices = MOCK_DEVICES;
+          pois = MOCK_POIS;
+          realLogs = [];
+          audios = MOCK_AUDIOS;
+          topPois = [];
+        }
+
+        // Thống kê thời gian Audio
+        globalPois = pois;
+        globalAudioMap.clear();
+        for (const a of audios) {
+          const id = Number(a.poi_ID || a.pOI_ID || a.POI_ID || a.poiId || 0);
+          const duration = Number(a.duration || 0);
+          if (id && duration > 0) globalAudioMap.set(id, duration);
+        }
+        const audioMap = globalAudioMap;
+
+        devicePreferredLanguageMap = new Map(
+          (devices || [])
+            .map(d => {
+              const id = String(d.deviceId ?? d.DeviceId ?? '').trim();
+              const normalizedId = id.toLowerCase();
+              const language = String(d.preferredLanguage ?? d.PreferredLanguage ?? '').trim();
+              return [normalizedId, language];
+            })
+            .filter(([id, language]) => id && language)
+        );
+
+        const allLogs = [...realLogs];
+        const routeLogs = allLogs.filter(isVinhKhanhNarrationLog);
+
+        // Build data
+        const apiTopRows = normalizeTopPoiRows(topPois, 10);
+        const topRows = apiTopRows.length ? apiTopRows : buildTopPoiRows(allLogs, 10);
+        const avgRows = buildAvgListenRows(allLogs, audioMap, pois);
+        allRoutes = buildRoutes(routeLogs);
+
+        // Render everything
+        renderKpis(overview, allLogs, allRoutes, pois, devices, avgRows);
+        renderTopPoisChart(topRows);
+        renderAvgListenChart(avgRows);
+        renderHourlyChart(allLogs);
+        renderDonut('triggerChart', 'trigger', allLogs, l => playbackMethodLabel(l), ' lượt');
+        renderLanguageDonut(allLogs);
+        renderHeatMap(routeLogs, pois, 0);
+        renderRouteList(allRoutes, routeLogs);
+
+        showToast(`Đã cập nhật thống kê (${source})`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || 'Lỗi tải dữ liệu', 'error');
+      }
+    }
+
+    /* ── INIT ─────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('routeSelect').addEventListener('change', e => selectRoute(Number(e.target.value || 0)));
+      refreshDashboard();
+    });
+  </script>
+</body>
+
+</html>

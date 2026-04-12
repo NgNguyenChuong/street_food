@@ -1,0 +1,2612 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chỉnh sửa POI - Street Food Narrator</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.875rem 1.75rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #05C494 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(6, 214, 160, 0.3);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #D63D5F 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 71, 111, 0.3);
+        }
+
+        /* Form Layout */
+        .form-layout {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 2rem;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            animation: fadeInUp 0.6s ease-out backwards;
+        }
+
+        .form-section:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .form-section:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title i {
+            color: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.95rem;
+        }
+
+        .form-label .required {
+            color: var(--danger);
+            margin-left: 0.25rem;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            padding: 0.875rem 1.1rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-help {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .form-help i {
+            font-size: 0.75rem;
+        }
+
+        /* Opening Hours Redesign */
+        .hours-card {
+            background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .hours-main-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 2px dashed var(--border);
+        }
+
+        .hours-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .hours-field-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .hours-field-label i {
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .day-range-inputs {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .day-range-inputs select {
+            flex: 1;
+            padding: 0.7rem 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        .day-range-inputs span {
+            color: #888;
+            font-weight: 500;
+        }
+
+        .time-input {
+            padding: 0.7rem 0.8rem;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .hours-override-section {
+            margin-top: 1.25rem;
+        }
+
+        .override-hint {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            background: #fffbf0;
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .override-hint i {
+            color: var(--accent);
+        }
+
+        .hours-days {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .day-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 0.875rem;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .day-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .day-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 0.65rem;
+            color: var(--dark);
+            text-align: center;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .day-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .day-controls label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 0.25rem 0;
+            transition: color 0.2s;
+        }
+
+        .day-controls label:hover {
+            color: var(--primary);
+        }
+
+        .day-controls input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .day-controls input[type="time"] {
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            border-radius: 8px;
+        }
+
+        /* Coordinate Inputs */
+        .coordinate-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .geofence-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .audio-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        /* Language Tabs */
+        .lang-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .lang-tab {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 8px 8px 0 0;
+            position: relative;
+        }
+
+        .lang-tab:hover {
+            color: var(--primary);
+            background: rgba(255, 107, 53, 0.05);
+        }
+
+        .lang-tab.active {
+            color: var(--primary);
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .lang-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -0.6rem;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .lang-content {
+            display: none;
+        }
+
+        .lang-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Image Upload */
+        .image-upload {
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+        }
+
+        .image-upload:hover {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.1);
+        }
+
+        .image-upload i {
+            font-size: 3.5rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .image-preview {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Map Preview */
+        .map-preview {
+            width: 100%;
+            height: 350px;
+            background: #F0F4F8;
+            border-radius: 16px;
+            margin-top: 1rem;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .map-search {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .map-search .form-input {
+            flex: 1;
+        }
+
+        .map-search .btn {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .map-hint {
+            font-size: 0.8rem;
+            color: #777;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .map-hint i {
+            color: var(--primary);
+        }
+
+        .map-preview .map-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #bbb;
+            font-size: 1rem;
+            gap: 0.75rem;
+        }
+
+        /* Status Toggle */
+        .status-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .status-option {
+            padding: 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .status-option:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .status-option i {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-option.active {
+            border-color: var(--success);
+            background: rgba(6, 214, 160, 0.1);
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .status-option.inactive {
+            border-color: var(--danger);
+            background: rgba(239, 71, 111, 0.1);
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .vendor-status-box {
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .vendor-status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .vendor-status-chip.pending {
+            background: rgba(255, 210, 63, 0.2);
+            color: #a16207;
+        }
+
+        .vendor-status-chip.approved {
+            background: rgba(6, 214, 160, 0.2);
+            color: #047857;
+        }
+
+        .vendor-status-chip.rejected {
+            background: rgba(239, 71, 111, 0.18);
+            color: #b91c1c;
+        }
+
+        /* Info Card */
+        .info-card {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 107, 53, 0.02) 100%);
+            border-radius: 14px;
+            border: 2px solid rgba(255, 107, 53, 0.15);
+            margin-bottom: 1.5rem;
+        }
+
+        .info-card-title {
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .info-card-title i {
+            color: var(--primary);
+        }
+
+        .info-card-content {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        /* System Info */
+        .system-info-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .system-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--light);
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        .system-info-item strong {
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .system-info-item span {
+            color: #666;
+        }
+
+        /* Form Actions */
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--border);
+        }
+
+        .role-hidden {
+            display: none !important;
+        }
+
+        .role-locked {
+            opacity: 0.6;
+            pointer-events: none;
+            background: #f5f5f5 !important;
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            padding: 1rem 1.5rem;
+            border-radius: 14px;
+            min-width: 280px;
+            max-width: 420px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            pointer-events: all;
+            animation: toastIn 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+        }
+
+        .toast.toast-hide {
+            animation: toastOut 0.3s ease-in forwards;
+        }
+
+        .toast-success {
+            background: linear-gradient(135deg, #06D6A0 0%, #05C494 100%);
+            color: white;
+        }
+
+        .toast-error {
+            background: linear-gradient(135deg, #EF476F 0%, #D63D5F 100%);
+            color: white;
+        }
+
+        .toast-warning {
+            background: linear-gradient(135deg, #FFD23F 0%, #E8BE35 100%);
+            color: #1A1A2E;
+        }
+
+        .toast-info {
+            background: linear-gradient(135deg, #004E89 0%, #003D6B 100%);
+            color: white;
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .toast-msg { flex: 1; }
+
+        .toast-close {
+            background: rgba(255,255,255,0.25);
+            border: none;
+            color: inherit;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        .toast-close:hover { background: rgba(255,255,255,0.4); }
+
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26, 26, 46, 0.58);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 1rem;
+        }
+
+        .confirm-overlay.active {
+            display: flex;
+        }
+
+        .confirm-modal {
+            width: 100%;
+            max-width: 460px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            animation: fadeInDown 0.2s ease;
+        }
+
+        .confirm-head {
+            padding: 1rem 1.2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-weight: 700;
+            color: #991b1b;
+        }
+
+        .confirm-body {
+            padding: 1rem 1.2rem;
+            color: #374151;
+            line-height: 1.55;
+            font-size: 0.95rem;
+        }
+
+        .confirm-actions {
+            padding: 0.9rem 1.2rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.6rem;
+            background: #fafafa;
+        }
+
+        .dialog-input {
+            width: 100%;
+            margin-top: 0.75rem;
+            padding: 0.72rem 0.9rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .dialog-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+
+        /* Animations */
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0); }
+            to   { opacity: 0; transform: translateX(100%); }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Admin diff highlights */
+        .changed-field {
+            border: 2px solid #f59e0b !important;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
+            background-color: rgba(245, 158, 11, 0.02) !important;
+        }
+        .old-value-hint {
+            display: block;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 0.4rem;
+            padding: 0.4rem 0.6rem;
+            background: #f3f4f6;
+            border-left: 3px solid #9ca3af;
+            border-radius: 4px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .form-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .hours-days {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .coordinate-group {
+                grid-template-columns: 1fr;
+            }
+
+            .geofence-grid,
+            .audio-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hours-main-row {
+                grid-template-columns: 1fr;
+            }
+
+            .hours-days {
+                grid-template-columns: 1fr;
+            }
+
+            .status-toggle {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+<div class="confirm-overlay" id="closePoiConfirm">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="closePoiConfirmTitle">
+        <div class="confirm-head" id="closePoiConfirmTitle">
+            <i class="fas fa-triangle-exclamation"></i>
+            Xác nhận đóng cửa vĩnh viễn
+        </div>
+        <div class="confirm-body" id="closePoiConfirmMessage">
+            POI sẽ bị gỡ khỏi tất cả tour và không thể khôi phục từ màn hình này. Bạn có chắc muốn tiếp tục?
+        </div>
+        <div class="confirm-actions">
+            <button type="button" class="btn btn-outline" id="closePoiCancelBtn">Hủy</button>
+            <button type="button" class="btn btn-danger" id="closePoiConfirmBtn">Đóng cửa vĩnh viễn</button>
+        </div>
+    </div>
+</div>
+<div class="confirm-overlay" id="actionDialog">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="actionDialogTitle">
+        <div class="confirm-head" id="actionDialogTitle">
+            <i class="fas fa-circle-question"></i>
+            Xác nhận thao tác
+        </div>
+        <div class="confirm-body">
+            <div id="actionDialogMessage"></div>
+            <input id="actionDialogInput" class="dialog-input" type="text" style="display:none;" />
+        </div>
+        <div class="confirm-actions">
+            <button type="button" class="btn btn-outline" id="actionDialogCancelBtn">Hủy</button>
+            <button type="button" class="btn btn-primary" id="actionDialogOkBtn">Đồng ý</button>
+        </div>
+    </div>
+</div>
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Chỉnh sửa POI</h1>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="window.location.href='poi-list'">
+                    <i class="fas fa-times"></i>
+                    <span>Hủy</span>
+                </button>
+                <button class="btn btn-success" onclick="savePOI()">
+                    <i class="fas fa-save"></i>
+                    <span>Lưu thay đổi</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Form Layout -->
+        <form id="editPOIForm" class="form-layout">
+            <!-- Left Column - Main Info -->
+            <div>
+                <!-- Basic Information -->
+                <div class="form-section" id="basicInfoSection">
+                    <h2 class="section-title">
+                        <i class="fas fa-info-circle"></i>
+                        Thông tin cơ bản
+                    </h2>
+
+                    <!-- Language Tabs -->
+                    <!-- Vietnamese Only (Auto-translated to EN/ZH on save) -->
+                    <div id="lang-vi" class="lang-content active">
+                        <div class="form-group">
+                            <label class="form-label">Tên POI (Tiếng Việt) <span class="required">*</span></label>
+                            <input type="text" class="form-input" placeholder="VD: Phở Hà Nội 99" required id="poiName" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mô tả (Tiếng Việt)</label>
+                            <textarea class="form-textarea" placeholder="Mô tả về gian hàng..." id="poiDescription"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Danh mục
+                            <span class="required">*</span>
+                        </label>
+                        <select class="form-select" required id="poiCategory">
+                            <option value="">Chọn danh mục</option>
+                            <option value="pho" selected>Phở</option>
+                            <option value="banh-mi">Bánh Mì</option>
+                            <option value="com-tam">Cơm Tấm</option>
+                            <option value="bun">Bún</option>
+                            <option value="che">Chè</option>
+                            <option value="seafood">Hải sản</option>
+                            <option value="breakfast">Ăn sáng</option>
+                            <option value="snack">Đồ ăn vặt</option>
+                            <option value="hotpot">Lẩu</option>
+                            <option value="other">Khác</option>
+                        </select>
+                        <input type="text" class="form-input" id="poiCategoryOther" placeholder="Nhập danh mục mới" style="margin-top:0.75rem; display:none;">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Địa chỉ
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" class="form-input" placeholder="VD: 123 Vĩnh Khánh, Quận 4" required
+                            id="poiAddress" value="">
+                    </div>
+
+                    <div class="form-group admin-only" id="vendorOwnerGroup">
+                        <label class="form-label">
+                            Chủ sở hữu POI (Vendor)
+                            <span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="vendorSelect" disabled>
+                            <option value="">Đang tải danh sách vendor...</option>
+                        </select>
+                        <div class="form-help" id="vendorSelectHelp">
+                            <i class="fas fa-user-tie"></i>
+                            Chỉ hiển thị chủ quán đã đăng ký POI này.
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Tọa độ GPS
+                            <span class="required">*</span>
+                        </label>
+                        <div class="form-row" style="margin-bottom:0.75rem;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label class="form-label" style="font-size:0.85rem;">Cách nhập tọa độ</label>
+                                <select class="form-select" id="gpsMode">
+                                    <option value="manual">Nhập thủ công lat/lng</option>
+                                    <option value="maplink">Dán link Google Maps</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="mapUrlGroup" style="margin-top: 10px; display:none;">
+                            <div class="input-group" style="display:flex; gap:0.5rem;">
+                                <input type="url" class="form-input" id="mapUrlInput"
+                                    placeholder="VD: https://maps.app.goo.gl/... (Link Google Maps)">
+                                <button type="button" class="btn btn-primary" id="btnResolveMap" style="white-space: nowrap;">
+                                    <i class="fas fa-search-location"></i> Lấy tọa độ
+                                </button>
+                            </div>
+                            <div class="form-help" id="mapUrlStatus">
+                                <i class="fas fa-link"></i>
+                                Dán link Google Maps để tự điền Lat/Lng
+                            </div>
+                        </div>
+
+                        <div class="coordinate-group" id="coordinateGroup" style="margin-top: 10px;">
+                            <div>
+                                <input type="text" class="form-input" placeholder="Latitude (VD: 10.8231)" required
+                                    id="latitude" value="">
+                                <div class="form-help">
+                                    <i class="fas fa-globe"></i>
+                                    Vĩ độ
+                                </div>
+                            </div>
+                            <div>
+                                <input type="text" class="form-input" placeholder="Longitude (VD: 106.6297)" required
+                                    id="longitude" value="">
+                                <div class="form-help">
+                                    <i class="fas fa-globe"></i>
+                                    Kinh độ
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group admin-only">
+                        <label class="form-label">Bán kính Geofence (mét)</label>
+                        <input type="number" class="form-input" placeholder="30" min="15" max="40" id="geofenceRadius"
+                            value="">
+                        <div class="form-help" id="geofenceRadiusHelp">
+                            <i class="fas fa-circle-notch"></i>
+                            Spot: 15-40m, mặc định 30m nếu để trống
+                        </div>
+                    </div>
+
+                    <div class="geofence-grid admin-only">
+                        <div class="form-group">
+                            <label class="form-label">Loại vùng</label>
+                            <select class="form-select" id="zoneType">
+                                <option value="Spot">Điểm cụ thể</option>
+                                <option value="District">Cấp quận</option>
+                                <option value="Area">Cấp khu vực</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mức ưu tiên (1-10)</label>
+                            <input type="number" class="form-input" id="priority" min="1" max="10" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Thời gian chờ (phút)</label>
+                            <input type="number" class="form-input" id="cooldownMinutes" min="0" max="5" value="">
+                        </div>
+                    </div>
+
+                    <div class="geofence-grid">
+                        <div class="form-group admin-only">
+                            <label class="form-label">Số lần phát tối đa mỗi phiên</label>
+                            <input type="number" class="form-input" id="maxPlaysPerSession" min="1" max="10" value="">
+                        </div>
+                        <div class="form-group admin-only">
+                            <label class="form-label">Mã vùng cha</label>
+                            <input type="number" class="form-input" id="parentZoneId" placeholder="Tùy chọn">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Thông tin thú vị</label>
+                            <input type="text" class="form-input" id="funFact" placeholder="Mẹo nhỏ thú vị (tùy chọn)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Info -->
+                <div class="form-section" style="margin-top: 2rem;" id="systemInfoSection">
+                    <h2 class="section-title">
+                        <i class="fas fa-clock"></i>
+                        Thông tin bổ sung
+                    </h2>
+
+                    <div class="form-group">
+                        <label class="form-label">Giờ mở cửa</label>
+                        <div class="hours-card" id="openingHoursEditor">
+                            <!-- Main Hours Row -->
+                            <div class="hours-main-row">
+                                <div class="hours-field">
+                                    <div class="hours-field-label">
+                                        <i class="fas fa-calendar-week"></i>
+                                        Ngày hoạt động
+                                    </div>
+                                    <div class="day-range-inputs">
+                                        <select class="form-input" id="openFromDay">
+                                            <option value="T2">Thứ 2</option>
+                                            <option value="T3">Thứ 3</option>
+                                            <option value="T4">Thứ 4</option>
+                                            <option value="T5">Thứ 5</option>
+                                            <option value="T6">Thứ 6</option>
+                                            <option value="T7">Thứ 7</option>
+                                            <option value="CN">Chủ nhật</option>
+                                        </select>
+                                        <span>→</span>
+                                        <select class="form-input" id="openToDay">
+                                            <option value="T2">Thứ 2</option>
+                                            <option value="T3">Thứ 3</option>
+                                            <option value="T4">Thứ 4</option>
+                                            <option value="T5">Thứ 5</option>
+                                            <option value="T6">Thứ 6</option>
+                                            <option value="T7" selected>Thứ 7</option>
+                                            <option value="CN">Chủ nhật</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="hours-field">
+                                    <div class="hours-field-label">
+                                        <i class="fas fa-clock"></i>
+                                        Từ giờ
+                                    </div>
+                                    <input type="time" class="form-input time-input" id="openStart" value="15:00">
+                                </div>
+
+                                <div class="hours-field">
+                                    <div class="hours-field-label">
+                                        <i class="fas fa-clock"></i>
+                                        Đến giờ
+                                    </div>
+                                    <input type="time" class="form-input time-input" id="openEnd" value="23:00">
+                                </div>
+                            </div>
+
+                            <!-- Override Section -->
+                            <div class="hours-override-section">
+                                <div class="override-hint">
+                                    <i class="fas fa-info-circle"></i>
+                                    Nếu một số ngày có giờ khác hoặc nghỉ, chỉnh ở mục bên dưới.
+                                </div>
+
+                                <div class="hours-days" id="openDayOverrides">
+                                    <div class="day-card" data-day="T2">
+                                        <div class="day-title">Thứ 2</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T3">
+                                        <div class="day-title">Thứ 3</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T4">
+                                        <div class="day-title">Thứ 4</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T5">
+                                        <div class="day-title">Thứ 5</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T6">
+                                        <div class="day-title">Thứ 6</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="T7">
+                                        <div class="day-title">Thứ 7</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                    <div class="day-card" data-day="CN">
+                                        <div class="day-title">Chủ nhật</div>
+                                        <div class="day-controls">
+                                            <label><input type="checkbox" class="day-closed"> Nghỉ</label>
+                                            <label><input type="checkbox" class="day-diff"> Giờ khác</label>
+                                            <input type="time" class="form-input day-start" value="15:00">
+                                            <input type="time" class="form-input day-end" value="23:00">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Số điện thoại</label>
+                        <input type="tel" class="form-input" placeholder="0901234567" id="phone" value="">
+                        <div class="form-help">
+                            <i class="fas fa-phone"></i>
+                            Số liên hệ của gian hàng
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Giá trung bình (VNĐ)</label>
+                        <input type="number" class="form-input" placeholder="50000" id="avgPrice" value="">
+                        <div class="form-help">
+                            <i class="fas fa-money-bill-wave"></i>
+                            Giá tiền một suất ăn trung bình
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Đặc sản nổi bật</label>
+                        <input type="text" class="form-input" placeholder="VD: Phở bò, Phở gà" id="specialty" value="">
+                        <div class="form-help">
+                            <i class="fas fa-utensils"></i>
+                            Món ăn đặc trưng của gian hàng
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Tags (phân cách bằng dấu phẩy)</label>
+                        <input type="text" class="form-input" placeholder="VD: halal, vegan, truyền thống" id="tags"
+                            value="">
+                        <div class="form-help">
+                            <i class="fas fa-tags"></i>
+                            Thẻ để phân loại và tìm kiếm
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Hình ảnh POI</label>
+                        <div class="image-upload" id="imageDropzone">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p style="margin-top: 1rem; color: #666; font-weight: 500;">Click để tải ảnh lên</p>
+                            <p style="font-size: 0.85rem; color: #999;">JPG, PNG hoặc WebP (tối đa 5MB)</p>
+                            <div style="display: none; color: var(--primary); font-weight: 500; align-items: center; justify-content: center; gap: 10px; margin-top: 1rem;"
+                                id="imageUploading">
+                                <i class="fas fa-spinner fa-spin"></i> Đang tải lên...
+                            </div>
+                        </div>
+                        <input type="file" id="imageInput" accept="image/jpeg, image/png, image/webp"
+                            style="display: none;">
+                        <input type="hidden" id="imageUrl">
+                        <div class="image-preview" id="imagePreview">
+                            <img src="" alt="Preview" id="previewImg">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Status & Stats -->
+            <div>
+                <!-- Status -->
+                <div class="form-section" id="statusSection">
+                    <h2 class="section-title">
+                        <i class="fas fa-toggle-on"></i>
+                        Trạng thái
+                    </h2>
+
+                    <div class="form-group">
+                        <label class="form-label">Trạng thái POI</label>
+                        <div class="status-toggle">
+                            <div class="status-option active" onclick="setStatus('active')">
+                                <i class="fas fa-check-circle"></i>
+                                <div style="margin-top: 0.5rem;">Hoạt động</div>
+                            </div>
+                            <div class="status-option" onclick="setStatus('inactive')">
+                                <i class="fas fa-times-circle"></i>
+                                <div style="margin-top: 0.5rem;">Tắt</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group vendor-only" id="vendorStatusReadonly">
+                        <label class="form-label">Trạng thái duyệt</label>
+                        <div class="vendor-status-box">
+                            <div id="vendorStatusChip" class="vendor-status-chip pending">
+                                <i class="fas fa-clock"></i>
+                                <span id="vendorStatusText">Chờ duyệt</span>
+                            </div>
+                            <div class="form-help" id="vendorStatusHelp" style="margin-top:0.75rem;">
+                                Trạng thái này do Admin quyết định.
+                            </div>
+                            <div class="form-help" id="vendorRadiusNotice">
+                                Geofence Spot được hệ thống chuẩn hóa 15-40m, mặc định 30m nếu bỏ trống.
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Admin: Review Status row -->
+                    <div class="form-group admin-only" id="adminReviewStatusRow" style="margin-top:1rem">
+                        <label class="form-label">Trạng thái duyệt</label>
+                        <div id="adminReviewBadge" style="display:inline-flex;align-items:center;gap:.5rem;padding:.4rem 1rem;border-radius:50px;font-size:.85rem;font-weight:600;background:rgba(255,193,7,.15);color:#d69e00">
+                            <i class="fas fa-clock"></i> <span id="adminReviewText">Chờ duyệt</span>
+                        </div>
+                        <div class="form-help" id="adminReviewNote" style="margin-top:.5rem;"></div>
+                    </div>
+
+                </div>
+
+                <!-- Info Card -->
+                <div class="form-section" style="margin-top: 2rem;" id="systemMetaSection">
+                    <h2 class="section-title">
+                        <i class="fas fa-info-circle"></i>
+                        Thông tin hệ thống
+                    </h2>
+
+                    <div class="info-card">
+                        <div class="info-card-title">
+                            <i class="fas fa-lightbulb"></i>
+                            Lưu ý quan trọng
+                        </div>
+                        <div class="info-card-content">
+                            • Tọa độ GPS phải chính xác để Geofencing hoạt động đúng<br>
+                            • Bán kính Geofence nên từ 20-100m<br>
+                            • Hình ảnh nên có kích thước 800x600px
+                        </div>
+                    </div>
+
+                    <div class="system-info-list">
+                        <div class="system-info-item">
+                            <strong>POI ID:</strong>
+                            <span id="poiIdInfo">-</span>
+                        </div>
+                        <div class="system-info-item">
+                            <strong>Ngày tạo:</strong>
+                            <span id="createdAtInfo">-</span>
+                        </div>
+                        <div class="system-info-item">
+                            <strong>Cập nhật:</strong>
+                            <span id="updatedAtInfo">-</span>
+                        </div>
+                        <div class="system-info-item">
+                            <strong>Người tạo:</strong>
+                            <span id="createdByInfo">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Review Actions - shown below system info when pending -->
+                <div id="adminReviewActions" class="admin-only" style="display:none;margin-top:1.5rem">
+                    <h2 class="section-title" style="color:var(--primary)">
+                        <i class="fas fa-tasks"></i> Duyệt chỉnh sửa
+                    </h2>
+                    <p style="font-size:.85rem;color:#666;margin-bottom:1rem">Vendor đã gửi yêu cầu chỉnh sửa. Hãy kiểm tra nội dung và quyết định.</p>
+                    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+                        <button type="button" id="btnApprovePOI" onclick="approvePOIQuick()" style="flex:1;background:#06d6a0;color:white;border:none;border-radius:10px;padding:.65rem 1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem">
+                            <i class="fas fa-check"></i> Duyệt chỉnh sửa
+                        </button>
+                        <button type="button" id="btnRejectPOI" onclick="rejectPOIQuick()" style="flex:1;background:#EF476F;color:white;border:none;border-radius:10px;padding:.65rem 1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem">
+                            <i class="fas fa-times"></i> Từ chối
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </form>
+
+        <!-- Form Actions (Bottom) -->
+        <div class="form-actions" style="margin-top: 2rem;">
+            <button type="button" class="btn btn-danger" onclick="closePOIPermanently()">
+                <i class="fas fa-store-slash"></i>
+                <span>Đóng cửa vĩnh viễn</span>
+            </button>
+            <button class="btn btn-outline" onclick="window.location.href='poi-list'">
+                <i class="fas fa-times"></i>
+                <span>Hủy bỏ</span>
+            </button>
+            <button class="btn btn-success" onclick="savePOI()">
+                <i class="fas fa-save"></i>
+                <span>Lưu thay đổi</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        const user = TokenManager.getUser();
+        if (!user) {
+            window.location.href = '/index';
+        }
+
+        const isAdmin = user?.roles?.includes('Admin');
+        const isVendor = user?.roles?.includes('Vendor');
+
+        let currentStatus = true;
+        let currentPoiId = null;
+        let currentPoi = null;
+        let currentImageUrl = null;
+        let currentVendorProfile = null;
+
+        // Auto Translate Logic
+
+        function getQueryId() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        function isPoiPermanentlyClosed(poi) {
+            if (!poi) return false;
+            const deletedAt = poi.deletedAt ?? poi.DeletedAt;
+            const isDeleted = poi.isDeleted ?? poi.IsDeleted;
+            return !!deletedAt || isDeleted === true;
+        }
+
+        function setSaveButtonState(enabled, reason = '') {
+            document.querySelectorAll('.form-actions .btn-success').forEach(btn => {
+                btn.disabled = !enabled;
+                btn.title = enabled ? '' : reason;
+            });
+        }
+
+        function getZoneLimits(zoneTypeValue) {
+            const isSpot = zoneTypeValue === 'Spot';
+            return {
+                radiusMin: isSpot ? 15 : 10,
+                radiusMax: isSpot ? 40 : 500,
+                cooldownMin: 0,
+                cooldownMax: isSpot ? 5 : 240,
+                zoneLabel: isSpot ? 'Spot' : 'District/Area'
+            };
+        }
+
+        function validateZoneInputsForSave() {
+            if (!isAdmin) return true;
+
+            const zoneTypeValue = document.getElementById('zoneType')?.value || 'Spot';
+            const limits = getZoneLimits(zoneTypeValue);
+
+            const radiusEl = document.getElementById('geofenceRadius');
+            const radius = parseInt(radiusEl?.value || '', 10);
+            if (!Number.isNaN(radius) && (radius < limits.radiusMin || radius > limits.radiusMax)) {
+                showToast(`Bán kính geofence của ${limits.zoneLabel} phải trong khoảng ${limits.radiusMin}-${limits.radiusMax}m.`, 'warning');
+                radiusEl?.focus();
+                return false;
+            }
+
+            const cooldownEl = document.getElementById('cooldownMinutes');
+            const cooldown = parseInt(cooldownEl?.value || '', 10);
+            if (!Number.isNaN(cooldown) && (cooldown < limits.cooldownMin || cooldown > limits.cooldownMax)) {
+                showToast(`Cooldown của ${limits.zoneLabel} phải trong khoảng ${limits.cooldownMin}-${limits.cooldownMax} phút.`, 'warning');
+                cooldownEl?.focus();
+                return false;
+            }
+
+            return true;
+        }
+
+        async function safeAutoTranslate(text, targetLangs = ['en', 'zh-CN']) {
+            if (!text) return {};
+            try {
+                return await api.autoTranslate(text, targetLangs) || {};
+            } catch (error) {
+                showToast('Khong the dich tu dong, se luu noi dung goc.', 'warning');
+                return {};
+            }
+        }
+
+        function setStatus(status) {
+            if (isVendor && currentPoi) {
+                const review = String(currentPoi.reviewStatus || currentPoi.ReviewStatus || '').toLowerCase();
+                if (status === 'active' && review !== 'approved') {
+                    showToast('POI chưa được duyệt. Chỉ Admin mới có thể duyệt và bật hoạt động.', 'warning');
+                    return;
+                }
+            }
+
+            currentStatus = status === 'active';
+            const options = document.querySelectorAll('.status-option');
+            options.forEach(opt => opt.classList.remove('active', 'inactive'));
+            if (currentStatus) {
+                options[0].classList.add('active');
+            } else {
+                options[1].classList.add('inactive');
+            }
+        }
+
+        async function approvePOIQuick() {
+            if (!currentPoiId) return;
+            const ok = await showActionConfirmPopup('Bạn có chắc muốn duyệt POI này cho phép hiển thị?');
+            if (!ok) return;
+            try {
+                await api.reviewPOI(currentPoiId, { status: 'approved', note: '' });
+                showToast('Đã duyệt POI thành công!', 'success');
+                await loadPoi();
+            } catch (error) {
+                showToast('Lỗi: ' + error.message, 'error');
+            }
+        }
+
+        async function rejectPOIQuick() {
+            if (!currentPoiId) return;
+            const note = await showActionPromptPopup('Nhập lý do từ chối (tùy chọn):', 'Lý do từ chối...');
+            if (note === null) return;
+            try {
+                await api.reviewPOI(currentPoiId, { status: 'rejected', note: note });
+                showToast('Đã từ chối POI.', 'success');
+                await loadPoi();
+            } catch (error) {
+                showToast('Lỗi: ' + error.message, 'error');
+            }
+        }
+
+        function applyGpsMode() {
+            const modeEl = document.getElementById('gpsMode');
+            const urlGroup = document.getElementById('mapUrlGroup');
+            const urlStatus = document.getElementById('mapUrlStatus');
+            const mode = modeEl?.value || 'manual';
+
+            if (urlGroup) urlGroup.style.display = mode === 'maplink' ? '' : 'none';
+            if (urlStatus) urlStatus.style.display = mode === 'maplink' ? '' : 'none';
+        }
+
+        function extractPoiLatLng(poi) {
+            if (!poi) return { lat: null, lng: null };
+            const latRaw = poi.latitude ?? poi.Latitude ?? poi.lat ?? poi.Lat;
+            const lngRaw = poi.longitude ?? poi.Longitude ?? poi.lng ?? poi.Lng;
+            if (Number.isFinite(Number(latRaw)) && Number.isFinite(Number(lngRaw))) {
+                return { lat: Number(latRaw), lng: Number(lngRaw) };
+            }
+
+            const loc = poi.location ?? poi.Location ?? {};
+            const coords = loc.coordinates ?? loc.Coordinates;
+            if (Array.isArray(coords) && coords.length >= 2) {
+                const lon = Number(coords[0]);
+                const lat = Number(coords[1]);
+                if (Number.isFinite(lat) && Number.isFinite(lon)) {
+                    return { lat, lng: lon };
+                }
+            }
+
+            const locLat = loc.latitude ?? loc.Latitude;
+            const locLng = loc.longitude ?? loc.Longitude;
+            if (Number.isFinite(Number(locLat)) && Number.isFinite(Number(locLng))) {
+                return { lat: Number(locLat), lng: Number(locLng) };
+            }
+
+            return { lat: null, lng: null };
+        }
+
+        function getDayOrder() {
+            return ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+        }
+
+        function syncDayCard(card) {
+            const closed = card.querySelector('.day-closed');
+            const diff = card.querySelector('.day-diff');
+            const start = card.querySelector('.day-start');
+            const end = card.querySelector('.day-end');
+            if (!closed || !diff || !start || !end) return;
+            if (closed.checked) {
+                diff.checked = false;
+                start.disabled = true;
+                end.disabled = true;
+                return;
+            }
+            if (diff.checked) {
+                start.disabled = false;
+                end.disabled = false;
+            } else {
+                start.disabled = true;
+                end.disabled = true;
+            }
+        }
+
+        function initOpeningHoursEditor() {
+            document.querySelectorAll('#openDayOverrides .day-card').forEach(card => {
+                const closed = card.querySelector('.day-closed');
+                const diff = card.querySelector('.day-diff');
+                if (closed) closed.addEventListener('change', () => syncDayCard(card));
+                if (diff) diff.addEventListener('change', () => syncDayCard(card));
+                syncDayCard(card);
+            });
+        }
+
+        function buildOpeningHours() {
+            const fromDay = document.getElementById('openFromDay')?.value || 'T2';
+            const toDay = document.getElementById('openToDay')?.value || 'T7';
+            const start = document.getElementById('openStart')?.value || '';
+            const end = document.getElementById('openEnd')?.value || '';
+
+            const days = getDayOrder();
+            const fromIdx = days.indexOf(fromDay);
+            const toIdx = days.indexOf(toDay);
+            const activeRange = new Set();
+            if (fromIdx !== -1 && toIdx !== -1) {
+                if (fromIdx <= toIdx) {
+                    days.slice(fromIdx, toIdx + 1).forEach(d => activeRange.add(d));
+                } else {
+                    days.slice(fromIdx).forEach(d => activeRange.add(d));
+                    days.slice(0, toIdx + 1).forEach(d => activeRange.add(d));
+                }
+            }
+
+            const overrides = Array.from(document.querySelectorAll('#openDayOverrides .day-card'))
+                .map(card => {
+                    const day = card.getAttribute('data-day');
+                    const closed = card.querySelector('.day-closed')?.checked;
+                    const diff = card.querySelector('.day-diff')?.checked;
+                    const dStart = card.querySelector('.day-start')?.value || '';
+                    const dEnd = card.querySelector('.day-end')?.value || '';
+                    return { day, closed, diff, dStart, dEnd };
+                });
+
+            const labels = { T2: 'Thứ 2', T3: 'Thứ 3', T4: 'Thứ 4', T5: 'Thứ 5', T6: 'Thứ 6', T7: 'Thứ 7', CN: 'Chủ nhật' };
+            const openingHours = [];
+
+            days.forEach(day => {
+                const label = labels[day] || day;
+                const o = overrides.find(x => x.day === day) || { closed: false, diff: false };
+                if (o.closed || !activeRange.has(day)) {
+                    openingHours.push(`${label}: Nghỉ`);
+                    return;
+                }
+                const timeStart = (o.diff ? o.dStart : start) || start;
+                const timeEnd = (o.diff ? o.dEnd : end) || end;
+                if (timeStart && timeEnd) {
+                    openingHours.push(`${label}: ${timeStart} - ${timeEnd}`);
+                } else {
+                    openingHours.push(`${label}: Nghỉ`);
+                }
+            });
+
+            return {
+                openingHours,
+                openingHoursText: openingHours.join('; ')
+            };
+        }
+
+        function applyOpeningHours(poi) {
+            const entries = Array.isArray(poi.openingHours)
+                ? poi.openingHours
+                : (poi.openingHoursText || '').split(';').map(s => s.trim()).filter(Boolean);
+            const days = getDayOrder();
+            const map = {};
+
+            const parseDay = (str) => {
+                const s = (str || '').toUpperCase();
+                if (s.includes('CN') || s.includes('CHU NHAT')) return 'CN';
+                const m = s.match(/T\s*([2-7])/i) || s.match(/THU\s*([2-7])/i) || s.match(/TH\s*([2-7])/i);
+                if (m) return `T${m[1]}`;
+                return null;
+            };
+
+            entries.forEach(entry => {
+                const day = parseDay(entry);
+                if (!day) return;
+                const isClosed = /NGH\w?/i.test(entry);
+                const timeMatch = entry.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+                map[day] = {
+                    closed: isClosed,
+                    start: timeMatch ? timeMatch[1] : '',
+                    end: timeMatch ? timeMatch[2] : ''
+                };
+            });
+
+            const activeDays = days.filter(d => map[d] && !map[d].closed && map[d].start && map[d].end);
+            const baseDay = activeDays[0];
+            const baseStart = baseDay ? map[baseDay].start : (document.getElementById('openStart')?.value || '');
+            const baseEnd = baseDay ? map[baseDay].end : (document.getElementById('openEnd')?.value || '');
+
+            const fromDay = activeDays[0] || 'T2';
+            const toDay = activeDays[activeDays.length - 1] || 'T7';
+            const fromEl = document.getElementById('openFromDay');
+            const toEl = document.getElementById('openToDay');
+            if (fromEl) fromEl.value = fromDay;
+            if (toEl) toEl.value = toDay;
+
+            const startEl = document.getElementById('openStart');
+            const endEl = document.getElementById('openEnd');
+            if (startEl) startEl.value = baseStart || startEl.value;
+            if (endEl) endEl.value = baseEnd || endEl.value;
+
+            document.querySelectorAll('#openDayOverrides .day-card').forEach(card => {
+                const day = card.getAttribute('data-day');
+                const closedEl = card.querySelector('.day-closed');
+                const diffEl = card.querySelector('.day-diff');
+                const startInput = card.querySelector('.day-start');
+                const endInput = card.querySelector('.day-end');
+                const info = map[day];
+                if (closedEl) closedEl.checked = (info && info.closed) || false;
+                if (startInput) startInput.value = (info && info.start) || baseStart || startInput.value;
+                if (endInput) endInput.value = (info && info.end) || baseEnd || endInput.value;
+                const isDiff = info && !info.closed && (info.start !== baseStart || info.end !== baseEnd);
+                if (diffEl) diffEl.checked = !!isDiff;
+                syncDayCard(card);
+            });
+        }
+
+        async function loadVendors(selectedId) {
+            if (!isAdmin) return;
+            const select = document.getElementById('vendorSelect');
+            const help = document.getElementById('vendorSelectHelp');
+            select.innerHTML = '<option value="">Đang tải...</option>';
+            try {
+                const vendorId = Number(selectedId);
+                if (!Number.isFinite(vendorId)) {
+                    select.innerHTML = '<option value="">POI chưa có chủ sở hữu</option>';
+                    if (help) {
+                        help.textContent = 'POI này chưa có Vendor hợp lệ.';
+                        help.style.color = 'var(--danger)';
+                    }
+                    return;
+                }
+
+                const vendor = await VendorApi.get(vendorId);
+                const contact = vendor?.contactName ?? vendor?.ContactName ?? 'N/A';
+                const business = vendor?.businessName ?? vendor?.BusinessName ?? '';
+                select.innerHTML = `<option value="${vendorId}" selected>#${vendorId} - ${contact}${business ? ` (${business})` : ''}</option>`;
+                if (help) {
+                    help.innerHTML = '<i class="fas fa-user-tie"></i> Chỉ hiển thị chủ quán đã gán cho POI này.';
+                    help.style.color = '';
+                }
+            } catch (error) {
+                select.innerHTML = '<option value="">Không tải được chủ sở hữu</option>';
+                if (help) {
+                    help.textContent = 'Không tải được thông tin chủ quán hiện tại.';
+                    help.style.color = 'var(--danger)';
+                }
+            }
+        }
+
+        function renderVendorStatus(poi) {
+            if (!isVendor) return;
+
+            const chip = document.getElementById('vendorStatusChip');
+            const textEl = document.getElementById('vendorStatusText');
+            const helpEl = document.getElementById('vendorStatusHelp');
+            if (!chip || !textEl || !helpEl) return;
+
+            const review = (poi?.reviewStatus || '').toLowerCase();
+            const isActive = !!(poi?.isActive);
+
+            let cls = 'pending';
+            let text = 'Chờ duyệt';
+            let help = 'Trạng thái này do Admin quyết định.';
+
+            if (review === 'approved' && isActive) {
+                cls = 'approved';
+                text = 'Đã duyệt - Đang hoạt động';
+                help = 'POI đang hiển thị cho người dùng cuối.';
+            } else if (review === 'approved' && !isActive) {
+                cls = 'pending';
+                text = 'Đã duyệt - Tạm tắt';
+                help = 'Admin đã duyệt nhưng đang tắt hiển thị tạm thời.';
+            } else if (review === 'rejected') {
+                cls = 'rejected';
+                text = 'Bị từ chối';
+                help = poi?.reviewNote ? `Lý do: ${poi.reviewNote}` : 'Admin đã từ chối nội dung này.';
+            }
+
+            chip.classList.remove('pending', 'approved', 'rejected');
+            chip.classList.add(cls);
+            textEl.textContent = text;
+            helpEl.textContent = help;
+        }
+
+        function applyRoleUi() {
+            if (isAdmin) {
+                document.querySelectorAll('.vendor-only').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+                document.querySelectorAll('.admin-only.map-search').forEach(el => el.style.display = 'flex');
+                document.querySelectorAll('.admin-only.coordinate-group').forEach(el => el.style.display = 'grid');
+                document.querySelectorAll('.admin-only.geofence-grid, .admin-only.audio-grid').forEach(el => el.style.display = 'grid');
+            } else {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.vendor-only').forEach(el => el.style.display = 'block');
+            }
+
+            if (!isVendor) return;
+
+            const systemMetaSection = document.getElementById('systemMetaSection');
+            if (systemMetaSection) systemMetaSection.classList.add('role-hidden');
+
+        }
+
+        async function loadPoi() {
+            const id = getQueryId();
+            if (!id) {
+                window.location.href = 'poi-list';
+                return;
+            }
+            currentPoiId = parseInt(id, 10);
+            if (Number.isNaN(currentPoiId)) {
+                window.location.href = 'poi-list';
+                return;
+            }
+
+            try {
+                const poi = await api.getPOI(currentPoiId);
+                currentPoi = poi;
+
+                if (isPoiPermanentlyClosed(poi)) {
+                    setSaveButtonState(false, 'POI đã đóng cửa vĩnh viễn, không thể chỉnh sửa.');
+                    showToast('POI này đã đóng cửa vĩnh viễn nên không thể lưu chỉnh sửa.', 'warning');
+                } else {
+                    setSaveButtonState(true);
+                }
+
+                if (isVendor) {
+                    try {
+                        currentVendorProfile = await api.getVendorMe();
+                    } catch {
+                        currentVendorProfile = null;
+                    }
+
+                    const poiVendorId = parseInt((poi.vendorId ?? poi.VendorId ?? ''), 10);
+                    const myVendorId = parseInt((currentVendorProfile?.vendorId ?? currentVendorProfile?.VendorId ?? ''), 10);
+
+                    if (Number.isNaN(myVendorId) || Number.isNaN(poiVendorId) || poiVendorId !== myVendorId) {
+                        showToast('Bạn không có quyền chỉnh sửa POI này.', 'error');
+                        window.location.href = 'poi-list';
+                        return;
+                    }
+                }
+
+                document.getElementById('poiName').value = poi.name_Vi || '';
+                document.getElementById('poiDescription').value = poi.description_Vi || '';
+                document.getElementById('poiAddress').value = poi.address || '';
+
+                const latEl = document.getElementById('latitude');
+                const lngEl = document.getElementById('longitude');
+                const coords = extractPoiLatLng(poi);
+                if (latEl) latEl.value = coords.lat ?? '';
+                if (lngEl) lngEl.value = coords.lng ?? '';
+
+                document.getElementById('geofenceRadius').value = poi.triggerRadius ?? '';
+                const zoneTypeValue = poi.zoneType || 'Spot';
+                const zoneTypeEl = document.getElementById('zoneType');
+                if (zoneTypeEl) zoneTypeEl.value = zoneTypeValue;
+                const cooldownDefault = zoneTypeValue === 'Spot' ? 5 : 30;
+                document.getElementById('priority').value = poi.priority ?? 5;
+                document.getElementById('cooldownMinutes').value = poi.cooldownMinutes ?? cooldownDefault;
+                document.getElementById('maxPlaysPerSession').value = poi.maxPlaysPerSession ?? 1;
+                document.getElementById('parentZoneId').value = poi.parentZoneId ?? '';
+                document.getElementById('funFact').value = poi.funFact || '';
+
+                const loadedCooldownInput = document.getElementById('cooldownMinutes');
+                const loadedRadiusInput = document.getElementById('geofenceRadius');
+                if (loadedCooldownInput) loadedCooldownInput.dataset.auto = 'false';
+                if (loadedRadiusInput) loadedRadiusInput.dataset.auto = 'false';
+                applyZoneDefaults();
+
+                const categoryEl = document.getElementById('poiCategory');
+                const categoryOtherEl = document.getElementById('poiCategoryOther');
+                const categoryValue = poi.category || '';
+                if (categoryEl) {
+                    const hasOption = Array.from(categoryEl.options).some(o => o.value === categoryValue);
+                    if (categoryValue && !hasOption) {
+                        categoryEl.value = 'other';
+                        if (categoryOtherEl) {
+                            categoryOtherEl.style.display = 'block';
+                            categoryOtherEl.value = '';
+                        }
+                    } else {
+                        categoryEl.value = categoryValue;
+                        if (categoryOtherEl) {
+                            categoryOtherEl.style.display = categoryEl.value === 'other' ? 'block' : 'none';
+                            if (categoryEl.value !== 'other') categoryOtherEl.value = '';
+                        }
+                    }
+                }
+                const handleCategoryChange = () => {
+                    const catEl = document.getElementById('poiCategory');
+                    const otherEl = document.getElementById('poiCategoryOther');
+                    if (!catEl || !otherEl) return;
+                    if (catEl.value === 'other') {
+                        otherEl.style.display = 'block';
+                        otherEl.value = '';
+                    } else {
+                        otherEl.style.display = 'none';
+                        otherEl.value = '';
+                    }
+                };
+                const categoryEl2 = document.getElementById('poiCategory');
+                if (categoryEl2) categoryEl2.addEventListener('change', handleCategoryChange);
+                                applyOpeningHours(poi);
+                document.getElementById('phone').value = poi.phoneNumber || '';
+                document.getElementById('avgPrice').value = poi.averagePrice ?? '';
+                document.getElementById('specialty').value = (poi.signatureDishes?.[0] || poi.signatureDish || poi.specialties?.[0] || '');
+                document.getElementById('tags').value = (poi.tags || []).join(', ');
+
+                currentImageUrl = poi.imageUrl || (Array.isArray(poi.imageUrls) ? poi.imageUrls[0] : null);
+                if (currentImageUrl) {
+                    const preview = document.getElementById('imagePreview');
+                    const img = document.getElementById('previewImg');
+                    if (preview && img) {
+                        img.src = currentImageUrl;
+                        preview.style.display = 'block';
+                    }
+                }
+
+                setStatus(poi.isActive ? 'active' : 'inactive');
+                renderVendorStatus(poi);
+
+                // Admin: update review badge and show/hide review action panel
+                if (isAdmin) {
+                    const reviewStatus = (poi.reviewStatus || '').toLowerCase();
+                    const badge = document.getElementById('adminReviewBadge');
+                    const badgeText = document.getElementById('adminReviewText');
+                    const noteEl = document.getElementById('adminReviewNote');
+                    const panel = document.getElementById('adminReviewActions');
+
+                    const statusMap = {
+                        pending:  { icon: 'fa-clock',        text: 'Ch\u1edd duy\u1ec7t ch\u1ec9nh s\u1eeda', bg: 'rgba(255,193,7,.15)', color: '#d69e00' },
+                        approved: { icon: 'fa-check-circle', text: '\u0110\u00e3 duy\u1ec7t',            bg: 'rgba(6,214,160,.15)', color: '#06d6a0' },
+                        rejected: { icon: 'fa-times-circle', text: 'T\u1eeb ch\u1ed1i',              bg: 'rgba(239,71,111,.15)', color: '#EF476F' }
+                    };
+                    const s = statusMap[reviewStatus] || statusMap.pending;
+                    if (badge) {
+                        badge.style.background = s.bg;
+                        badge.style.color = s.color;
+                        badge.innerHTML = `<i class="fas ${s.icon}"></i>`;
+                    }
+                    if (badgeText) badgeText.textContent = s.text;
+                    if (noteEl) noteEl.textContent = reviewStatus === 'rejected' && poi.reviewNote ? `L\u00fd do: ${poi.reviewNote}` : '';
+                    if (panel)  panel.style.display = reviewStatus === 'pending' ? '' : 'none';
+
+                    // Apply highlights if any
+                    if (reviewStatus === 'pending' && poi.pendingChanges) {
+                        applyPendingChangesHighlight(poi.pendingChanges);
+                    } else {
+                        clearPendingChangesHighlight();
+                    }
+                }
+
+                document.getElementById('poiIdInfo').textContent = poi.poI_ID || '-';
+                document.getElementById('createdAtInfo').textContent = poi.createdAt ? new Date(poi.createdAt).toLocaleString('vi-VN') : '-';
+                document.getElementById('updatedAtInfo').textContent = poi.updatedAt ? new Date(poi.updatedAt).toLocaleString('vi-VN') : '-';
+                document.getElementById('createdByInfo').textContent = user?.fullName || user?.email || '-';
+
+                await loadVendors(poi.vendorId || null);
+                await loadPoiAudioStats();
+            } catch (error) {
+                showToast('Không thể tải POI: ' + error.message, 'error');
+                window.location.href = 'poi-list';
+            }
+        }
+
+        async function loadPoiAudioStats() {
+            const playsEl = document.getElementById('playsStat');
+            const viewsEl = document.getElementById('viewsStat');
+            const ratingEl = document.getElementById('ratingStat');
+            const commentsEl = document.getElementById('commentsStat');
+            if (!playsEl && !viewsEl && !ratingEl && !commentsEl) return;
+            try {
+                const resp = await api.getAudioList(1, 1000, null, currentPoiId);
+                const audios = resp.data || [];
+                if (playsEl) playsEl.textContent = audios.length;
+            } catch (error) {
+                if (playsEl) playsEl.textContent = '0';
+            }
+            if (viewsEl) viewsEl.textContent = '0';
+            if (ratingEl) ratingEl.textContent = 'N/A';
+            if (commentsEl) commentsEl.textContent = '0';
+        }
+
+        async function savePOI() {
+            if (!currentPoiId) return;
+
+            if (isPoiPermanentlyClosed(currentPoi)) {
+                showToast('POI này đã đóng cửa vĩnh viễn nên không thể chỉnh sửa.', 'warning');
+                return;
+            }
+
+            if (!validateZoneInputsForSave())
+                return;
+
+            if (isAdmin) {
+                const selectedVendorId = parseInt(document.getElementById('vendorSelect')?.value || '', 10);
+                if (Number.isNaN(selectedVendorId)) {
+                    showToast('Admin bắt buộc chọn Vendor trước khi lưu POI.', 'warning');
+                    return;
+                }
+            }
+
+            const splitCsv = (value) => value
+                .split(',')
+                .map(v => v.trim())
+                .filter(Boolean);
+
+            const specialtyText = document.getElementById('specialty').value;
+            const specialties = splitCsv(specialtyText);
+            const tags = splitCsv(document.getElementById('tags').value);
+            const avgPriceValue = parseFloat(document.getElementById('avgPrice').value);
+            const hoursPayload = buildOpeningHours();
+
+            const saveBtn = document.querySelector('.form-actions .btn-success');
+            const btnHtml = saveBtn ? saveBtn.innerHTML : null;
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+                saveBtn.disabled = true;
+            }
+
+            try {
+                let nameEn = null, nameZh = null, descEn = null, descZh = null;
+                const nameVi = document.getElementById('poiName').value.trim();
+                const descVi = document.getElementById('poiDescription').value.trim();
+
+                if (nameVi) {
+                    const nameRes = await safeAutoTranslate(nameVi, ['en', 'zh-CN']);
+                    if (nameRes) {
+                        nameEn = nameRes.en || null;
+                        nameZh = nameRes['zh-CN'] || null;
+                    }
+                }
+                if (descVi) {
+                    const descRes = await safeAutoTranslate(descVi, ['en', 'zh-CN']);
+                    if (descRes) {
+                        descEn = descRes.en || null;
+                        descZh = descRes['zh-CN'] || null;
+                    }
+                }
+
+                const data = {
+                    name_Vi: nameVi,
+                    description_Vi: descVi || null,
+                    name_En: nameEn,
+                    description_En: descEn,
+                    name_Zh: nameZh,
+                    description_Zh: descZh,
+                    category: (() => {
+                        const catEl = document.getElementById('poiCategory');
+                        const otherEl = document.getElementById('poiCategoryOther');
+                        if (!catEl) return null;
+                        if (catEl.value === 'other') {
+                            const v = otherEl?.value?.trim();
+                            return v || null;
+                        }
+                        return catEl.value || null;
+                    })(),
+                    address: document.getElementById('poiAddress').value || null,
+                    openingHoursText: hoursPayload.openingHoursText || null,
+                    openingHours: hoursPayload.openingHours || null,
+                    phoneNumber: document.getElementById('phone').value || null,
+                    averagePrice: Number.isNaN(avgPriceValue) ? null : avgPriceValue,
+                    signatureDish: specialtyText || null,
+                    signatureDishes: specialties.length ? specialties : null,
+                    specialties: specialties.length ? specialties : null,
+                    tags: tags.length ? tags : null
+                };
+
+                data.imageUrl = currentImageUrl || null;
+
+                const zoneTypeValue = document.getElementById('zoneType')?.value;
+                if (zoneTypeValue) data.zoneType = zoneTypeValue;
+
+                const triggerRadiusValue = parseInt(document.getElementById('geofenceRadius').value || '', 10);
+                if (!Number.isNaN(triggerRadiusValue)) data.triggerRadius = triggerRadiusValue;
+
+                const priorityValue = parseInt(document.getElementById('priority').value || '', 10);
+                if (!Number.isNaN(priorityValue)) data.priority = priorityValue;
+
+                const cooldownValue = parseInt(document.getElementById('cooldownMinutes').value || '', 10);
+                if (!Number.isNaN(cooldownValue)) data.cooldownMinutes = cooldownValue;
+
+                const maxPlaysValue = parseInt(document.getElementById('maxPlaysPerSession').value || '', 10);
+                if (!Number.isNaN(maxPlaysValue)) data.maxPlaysPerSession = maxPlaysValue;
+
+                const parentZoneValue = parseInt(document.getElementById('parentZoneId').value || '', 10);
+                if (!Number.isNaN(parentZoneValue)) data.parentZoneId = parentZoneValue;
+
+                const funFactValue = document.getElementById('funFact').value.trim();
+                if (funFactValue) data.funFact = funFactValue;
+
+                if (isAdmin) {
+                    const selectedVendorId = parseInt(document.getElementById('vendorSelect').value || '', 10);
+                    data.latitude = parseFloat(document.getElementById('latitude').value);
+                    data.longitude = parseFloat(document.getElementById('longitude').value);
+                    data.vendorId = Number.isNaN(selectedVendorId)
+                        ? parseInt((currentPoi?.vendorId ?? currentPoi?.VendorId ?? ''), 10)
+                        : selectedVendorId;
+                    data.isActive = currentStatus;
+                } else {
+                    const lat = parseFloat(document.getElementById('latitude').value);
+                    const lng = parseFloat(document.getElementById('longitude').value);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        data.latitude = lat;
+                        data.longitude = lng;
+                    }
+
+                    data.isActive = currentStatus;
+
+                    const myVendorId = parseInt((currentVendorProfile?.vendorId ?? currentVendorProfile?.VendorId ?? ''), 10);
+                    if (!Number.isNaN(myVendorId)) {
+                        data.vendorId = myVendorId;
+                    }
+                }
+
+                await api.updatePOI(currentPoiId, data);
+                showToast('POI đã được cập nhật thành công!', 'success');
+                window.setTimeout(() => {
+                    window.location.href = 'poi-list';
+                }, 450);
+            } catch (error) {
+                const rawMessage = String(error?.message || error || 'Unknown error');
+                if (/POI\s*not\s*found/i.test(rawMessage)) {
+                    showToast('Không thể lưu vì POI này không còn tồn tại hoặc đã bị đóng cửa. Vui lòng quay lại danh sách và mở POI còn hiệu lực.', 'error');
+                } else {
+                    showToast('Lỗi khi lưu POI: ' + rawMessage, 'error');
+                }
+            } finally {
+                if (saveBtn && btnHtml !== null) {
+                    saveBtn.innerHTML = btnHtml;
+                    saveBtn.disabled = false;
+                }
+
+                if (isPoiPermanentlyClosed(currentPoi)) {
+                    setSaveButtonState(false, 'POI đã đóng cửa vĩnh viễn, không thể chỉnh sửa.');
+                }
+            }
+        }
+
+        async function closePOIPermanently() {
+            if (!currentPoiId) return;
+            const ok = await showClosePoiConfirmPopup();
+            if (!ok) return;
+
+            try {
+                await api.deletePOI(currentPoiId);
+                showToast('Đã đóng cửa vĩnh viễn POI và gỡ khỏi các tour liên quan.', 'success');
+                window.setTimeout(() => {
+                    window.location.href = 'poi-list';
+                }, 500);
+            } catch (error) {
+                showToast('Lỗi khi đóng cửa vĩnh viễn POI: ' + error.message, 'error');
+            }
+        }
+
+        function showClosePoiConfirmPopup() {
+            const overlay = document.getElementById('closePoiConfirm');
+            const okBtn = document.getElementById('closePoiConfirmBtn');
+            const cancelBtn = document.getElementById('closePoiCancelBtn');
+            const messageEl = document.getElementById('closePoiConfirmMessage');
+            if (!overlay || !okBtn || !cancelBtn) {
+                return Promise.resolve(false);
+            }
+
+            if (messageEl) {
+                if (isVendor) {
+                    messageEl.textContent = 'Bạn có muốn đóng cửa vĩnh viễn?';
+                } else if (isAdmin) {
+                    messageEl.textContent = 'Bạn có muốn đóng cửa vĩnh viễn POI và gỡ khỏi các tour liên quan?';
+                } else {
+                    messageEl.textContent = 'Bạn có muốn đóng cửa vĩnh viễn POI này?';
+                }
+            }
+
+            return new Promise(resolve => {
+                const close = (result) => {
+                    overlay.classList.remove('active');
+                    okBtn.removeEventListener('click', onOk);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    overlay.removeEventListener('click', onOverlay);
+                    resolve(result);
+                };
+
+                const onOk = () => close(true);
+                const onCancel = () => close(false);
+                const onOverlay = (e) => {
+                    if (e.target === overlay) close(false);
+                };
+
+                okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+                overlay.addEventListener('click', onOverlay);
+                overlay.classList.add('active');
+            });
+        }
+
+        const zoneTypeSelect = document.getElementById('zoneType');
+        const cooldownInput = document.getElementById('cooldownMinutes');
+        const geofenceRadiusInput = document.getElementById('geofenceRadius');
+        const geofenceRadiusHelp = document.getElementById('geofenceRadiusHelp');
+
+        const enforceZoneInputRanges = () => {
+            if (!zoneTypeSelect) return;
+            const isSpot = zoneTypeSelect.value === 'Spot';
+            const zoneLabel = isSpot ? 'Spot' : 'District/Area';
+
+            if (cooldownInput) {
+                const min = Number(cooldownInput.min || 0);
+                const max = Number(cooldownInput.max || (isSpot ? 5 : 240));
+                const value = Number(cooldownInput.value);
+                if (!Number.isNaN(value) && (value < min || value > max)) {
+                    cooldownInput.value = String(Math.min(max, Math.max(min, value)));
+                    showToast(`Cooldown của ${zoneLabel} chỉ được trong khoảng ${min}-${max} phút.`, 'warning');
+                }
+            }
+
+            if (geofenceRadiusInput) {
+                const min = Number(geofenceRadiusInput.min || (isSpot ? 15 : 10));
+                const max = Number(geofenceRadiusInput.max || (isSpot ? 40 : 500));
+                const value = Number(geofenceRadiusInput.value);
+                if (!Number.isNaN(value) && (value < min || value > max)) {
+                    geofenceRadiusInput.value = String(Math.min(max, Math.max(min, value)));
+                    showToast(`Bán kính geofence của ${zoneLabel} chỉ được trong khoảng ${min}-${max}m.`, 'warning');
+                }
+            }
+        };
+
+        if (cooldownInput) {
+            cooldownInput.dataset.auto = 'true';
+            cooldownInput.addEventListener('input', () => { cooldownInput.dataset.auto = 'false'; });
+            cooldownInput.addEventListener('change', enforceZoneInputRanges);
+        }
+        if (geofenceRadiusInput) {
+            geofenceRadiusInput.dataset.auto = 'true';
+            geofenceRadiusInput.addEventListener('input', () => { geofenceRadiusInput.dataset.auto = 'false'; });
+            geofenceRadiusInput.addEventListener('change', enforceZoneInputRanges);
+        }
+        const applyZoneDefaults = () => {
+            if (!zoneTypeSelect) return;
+
+            const isSpot = zoneTypeSelect.value === 'Spot';
+
+            if (cooldownInput && !(cooldownInput.dataset.auto === 'false' && cooldownInput.value !== '')) {
+                cooldownInput.min = '0';
+                cooldownInput.max = isSpot ? '5' : '240';
+                cooldownInput.value = isSpot ? '5' : '30';
+                cooldownInput.dataset.auto = 'true';
+            }
+
+            if (geofenceRadiusInput) {
+                geofenceRadiusInput.min = isSpot ? '15' : '10';
+                geofenceRadiusInput.max = isSpot ? '40' : '500';
+                geofenceRadiusInput.placeholder = isSpot ? '30' : '50';
+                if (!(geofenceRadiusInput.dataset.auto === 'false' && geofenceRadiusInput.value !== '')) {
+                    geofenceRadiusInput.value = isSpot ? '30' : '50';
+                    geofenceRadiusInput.dataset.auto = 'true';
+                }
+            }
+
+            if (geofenceRadiusHelp) {
+                geofenceRadiusHelp.innerHTML = isSpot
+                    ? '<i class="fas fa-circle-notch"></i> Spot: 15-40m, mặc định 30m nếu để trống'
+                    : '<i class="fas fa-circle-notch"></i> District/Area: nhập 10-500m theo quy mô khu vực';
+            }
+        };
+        if (zoneTypeSelect) {
+            zoneTypeSelect.addEventListener('change', () => {
+                applyZoneDefaults();
+                enforceZoneInputRanges();
+            });
+        }
+        applyZoneDefaults();
+        enforceZoneInputRanges();
+        // Resolve Map URL Feature
+        document.getElementById('btnResolveMap')?.addEventListener('click', async () => {
+            const urlInput = document.getElementById('mapUrlInput');
+            const statusDiv = document.getElementById('mapUrlStatus');
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                showToast('Vui lòng nhập link Google Maps', 'warning');
+                return;
+            }
+
+            statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lấy tọa độ...';
+            statusDiv.style.color = '#666';
+
+            try {
+                const token = TokenManager.getToken();
+                const response = await fetch('/api/POIs/resolve-map-link', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || 'Không thể đọc được tọa độ từ link này');
+                }
+
+                const data = await response.json();
+
+                document.getElementById('latitude').value = data.latitude;
+                document.getElementById('longitude').value = data.longitude;
+
+                // Reverse geocode to fill address fields
+                try {
+                    const rev = await fetch(`/api/Geocode/reverse?lat=${data.latitude}&lng=${data.longitude}`);
+                    if (rev.ok) {
+                        const revData = await rev.json();
+                        const display = revData.display_name || '';
+                        if (display) {
+                            const addrInput = document.getElementById('poiAddress');
+                            if (addrInput) addrInput.value = display;
+                        }
+                    }
+                } catch { /* ignore */ }
+
+                statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Đã lấy tọa độ thành công!';
+                statusDiv.style.color = 'var(--success)';
+            } catch (err) {
+                statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Lỗi: ${err.message}`;
+                statusDiv.style.color = 'var(--danger)';
+            }
+        });
+
+        // Image Upload Feature
+        document.getElementById('imageDropzone')?.addEventListener('click', () => {
+            document.getElementById('imageInput').click();
+        });
+
+        document.getElementById('imageInput')?.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const previewImg = document.getElementById('previewImg');
+            const previewContainer = document.getElementById('imagePreview');
+            const uploadingIndicator = document.getElementById('imageUploading');
+
+            // Show immediate local preview
+            const objectUrl = URL.createObjectURL(file);
+            previewImg.src = objectUrl;
+            previewContainer.style.display = 'block';
+            uploadingIndicator.style.display = 'flex';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const token = TokenManager.getToken();
+                const response = await fetch('/api/POIs/upload-image', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Upload failed');
+                }
+
+                const result = await response.json();
+                currentImageUrl = result.imageUrl;
+                document.getElementById('imageUrl').value = result.imageUrl;
+                uploadingIndicator.style.display = 'none';
+            } catch (error) {
+                showToast('Lỗi upload ảnh: ' + error.message, 'error');
+                uploadingIndicator.style.display = 'none';
+                document.getElementById('imageInput').value = '';
+
+                // Revert back if it's new
+                if (!currentImageUrl) {
+                    previewContainer.style.display = 'none';
+                } else {
+                    previewImg.src = currentImageUrl; // Reshow old image
+                }
+            }
+        });
+
+        // --- Admin Diff Highlight Logic ---
+        function applyPendingChangesHighlight(changes) {
+            clearPendingChangesHighlight();
+            if (!changes) return;
+
+            // Mapping from server dict key string -> HTML Element ID or logical block
+            const fieldMap = {
+                'T\u00ean qu\u00e1n': 'poiName',
+                '\u0110\u1ecba ch\u1ec9': 'poiAddress',
+                'V\u1ecb tr\u00ed GPS': 'map' // We can highlight the map container
+            };
+
+            for (const [key, change] of Object.entries(changes)) {
+                const elementId = fieldMap[key];
+                if (!elementId) continue;
+
+                const el = document.getElementById(elementId);
+                if (el) {
+                    el.classList.add('changed-field');
+                    
+                    // Add hint below the element
+                    const hintMap = document.createElement('div');
+                    hintMap.className = 'old-value-hint pending-change-hint';
+                    hintMap.innerHTML = `<strong>Th\u00f4ng tin c\u0169:</strong> ${change.old || '(Tr\u1ed1ng)'}`;
+                    
+                    // Insert hint after the input (or after its container)
+                    el.parentNode.insertBefore(hintMap, el.nextSibling);
+                }
+            }
+        }
+
+        function clearPendingChangesHighlight() {
+            document.querySelectorAll('.changed-field').forEach(el => el.classList.remove('changed-field'));
+            document.querySelectorAll('.pending-change-hint').forEach(el => el.remove());
+        }
+
+        function showToast(message, type = 'info', timeout = 3200) {
+            if (window.UiFeedback?.toast) {
+                window.UiFeedback.toast(message, type, timeout);
+                return;
+            }
+            const container = document.getElementById('toastContainer');
+            if (!container || !message) return;
+
+            const iconMap = {
+                success: 'fa-check-circle',
+                error: 'fa-circle-exclamation',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <i class="fas ${iconMap[type] || iconMap.info} toast-icon"></i>
+                <span class="toast-msg">${message}</span>
+                <button type="button" class="toast-close" aria-label="Đóng"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(toast);
+
+            const removeToast = () => {
+                toast.classList.add('toast-hide');
+                setTimeout(() => toast.remove(), 280);
+            };
+
+            toast.querySelector('.toast-close')?.addEventListener('click', removeToast);
+            setTimeout(removeToast, timeout);
+        }
+
+        function showActionConfirmPopup(message) {
+            if (window.UiFeedback?.confirm) {
+                return window.UiFeedback.confirm(message || 'Bạn có chắc muốn tiếp tục?', {
+                    title: 'Xác nhận thao tác',
+                    confirmText: 'Đồng ý',
+                    cancelText: 'Hủy'
+                });
+            }
+            const overlay = document.getElementById('actionDialog');
+            const titleEl = document.getElementById('actionDialogTitle');
+            const msgEl = document.getElementById('actionDialogMessage');
+            const inputEl = document.getElementById('actionDialogInput');
+            const okBtn = document.getElementById('actionDialogOkBtn');
+            const cancelBtn = document.getElementById('actionDialogCancelBtn');
+            if (!overlay || !titleEl || !msgEl || !okBtn || !cancelBtn || !inputEl) return Promise.resolve(false);
+
+            titleEl.innerHTML = '<i class="fas fa-circle-question"></i> Xác nhận thao tác';
+            msgEl.textContent = message || 'Bạn có chắc muốn tiếp tục?';
+            inputEl.style.display = 'none';
+            inputEl.value = '';
+
+            return new Promise(resolve => {
+                const close = (result) => {
+                    overlay.classList.remove('active');
+                    okBtn.removeEventListener('click', onOk);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    overlay.removeEventListener('click', onOverlay);
+                    resolve(result);
+                };
+
+                const onOk = () => close(true);
+                const onCancel = () => close(false);
+                const onOverlay = (e) => { if (e.target === overlay) close(false); };
+
+                okBtn.textContent = 'Đồng ý';
+                cancelBtn.style.display = '';
+                okBtn.classList.remove('btn-danger');
+                okBtn.classList.add('btn-primary');
+                okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+                overlay.addEventListener('click', onOverlay);
+                overlay.classList.add('active');
+            });
+        }
+
+        function showActionPromptPopup(message, placeholder = '') {
+            if (window.UiFeedback?.prompt) {
+                return window.UiFeedback.prompt(message || '', '', {
+                    title: 'Nhập thông tin',
+                    confirmText: 'Xác nhận',
+                    cancelText: 'Hủy',
+                    placeholder: placeholder || ''
+                });
+            }
+            const overlay = document.getElementById('actionDialog');
+            const titleEl = document.getElementById('actionDialogTitle');
+            const msgEl = document.getElementById('actionDialogMessage');
+            const inputEl = document.getElementById('actionDialogInput');
+            const okBtn = document.getElementById('actionDialogOkBtn');
+            const cancelBtn = document.getElementById('actionDialogCancelBtn');
+            if (!overlay || !titleEl || !msgEl || !okBtn || !cancelBtn || !inputEl) return Promise.resolve(null);
+
+            titleEl.innerHTML = '<i class="fas fa-pen-to-square"></i> Nhập thông tin';
+            msgEl.textContent = message || '';
+            inputEl.placeholder = placeholder;
+            inputEl.style.display = '';
+            inputEl.value = '';
+
+            return new Promise(resolve => {
+                const close = (result) => {
+                    overlay.classList.remove('active');
+                    okBtn.removeEventListener('click', onOk);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    overlay.removeEventListener('click', onOverlay);
+                    inputEl.removeEventListener('keydown', onKeyDown);
+                    resolve(result);
+                };
+
+                const onOk = () => close(inputEl.value || '');
+                const onCancel = () => close(null);
+                const onOverlay = (e) => { if (e.target === overlay) close(null); };
+                const onKeyDown = (e) => {
+                    if (e.key === 'Enter') onOk();
+                    if (e.key === 'Escape') onCancel();
+                };
+
+                okBtn.textContent = 'Xác nhận';
+                cancelBtn.style.display = '';
+                okBtn.classList.remove('btn-danger');
+                okBtn.classList.add('btn-primary');
+                okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+                overlay.addEventListener('click', onOverlay);
+                inputEl.addEventListener('keydown', onKeyDown);
+                overlay.classList.add('active');
+                setTimeout(() => inputEl.focus(), 0);
+            });
+        }
+
+        initOpeningHoursEditor();
+        applyRoleUi();
+        const gpsModeEl = document.getElementById('gpsMode');
+        if (gpsModeEl) gpsModeEl.addEventListener('change', applyGpsMode);
+        applyGpsMode();
+        window.addEventListener('load', loadPoi);
+    </script>
+</body>
+
+</html>
+

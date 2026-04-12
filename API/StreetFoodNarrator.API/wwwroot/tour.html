@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Tour - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="sidebar.js?v=20260406"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --primary-soft: rgba(255,107,53,0.10);
+            --secondary: #004E89;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow-sm: 0 2px 8px rgba(26,26,46,0.06);
+            --shadow: 0 4px 20px rgba(26,26,46,0.09);
+            --shadow-lg: 0 14px 44px rgba(26,26,46,0.15);
+            --gradient: linear-gradient(135deg,#FF6B35 0%,#004E89 100%);
+            --radius: 18px;
+            --radius-sm: 11px;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'DM Sans',sans-serif;background:#EFF3F8;color:var(--dark);overflow-x:hidden}
+        .main-content{padding:2rem;min-height:100vh}
+
+        /* HEADER */
+        .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2rem;animation:fadeIn .5s}
+        .page-eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);margin-bottom:.3rem}
+        .page-title{font-family:'Playfair Display',serif;font-size:2.3rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
+        .btn{padding:.72rem 1.4rem;border:none;border-radius:var(--radius-sm);font-weight:700;cursor:pointer;transition:all .25s;display:inline-flex;align-items:center;gap:.5rem;font-size:.88rem;font-family:'DM Sans',sans-serif}
+        .btn-primary{background:var(--gradient);color:white}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,107,53,.35)}
+        .btn-outline{background:white;border:2px solid var(--border);color:var(--dark)}
+        .btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+        .btn-sm{padding:.48rem .9rem;font-size:.8rem}
+
+        /* STATS */
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;margin-bottom:2rem}
+        .stat-card{background:white;padding:1.4rem 1.5rem;border-radius:var(--radius);box-shadow:var(--shadow-sm);border:1px solid var(--border);transition:all .3s;position:relative;overflow:hidden;animation:fadeInUp .5s backwards}
+        .stat-card:nth-child(1){animation-delay:.05s}.stat-card:nth-child(2){animation-delay:.1s}.stat-card:nth-child(3){animation-delay:.15s}.stat-card:nth-child(4){animation-delay:.2s}
+        .stat-card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+        .stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--gradient);opacity:0;transition:.3s}
+        .stat-card:hover::after{opacity:1}
+        .stat-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:.8rem}
+        .si-o{background:rgba(255,107,53,.12);color:var(--primary)}
+        .si-g{background:rgba(6,214,160,.12);color:var(--success)}
+        .si-y{background:rgba(255,210,63,.12);color:#c9a000}
+        .si-b{background:rgba(0,78,137,.12);color:var(--secondary)}
+        .stat-value{font-size:1.9rem;font-weight:700;color:var(--dark)}
+        .stat-label{font-size:.8rem;color:#999;margin-top:.15rem}
+
+        /* TOOLBAR */
+        .toolbar{display:flex;gap:.65rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
+        .search-wrap{flex:1;min-width:230px;position:relative}
+        .search-wrap i{position:absolute;left:.9rem;top:50%;transform:translateY(-50%);color:#ccc;font-size:.82rem}
+        .search-wrap input{width:100%;padding:.68rem 1rem .68rem 2.3rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.87rem;font-family:'DM Sans',sans-serif;background:white;color:var(--dark);transition:.25s}
+        .search-wrap input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+        .chip-filter{padding:.42rem .85rem;border:1.5px solid var(--border);border-radius:50px;font-size:.78rem;font-weight:700;cursor:pointer;background:white;color:#888;transition:all .18s;white-space:nowrap;font-family:'DM Sans',sans-serif}
+        .chip-filter:hover{border-color:var(--primary);color:var(--primary)}
+        .chip-filter.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-dark)}
+
+        /* GRID */
+        .tours-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.5rem}
+
+        /* CARD */
+        .tour-card{background:white;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;overflow:hidden;transition:all .3s;animation:fadeInUp .5s backwards}
+        .tour-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg);border-color:rgba(255,107,53,.22)}
+
+        .card-map{height:260px;background:#e4eaf0;position:relative;overflow:hidden;cursor:pointer}
+        .card-map img{width:100%;height:100%;object-fit:cover;display:block}
+        .card-map-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:.4rem;background:rgba(26,26,46,.32);color:white;font-size:.8rem;font-weight:700;opacity:0;transition:.22s;z-index:10;letter-spacing:.04em}
+        .tour-card:hover .card-map-overlay{opacity:1}
+        .route-badge{position:absolute;top:8px;right:8px;z-index:11;padding:.22rem .6rem;border-radius:7px;font-size:.68rem;font-weight:700;display:flex;align-items:center;gap:.3rem;backdrop-filter:blur(4px)}
+        .rb-ok{background:rgba(6,214,160,.88);color:#024034}
+        .rb-no{background:rgba(255,210,63,.9);color:#6b4c00}
+
+        .card-body{padding:1rem 1.25rem .8rem}
+        .card-tags{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.55rem}
+        .badge{display:inline-flex;align-items:center;gap:.25rem;padding:.16rem .58rem;border-radius:50px;font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+        .b-on{background:rgba(6,214,160,.13);color:#04836b}
+        .b-off{background:rgba(255,210,63,.14);color:#a07000}
+        .b-free{background:rgba(75,226,119,.16);color:#0f6a38}
+        .b-theme{background:rgba(255,107,53,.11);color:#bf4020}
+        .b-time{background:rgba(0,78,137,.1);color:#003d70}
+
+        .card-name{font-family:'Playfair Display',serif;font-size:1.12rem;font-weight:700;line-height:1.3;margin-bottom:.42rem}
+        .card-desc{font-size:.85rem;color:#888;line-height:1.58;margin-bottom:.7rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .card-meta{display:flex;gap:.9rem;font-size:.78rem;color:#aaa;font-weight:600}
+        .card-meta i{color:var(--primary);font-size:.72rem;margin-right:.22rem}
+
+        .card-pois{display:flex;flex-wrap:wrap;gap:.32rem;padding:.7rem 1.25rem;border-top:1px solid var(--border)}
+        .poi-chip{font-size:.71rem;padding:.16rem .52rem;background:#F4F6FA;border:1px solid var(--border);border-radius:5px;color:#666;font-weight:500}
+        .poi-chip-more{font-size:.71rem;color:#ccc}
+
+        .card-footer{padding:.72rem 1.25rem;background:#FAFBFC;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .footer-btns{display:flex;gap:.35rem}
+        .icon-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.18s;background:white;color:#999;font-size:.76rem}
+        .icon-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+        .icon-btn.del:hover{border-color:var(--danger);color:var(--danger);background:rgba(239,71,111,.07)}
+        .btn-recalc{font-size:.74rem;font-weight:700;color:var(--secondary);background:rgba(0,78,137,.08);border:1px solid rgba(0,78,137,.18);border-radius:7px;padding:.28rem .68rem;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:.3rem;font-family:'DM Sans',sans-serif}
+        .btn-recalc:hover{background:rgba(0,78,137,.16)}
+        .btn-recalc.loading i{animation:spin .7s linear infinite}
+
+        /* MODAL */
+        .modal-overlay{position:fixed;inset:0;background:rgba(26,26,46,.52);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:2000;padding:1rem}
+        .modal-overlay.active{display:flex;animation:fadeIn .2s}
+        .modal{background:white;width:100%;max-width:700px;border-radius:24px;box-shadow:0 28px 80px rgba(0,0,0,.22);display:flex;flex-direction:column;max-height:94vh;overflow:hidden;animation:slideUp .3s cubic-bezier(.34,1.56,.64,1)}
+        .modal-header{padding:1.4rem 1.8rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+        .modal-title{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700}
+        .modal-close{width:30px;height:30px;border:none;background:none;border-radius:8px;cursor:pointer;color:#bbb;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:.2s}
+        .modal-close:hover{background:rgba(239,71,111,.1);color:var(--danger)}
+        .modal-body{padding:1.5rem 1.8rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:1.15rem}
+        .modal-footer{padding:1.1rem 1.8rem;background:#FAFBFC;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+
+        /* form */
+        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+        .form-group{display:flex;flex-direction:column;gap:.38rem}
+        .form-group.full{grid-column:1/-1}
+        .form-label{font-weight:700;font-size:.78rem;color:#666;text-transform:uppercase;letter-spacing:.05em}
+        .req{color:var(--primary)}
+        .form-control{padding:.7rem 1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.89rem;font-family:'DM Sans',sans-serif;color:var(--dark);background:white;transition:.22s}
+        .form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+        textarea.form-control{resize:vertical;min-height:74px}
+        .sec-title{font-size:.7rem;font-weight:700;color:#ccc;text-transform:uppercase;letter-spacing:.08em;padding-bottom:.45rem;border-bottom:1px solid var(--border)}
+        .tour-image-preview{margin-top:.55rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:#f7fafc;height:160px;display:flex;align-items:center;justify-content:center}
+        .tour-image-preview img{width:100%;height:100%;object-fit:cover;display:block}
+        .tour-image-note{margin-top:.32rem;font-size:.74rem;color:#98a1ab}
+
+        /* chips */
+        .chip-group{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.55rem}
+        .chip-opt{padding:.32rem .8rem;border:1.5px solid var(--border);border-radius:50px;font-size:.78rem;font-weight:700;cursor:pointer;background:white;color:#888;transition:all .16s;user-select:none;font-family:'DM Sans',sans-serif}
+        .chip-opt:hover{border-color:var(--primary);color:var(--primary)}
+        .chip-opt.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-dark)}
+        .chip-opt.time.active{border-color:var(--secondary);background:rgba(0,78,137,.1);color:var(--secondary)}
+
+        /* POI selector */
+        .poi-search-box{position:relative}
+        .poi-search-box i{position:absolute;left:.82rem;top:50%;transform:translateY(-50%);color:#ccc;font-size:.78rem}
+        .poi-search-box input{width:100%;padding:.62rem 1rem .62rem 2.1rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.86rem;font-family:'DM Sans',sans-serif;transition:.22s}
+        .poi-search-box input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+        .poi-list{border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-height:185px;overflow-y:auto;margin-top:.5rem}
+        .poi-item{padding:.58rem 1rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;font-size:.86rem}
+        .poi-item:last-child{border-bottom:none}
+        .poi-item:hover{background:#fdf7f5}
+        .poi-item.sel{background:rgba(255,107,53,.05)}
+        .poi-left{display:flex;align-items:center;gap:.55rem}
+        .order-dot{width:20px;height:20px;border-radius:50%;background:var(--primary);color:white;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0;transition:.15s}
+        .poi-item.sel .order-dot{opacity:1}
+        .poi-name{font-weight:600;color:var(--dark)}
+        .poi-cat{font-size:.73rem;color:#bbb}
+        .poi-item.sel .poi-name{color:var(--primary-dark)}
+        .poi-chk{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.62rem;color:white;flex-shrink:0;transition:.16s}
+        .poi-item.sel .poi-chk{background:var(--primary);border-color:var(--primary)}
+        .sel-wrap{display:flex;flex-wrap:wrap;gap:.35rem;min-height:26px;align-items:center;margin-top:.5rem}
+        .sel-tag{display:inline-flex;align-items:center;gap:.28rem;padding:.2rem .55rem;background:white;border:1px solid var(--border);border-radius:6px;font-size:.76rem;font-weight:600;color:var(--dark)}
+        .sel-tag .num{width:15px;height:15px;border-radius:50%;background:var(--primary);color:white;font-size:.58rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+        .sel-tag .inactive-label{font-size:.67rem;font-weight:700;color:#b42318}
+        .sel-tag button{background:none;border:none;cursor:pointer;color:#ccc;font-size:.72rem;padding:0;margin-left:1px}
+        .sel-tag button:hover{color:var(--danger)}
+        .empty-sel{font-size:.8rem;color:#ccc}
+
+        /* route preview */
+        .route-preview{border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+        #previewMap{height:210px}
+        .route-bar{padding:.6rem 1rem;background:#FAFBFC;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:.8rem}
+        .route-msg{display:flex;align-items:center;gap:.38rem;font-weight:600}
+        .rm-none{color:#ccc}.rm-pending{color:#c9a000}.rm-ok{color:var(--success)}
+
+        /* toggle */
+        .toggle-row{display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;background:var(--light);border:1px solid var(--border);border-radius:var(--radius-sm)}
+        .toggle-row.free-toggle{margin-top:.65rem}
+        .tl{font-weight:700;font-size:.88rem;color:var(--dark);margin-bottom:.12rem}
+        .ts{font-size:.76rem;color:#aaa}
+        .switch{position:relative;display:inline-block;width:44px;height:23px}
+        .switch input{opacity:0;width:0;height:0}
+        .slider{position:absolute;cursor:pointer;inset:0;background:#ddd;border-radius:23px;transition:.28s}
+        .slider:before{position:absolute;content:'';height:15px;width:15px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.28s}
+        input:checked+.slider{background:var(--gradient)}
+        input:checked+.slider:before{transform:translateX(21px)}
+
+        /* empty */
+        .empty{grid-column:1/-1;text-align:center;padding:4rem 2rem;background:white;border-radius:var(--radius);border:2px dashed var(--border);color:#ccc}
+        .empty h3{color:#bbb;margin:.75rem 0 .35rem}
+
+        /* toast */
+        .toast-wrap{position:fixed;bottom:2rem;right:2rem;z-index:9999;display:flex;flex-direction:column;gap:.45rem}
+        .toast{background:#1A1A2E;color:white;padding:.7rem 1.1rem;border-radius:var(--radius-sm);font-size:.83rem;font-weight:500;display:flex;align-items:center;gap:.45rem;box-shadow:var(--shadow-lg);animation:slideR .3s}
+        .toast.ok{background:#04332b;border-left:3px solid var(--success)}
+        .toast.err{background:#3f0b1e;border-left:3px solid var(--danger)}
+        .pagination{display:flex;justify-content:center;align-items:center;gap:.5rem;margin-top:2rem}
+        .pagination-btn{width:40px;height:40px;border-radius:8px;border:2px solid var(--border);background:white;color:var(--dark);font-weight:600;cursor:pointer;transition:all .3s ease}
+        .pagination-btn:hover{border-color:var(--primary);color:var(--primary)}
+        .pagination-btn.active{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:white;border-color:transparent}
+        .pagination-btn[disabled]{opacity:.5;cursor:not-allowed}
+        .pagination-info{color:#666;margin:0 1rem}
+
+        .qr-modal{max-width:420px}
+        .qr-modal-body{display:flex;flex-direction:column;align-items:center;gap:.8rem;padding:1.4rem 1.6rem 1.2rem}
+        .qr-preview{width:236px;height:236px;border-radius:14px;border:1.5px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center}
+        .qr-link-row{width:100%;display:flex;gap:.45rem;align-items:center}
+        .qr-link-row input{flex:1;padding:.58rem .72rem;border:1.5px solid var(--border);border-radius:10px;font-size:.8rem;color:#555;background:#f9fbff}
+        .qr-hint{font-size:.75rem;color:#8b95a1;text-align:center;line-height:1.45}
+
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes slideR{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        @media(max-width:860px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:580px){.main-content{padding:1rem}.form-grid{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+<main class="main-content" id="mainContent">
+
+    <header class="header">
+        <div>
+            <div class="page-eyebrow"><i class="fas fa-route"></i> Street Food Narrator</div>
+            <h1 class="page-title">Quản lý Tour</h1>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">
+            <i class="fas fa-plus"></i> Tạo Tour mới
+        </button>
+    </header>
+
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon si-o"><i class="fas fa-route"></i></div><div class="stat-value" id="stat-total">0</div><div class="stat-label">Tổng số Tour</div></div>
+        <div class="stat-card"><div class="stat-icon si-g"><i class="fas fa-check-circle"></i></div><div class="stat-value" id="stat-active">0</div><div class="stat-label">Đang hoạt động</div></div>
+        <div class="stat-card"><div class="stat-icon si-y"><i class="fas fa-pencil-alt"></i></div><div class="stat-value" id="stat-draft">0</div><div class="stat-label">Bản nháp</div></div>
+        <div class="stat-card"><div class="stat-icon si-b"><i class="fas fa-map-marked-alt"></i></div><div class="stat-value" id="stat-routed">0</div><div class="stat-label">Đã có đường đi</div></div>
+    </div>
+
+    <div class="toolbar">
+        <div class="search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Tìm kiếm tên tour, mô tả..." oninput="filterTours()">
+        </div>
+        <button class="chip-filter active" data-filter="all"    onclick="setFilter(this)">Tất cả</button>
+        <button class="chip-filter" data-filter="oc"     onclick="setFilter(this)">Ốc</button>
+        <button class="chip-filter" data-filter="lau"    onclick="setFilter(this)">Lẩu</button>
+        <button class="chip-filter" data-filter="nuong"  onclick="setFilter(this)">Nướng</button>
+        <button class="chip-filter" data-filter="khuya"  onclick="setFilter(this)">Khuya</button>
+        <button class="chip-filter" data-filter="sang"   onclick="setFilter(this)">Sáng sớm</button>
+        <button class="chip-filter" data-filter="routed" onclick="setFilter(this)">Có đường đi</button>
+    </div>
+
+    <div class="tours-grid" id="toursGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:4rem;color:#ccc">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+        </div>
+    </div>
+    <div class="pagination" id="tourPagination"></div>
+</main>
+
+<div class="modal-overlay" id="tourQrModal">
+    <div class="modal qr-modal">
+        <div class="modal-header">
+            <h2 class="modal-title">QR Tour</h2>
+            <button class="modal-close" onclick="closeTourQrModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="qr-modal-body">
+            <div class="qr-preview" id="tourQrPreview"></div>
+            <div class="qr-link-row">
+                <input id="tourQrLinkInput" type="text" readonly>
+                <button class="btn btn-outline btn-sm" type="button" onclick="copyTourQrLink()"><i class="fas fa-copy"></i> Copy</button>
+                <button class="btn btn-primary btn-sm" type="button" onclick="downloadTourQrPng()"><i class="fas fa-download"></i> PNG</button>
+            </div>
+            <div class="qr-hint" id="tourQrHint">Quét mã để mở danh sách tour trong app và hiện chi tiết đúng tour.</div>
+        </div>
+    </div>
+</div>
+
+<!-- -- MODAL -- -->
+<div class="modal-overlay" id="tourModal">
+  <div class="modal">
+    <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">Tạo Tour mới</h2>
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+        <input type="hidden" id="tourId">
+
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label">Tên Tour <span class="req">*</span></label>
+                <input type="text" id="tourName" class="form-control" placeholder="vd: Tour Ốc Huyền Thoại Phố Vĩnh Khánh">
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Mô tả</label>
+                <textarea id="tourDesc" class="form-control" placeholder="Khám phá các quán nổi tiếng nhất..."></textarea>
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Ảnh Tour</label>
+                <input type="file" id="tourImageFile" class="form-control" accept="image/jpeg, image/png, image/webp">
+                <input type="hidden" id="tourImageUrl">
+                <div class="tour-image-preview">
+                    <img id="tourImagePreview" alt="Ảnh tour xem trước">
+                </div>
+                <div class="tour-image-note">Nếu không upload ảnh, hệ thống sẽ dùng ảnh mặc định.</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Thời lượng (phút)</label>
+                <input type="number" id="tourDuration" class="form-control" value="90" min="1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Kiểu hành trình</label>
+                <select id="tourRouteType" class="form-control">
+                    <option value="ordered">Theo thứ tự địa lý</option>
+                    <option value="free">Tự do</option>
+                    <option value="theme">Theo chủ đề</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <div class="sec-title">Chủ đề / Thể loại</div>
+            <div class="chip-group" id="themeChips">
+                <span class="chip-opt" data-val="oc">Ốc</span>
+                <span class="chip-opt" data-val="lau">Lẩu</span>
+                <span class="chip-opt" data-val="nuong">Nướng</span>
+                <span class="chip-opt" data-val="haisan">Hải sản</span>
+                <span class="chip-opt" data-val="mi">Mì &amp; Phở</span>
+                <span class="chip-opt" data-val="com">Cơm</span>
+                <span class="chip-opt" data-val="douong">Đồ uống</span>
+                <span class="chip-opt" data-val="banh">Bánh</span>
+            </div>
+        </div>
+
+        <div>
+            <div class="sec-title">Khung giờ</div>
+            <div class="chip-group" id="timeChips">
+                <span class="chip-opt time" data-val="sang">Sáng sớm (5-9h)</span>
+                <span class="chip-opt time" data-val="trua">Trưa (10-14h)</span>
+                <span class="chip-opt time" data-val="chieu">Chiều (15-18h)</span>
+                <span class="chip-opt time" data-val="khuya">Khuya (20h-2h)</span>
+            </div>
+        </div>
+
+        <div>
+            <div class="sec-title">Chọn POI / Quán <span style="font-weight:400;color:#ccc;text-transform:none;font-size:.72rem">(chọn theo thứ tự tour)</span></div>
+            <div class="poi-search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="poiSearch" placeholder="Tìm quán theo tên, địa chỉ..." oninput="filterPOIs()">
+            </div>
+            <div class="poi-list" id="poiList"></div>
+            <div style="font-size:.73rem;color:#ccc;margin:.4rem 0 .2rem">Đã chọn (thứ tự trong tour):</div>
+            <div class="sel-wrap" id="selWrap"><span class="empty-sel">Chưa chọn quán nào</span></div>
+        </div>
+
+        <!-- ROUTE PREVIEW -->
+        <div>
+            <div class="sec-title">Xem trước đường đi</div>
+            <div id="previewMap" style="height:210px;border-radius:var(--radius-sm);overflow:hidden;border:1.5px solid var(--border)"></div>
+        </div>
+
+        <div class="toggle-row">
+            <div>
+                <div class="tl">Trạng thái hoạt động</div>
+                <div class="ts">Bật để người dùng nhìn thấy và tải tour này</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="tourActive"><span class="slider"></span></label>
+        </div>
+
+        <div class="toggle-row free-toggle">
+            <div>
+                <div class="tl">Tour miễn phí (Free Tour)</div>
+                <div class="ts">Chọn đúng 1 tour miễn phí cho người dùng chưa VIP</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="tourFree"><span class="slider"></span></label>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <div></div>
+        <div style="display:flex;gap:.7rem">
+            <button class="btn btn-outline" onclick="closeModal()">Hủy</button>
+            <button class="btn btn-primary" onclick="saveTour()"><i class="fas fa-save"></i> Lưu Tour</button>
+        </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="api.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+/* --- CONSTANTS --- */
+const THEME_MAP = {
+    oc:'Ốc', lau:'Lẩu', nuong:'Nướng', haisan:'Hải sản',
+    mi:'Mì & Phở', com:'Cơm', douong:'Đồ uống', banh:'Bánh'
+};
+const TIME_MAP = {
+    sang:'Sáng sớm', trua:'Trưa', chieu:'Chiều', khuya:'Khuya'
+};
+const HCM_LL = [10.762, 106.682];
+const QR_LINK_EXPIRY_DAYS = 5;
+const QR_LINK_EXPIRY_WINDOW_MS = QR_LINK_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+const DEFAULT_TOUR_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 600'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23ff6b35'/%3E%3Cstop offset='100%25' stop-color='%23004e89'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='600' fill='url(%23g)'/%3E%3Ccircle cx='1040' cy='130' r='150' fill='rgba(255,255,255,0.16)'/%3E%3Ccircle cx='230' cy='460' r='210' fill='rgba(255,255,255,0.10)'/%3E%3Cpath d='M120 430 L350 265 L570 375 L760 225 L1030 355' stroke='rgba(255,255,255,0.88)' stroke-width='15' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='350' cy='265' r='21' fill='white'/%3E%3Ccircle cx='570' cy='375' r='21' fill='white'/%3E%3Ccircle cx='760' cy='225' r='21' fill='white'/%3E%3Ctext x='78' y='112' font-family='DM Sans,Arial,sans-serif' font-size='64' fill='white' font-weight='700'%3EStreet Food Tour%3C/text%3E%3Ctext x='78' y='176' font-family='DM Sans,Arial,sans-serif' font-size='34' fill='rgba(255,255,255,0.92)'%3EKh%C3%A1m ph%C3%A1 h%C3%A0nh tr%C3%ACnh %E1%BA%A9m th%E1%BB%B1c%3C/text%3E%3C/svg%3E";
+
+/* --- STATE --- */
+let allTours = [], allPOIs = [], allPOIsRaw = [];
+let selPOIs  = [];   // ordered array of id strings
+let selPOIMetaById = {}; // includes POIs not available in active selection list
+let activeFilter = 'all';
+let pMap = null, pRoute = null, pMarkers = [];
+let savedRouteGeom = null;   // stored routeGeometry from DB
+let currentPage = 1;
+let currentTotalPages = 1;
+const pageSize = 6;
+let currentQrTourId = '';
+let currentQrTourName = '';
+
+/* --- INIT --- */
+document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof requireAuth === 'function' && !requireAuth()) return;
+    const role = (sessionStorage.getItem('activeRole') || localStorage.getItem('activeRole') || '').toLowerCase();
+    if (role && role !== 'admin') { window.location.href = 'dashboard'; return; }
+    document.querySelectorAll('.chip-opt').forEach(c => c.addEventListener('click', function(){ this.classList.toggle('active'); }));
+    bindTourImageUpload();
+    await Promise.all([loadTours(), loadPOIs()]);
+});
+
+/* --- LOAD --- */
+async function loadTours() {
+    try {
+        grid('<div style="grid-column:1/-1;text-align:center;padding:4rem;color:#ccc"><i class="fas fa-spinner fa-spin fa-2x"></i></div>');
+        const [tr, sr] = await Promise.all([ToursApi.list({page:1,pageSize:100}), ToursApi.stats()]);
+        allTours = tr.data || [];
+        const routed = allTours.filter(t => t.routeGeometry).length;
+        set('stat-total',  sr.total   || allTours.length);
+        set('stat-active', sr.active  || allTours.filter(t=>t.isActive).length);
+        set('stat-draft',  sr.draft   || allTours.filter(t=>!t.isActive).length);
+        set('stat-routed', sr.routed  != null ? sr.routed : routed);
+        renderPagedTours();
+    } catch(e) {
+        grid('<div class="empty"><i class="fas fa-exclamation-triangle fa-2x" style="color:var(--danger)"></i><h3>Lỗi tải dữ liệu</h3><p>Vui lòng thử lại.</p></div>');
+        renderPagination(1, 1, true);
+    }
+}
+
+async function loadPOIs() {
+    try {
+        const r = typeof POIApi !== 'undefined'
+            ? await POIApi.list({page:1,pageSize:500,tourEligible:true})
+            : await fetch('/api/pois?pageSize=500&tourEligible=true').then(x=>x.json());
+        const pois = r.data || r.items || r || [];
+        allPOIsRaw = pois;
+        allPOIs = pois.filter(isPOIActiveForTour);
+    } catch(e) { allPOIs = []; allPOIsRaw = []; }
+    renderPOIList('');
+}
+
+function isPOIActiveForTour(poi) {
+    const active = poi?.isActive ?? poi?.IsActive;
+    // Backward compatible: if flag is missing, keep POI visible.
+    return active !== false && active !== 0 && active !== 'false';
+}
+
+function isPOIInactive(poiOrId) {
+    if (poiOrId && typeof poiOrId === 'object') {
+        const active = poiOrId.isActive ?? poiOrId.IsActive;
+        if (active === false || active === 0 || active === 'false') return true;
+        if (active === true || active === 1 || active === 'true') return false;
+        const objId = String(poiOrId.id || poiOrId.Id || '');
+        if (!objId) return false;
+        const matchedByObj = allPOIsRaw.find(p => String(p.id || p.Id || '') === objId);
+        if (!matchedByObj) return false;
+        const activeByObj = matchedByObj.isActive ?? matchedByObj.IsActive;
+        return activeByObj === false || activeByObj === 0 || activeByObj === 'false';
+    }
+    const id = String(poiOrId || '');
+    if (!id) return false;
+    const matched = allPOIsRaw.find(p => String(p.id || p.Id || '') === id);
+    if (!matched) return false;
+    const active = matched.isActive ?? matched.IsActive;
+    return active === false || active === 0 || active === 'false';
+}
+
+function getCurrentQrExpiryEpochSeconds() {
+    const nowMs = Date.now();
+    const windowStartMs = Math.floor(nowMs / QR_LINK_EXPIRY_WINDOW_MS) * QR_LINK_EXPIRY_WINDOW_MS;
+    const windowEndMs = windowStartMs + QR_LINK_EXPIRY_WINDOW_MS;
+    return Math.floor(windowEndMs / 1000);
+}
+
+function getTourQrLink(tourId) {
+    const exp = getCurrentQrExpiryEpochSeconds();
+    return `https://streetfoodnarrator.app/qr/tour/${encodeURIComponent(String(tourId || '').trim())}?exp=${exp}`;
+}
+
+/* --- RENDER CARDS --- */
+function renderTours(data) {
+    if (!data.length) {
+        grid('<div class="empty"><i class="fas fa-map fa-2x"></i><h3>Chưa có Tour nào</h3><p>Hãy tạo tour mới để bắt đầu.</p></div>');
+        return;
+    }
+    grid(data.map((t,i) => {
+        const tourId = getTourRowId(t);
+        const tourName = t.tourName || t.TourName || '';
+        const tourDesc = t.description || t.Description || '';
+        const durationMinutes = t.estimatedDurationMinutes ?? t.EstimatedDurationMinutes ?? 0;
+        const routeType = t.routeType || t.RouteType;
+        const isActiveTour = !!(t.isActive ?? t.IsActive);
+        const pois = t.pois || t.poiList || [];
+        const hasRoute = !!t.routeGeometry;
+        const hasStops = pois.length >= 2;
+        const themes = (t.themes||[]).map(v=>`<span class="badge b-theme">${THEME_MAP[v]||v}</span>`).join('');
+        const times  = (t.timeSlots||[]).map(v=>`<span class="badge b-time">${TIME_MAP[v]||v}</span>`).join('');
+        const status = isActiveTour
+            ? `<span class="badge b-on"><i class="fas fa-circle" style="font-size:.42rem"></i> Bật</span>`
+            : `<span class="badge b-off"><i class="fas fa-circle" style="font-size:.42rem"></i> Nháp</span>`;
+        const freeBadge = (t.isFreeTour ?? t.IsFreeTour)
+            ? `<span class="badge b-free"><i class="fas fa-star" style="font-size:.5rem"></i> Free Tour</span>`
+            : '';
+        const rb = hasRoute
+            ? `<span class="route-badge rb-ok"><i class="fas fa-route"></i> Đường đi OK</span>`
+            : (hasStops
+                ? `<span class="route-badge rb-ok"><i class="fas fa-list-check"></i> Đã có lộ trình</span>`
+                : `<span class="route-badge rb-no"><i class="fas fa-clock"></i> Chưa có đường</span>`);
+        const poisHtml = pois.length
+            ? pois.slice(0,4).map(p=>{
+                const poiName = esc(p?.name || p?.name_Vi || p);
+                const inactiveTag = isPOIInactive(p)
+                    ? ' <span style="color:#b42318;font-weight:700">(Ngừng hoạt động)</span>'
+                    : '';
+                return `<span class="poi-chip">${poiName}${inactiveTag}</span>`;
+            }).join('')
+              + (pois.length>4?`<span class="poi-chip-more">+${pois.length-4} nữa</span>`:'')
+            : '<span class="poi-chip-more">Chưa có quán</span>';
+        return `
+        <div class="tour-card" style="animation-delay:${i*.05}s">
+            <div class="card-map" id="cm-${tourId}" onclick="editTour('${tourId}')">
+                <img src="${esc(resolveTourImage(getTourImageUrl(t)))}" alt="Ảnh Tour ${esc(tourName)}" onerror="handleTourImageError(this)">
+                ${rb}
+                <div class="card-map-overlay"><i class="fas fa-edit"></i> Chỉnh sửa Tour</div>
+            </div>
+            <div class="card-body">
+                <div class="card-tags">${status}${freeBadge}${themes}${times}</div>
+                <div class="card-name">${esc(tourName)}</div>
+                <p class="card-desc">${tourDesc?esc(tourDesc):'<em style="color:#ddd">Không có mô tả</em>'}</p>
+                <div class="card-meta">
+                    <span><i class="far fa-clock"></i>${durationMinutes} phút</span>
+                    <span><i class="fas fa-map-marker-alt"></i>${pois.length} quán</span>
+                    ${routeType?`<span><i class="fas fa-route"></i>${rtLabel(routeType)}</span>`:''}
+                </div>
+            </div>
+            <div class="card-pois">${poisHtml}</div>
+            <div class="card-footer">
+                <div></div>
+                <div class="footer-btns">
+                    <button class="icon-btn" onclick="openTourQrById('${tourId}')" title="QR Tour"><i class="fas fa-qrcode"></i></button>
+                    <button class="icon-btn" onclick="editTour('${tourId}')" title="Sửa"><i class="fas fa-edit"></i></button>
+                    <button class="icon-btn del" onclick="delTour('${tourId}')" title="Xóa"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join(''));
+}
+
+/* --- FILTER --- */
+function filtered() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    return allTours.filter(t => {
+        const mQ = !q || (t.tourName||'').toLowerCase().includes(q) || (t.description||'').toLowerCase().includes(q);
+        let mF = true;
+        if (activeFilter==='routed') mF=!!t.routeGeometry;
+        else if (activeFilter!=='all') mF=(t.themes||[]).includes(activeFilter)||(t.timeSlots||[]).includes(activeFilter);
+        return mQ && mF;
+    });
+}
+function renderPagedTours() {
+    const data = filtered();
+    const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+    currentTotalPages = totalPages;
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const start = (currentPage - 1) * pageSize;
+    const paged = data.slice(start, start + pageSize);
+    renderTours(paged);
+    renderPagination(totalPages, currentPage, data.length === 0);
+}
+function filterTours() {
+    currentPage = 1;
+    renderPagedTours();
+}
+function setFilter(btn) {
+    document.querySelectorAll('.chip-filter').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    currentPage = 1;
+    renderPagedTours();
+}
+
+function renderPagination(totalPages, currentPageNum, hide = false) {
+    const pagination = document.getElementById('tourPagination');
+    if (!pagination) return;
+    if (hide || totalPages <= 1) { pagination.innerHTML = ''; return; }
+
+    let html = `
+        <button class="pagination-btn" onclick="changePage('prev')" ${currentPageNum === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    `;
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+    } else {
+        html += `<button class="pagination-btn ${currentPageNum === 1 ? 'active' : ''}" onclick="goToPage(1)">1</button>`;
+
+        const start = Math.max(2, currentPageNum - 1);
+        const end = Math.min(totalPages - 1, currentPageNum + 1);
+
+        if (start > 2) {
+            html += `<span class="pagination-info">...</span>`;
+        }
+
+        for (let i = start; i <= end; i++) {
+            html += `<button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+
+        if (end < totalPages - 1) {
+            html += `<span class="pagination-info">...</span>`;
+        }
+
+        html += `<button class="pagination-btn ${currentPageNum === totalPages ? 'active' : ''}" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+    }
+    html += `
+        <button class="pagination-btn" onclick="changePage('next')" ${currentPageNum === totalPages ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    `;
+    pagination.innerHTML = html;
+}
+
+function changePage(direction) {
+    if (direction === 'prev' && currentPage > 1) currentPage--;
+    else if (direction === 'next' && currentPage < currentTotalPages) currentPage++;
+    renderPagedTours();
+}
+
+function goToPage(page) {
+    currentPage = Math.min(Math.max(1, Number(page) || 1), currentTotalPages);
+    renderPagedTours();
+}
+
+function openTourQrById(tourId) {
+    const id = String(tourId || '').trim();
+    if (!id) return;
+
+    const link = getTourQrLink(id);
+    const tour = allTours.find(x => String(x.id || x.Id || '').trim() === id);
+    const tourName = (tour?.tourName || tour?.name || tour?.Name || `Tour ${id}`).trim();
+
+    const qrBox = document.getElementById('tourQrPreview');
+    const linkInput = document.getElementById('tourQrLinkInput');
+    const hint = document.getElementById('tourQrHint');
+    if (!qrBox || !linkInput) return;
+
+    currentQrTourId = id;
+    currentQrTourName = tourName;
+
+    qrBox.innerHTML = '';
+    linkInput.value = link;
+    if (hint) hint.textContent = `Quét mã để mở danh sách tour và xem chi tiết: ${tourName}`;
+
+    if (typeof QRCode === 'undefined') {
+        qrBox.textContent = 'Không tải được thư viện QR.';
+    } else {
+        new QRCode(qrBox, {
+            text: link,
+            width: 220,
+            height: 220,
+            colorDark: '#111',
+            colorLight: '#fff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    }
+
+    document.getElementById('tourQrModal')?.classList.add('active');
+}
+
+function closeTourQrModal() {
+    document.getElementById('tourQrModal')?.classList.remove('active');
+}
+
+function toSafeFileSegment(raw) {
+    return String(raw || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 50) || 'tour';
+}
+
+function downloadTourQrPng() {
+    const qrBox = document.getElementById('tourQrPreview');
+    if (!qrBox) return;
+
+    const fileBase = `tour_qr_${toSafeFileSegment(currentQrTourName || currentQrTourId || 'item')}`;
+    const fileName = `${fileBase}.png`;
+
+    const img = qrBox.querySelector('img');
+    if (img?.src) {
+        const a = document.createElement('a');
+        a.href = img.src;
+        a.download = fileName;
+        a.click();
+        toast('Đã tải QR PNG.', 'ok');
+        return;
+    }
+
+    const canvas = qrBox.querySelector('canvas');
+    if (canvas && typeof canvas.toDataURL === 'function') {
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = fileName;
+        a.click();
+        toast('Đã tải QR PNG.', 'ok');
+        return;
+    }
+
+    toast('Chưa có QR để tải. Hãy mở QR tour trước.', 'err');
+}
+
+async function copyTourQrLink() {
+    const input = document.getElementById('tourQrLinkInput');
+    const value = input?.value?.trim();
+    if (!value) return;
+
+    try {
+        await navigator.clipboard.writeText(value);
+        toast('Đã copy link QR tour.', 'ok');
+    } catch (e) {
+        toast('Không thể copy tự động, vui lòng copy thủ công.', 'err');
+    }
+}
+
+/* --- MODAL --- */
+function openModal(t) {
+    const isEdit = !!t;
+    set2('modalTitle', isEdit ? 'Chỉnh sửa Tour' : 'Tạo Tour mới');
+    val('tourId',        isEdit ? getTourRowId(t) : '');
+    val('tourName',      isEdit ? (t.tourName || t.TourName || '') : '');
+    val('tourDesc',      isEdit ? (t.description || t.Description || '') : '');
+    val('tourImageUrl',  isEdit ? getTourImageUrl(t) : '');
+    const imageInput = document.getElementById('tourImageFile');
+    if (imageInput) imageInput.value = '';
+    syncTourImagePreview();
+    val('tourDuration',  isEdit ? ((t.estimatedDurationMinutes ?? t.EstimatedDurationMinutes) || 90) : 90);
+    val('tourRouteType', isEdit ? (t.routeType || t.RouteType || 'ordered') : 'ordered');
+    document.getElementById('tourActive').checked = isEdit ? !!(t.isActive ?? t.IsActive) : false;
+    document.getElementById('tourFree').checked = isEdit ? !!(t.isFreeTour ?? t.IsFreeTour) : false;
+    resetChips('themeChips', isEdit ? (t.themes||[]) : []);
+    resetChips('timeChips',  isEdit ? (t.timeSlots||[]) : []);
+    selPOIs = isEdit ? (t.pois || t.Pois || []).map(p => String(p?.id || p?.Id || p || '')) : [];
+    selPOIMetaById = {};
+    if (isEdit) {
+        (t.pois || t.Pois || []).forEach(p => {
+            const pid = String(p?.id || p?.Id || '');
+            if (!pid) return;
+            selPOIMetaById[pid] = {
+                id: pid,
+                name: p?.name || p?.Name || p?.name_Vi || p?.Name_Vi || ''
+            };
+        });
+    }
+    savedRouteGeom = isEdit ? (t.routeGeometry||null) : null;
+    val('poiSearch','');
+    renderPOIList('');
+    renderSel();
+    document.getElementById('tourModal').classList.add('active');
+    setTimeout(()=>initPreview(isEdit?t:null), 100);
+}
+
+function closeModal() {
+    document.getElementById('tourModal').classList.remove('active');
+    if (pMap) { pMap.remove(); pMap=null; }
+    pRoute=null; pMarkers=[];
+}
+
+function editTour(id) {
+    const normalizedId = String(id || '').trim();
+    openModal(allTours.find(x => getTourRowId(x) === normalizedId));
+}
+
+/* --- PREVIEW MAP --- */
+function initPreview(t) {
+    if (pMap) pMap.remove();
+    pMap = L.map('previewMap',{zoomControl:true,attributionControl:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(pMap);
+    pMap.setView(HCM_LL, 15);
+    if (t) redrawPreview();
+}
+
+function redrawPreview() {
+    if (!pMap) return;
+    pMarkers.forEach(m=>m.remove()); pMarkers=[];
+    if (pRoute) { pRoute.remove(); pRoute=null; }
+    const pois = selPOIs.map(id=>allPOIs.find(p=>p.id===id)).filter(p=>p?.latitude&&p?.longitude);
+    if (!pois.length) return;
+    const bounds = pois.map((p,i)=>{
+        const ll=[p.latitude,p.longitude];
+        const mk = L.marker(ll,{icon:L.divIcon({
+            html:`<div style="width:26px;height:26px;border-radius:50%;background:#FF6B35;color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.28)">${i+1}</div>`,
+            className:'',iconSize:[26,26],iconAnchor:[13,13]
+        })}).bindTooltip(p.name_Vi||p.name||'').addTo(pMap);
+        pMarkers.push(mk);
+        return ll;
+    });
+    if (savedRouteGeom?.coordinates) {
+        const coords = savedRouteGeom.coordinates.map(([lng,lat])=>[lat,lng]);
+        pRoute = L.polyline(coords,{color:'#FF6B35',weight:4,opacity:.85}).addTo(pMap);
+    } else if (bounds.length>1) {
+        pRoute = L.polyline(bounds,{color:'#FF6B35',weight:3,opacity:.45,dashArray:'7 5'}).addTo(pMap);
+    }
+    try { pMap.fitBounds(bounds,{padding:[28,28]}); } catch(e){}
+}
+
+/* --- POI LIST --- */
+function renderPOIList(q) {
+    const list = document.getElementById('poiList');
+    const visible = allPOIs.filter(p=>!q||(p.name_Vi||p.name||'').toLowerCase().includes(q.toLowerCase())||(p.address||'').toLowerCase().includes(q.toLowerCase()));
+    if (!visible.length) {
+        list.innerHTML='<div style="padding:.9rem;text-align:center;color:#ccc;font-size:.83rem">Không tìm thấy quán</div>';
+        return;
+    }
+    list.innerHTML = visible.map(p=>{
+        const idx=selPOIs.indexOf(p.id), sel=idx!==-1;
+        return `<div class="poi-item${sel?' sel':''}" onclick="togglePOI('${p.id}')">
+            <div class="poi-left">
+                <div class="order-dot">${sel?idx+1:''}</div>
+                <div>
+                    <div class="poi-name">${esc(p.name_Vi||p.name||'')}</div>
+                    <div class="poi-cat">${esc(p.category||'')}${p.address?' • '+esc(p.address):''}</div>
+                </div>
+            </div>
+            <div class="poi-chk">${sel?'<i class="fas fa-check" style="font-size:.58rem"></i>':''}</div>
+        </div>`;
+    }).join('');
+}
+function filterPOIs() { renderPOIList(document.getElementById('poiSearch').value); }
+
+function togglePOI(id) {
+    const idx=selPOIs.indexOf(id);
+    if (idx!==-1) selPOIs.splice(idx,1); else selPOIs.push(id);
+    savedRouteGeom=null;
+    renderPOIList(document.getElementById('poiSearch').value);
+    renderSel(); redrawPreview();
+}
+
+function renderSel() {
+    const w=document.getElementById('selWrap');
+    if (!selPOIs.length) { w.innerHTML='<span class="empty-sel">Chưa chọn quán nào</span>'; return; }
+    w.innerHTML = selPOIs.map((id,i)=>{
+        const p = allPOIs.find(x=>x.id===id)
+            || allPOIsRaw.find(x=>x.id===id)
+            || allPOIs.find(x=>x.Id===id)
+            || allPOIsRaw.find(x=>x.Id===id)
+            || selPOIMetaById[id]
+            || null;
+        const displayName = p ? (p.name_Vi || p.name || p.Name_Vi || p.Name || id) : id;
+        const inactiveLabel = isPOIInactive(id) ? ' <span class="inactive-label">(Ngừng hoạt động)</span>' : '';
+        return `<span class="sel-tag"><span class="num">${i+1}</span>${esc(displayName)}${inactiveLabel}<button onclick="togglePOI('${id}')"><i class="fas fa-times"></i></button></span>`;
+    }).join('');
+}
+
+/* --- CHIPS --- */
+function resetChips(cid, vals) {
+    document.querySelectorAll(`#${cid} .chip-opt`).forEach(c=>c.classList.toggle('active',vals.includes(c.dataset.val)));
+}
+function getChips(cid) { return [...document.querySelectorAll(`#${cid} .chip-opt.active`)].map(c=>c.dataset.val); }
+
+function resolveTourImage(url) {
+    return (url && String(url).trim()) ? String(url).trim() : DEFAULT_TOUR_IMAGE;
+}
+
+function getTourImageUrl(t) {
+    if (!t) return '';
+    return (t.imageUrl || t.ImageUrl || '').trim();
+}
+
+function handleTourImageError(imgEl) {
+    if (!imgEl) return;
+    imgEl.onerror = null;
+    imgEl.src = DEFAULT_TOUR_IMAGE;
+}
+
+function syncTourImagePreview() {
+    const imageUrl = (document.getElementById('tourImageUrl')?.value || '').trim();
+    const preview = document.getElementById('tourImagePreview');
+    if (!preview) return;
+    preview.src = resolveTourImage(imageUrl);
+}
+
+function bindTourImageUpload() {
+    const input = document.getElementById('tourImageFile');
+    if (!input) return;
+    const preview = document.getElementById('tourImagePreview');
+    if (preview) {
+        preview.onerror = () => {
+            preview.onerror = null;
+            preview.src = DEFAULT_TOUR_IMAGE;
+        };
+    }
+    syncTourImagePreview();
+    input.addEventListener('change', async (e) => {
+        const file = e.target?.files?.[0];
+        if (!file) return;
+
+        const token = TokenManager.getToken();
+        if (!token) {
+            toast('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.','err');
+            input.value = '';
+            return;
+        }
+
+        try {
+            toast('Đang upload ảnh tour...','info');
+            let result = null;
+            let usedPoiFallback = false;
+            try {
+                // Preferred path: dedicated Tours endpoint.
+                if (typeof ToursApi?.uploadImage === 'function') {
+                    result = await ToursApi.uploadImage(file);
+                } else {
+                    result = await uploadTourImageDirect(file, token);
+                }
+            } catch (primaryErr) {
+                // Fallback for environments still running old backend.
+                const msg = String(primaryErr?.message || '');
+                const canFallback = msg.includes('404') || msg.includes('405') || msg.toLowerCase().includes('not allowed');
+                if (!canFallback) throw primaryErr;
+                result = await uploadPoiImageDirect(file, token);
+                usedPoiFallback = true;
+            }
+
+            val('tourImageUrl', result?.imageUrl || '');
+            syncTourImagePreview();
+            if (usedPoiFallback) {
+                toast('Ảnh đã upload file thành công. API Tours đang bản cũ, cần restart backend để lưu ảnh vào Tour.','err');
+            } else {
+                toast('Upload ảnh tour thành công!','ok');
+            }
+        } catch (err) {
+            input.value = '';
+            val('tourImageUrl', '');
+            syncTourImagePreview();
+            toast('Lỗi upload ảnh: ' + (err?.message || 'Vui lòng thử lại.'), 'err');
+        }
+    });
+}
+
+async function uploadTourImageDirect(file, token) {
+    const fd = new FormData();
+    fd.append('file', file);
+    const uploadUrl = `${API_BASE_URL}/Tours/upload-image`;
+    const resp = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd
+    });
+    const result = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error(result?.message || `HTTP error! status: ${resp.status}`);
+    return result;
+}
+
+async function uploadPoiImageDirect(file, token) {
+    const fd = new FormData();
+    fd.append('file', file);
+    const uploadUrl = `${API_BASE_URL}/POIs/upload-image`;
+    const resp = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd
+    });
+    const result = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error(result?.message || `HTTP error! status: ${resp.status}`);
+    return result;
+}
+
+function getTourRowId(tour) {
+    return String(tour?.id || tour?.Id || '').trim();
+}
+
+function isTourRowActive(tour) {
+    return !!(tour?.isActive ?? tour?.IsActive);
+}
+
+function isTourRowFree(tour) {
+    return !!(tour?.isFreeTour ?? tour?.IsFreeTour);
+}
+
+function findConflictingActiveFreeTour(currentTourId) {
+    const normalizedCurrentId = String(currentTourId || '').trim();
+    return allTours.find(t => {
+        const id = getTourRowId(t);
+        const isSameTour = normalizedCurrentId && id === normalizedCurrentId;
+        return !isSameTour && isTourRowFree(t) && isTourRowActive(t);
+    }) || null;
+}
+
+/* --- SAVE --- */
+async function saveTour() {
+    const id=document.getElementById('tourId').value;
+    const name=document.getElementById('tourName').value.trim();
+    if (!name) { toast('Tên Tour không được để trống!','err'); return; }
+    const descriptionVi = document.getElementById('tourDesc').value.trim();
+    const selectedImageUrl = document.getElementById('tourImageUrl').value.trim();
+    const existingTour = id ? allTours.find(x => getTourRowId(x) === String(id).trim()) : null;
+    const translationPayload = await buildTourTranslationPayload(name, descriptionVi, existingTour);
+    const data = {
+        tourName: name,
+        description: descriptionVi,
+        tourName_En: translationPayload.tourName_En,
+        tourName_Zh: translationPayload.tourName_Zh,
+        description_En: translationPayload.description_En,
+        description_Zh: translationPayload.description_Zh,
+        imageUrl: selectedImageUrl || null,
+        ImageUrl: selectedImageUrl || null,
+        estimatedDurationMinutes: parseInt(document.getElementById('tourDuration').value)||90,
+        routeType: document.getElementById('tourRouteType').value,
+        themes: getChips('themeChips'),
+        timeSlots: getChips('timeChips'),
+        poiIds: [...selPOIs],
+        isActive: document.getElementById('tourActive').checked,
+        isFreeTour: document.getElementById('tourFree').checked,
+        routeGeometry: savedRouteGeom
+    };
+
+    if (data.isFreeTour && data.isActive) {
+        const conflictingTour = findConflictingActiveFreeTour(id);
+        if (conflictingTour) {
+            const conflictName = conflictingTour.tourName || conflictingTour.TourName || 'tour khác';
+            toast(`Đã có tour free "${conflictName}" đang bật. Vui lòng ẩn tour kia thì mới có thể kích hoạt free tour này.`, 'err');
+            return;
+        }
+    }
+
+    try {
+        let savedId = id;
+        if (id) {
+            await ToursApi.update(id,data);
+        } else {
+            const created = await ToursApi.create(data);
+            savedId = created?.id || created?.Id || '';
+        }
+
+        await loadTours();
+        if (selectedImageUrl && savedId) {
+            const savedTour = allTours.find(x => getTourRowId(x) === String(savedId).trim());
+            const persistedImageUrl = getTourImageUrl(savedTour);
+            if (!persistedImageUrl) {
+                toast('API chưa lưu được ảnh vào Tour (backend đang chạy bản cũ). Hãy restart API backend rồi lưu lại tour.','err');
+                return;
+            }
+        }
+
+        toast(id ? 'Tour đã được cập nhật!' : 'Tour mới đã được tạo!','ok');
+        closeModal();
+    } catch(e) { toast('Lỗi lưu: '+e.message,'err'); }
+}
+
+function pickNonEmpty(...values) {
+    for (const value of values) {
+        if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    return '';
+}
+
+function readExistingTourTranslations(tour) {
+    return {
+        tourName_En: pickNonEmpty(tour?.tourName_En, tour?.TourName_En, tour?.tourNameEn, tour?.TourNameEn),
+        tourName_Zh: pickNonEmpty(tour?.tourName_Zh, tour?.TourName_Zh, tour?.tourNameZh, tour?.TourNameZh),
+        description_En: pickNonEmpty(tour?.description_En, tour?.Description_En, tour?.descriptionEn, tour?.DescriptionEn),
+        description_Zh: pickNonEmpty(tour?.description_Zh, tour?.Description_Zh, tour?.descriptionZh, tour?.DescriptionZh)
+    };
+}
+
+function mapTranslateResult(result, existingValue, lang) {
+    if (!result || typeof result !== 'object') return existingValue || null;
+    if (lang === 'en') {
+        return pickNonEmpty(result.en, result['en-US'], existingValue) || null;
+    }
+    return pickNonEmpty(result['zh-CN'], result.zh, existingValue) || null;
+}
+
+async function safeAutoTranslateText(text) {
+    const clean = (text || '').trim();
+    if (!clean) return {};
+    try {
+        return await api.autoTranslate(clean, ['en', 'zh-CN']);
+    } catch (err) {
+        console.warn('[tour] autoTranslate failed:', err);
+        return {};
+    }
+}
+
+async function buildTourTranslationPayload(nameVi, descVi, existingTour) {
+    const existing = readExistingTourTranslations(existingTour);
+    const [nameResult, descResult] = await Promise.all([
+        safeAutoTranslateText(nameVi),
+        safeAutoTranslateText(descVi)
+    ]);
+
+    return {
+        tourName_En: mapTranslateResult(nameResult, existing.tourName_En, 'en'),
+        tourName_Zh: mapTranslateResult(nameResult, existing.tourName_Zh, 'zh'),
+        description_En: mapTranslateResult(descResult, existing.description_En, 'en'),
+        description_Zh: mapTranslateResult(descResult, existing.description_Zh, 'zh')
+    };
+}
+
+/* --- DELETE --- */
+async function delTour(id) {
+    const ok = await showConfirmPopup('Bạn có chắc muốn xóa tour này?');
+    if (!ok) return;
+    try { await ToursApi.delete(id); toast('Đã xóa tour.','ok'); loadTours(); }
+    catch(e) { toast('Lỗi xóa: '+e.message,'err'); }
+}
+
+function showConfirmPopup(message) {
+    if (window.UiFeedback?.confirm) {
+        return window.UiFeedback.confirm(message || '', {
+            title: 'Xác nhận',
+            confirmText: 'Đồng ý',
+            cancelText: 'Hủy'
+        });
+    }
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay active';
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:420px;border-radius:16px;">
+                <div class="modal-header"><h3 class="modal-title" style="font-size:1.05rem;">Xác nhận</h3></div>
+                <div class="modal-body" style="padding:1rem 1.4rem;">${esc(message || '')}</div>
+                <div class="modal-footer" style="justify-content:flex-end;gap:.6rem;">
+                    <button class="btn btn-outline" id="cfNo">Hủy</button>
+                    <button class="btn btn-primary" id="cfYes">Đồng ý</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const cleanup = (val) => { overlay.remove(); resolve(val); };
+        overlay.querySelector('#cfNo')?.addEventListener('click', () => cleanup(false));
+        overlay.querySelector('#cfYes')?.addEventListener('click', () => cleanup(true));
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+    });
+}
+
+/* --- UTILS --- */
+function rtLabel(v){ return {ordered:'Địa lý',free:'Tự do',theme:'Chủ đề'}[v]||v; }
+function esc(s){ return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''; }
+function grid(h){ document.getElementById('toursGrid').innerHTML=h; }
+function set(id,v){ document.getElementById(id).textContent=v; }
+function set2(id,v){ document.getElementById(id).textContent=v; }
+function val(id,v){ document.getElementById(id).value=v; }
+function toast(msg,type='info'){
+    if (window.UiFeedback?.toast) {
+        window.UiFeedback.toast(msg, type === 'ok' ? 'success' : (type === 'err' ? 'error' : type));
+        return;
+    }
+    const w=document.getElementById('toastWrap');
+    const t=document.createElement('div');
+    t.className=`toast ${type}`;
+    const ic=type==='ok'?'check-circle':type==='err'?'exclamation-circle':'info-circle';
+    t.innerHTML=`<i class="fas fa-${ic}"></i> ${msg}`;
+    w.appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+</script>
+</body>
+</html>

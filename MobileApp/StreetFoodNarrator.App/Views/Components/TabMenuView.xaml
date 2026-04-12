@@ -1,0 +1,226 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    TabMenuView.xaml - Tab Danh sách tour
+    Search + pull-to-refresh + danh sách tour đồng bộ backend
+-->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             x:DataType="vm:MainViewModel"
+             x:Class="StreetFoodNarrator.App.Views.Components.TabMenuView"
+             x:Name="Root"
+             BackgroundColor="#0A1612">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <Border Grid.Row="0" BackgroundColor="#0A1612" Padding="14,52,14,8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <SearchBar x:Name="TourSearchBar" Grid.Column="0" Placeholder="Tìm kiếm tour..."
+                           Text="{Binding TourSearchQuery}"
+                           BackgroundColor="#0E1E17" TextColor="White"
+                           PlaceholderColor="#6B7280"/>
+
+                <Border Grid.Column="1"
+                        IsVisible="{Binding IsVipBadgeVisible}"
+                        VerticalOptions="Center"
+                        StrokeShape="RoundRectangle 12"
+                        BackgroundColor="#22C55E20"
+                        Stroke="#22C55E66"
+                        Padding="10,6">
+                    <Label Text="{Binding VipBadgeLabel}"
+                           FontSize="11"
+                           FontAttributes="Bold"
+                           TextColor="#86EFAC"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1"
+                Margin="0,0,0,8"
+                IsVisible="{Binding IsTourDataStale}"
+                BackgroundColor="#1A2D22" Padding="10,7" Stroke="#2F4A3D" StrokeThickness="1">
+            <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                <Label Text="&#xF05A9;" FontFamily="MDI" TextColor="#FBBF24" FontSize="16" VerticalOptions="Center"/>
+                <Label x:Name="OfflineTourNoticeLabel" Text="Đang xem tour ngoại tuyến (dữ liệu đã lưu)."
+                       TextColor="#D1D5DB" FontSize="12" FontAttributes="Bold" VerticalOptions="Center"/>
+            </HorizontalStackLayout>
+        </Border>
+
+        <RefreshView Grid.Row="2"
+                     IsRefreshing="{Binding IsToursRefreshing}"
+                     Command="{Binding RefreshToursCommand}">
+            <CollectionView x:Name="TourListView"
+                            ItemsSource="{Binding FilteredTours}"
+                            Margin="0,0,0,72"
+                            SelectionMode="None"
+                            ItemSizingStrategy="MeasureFirstItem">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
+                        <Label Text="&#xF0349;" FontFamily="MDI" FontSize="42"
+                               TextColor="#4B5563" HorizontalOptions="Center"/>
+                           <Label x:Name="EmptyTourLabel" Text="Chưa có tour phù hợp" FontSize="15"
+                               TextColor="#6B7280" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:MainViewModel+TourListItem">
+                        <Grid Margin="14,0,14,10">
+                            <Border StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12"
+                                    MinimumHeightRequest="164"
+                                    Opacity="{Binding CardOpacity}">
+                                <VerticalStackLayout Spacing="10">
+                                    <Grid ColumnDefinitions="64,*,Auto,Auto" ColumnSpacing="10">
+                                        <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                                                BackgroundColor="#1A3426" WidthRequest="64" HeightRequest="64">
+                                            <Image Source="{Binding CoverImageUrl}" Aspect="AspectFill"
+                                                   WidthRequest="64" HeightRequest="64" />
+                                        </Border>
+
+                                        <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center" MinimumHeightRequest="82">
+                                            <Label Text="{Binding Name}" FontSize="14"
+                                                   FontAttributes="Bold" TextColor="White"
+                                                   LineBreakMode="TailTruncation" MaxLines="2"
+                                                   HeightRequest="34" VerticalTextAlignment="Start"/>
+                                            <Label Text="{Binding Description}" FontSize="12"
+                                                 TextColor="#9CA3AF" LineBreakMode="TailTruncation" MaxLines="2"
+                                                 HeightRequest="34" VerticalTextAlignment="Start"/>
+                                                 <Label Text="{Binding DisplayPoiStopsText}"
+                                                   FontSize="11" TextColor="#22C55E"/>
+                                        </VerticalStackLayout>
+
+                                        <VerticalStackLayout Grid.Column="2" Spacing="6" HorizontalOptions="End" VerticalOptions="Start">
+                                            <Border StrokeShape="RoundRectangle 10"
+                                                    BackgroundColor="#22C55E18"
+                                                    Stroke="#22C55E30"
+                                                    WidthRequest="72"
+                                                    HeightRequest="36">
+                                                <Label Text="{Binding DisplayDurationText}"
+                                                       FontSize="12"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#22C55E"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center"/>
+                                            </Border>
+                                            <Border StrokeShape="RoundRectangle 10"
+                                                    WidthRequest="72"
+                                                    HeightRequest="24"
+                                                    Padding="6,2"
+                                                    BackgroundColor="#33415522"
+                                                    Stroke="#33415555">
+                                                <Border.Triggers>
+                                                    <DataTrigger TargetType="Border" Binding="{Binding IsCompleted}" Value="True">
+                                                        <Setter Property="BackgroundColor" Value="#22C55E1F"/>
+                                                        <Setter Property="Stroke" Value="#22C55E66"/>
+                                                    </DataTrigger>
+                                                </Border.Triggers>
+                                                <Label Text="{Binding CompletionStatusText}"
+                                                       FontSize="10"
+                                                       FontAttributes="Bold"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center"
+                                                       TextColor="#94A3B8">
+                                                    <Label.Triggers>
+                                                        <DataTrigger TargetType="Label" Binding="{Binding IsCompleted}" Value="True">
+                                                            <Setter Property="TextColor" Value="#22C55E"/>
+                                                        </DataTrigger>
+                                                    </Label.Triggers>
+                                                </Label>
+                                            </Border>
+                                        </VerticalStackLayout>
+
+                                        <Border Grid.Column="3" StrokeShape="RoundRectangle 10"
+                                                BackgroundColor="#1A2A22"
+                                                Stroke="#2F4A3D" WidthRequest="36" HeightRequest="36"
+                                                VerticalOptions="Start">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={x:Reference Root}, Path=BindingContext.ToggleSaveTourCommand}"
+                                                    CommandParameter="{Binding .}"/>
+                                            </Border.GestureRecognizers>
+                                            <Label FontFamily="MDI" FontSize="18"
+                                                   HorizontalOptions="Center" VerticalOptions="Center">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsFavorite}" Value="True">
+                                                        <Setter Property="Text" Value="&#xF02D1;"/>
+                                                        <Setter Property="TextColor" Value="#EF4444"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsFavorite}" Value="False">
+                                                        <Setter Property="Text" Value="&#xF02D2;"/>
+                                                        <Setter Property="TextColor" Value="#9CA3AF"/>
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                        </Border>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                        <Button Grid.Column="0"
+                                                Text="{Binding DetailButtonText}"
+                                                FontSize="12"
+                                                HeightRequest="38"
+                                                CornerRadius="10"
+                                                Padding="0"
+                                                BackgroundColor="#1A2E40"
+                                                TextColor="#CDE4FF"
+                                                Clicked="OnTourDetailClicked"/>
+
+                                        <Button Grid.Column="1"
+                                                Text="{Binding StartNowButtonText}"
+                                                FontSize="12"
+                                                FontAttributes="Bold"
+                                                HeightRequest="38"
+                                                CornerRadius="10"
+                                                Padding="0"
+                                                BackgroundColor="#22C55E"
+                                                TextColor="White"
+                                                IsEnabled="{Binding IsStartAvailable}"
+                                                Command="{Binding Source={x:Reference Root}, Path=BindingContext.StartTourNowCommand}"
+                                                CommandParameter="{Binding .}">
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding IsStartAvailable}" Value="False">
+                                                    <Setter Property="BackgroundColor" Value="#334155"/>
+                                                    <Setter Property="TextColor" Value="#CBD5E1"/>
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Border IsVisible="{Binding IsLockedByTrial}"
+                                    StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="#BD0A1612"
+                                    Stroke="#22C55E55"
+                                    Padding="16">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnLockedTourTapped"/>
+                                </Border.GestureRecognizers>
+
+                                <VerticalStackLayout Spacing="8" VerticalOptions="Center" HorizontalOptions="Center">
+                                    <Label Text="🔒" FontSize="22" HorizontalOptions="Center"/>
+                                    <Label Text="{Binding TrialLockTitle}"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           TextColor="#D1FAE5"
+                                           HorizontalTextAlignment="Center"/>
+                                    <Label Text="{Binding TrialLockDescription}"
+                                           FontSize="12"
+                                           TextColor="#A7F3D0"
+                                           HorizontalTextAlignment="Center"
+                                           LineBreakMode="WordWrap"/>
+                                     <Label Text="Nhấn để đăng ký VIP ngay"
+                                           FontSize="11"
+                                           FontAttributes="Bold"
+                                           TextColor="#22C55E"
+                                           HorizontalTextAlignment="Center"/>
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+
+    </Grid>
+</ContentView>

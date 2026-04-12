@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    TabSavedView.xaml  –  Tab 3: Đã lưu
+    Chứa: Header + Filter category + CollectionView danh sách POI đã lưu
+    Tự quản lý hiển thị (không cần event ra ngoài)
+    Binding: SavedPOIs từ MainViewModel
+-->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StreetFoodNarrator.App.ViewModels"
+             xmlns:models="clr-namespace:StreetFoodNarrator.App.Core.Models"
+             x:DataType="vm:MainViewModel"
+             x:Name="Root"
+             x:Class="StreetFoodNarrator.App.Views.Components.TabSavedView"
+             BackgroundColor="#0A1612">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <Grid Grid.Row="0" Padding="16,52,16,8" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <VerticalStackLayout Grid.Column="0" Spacing="4">
+                <Label x:Name="SavedHeaderTitleLabel" Text="Đã lưu" FontSize="22" FontAttributes="Bold" TextColor="White"/>
+                <Label x:Name="SavedHeaderSubtitleLabel" Text="Các tour và quán yêu thích" FontSize="13" TextColor="#6B7280"/>
+            </VerticalStackLayout>
+
+            <Border Grid.Column="1"
+                    IsVisible="{Binding IsVipBadgeVisible}"
+                    VerticalOptions="Center"
+                    StrokeShape="RoundRectangle 12"
+                    BackgroundColor="#22C55E20"
+                    Stroke="#22C55E66"
+                    Padding="10,6">
+                <Label Text="{Binding VipBadgeLabel}"
+                       FontSize="11"
+                       FontAttributes="Bold"
+                       TextColor="#86EFAC"/>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="14,0,14,10" ColumnSpacing="8">
+            <Border x:Name="SavedTourSegment"
+                    Grid.Column="0" StrokeShape="RoundRectangle 12"
+                    BackgroundColor="#F5A623" Padding="0,10">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSavedTourSegmentTapped"/>
+                </Border.GestureRecognizers>
+                <Label x:Name="SavedTourLabel" Text="Tour đã lưu" FontSize="12" FontAttributes="Bold"
+                       TextColor="White" HorizontalOptions="Center"/>
+            </Border>
+
+            <Border x:Name="SavedPoiSegment"
+                    Grid.Column="1" StrokeShape="RoundRectangle 12"
+                    BackgroundColor="#1C3024" Padding="0,10">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSavedPoiSegmentTapped"/>
+                </Border.GestureRecognizers>
+                  <Label x:Name="SavedPoiLabel" Text="Quán đã lưu" FontSize="12"
+                       TextColor="#6B7280" HorizontalOptions="Center"/>
+            </Border>
+        </Grid>
+
+        <RefreshView Grid.Row="2"
+                     IsRefreshing="{Binding IsSavedDataRefreshing}"
+                     Command="{Binding RefreshSavedDataCommand}">
+            <Grid>
+                <CollectionView x:Name="SavedTourList"
+                                ItemsSource="{Binding SavedTours}"
+                                SelectionMode="None"
+                                ItemSizingStrategy="MeasureFirstItem"
+                                Margin="0,0,0,72">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
+                        <Label Text="&#xF0349;" FontFamily="MDI" FontSize="48"
+                               TextColor="#4B5563" HorizontalOptions="Center"/>
+                           <Label x:Name="EmptySavedTourTitleLabel" Text="Chưa có tour nào được lưu" FontSize="15"
+                               TextColor="#6B7280" HorizontalOptions="Center"/>
+                           <Label x:Name="EmptySavedTourSubtitleLabel" Text="Nhấn tim ở Danh sách tour để lưu tour yêu thích" FontSize="12"
+                               TextColor="#4B5563" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:MainViewModel+TourListItem">
+                        <Border Margin="14,0,14,10" StrokeShape="RoundRectangle 16"
+                                BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12"
+                                MinimumHeightRequest="164">
+                            <VerticalStackLayout Spacing="10">
+                                <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="10">
+                                    <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                                            BackgroundColor="#1A3426" WidthRequest="64" HeightRequest="64">
+                                        <Image Source="{Binding CoverImageUrl}" Aspect="AspectFill"
+                                               WidthRequest="64" HeightRequest="64" />
+                                    </Border>
+
+                                    <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center" MinimumHeightRequest="82">
+                                        <Border BackgroundColor="#33415522"
+                                                Stroke="#33415555"
+                                                StrokeShape="RoundRectangle 8"
+                                                Padding="6,2"
+                                                HorizontalOptions="Start">
+                                            <Border.Triggers>
+                                                <DataTrigger TargetType="Border" Binding="{Binding IsCompleted}" Value="True">
+                                                    <Setter Property="BackgroundColor" Value="#22C55E1F"/>
+                                                    <Setter Property="Stroke" Value="#22C55E66"/>
+                                                </DataTrigger>
+                                            </Border.Triggers>
+                                            <Label Text="{Binding CompletionStatusText}"
+                                                   FontSize="10"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#94A3B8">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsCompleted}" Value="True">
+                                                        <Setter Property="TextColor" Value="#22C55E"/>
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                        </Border>
+                                        <Label Text="{Binding Name}" FontSize="14"
+                                               FontAttributes="Bold" TextColor="White"
+                                               LineBreakMode="TailTruncation" MaxLines="2"
+                                               HeightRequest="34" VerticalTextAlignment="Start"/>
+                                        <Label Text="{Binding Description}" FontSize="12"
+                                             TextColor="#9CA3AF" LineBreakMode="TailTruncation" MaxLines="2"
+                                             HeightRequest="34" VerticalTextAlignment="Start"/>
+                                             <Label Text="{Binding DisplayPoiStopsText}"
+                                               FontSize="11" TextColor="#22C55E"/>
+                                    </VerticalStackLayout>
+
+                                    <Border Grid.Column="2" StrokeShape="RoundRectangle 10"
+                                            BackgroundColor="#EF444418" Stroke="#EF444430"
+                                            WidthRequest="36" HeightRequest="36" VerticalOptions="Start">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnSavedTourHeartTapped"/>
+                                        </Border.GestureRecognizers>
+                                        <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="18"
+                                               TextColor="#EF4444" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                    </Border>
+                                </Grid>
+
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                    <Button Grid.Column="0"
+                                            Text="{Binding DetailButtonText}"
+                                            FontSize="12"
+                                            HeightRequest="38"
+                                            CornerRadius="10"
+                                            Padding="0"
+                                            BackgroundColor="#1A2E40"
+                                            TextColor="#CDE4FF"
+                                            Clicked="OnSavedTourDetailClicked"/>
+
+                                    <Button Grid.Column="1"
+                                            Text="{Binding StartNowButtonText}"
+                                            FontSize="12"
+                                            FontAttributes="Bold"
+                                            HeightRequest="38"
+                                            CornerRadius="10"
+                                            Padding="0"
+                                            BackgroundColor="#22C55E"
+                                            TextColor="White"
+                                            IsEnabled="{Binding IsStartAvailable}"
+                                            Clicked="OnSavedTourStartClicked">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsStartAvailable}" Value="False">
+                                                <Setter Property="BackgroundColor" Value="#334155"/>
+                                                <Setter Property="TextColor" Value="#CBD5E1"/>
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <CollectionView x:Name="SavedPoiList"
+                                IsVisible="False"
+                                ItemsSource="{Binding SavedPOIs}"
+                                SelectionMode="Single"
+                                SelectionChanged="OnCardSelectionChanged"
+                                Margin="0,0,0,72">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="10" Margin="0,60,0,0">
+                        <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="48"
+                               TextColor="#4B5563" HorizontalOptions="Center"/>
+                           <Label x:Name="EmptySavedPoiTitleLabel" Text="Chưa có quán nào được lưu" FontSize="15"
+                               TextColor="#6B7280" HorizontalOptions="Center"/>
+                           <Label x:Name="EmptySavedPoiSubtitleLabel" Text="Nhấn tim ❤ trong tab Map/Explore để lưu quán" FontSize="12"
+                               TextColor="#4B5563" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:POI">
+                        <Border Margin="14,0,14,10" StrokeShape="RoundRectangle 16"
+                                BackgroundColor="#0E1E17" Stroke="#1C3024" Padding="12">
+                            <Grid ColumnDefinitions="64,*,Auto,Auto" ColumnSpacing="8">
+                                <Border Grid.Column="0" StrokeShape="RoundRectangle 14"
+                                        BackgroundColor="#1A3426" WidthRequest="64" HeightRequest="64">
+                                    <Image Source="{Binding DisplayImageUrl}" Aspect="AspectFill"
+                                           WidthRequest="64" HeightRequest="64" />
+                                </Border>
+
+                                <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                     <Label Text="{Binding DisplayName, Converter={StaticResource StringFallbackConverter}, ConverterParameter='Tên quán đang cập nhật'}"
+                                           FontSize="14" FontAttributes="Bold" TextColor="White"/>
+                                    <Label Text="{Binding DisplaySignatureDishText}"
+                                           FontSize="12" TextColor="#9CA3AF" LineBreakMode="TailTruncation"/>
+                                    <HorizontalStackLayout Spacing="10">
+                                        <HorizontalStackLayout Spacing="4">
+                                            <Label Text="&#xF04CE;" FontFamily="MDI" FontSize="12" TextColor="#FBBF24"/>
+                                            <Label Text="{Binding Rating, StringFormat='{0:F1}', TargetNullValue='—'}"
+                                                   FontSize="12" TextColor="#FBBF24"/>
+                                        </HorizontalStackLayout>
+                                        <HorizontalStackLayout Spacing="4">
+                                            <Label Text="&#xF025A;" FontFamily="MDI" FontSize="12" TextColor="#6B9E7E"/>
+                                            <Label Text="{Binding Category, Converter={StaticResource StringFallbackConverter}, ConverterParameter='Đang cập nhật'}"
+                                                   FontSize="12" TextColor="#6B9E7E" LineBreakMode="TailTruncation"/>
+                                        </HorizontalStackLayout>
+                                    </HorizontalStackLayout>
+                                    <HorizontalStackLayout Spacing="6">
+                                        <Label Text="&#xF02DC;" FontFamily="MDI" FontSize="12" TextColor="#6B7280"/>
+                                        <Label Text="{Binding Address, Converter={StaticResource StringFallbackConverter}, ConverterParameter='Địa chỉ đang cập nhật'}"
+                                               FontSize="12" TextColor="#6B7280" LineBreakMode="TailTruncation"/>
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <Border Grid.Column="2" StrokeShape="RoundRectangle 10"
+                                        BackgroundColor="#1A2E40" Stroke="#1C3A50"
+                                        WidthRequest="40" HeightRequest="40" VerticalOptions="Center">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnDetailTapped"/>
+                                    </Border.GestureRecognizers>
+                                    <Label Text="&#xF04E4;" FontFamily="MDI" FontSize="18"
+                                           TextColor="#22C55E" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                </Border>
+
+                                <Border Grid.Column="3" StrokeShape="RoundRectangle 10"
+                                        BackgroundColor="#EF444418" Stroke="#EF444430"
+                                        WidthRequest="40" HeightRequest="40" VerticalOptions="Center">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnHeartTapped"/>
+                                    </Border.GestureRecognizers>
+                                    <Label Text="&#xF02D1;" FontFamily="MDI" FontSize="18"
+                                           TextColor="#EF4444" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </RefreshView>
+
+    </Grid>
+</ContentView>

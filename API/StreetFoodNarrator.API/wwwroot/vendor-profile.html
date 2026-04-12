@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông tin tài khoản Vendor - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js?v=20260406"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --success: #06D6A0;
+            --warning: #FFD23F;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%);
+            color: var(--dark);
+            overflow-x: hidden;
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            transition: margin-left 0.3s;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            gap: 1rem;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.3rem;
+            font-weight: 900;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+        }
+
+        .header-subtitle {
+            color: #637084;
+            margin-top: 0.35rem;
+            font-size: 0.92rem;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 11px;
+            padding: 0.72rem 1.15rem;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            color: white;
+            background: var(--gradient);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(255, 107, 53, 0.28);
+        }
+
+        .btn-outline {
+            background: #fff;
+            border: 1px solid #d4dce6;
+            color: #2a3a51;
+        }
+
+        .btn-outline:hover {
+            background: #f5f8fc;
+            border-color: #c5d1e0;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            padding: 0;
+            justify-content: center;
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 1.6rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px var(--shadow);
+            padding: 1.15rem 1.2rem;
+        }
+
+        .stat-label {
+            color: #6B7280;
+            font-size: 0.82rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .stat-value {
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.3rem;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.42);
+            backdrop-filter: blur(2px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            z-index: 1200;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+        }
+
+        .modal-card {
+            width: min(980px, 96vw);
+            max-height: 92vh;
+            overflow: auto;
+            background: #fff;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            box-shadow: 0 22px 48px rgba(15, 23, 42, 0.24);
+        }
+
+        .modal-header {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 1rem 1.2rem;
+            border-bottom: 1px solid var(--border);
+            background: #fff;
+        }
+
+        .modal-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .modal-body {
+            padding: 1rem 1.2rem 1.2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px var(--shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .card-body {
+            padding: 1.2rem 1.25rem;
+        }
+
+        .edit-form {
+            margin-top: 1.2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .edit-form-modal {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+
+        .form-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 0.85rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.9rem;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .field.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .field-error input,
+        .field-error textarea {
+            border-color: #d93025;
+            box-shadow: 0 0 0 3px rgba(217, 48, 37, 0.12);
+        }
+
+        .field-error-text {
+            color: #b42318;
+            font-size: 0.78rem;
+            margin-top: -0.2rem;
+        }
+
+        .field-label {
+            color: #6B7280;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .field input,
+        .field textarea {
+            border: 1px solid #D4DCE6;
+            border-radius: 10px;
+            padding: 0.62rem 0.75rem;
+            font-size: 0.9rem;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--dark);
+            background: #FFFFFF;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .field input:disabled,
+        .field textarea:disabled {
+            background: #f5f7fa;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+
+        .field textarea {
+            min-height: 94px;
+            resize: vertical;
+        }
+
+        .field input:focus,
+        .field textarea:focus {
+            outline: none;
+            border-color: rgba(0, 78, 137, 0.6);
+            box-shadow: 0 0 0 3px rgba(0, 78, 137, 0.16);
+        }
+
+        .form-actions {
+            margin-top: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+        }
+
+        .btn-ghost {
+            background: #EEF2F7;
+            color: #2A3A51;
+        }
+
+        .btn-ghost:hover {
+            background: #DFE6EF;
+        }
+
+        .profile-row {
+            display: grid;
+            grid-template-columns: 165px 1fr;
+            gap: 0.75rem;
+            align-items: baseline;
+            padding: 0.55rem 0;
+            border-bottom: 1px dashed #EDF0F3;
+        }
+
+        .profile-row:last-child { border-bottom: none; }
+
+        .profile-label {
+            color: #6B7280;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .profile-value {
+            color: #182335;
+            font-size: 0.93rem;
+            word-break: break-word;
+        }
+
+        .status-pill {
+            padding: 0.22rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .status-approved { background: rgba(6, 214, 160, 0.15); color: #028a65; }
+        .status-pending { background: rgba(255, 210, 63, 0.18); color: #946400; }
+        .status-rejected { background: rgba(239, 71, 111, 0.15); color: #B21943; }
+        .status-unknown { background: #eef2f7; color: #64748b; }
+
+        .alert {
+            border-radius: 12px;
+            padding: 0.8rem 0.95rem;
+            font-size: 0.86rem;
+            margin-bottom: 1rem;
+            display: none;
+            line-height: 1.45;
+        }
+
+        .alert.show { display: block; }
+        .alert-info { background: rgba(0, 78, 137, 0.1); color: #0A4A79; }
+        .alert-danger { background: rgba(239, 71, 111, 0.11); color: #9D1842; }
+
+        .skeleton {
+            position: relative;
+            overflow: hidden;
+            background: #f2f4f8;
+            border-radius: 8px;
+            height: 15px;
+        }
+
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            height: 100%;
+            width: 120%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+            animation: shimmer 1.3s infinite;
+        }
+
+        @keyframes shimmer {
+            100% { left: 140%; }
+        }
+
+        @media (max-width: 1080px) {
+            .overview-grid { grid-template-columns: 1fr; }
+            .layout { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 700px) {
+            .main-content { padding: 1rem; }
+            .header { align-items: flex-start; flex-direction: column; }
+            .profile-row { grid-template-columns: 1fr; gap: 0.3rem; }
+            .page-title { font-size: 1.85rem; }
+            .form-grid { grid-template-columns: 1fr; }
+            .modal-card {
+                width: 100%;
+                max-height: 95vh;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <div>
+            <h1 class="page-title">Thông tin tài khoản Vendor</h1>
+            <p class="header-subtitle">Xem và chỉnh sửa hồ sơ tài khoản/cửa hàng của bạn.</p>
+        </div>
+        <button class="btn btn-primary" onclick="loadProfile()">
+            <i class="fas fa-rotate"></i>
+            Làm mới
+        </button>
+    </header>
+
+    <div id="notice" class="alert alert-info"></div>
+    <div id="errorBox" class="alert alert-danger"></div>
+
+    <section class="overview-grid">
+        <article class="stat-card">
+            <div class="stat-label">Trạng thái xác minh</div>
+            <div class="stat-value" id="stat-status"><span class="skeleton" style="width: 130px; display:inline-block;"></span></div>
+        </article>
+        <article class="stat-card">
+            <div class="stat-label">Mã Vendor</div>
+            <div class="stat-value" id="stat-vendor-id"><span class="skeleton" style="width: 90px; display:inline-block;"></span></div>
+        </article>
+        <article class="stat-card">
+            <div class="stat-label">Cập nhật gần nhất</div>
+            <div class="stat-value" id="stat-updated-at" style="font-size: 1.15rem;"><span class="skeleton" style="width: 150px; display:inline-block;"></span></div>
+        </article>
+    </section>
+
+    <section class="layout">
+        <article class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-user-gear"></i> Hồ sơ của tôi</h2>
+                <button class="btn btn-outline" type="button" id="btnToggleEdit">
+                    <i class="fas fa-pen"></i>
+                    Chỉnh sửa
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="accountDetails">
+                    <div class="profile-row"><div class="profile-label">Họ và tên</div><div class="profile-value"><span class="skeleton" style="width: 180px; display:inline-block;"></span></div></div>
+                    <div class="profile-row"><div class="profile-label">Email liên hệ</div><div class="profile-value"><span class="skeleton" style="width: 210px; display:inline-block;"></span></div></div>
+                    <div class="profile-row"><div class="profile-label">Số điện thoại tài khoản</div><div class="profile-value"><span class="skeleton" style="width: 140px; display:inline-block;"></span></div></div>
+                    <div class="profile-row"><div class="profile-label">Vai trò</div><div class="profile-value"><span class="skeleton" style="width: 120px; display:inline-block;"></span></div></div>
+                    <div class="profile-row"><div class="profile-label">Trạng thái xác minh</div><div class="profile-value"><span class="skeleton" style="width: 140px; display:inline-block;"></span></div></div>
+                </div>
+            </div>
+        </article>
+    </section>
+</main>
+
+<div class="modal-backdrop" id="editProfileModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editProfileTitle">
+        <div class="modal-header">
+            <h3 class="modal-title" id="editProfileTitle"><i class="fas fa-user-pen"></i> Chỉnh sửa thông tin</h3>
+            <button class="btn btn-outline btn-icon" type="button" id="btnCloseEditModal" aria-label="Đóng">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="editErrorBox" class="alert alert-danger"></div>
+            <form id="vendorEditForm" class="edit-form edit-form-modal">
+                <div class="form-grid">
+                    <label class="field">
+                        <span class="field-label">Họ và tên</span>
+                        <input id="inputFullName" type="text" maxlength="200" placeholder="Ví dụ: Nguyễn Văn A" disabled>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Số điện thoại</span>
+                        <input id="inputPhoneNumber" type="text" maxlength="30" placeholder="Ví dụ: +84 90 123 4567" disabled>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Người liên hệ</span>
+                        <input id="inputContactName" type="text" maxlength="200" placeholder="Tên người liên hệ" disabled>
+                    </label>
+                    <label class="field full-width">
+                        <span class="field-label">Địa chỉ</span>
+                        <input id="inputAddress" type="text" maxlength="500" placeholder="Địa chỉ quán" disabled>
+                    </label>
+                    <label class="field full-width">
+                        <span class="field-label">Mô tả cửa hàng</span>
+                        <textarea id="inputBusinessDescription" maxlength="500" placeholder="Giới thiệu ngắn về cửa hàng" disabled></textarea>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="submit" id="btnSaveProfile" disabled>
+                        <i class="fas fa-floppy-disk"></i>
+                        Lưu thay đổi
+                    </button>
+                    <button class="btn btn-ghost" type="button" id="btnResetProfile" disabled>Khôi phục</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="api.js"></script>
+<script>
+    function toText(value, fallback) {
+        if (value === null || value === undefined) return fallback;
+        const s = String(value).trim();
+        return s ? s : fallback;
+    }
+
+    function readCaseInsensitive(obj, names) {
+        if (!obj) return null;
+        for (const name of names) {
+            if (Object.prototype.hasOwnProperty.call(obj, name)) return obj[name];
+        }
+        return null;
+    }
+
+    function formatDateTime(value) {
+        if (!value) return 'Chưa có';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return 'Chưa có';
+        return new Intl.DateTimeFormat('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(d);
+    }
+
+    function statusInfo(status) {
+        const raw = (status || '').toString().trim().toLowerCase();
+        if (raw === 'approved') return { cls: 'status-approved', text: 'Đã duyệt', icon: 'fa-circle-check' };
+        if (raw === 'pending') return { cls: 'status-pending', text: 'Chờ duyệt', icon: 'fa-hourglass-half' };
+        if (raw === 'rejected') return { cls: 'status-rejected', text: 'Từ chối', icon: 'fa-circle-xmark' };
+        return { cls: 'status-unknown', text: 'Không xác định', icon: 'fa-circle-question' };
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    }
+
+    function profileRow(label, value, isHtmlValue) {
+        const safeValue = isHtmlValue ? String(value) : escapeHtml(value);
+        return '<div class="profile-row"><div class="profile-label">' + label + '</div><div class="profile-value">' + safeValue + '</div></div>';
+    }
+
+    const PHONE_REGEX = /^\+84(3|5|7|8|9)\d{8}$/;
+    const PERSON_NAME_REGEX = /^[\p{L}][\p{L}\s'.-]{1,199}$/u;
+    const profileState = {
+        account: {},
+        vendor: {},
+        isEditing: false,
+        isSaving: false
+    };
+
+    function showError(message) {
+        const box = document.getElementById('errorBox');
+        box.textContent = message;
+        box.classList.add('show');
+    }
+
+    function clearError() {
+        const box = document.getElementById('errorBox');
+        box.textContent = '';
+        box.classList.remove('show');
+    }
+
+    function showNotice(message) {
+        const box = document.getElementById('notice');
+        box.textContent = message;
+        box.classList.add('show');
+    }
+
+    function clearNotice() {
+        const box = document.getElementById('notice');
+        box.textContent = '';
+        box.classList.remove('show');
+    }
+
+    function clearFieldErrors() {
+        const fields = document.querySelectorAll('#vendorEditForm .field-error');
+        fields.forEach(function(field) {
+            field.classList.remove('field-error');
+            const text = field.querySelector('.field-error-text');
+            if (text) {
+                text.remove();
+            }
+        });
+    }
+
+    function setFieldError(fieldId, message) {
+        if (!fieldId) return;
+
+        const input = document.getElementById(fieldId);
+        if (!input) return;
+
+        const field = input.closest('.field');
+        if (!field) return;
+
+        field.classList.add('field-error');
+        const text = document.createElement('div');
+        text.className = 'field-error-text';
+        text.textContent = message;
+        field.appendChild(text);
+    }
+
+    function showFormError(message, fieldId) {
+        const box = document.getElementById('editErrorBox');
+        if (!box) return;
+
+        box.textContent = message;
+        box.classList.add('show');
+
+        if (fieldId) {
+            setFieldError(fieldId, message);
+        }
+    }
+
+    function clearFormError() {
+        clearFieldErrors();
+
+        const box = document.getElementById('editErrorBox');
+        if (!box) return;
+
+        box.textContent = '';
+        box.classList.remove('show');
+    }
+
+    function setInputValue(id, value) {
+        const input = document.getElementById(id);
+        if (!input) return;
+        input.value = value == null ? '' : String(value);
+    }
+
+    function getInputValue(id) {
+        const input = document.getElementById(id);
+        if (!input) return '';
+        return String(input.value || '').trim();
+    }
+
+    function setSaving(isSaving) {
+        profileState.isSaving = isSaving;
+        const saveBtn = document.getElementById('btnSaveProfile');
+        const resetBtn = document.getElementById('btnResetProfile');
+
+        if (saveBtn) {
+            saveBtn.disabled = isSaving || !profileState.isEditing;
+            saveBtn.innerHTML = isSaving
+                ? '<i class="fas fa-spinner fa-spin"></i> Đang lưu...'
+                : '<i class="fas fa-floppy-disk"></i> Lưu thay đổi';
+        }
+
+        if (resetBtn) {
+            resetBtn.disabled = isSaving || !profileState.isEditing;
+        }
+
+        const toggleBtn = document.getElementById('btnToggleEdit');
+        if (toggleBtn) {
+            toggleBtn.disabled = isSaving;
+        }
+    }
+
+    function setEditMode(isEditing) {
+        profileState.isEditing = Boolean(isEditing);
+
+        const modal = document.getElementById('editProfileModal');
+        if (modal) {
+            modal.classList.toggle('show', profileState.isEditing);
+            modal.setAttribute('aria-hidden', profileState.isEditing ? 'false' : 'true');
+        }
+
+        const fields = document.querySelectorAll('#vendorEditForm input, #vendorEditForm textarea');
+        fields.forEach(function(field) {
+            field.disabled = !profileState.isEditing;
+        });
+
+        const toggleBtn = document.getElementById('btnToggleEdit');
+        if (toggleBtn) {
+            toggleBtn.innerHTML = profileState.isEditing
+                ? '<i class="fas fa-xmark"></i> Hủy chỉnh sửa'
+                : '<i class="fas fa-pen"></i> Chỉnh sửa';
+        }
+
+        setSaving(profileState.isSaving);
+
+        if (profileState.isEditing) {
+            const firstInput = document.getElementById('inputFullName');
+            if (firstInput) {
+                firstInput.focus();
+                firstInput.select();
+            }
+            clearFormError();
+        } else {
+            clearFormError();
+        }
+    }
+
+    function normalizeWhitespace(value) {
+        if (value == null) return '';
+        return String(value).trim().replace(/\s+/g, ' ');
+    }
+
+    function hasInvalidControlChars(value, allowLineBreaks) {
+        if (!value) return false;
+
+        for (const ch of String(value)) {
+            const code = ch.charCodeAt(0);
+            if (code < 32 || code === 127) {
+                if (allowLineBreaks && (ch === '\n' || ch === '\r' || ch === '\t')) {
+                    continue;
+                }
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function renderOverview(vendor) {
+        const status = statusInfo(readCaseInsensitive(vendor, ['verificationStatus', 'VerificationStatus']));
+        const vendorId = readCaseInsensitive(vendor, ['vendorId', 'VendorId']);
+        const updatedAt = readCaseInsensitive(vendor, ['updatedAt', 'UpdatedAt']);
+
+        document.getElementById('stat-status').innerHTML = '<span class="status-pill ' + status.cls + '"><i class="fas ' + status.icon + '"></i> ' + status.text + '</span>';
+        document.getElementById('stat-vendor-id').textContent = toText(vendorId, 'Chưa có');
+        document.getElementById('stat-updated-at').textContent = formatDateTime(updatedAt);
+    }
+
+    function renderAccountSummary(account, vendor) {
+        const roles = readCaseInsensitive(account, ['roles', 'Roles']) || [];
+        const roleText = Array.isArray(roles) && roles.length ? roles.join(', ') : 'Vendor';
+        const status = statusInfo(readCaseInsensitive(vendor, ['verificationStatus', 'VerificationStatus']));
+
+        const statusHtml = '<span class="status-pill ' + status.cls + '"><i class="fas ' + status.icon + '"></i> ' + status.text + '</span>';
+
+        const html = [
+            profileRow('Họ và tên', toText(readCaseInsensitive(account, ['fullName', 'FullName']), 'Chưa cập nhật')),
+            profileRow('Email liên hệ', toText(readCaseInsensitive(account, ['email', 'Email']), 'Chưa có')),
+            profileRow('Số điện thoại tài khoản', toText(readCaseInsensitive(account, ['phoneNumber', 'PhoneNumber']), 'Chưa cập nhật')),
+            profileRow('Vai trò', toText(roleText, 'Vendor')),
+            profileRow('Trạng thái xác minh', statusHtml, true)
+        ].join('');
+
+        document.getElementById('accountDetails').innerHTML = html;
+    }
+
+    function fillEditForm(account, vendor) {
+        setInputValue('inputFullName', readCaseInsensitive(account, ['fullName', 'FullName']) || '');
+        setInputValue('inputPhoneNumber', readCaseInsensitive(account, ['phoneNumber', 'PhoneNumber']) || '');
+        setInputValue('inputContactName', readCaseInsensitive(vendor, ['contactName', 'ContactName']) || '');
+        setInputValue('inputAddress', readCaseInsensitive(vendor, ['address', 'Address']) || '');
+        setInputValue('inputBusinessDescription', readCaseInsensitive(vendor, ['businessDescription', 'BusinessDescription']) || '');
+    }
+
+    function buildNormalizedStatePayload(account, vendor) {
+        const normalizedEmail = normalizeWhitespace(readCaseInsensitive(account, ['email', 'Email']) || '').toLowerCase();
+        const accountPhone = normalizePhoneNumber(readCaseInsensitive(account, ['phoneNumber', 'PhoneNumber']) || '') || '';
+        const vendorPhone = normalizePhoneNumber(readCaseInsensitive(vendor, ['contactPhone', 'ContactPhone']) || '') || '';
+        const unifiedPhone = accountPhone || vendorPhone;
+
+        return {
+            fullName: normalizeWhitespace(readCaseInsensitive(account, ['fullName', 'FullName']) || ''),
+            phoneNumber: unifiedPhone,
+            contactName: normalizeWhitespace(readCaseInsensitive(vendor, ['contactName', 'ContactName']) || ''),
+            contactEmail: normalizedEmail,
+            address: normalizeWhitespace(readCaseInsensitive(vendor, ['address', 'Address']) || ''),
+            businessDescription: normalizeWhitespace(readCaseInsensitive(vendor, ['businessDescription', 'BusinessDescription']) || '')
+        };
+    }
+
+    function buildUpdatePayload() {
+        return {
+            fullName: normalizeWhitespace(getInputValue('inputFullName')),
+            phoneNumber: normalizeWhitespace(getInputValue('inputPhoneNumber')),
+            contactName: normalizeWhitespace(getInputValue('inputContactName')),
+            contactEmail: normalizeWhitespace(readCaseInsensitive(profileState.account || {}, ['email', 'Email']) || '').toLowerCase(),
+            contactPhone: normalizeWhitespace(getInputValue('inputPhoneNumber')),
+            address: normalizeWhitespace(getInputValue('inputAddress')),
+            businessDescription: normalizeWhitespace(getInputValue('inputBusinessDescription'))
+        };
+    }
+
+    function hasMeaningfulChanges(payload) {
+        const baseline = buildNormalizedStatePayload(profileState.account || {}, profileState.vendor || {});
+        const keys = Object.keys(baseline);
+        return keys.some(function(key) {
+            return String(payload[key] || '') !== String(baseline[key] || '');
+        });
+    }
+
+    function validatePayload(payload) {
+        if (!profileState.isEditing) {
+            return { message: 'Hãy bấm Chỉnh sửa trước khi cập nhật thông tin.' };
+        }
+
+        if (payload.fullName) {
+            if (payload.fullName.length > 200) {
+                return { message: 'Họ và tên tối đa 200 ký tự.', fieldId: 'inputFullName' };
+            }
+            if (!PERSON_NAME_REGEX.test(payload.fullName)) {
+                return { message: 'Họ và tên chỉ được chứa chữ cái, khoảng trắng, dấu chấm, dấu nháy hoặc dấu gạch ngang.', fieldId: 'inputFullName' };
+            }
+        }
+
+        if (payload.contactName) {
+            if (payload.contactName.length > 200) {
+                return { message: 'Tên người liên hệ tối đa 200 ký tự.', fieldId: 'inputContactName' };
+            }
+            if (!PERSON_NAME_REGEX.test(payload.contactName)) {
+                return { message: 'Tên người liên hệ chỉ được chứa chữ cái, khoảng trắng, dấu chấm, dấu nháy hoặc dấu gạch ngang.', fieldId: 'inputContactName' };
+            }
+        }
+
+        const normalizedAccountPhone = normalizePhoneNumber(payload.phoneNumber);
+        if (payload.phoneNumber && !normalizedAccountPhone) {
+            return { message: 'Số điện thoại không đúng định dạng Việt Nam.', fieldId: 'inputPhoneNumber' };
+        }
+
+        payload.phoneNumber = normalizedAccountPhone || '';
+        payload.contactPhone = normalizedAccountPhone || '';
+
+        if (payload.address.length > 500) {
+            return { message: 'Địa chỉ tối đa 500 ký tự.', fieldId: 'inputAddress' };
+        }
+
+        if (payload.businessDescription.length > 500) {
+            return { message: 'Mô tả cửa hàng tối đa 500 ký tự.', fieldId: 'inputBusinessDescription' };
+        }
+
+        if (hasInvalidControlChars(payload.fullName, false)
+            || hasInvalidControlChars(payload.contactName, false)
+            || hasInvalidControlChars(payload.contactEmail, false)
+            || hasInvalidControlChars(payload.address, false)
+            || hasInvalidControlChars(payload.phoneNumber, false)
+            || hasInvalidControlChars(payload.businessDescription, true)) {
+            return { message: 'Dữ liệu chứa ký tự điều khiển không hợp lệ.' };
+        }
+
+        if (!hasMeaningfulChanges(payload)) {
+            return { message: 'Không có thay đổi nào để lưu.' };
+        }
+
+        return null;
+    }
+
+    function inferFieldFromErrorMessage(message) {
+        const text = String(message || '').toLowerCase();
+        if (text.includes('số điện thoại')) return 'inputPhoneNumber';
+        if (text.includes('họ và tên')) return 'inputFullName';
+        if (text.includes('người liên hệ')) return 'inputContactName';
+        if (text.includes('địa chỉ')) return 'inputAddress';
+        if (text.includes('mô tả')) return 'inputBusinessDescription';
+        return null;
+    }
+
+    function normalizePhoneNumber(raw) {
+        if (!raw) return null;
+
+        let compact = String(raw).trim().replace(/[\s.\-]/g, '');
+        if (!compact) return null;
+
+        if (compact.startsWith('84')) {
+            compact = '+' + compact;
+        } else if (compact.startsWith('0')) {
+            compact = '+84' + compact.slice(1);
+        }
+
+        if (!PHONE_REGEX.test(compact)) {
+            return null;
+        }
+
+        return compact;
+    }
+
+    function resetFormFromState() {
+        fillEditForm(profileState.account || {}, profileState.vendor || {});
+        clearFormError();
+        clearNotice();
+    }
+
+    function toggleEditMode() {
+        if (profileState.isSaving) return;
+
+        if (profileState.isEditing) {
+            resetFormFromState();
+            setEditMode(false);
+            return;
+        }
+
+        setEditMode(true);
+        clearFormError();
+        showNotice('Đã mở form popup chỉnh sửa. Nhấn Hủy chỉnh sửa để thoát mà không lưu.');
+    }
+
+    async function submitProfile(event) {
+        event.preventDefault();
+        clearFormError();
+        clearNotice();
+
+        const payload = buildUpdatePayload();
+        const validationError = validatePayload(payload);
+        if (validationError) {
+            showFormError(validationError.message, validationError.fieldId);
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await VendorApi.updateMe(payload);
+            await loadProfile();
+            setEditMode(false);
+            showNotice('Cập nhật thông tin thành công.');
+        } catch (err) {
+            console.error(err);
+            const message = err && err.message ? err.message : 'Không thể lưu thông tin. Vui lòng thử lại sau.';
+            showFormError(message, inferFieldFromErrorMessage(message));
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function loadProfile() {
+        clearError();
+        clearNotice();
+
+        try {
+            const [account, vendor] = await Promise.all([
+                AuthAPI.me(),
+                VendorApi.me()
+            ]);
+
+            const accountData = account || {};
+            const vendorData = vendor || {};
+
+            profileState.account = accountData;
+            profileState.vendor = vendorData;
+
+            renderOverview(vendorData);
+            renderAccountSummary(accountData, vendorData);
+            fillEditForm(accountData, vendorData);
+            setEditMode(false);
+
+            if (!vendor) {
+                showNotice('Hồ sơ vendor chưa có dữ liệu đầy đủ. Bạn có thể cập nhật thông tin và bấm Lưu để tạo hồ sơ.');
+            }
+        } catch (err) {
+            console.error(err);
+            showError('Không thể tải thông tin tài khoản. Vui lòng thử lại sau.');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!requireAuth()) return;
+
+        const role = (TokenManager.getRoleContext() || '').toLowerCase();
+        if (role !== 'vendor') {
+            window.location.href = 'dashboard';
+            return;
+        }
+
+        const form = document.getElementById('vendorEditForm');
+        if (form) {
+            form.addEventListener('submit', submitProfile);
+        }
+
+        const resetButton = document.getElementById('btnResetProfile');
+        if (resetButton) {
+            resetButton.addEventListener('click', resetFormFromState);
+        }
+
+        const toggleButton = document.getElementById('btnToggleEdit');
+        if (toggleButton) {
+            toggleButton.addEventListener('click', toggleEditMode);
+        }
+
+        const modal = document.getElementById('editProfileModal');
+        if (modal) {
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal && profileState.isEditing && !profileState.isSaving) {
+                    toggleEditMode();
+                }
+            });
+        }
+
+        const closeModalButton = document.getElementById('btnCloseEditModal');
+        if (closeModalButton) {
+            closeModalButton.addEventListener('click', function() {
+                if (profileState.isEditing && !profileState.isSaving) {
+                    toggleEditMode();
+                }
+            });
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && profileState.isEditing && !profileState.isSaving) {
+                toggleEditMode();
+            }
+        });
+
+        setEditMode(false);
+
+        loadProfile();
+    });
+</script>
+</body>
+</html>

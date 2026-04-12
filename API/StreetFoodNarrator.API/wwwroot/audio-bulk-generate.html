@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo audio tự động (TTS) - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js?v=20260406"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --secondary: #004E89;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --muted: #6B7280;
+            --light: #F7F8FA;
+            --card: #FFFFFF;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; background: #f5f7fa; color: #1F2937; }
+
+        .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .header { background: var(--gradient); color: white; padding: 1.5rem 2rem; border-radius: 18px; margin-bottom: 1.5rem; }
+        .header h1 { font-family: 'Playfair Display', serif; font-size: 2rem; }
+        .header p { opacity: 0.9; margin-top: 0.25rem; }
+
+        .stepper { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0.8rem 1rem; font-weight: 600; color: var(--muted); }
+        .step.active { border-color: var(--primary); color: var(--primary); box-shadow: 0 6px 18px var(--shadow); }
+
+        .card { background: var(--card); border-radius: 16px; padding: 1.5rem; box-shadow: 0 6px 24px var(--shadow); margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+
+        .option-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .option { border: 2px solid var(--border); border-radius: 14px; padding: 1rem; cursor: pointer; transition: all 0.2s ease; }
+        .option.active { border-color: var(--primary); background: rgba(255, 107, 53, 0.08); }
+        .option h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+        .option p { color: var(--muted); font-size: 0.9rem; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .template-list { border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem; }
+        .template-item { padding: 0.6rem 0.75rem; border-radius: 10px; cursor: pointer; }
+        .template-item.active { background: #FFF0E9; color: #C2410C; font-weight: 700; }
+        .preview-box { background: var(--light); border-radius: 12px; padding: 1rem; min-height: 160px; white-space: pre-wrap; font-size: 0.9rem; }
+
+        .preview-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .preview-tab { padding: 0.35rem 0.8rem; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; font-size: 0.85rem; font-weight: 600; background: white; }
+        .preview-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .poi-grid { display: grid; gap: 0.75rem; }
+        .poi-item { display: grid; grid-template-columns: 24px 1fr auto; gap: 0.75rem; align-items: start; border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; }
+        .poi-name { font-weight: 700; }
+        .poi-warn { color: #B45309; font-size: 0.85rem; }
+
+        .lang-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+        .lang-item { border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem; display: flex; gap: 0.5rem; align-items: center; }
+
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .control { background: var(--light); border-radius: 12px; padding: 1rem; }
+        .control h4 { margin-bottom: 0.5rem; }
+        .field { margin-bottom: 0.75rem; }
+        .field label { display: block; font-weight: 600; margin-bottom: 0.35rem; }
+        .field input, .field select, .field textarea { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; }
+
+        .actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+        .btn { border: none; border-radius: 12px; padding: 0.75rem 1.2rem; font-weight: 700; cursor: pointer; }
+        .btn-primary { background: var(--gradient); color: white; }
+        .btn-outline { background: white; border: 2px solid var(--border); }
+        .btn-danger { background: var(--danger); color: white; }
+
+        .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+        .summary-item { background: var(--light); border-radius: 12px; padding: 0.8rem; text-align: center; }
+        .summary-item .value { font-weight: 800; color: var(--primary); }
+
+        .progress-circle-wrap {
+            display: flex;
+            justify-content: center;
+            margin: 0.4rem 0 0.2rem;
+            position: relative;
+        }
+        .progress-circle {
+            --p: 0;
+            width: 112px;
+            height: 112px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(farthest-side, #fff 70%, transparent 71%),
+                conic-gradient(var(--primary) calc(var(--p) * 1%), #E5E7EB 0);
+            animation: progress-spin 1.25s linear infinite;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        }
+        .progress-circle::before {
+            content: '';
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: inset 0 0 0 1px #f1f5f9;
+        }
+        .progress-percent {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #1F2937;
+            pointer-events: none;
+        }
+        @keyframes progress-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .result-list { display: grid; gap: 0.75rem; }
+        .result-item {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.9rem;
+            background: #fff;
+            display: grid;
+            gap: 0.6rem;
+        }
+        .result-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+        .result-title { font-weight: 700; }
+        .result-sub { font-size: 0.85rem; color: var(--muted); }
+        .result-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .result-actions .btn { padding: 0.5rem 0.9rem; font-size: 0.85rem; }
+        .result-textarea { width: 100%; min-height: 90px; border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.7rem; font-family: inherit; }
+        .edit-item { border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; background: #fff; display: grid; gap: 0.6rem; }
+        .edit-item-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+        .edit-item-title { font-weight: 700; }
+        .edit-item-sub { font-size: 0.85rem; color: var(--muted); }
+        .edit-textarea { width: 100%; min-height: 120px; border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 0.8rem; font-family: inherit; resize: vertical; }
+
+        /* Log styles */
+        .log-entry { padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.5rem; }
+        .log-ok      { background: #ECFDF5; color: #065F46; }
+        .log-err     { background: #FEF2F2; color: #991B1B; }
+        .log-pending { background: #FFF7ED; color: #92400E; }
+        
+        /* Audio player in log */
+        .audio-player-mini { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+        .audio-player-mini button { background: var(--primary); border: none; border-radius: 50%; width: 24px; height: 24px; color: white; cursor: pointer; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+        .audio-player-mini button:hover { opacity: 0.8; }
+
+        /* Validation error styling */
+        .validation-err { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; border-radius: 10px; padding: 0.75rem; margin-top: 0.5rem; font-size: 0.9rem; }
+
+        .hidden { display: none; }
+
+        /* ── Error dialog ── */
+        .err-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(3px);
+            animation: errFadeIn 0.15s ease;
+        }
+        @keyframes errFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .err-dialog {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            width: 460px;
+            max-width: 92vw;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+            animation: errSlideUp 0.2s ease;
+        }
+        @keyframes errSlideUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+
+        .err-dialog-icon  { font-size: 2.2rem; margin-bottom: 0.5rem; }
+        .err-dialog-title { font-size: 1.1rem; font-weight: 700; color: var(--danger); margin-bottom: 0.3rem; }
+        .err-dialog-poi   { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.85rem; }
+        .err-dialog-poi strong { color: #1F2937; }
+        .err-dialog-msg {
+            background: #FEF2F2;
+            border-left: 3px solid var(--danger);
+            border-radius: 8px;
+            padding: 0.7rem 0.9rem;
+            font-size: 0.85rem;
+            color: #991B1B;
+            margin-bottom: 1.25rem;
+            word-break: break-word;
+            line-height: 1.5;
+        }
+        .err-dialog-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+        .err-dialog-actions .btn { flex: 1; min-width: 110px; text-align: center; }
+        .btn-warn { background: #FEF3C7; color: #92400E; border: 2px solid #FDE68A; }
+        .err-dialog-hint {
+            font-size: 0.78rem; color: var(--muted);
+            text-align: center; margin-top: 0.85rem;
+        }
+
+        /* -- Success dialog -- */
+        .success-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(2px);
+            animation: errFadeIn 0.15s ease;
+        }
+        .success-dialog {
+            background: white;
+            border-radius: 18px;
+            padding: 1.75rem 2rem;
+            width: 420px;
+            max-width: 92vw;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+            animation: errSlideUp 0.2s ease;
+        }
+        .success-dialog-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #0C7A5B;
+            margin-bottom: 0.4rem;
+        }
+        .success-dialog-msg {
+            font-size: 0.95rem;
+            color: #334155;
+            margin-bottom: 1.1rem;
+            line-height: 1.5;
+        }
+
+        /* -- Progress overlay -- */
+        .progress-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9998;
+            backdrop-filter: blur(2px);
+            animation: errFadeIn 0.15s ease;
+        }
+        .progress-overlay.hidden { display: none; }
+        .progress-dialog {
+            background: white;
+            border-radius: 18px;
+            padding: 1.5rem 1.75rem;
+            width: 520px;
+            max-width: 92vw;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+            animation: errSlideUp 0.2s ease;
+        }
+        .progress-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 0.6rem;
+            text-align: center;
+        }
+
+        @media (max-width: 900px) {
+            .option-grid, .two-col, .lang-grid, .summary { grid-template-columns: 1fr; }
+            .controls { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <h1>Tạo Audio Tự Động (TTS)</h1>
+            <p>Chọn template, POI, ngôn ngữ và giọng đọc trước khi tạo.</p>
+            <p style="opacity:0.85;">Mỗi audio TTS được tự giới hạn khoảng 30s; văn bản dài sẽ được cắt ngắn trước khi tạo.</p>
+        </div>
+
+        <div class="stepper">
+            <div class="step active">1. Chọn phương thức tạo audio</div>
+            <div class="step">2. Chọn template & POI</div>
+            <div class="step">3. Chỉnh sửa text POI</div>
+            <div class="step">4. Ngôn ngữ & giọng đọc</div>
+            <div class="step">5. Xem trước & tạo</div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div class="card" id="step1">
+            <h2>TTS HÀNG LOẠT - CHỌN PHƯƠNG THỨC</h2>
+            <div class="option-grid">
+                <div class="option active" data-method="custom" style="grid-column: 1 / -1;">
+                    <h3>Tự viết Template</h3>
+                    <p>Linh hoạt, tùy chỉnh theo ý. Chế độ này là phương thức duy nhất đang được sử dụng.</p>
+                </div>
+            </div>
+            <div class="actions" style="margin-top: 1rem;">
+                <button class="btn btn-primary" onclick="validateAndGoStep(2)">Tiếp tục</button>
+            </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="card hidden" id="step2">
+            <h2>BƯỚC 1: CHỌN TEMPLATE</h2>
+
+            <div id="customTemplateBox" style="margin-bottom: 1rem;">
+                <div class="field">
+                    <label>Template tùy chỉnh</label>
+                    <textarea id="customTemplate" rows="6" placeholder="Nhập template của bạn với biến {TEN_POI}, {DIA_CHI}..."></textarea>
+                </div>
+                <div style="color:var(--muted);font-size:0.85rem;">
+                    Biến hỗ trợ: {TEN_POI}, {MON_DAC_SAN}, {MO_TA_QUAN}, {GIO_MO_CUA}, {GIA_TRUNG_BINH}
+                </div>
+            </div>
+
+            <h2 style="margin-top:1.5rem;">BƯỚC 2: CHỌN POI</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                <label style="display:flex;gap:0.5rem;align-items:center;">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                    <strong>Chọn tất cả (<span id="poiCount">0</span> POI)</strong>
+                </label>
+                <button class="btn btn-outline" onclick="refreshPOIs()" style="padding:0.5rem 1rem;">
+                    <i class="fas fa-sync-alt"></i> Làm mới
+                </button>
+            </div>
+            <div id="poisGrid" class="poi-grid"></div>
+            <div style="margin-top:0.75rem;color:#B45309;" id="poiWarning"></div>
+
+            <div class="actions" style="margin-top: 1rem;">
+                <button class="btn btn-outline" onclick="goStep(1)">Quay lại</button>
+                <button class="btn btn-primary" onclick="validateAndGoStep(3)">Tiếp tục</button>
+            </div>
+        </div>
+
+                <!-- STEP 3 -->
+        <div class="card hidden" id="step3">
+            <h2>BƯỚC 3: CHỈNH SỬA TEXT TTS CHO TỪNG POI</h2>
+            <div style="color:var(--muted);margin-bottom:0.75rem;">
+                Chọn POI xong bạn cập nhật nội dung từng điểm. Nội dung này sẽ dùng để tạo audio và dịch.
+            </div>
+            <div id="editPoiList" class="result-list"></div>
+
+            <div class="actions" style="margin-top: 1rem;">
+                <button class="btn btn-outline" onclick="goStep(2)">Quay lại</button>
+                <button class="btn btn-primary" onclick="validateAndGoStep(4)">Tiếp tục</button>
+            </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="card hidden" id="step4">
+            <h2>BƯỚC 4: CHỌN NGÔN NGỮ & GIỌNG ĐỌC</h2>
+            <div class="lang-grid" id="langGrid"></div>
+
+            <div class="controls" style="margin-top:1rem;">
+                <div class="control">
+                    <h4>Giọng đọc</h4>
+                    <div id="voiceOptions"></div>
+                </div>
+                <div class="control">
+                    <h4>Tốc độ & âm lượng</h4>
+                    <label>Tốc độ đọc: <span id="rateVal">1.0</span>x
+                        <input type="range" min="0.8" max="1.2" step="0.05" value="1" id="rate" oninput="document.getElementById('rateVal').textContent=parseFloat(this.value).toFixed(2)">
+                    </label>
+                    <br>
+                    <label>Âm lượng: <span id="volVal">1.0</span>x
+                        <input type="range" min="0.8" max="1.2" step="0.05" value="1" id="volume" oninput="document.getElementById('volVal').textContent=parseFloat(this.value).toFixed(2)">
+                    </label>
+                    <br>
+                </div>
+            </div>
+
+            <div class="actions" style="margin-top: 1rem; justify-content: space-between;">
+                <button class="btn btn-outline" onclick="goStep(3)">Quay lại</button>
+                <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+                    <button class="btn btn-outline" id="btnAutoTranslate" onclick="autoTranslateAll()">Tự động dịch</button>
+                    <button class="btn btn-primary" onclick="validateAndGoStep(5)">Tiếp tục</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 5 -->
+        <div class="card hidden" id="step5">
+            <h2>BƯỚC 5: XEM TRƯỚC & XÁC NHẬN</h2>
+            <div class="summary" style="margin-bottom:1rem;">
+                <div class="summary-item"><div class="value" id="sumPois">0</div><div>Số POI</div></div>
+                <div class="summary-item"><div class="value" id="sumLangs">0</div><div>Ngôn ngữ</div></div>
+                <div class="summary-item"><div class="value" id="sumFiles">0</div><div>Tổng audio</div></div>
+                <div class="summary-item"><div class="value" id="sumEst">~</div><div>Ước tính</div></div>
+            </div>
+
+            <div style="font-weight:700;margin-bottom:0.5rem;" id="scriptPreviewLabel">Xem trước script theo ngôn ngữ</div>
+            <div class="preview-tabs" id="scriptPreviewTabs"></div>
+            <div class="preview-box" id="scriptPreview"></div>
+
+            <div class="actions" style="margin-top: 1rem;">
+                <button class="btn btn-outline" onclick="goBackFromStep5()">Quay lại</button>
+                <button class="btn btn-primary" onclick="generateAudio()">Tạo ngay</button>
+            </div>
+        </div>
+<!-- PROGRESS (popup) -->
+        <div class="progress-overlay hidden" id="progressCard">
+            <div class="progress-dialog">
+                <div class="progress-title">Đang tạo audio...</div>
+                <div class="progress-circle-wrap">
+                    <div class="progress-circle" id="progressCircle" style="--p: 0;"></div>
+                    <div class="progress-percent" id="progressPercent">0%</div>
+                </div>
+                <div id="progressLog" class="hidden" style="margin-top:0.75rem;max-height:200px;overflow-y:auto;"></div>
+            </div>
+        </div>
+
+        <!-- RESULTS -->
+        <div class="card hidden" id="resultsCard">
+            <h2>Kết quả tạo audio (nghe thử & lưu)</h2>
+            <div class="actions" style="margin-bottom:0.75rem;">
+                <button class="btn btn-outline" onclick="discardAll()">Bỏ tất cả</button>
+                <button class="btn btn-primary" onclick="saveAll()">Lưu tất cả</button>
+            </div>
+            <div class="result-list" id="resultsList"></div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        function showTopRightToast(message, type = 'warning', timeout = 3200) {
+            if (window.UiFeedback?.toast) {
+                window.UiFeedback.toast(message, type, timeout);
+                return;
+            }
+            if (!message) return;
+            let wrap = document.getElementById('globalToastWrap');
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.id = 'globalToastWrap';
+                wrap.style.position = 'fixed';
+                wrap.style.top = '1rem';
+                wrap.style.right = '1rem';
+                wrap.style.zIndex = '12000';
+                wrap.style.display = 'flex';
+                wrap.style.flexDirection = 'column';
+                wrap.style.gap = '.5rem';
+                document.body.appendChild(wrap);
+            }
+            const bg = type === 'success' ? '#0f766e' : type === 'error' ? '#b42318' : '#1f2937';
+            const item = document.createElement('div');
+            item.style.background = bg;
+            item.style.color = '#fff';
+            item.style.padding = '.75rem .95rem';
+            item.style.borderRadius = '10px';
+            item.style.fontWeight = '600';
+            item.style.maxWidth = '520px';
+            item.style.boxShadow = '0 10px 26px rgba(0,0,0,.18)';
+            item.textContent = String(message);
+            wrap.appendChild(item);
+            setTimeout(() => item.remove(), timeout);
+        }
+
+        window.alert = function(message) {
+            showTopRightToast(message, 'warning');
+        };
+
+        const user = TokenManager.getUser();
+        const token = TokenManager.getToken();
+        if (!user && !token) window.location.href = TokenManager.getLoginUrl();
+
+        const roleContext = String(TokenManager.getRoleContext() || '').toLowerCase();
+        const userRoles = Array.isArray(user?.roles) ? user.roles.map(r => String(r).toLowerCase()) : [];
+        const tokenRoles = Array.isArray(parseJwtRoles(token)) ? parseJwtRoles(token).map(r => String(r).toLowerCase()) : [];
+        const canUseBulkAudio = roleContext === 'vendor'
+            || userRoles.includes('vendor')
+            || tokenRoles.includes('vendor');
+
+        if (!canUseBulkAudio) {
+            window.location.href = 'audio-list';
+        }
+
+        const isVendor = canUseBulkAudio;
+
+        async function ensureVendorPremiumAudioAccess() {
+            if (!isVendor) return true;
+
+            try {
+                const premium = await api.request('/Payments/me/premium-status');
+                if (premium?.isPremiumActive) return true;
+
+                showTopRightToast('Bạn cần đăng ký gói Premium trước khi dùng chức năng âm thanh.', 'warning', 4200);
+                setTimeout(() => {
+                    window.location.href = 'payment-management';
+                }, 500);
+                return false;
+            } catch (error) {
+                showTopRightToast('Không thể kiểm tra trạng thái Premium. Vui lòng thử lại sau.', 'error', 3600);
+                setTimeout(() => {
+                    window.location.href = 'dashboard';
+                }, 500);
+                return false;
+            }
+        }
+
+        // ─── CONSTANTS ───────────────────────────────────────────────────────────────
+        const MAX_TTS_SECONDS = 30;
+        const WORDS_PER_SECOND_DEFAULT = 2.6;
+        const CHARS_PER_SECOND_ZH = 4.5;
+
+        // ─── DATA ────────────────────────────────────────────────────────────────────
+        const templates = [
+            {
+                id: 'template_001',
+                name: '🍽 Giới thiệu món ăn (Chuẩn)',
+                text: {
+                    'vi-VN': 'Chào mừng bạn đến với {TEN_POI}.\n\n{MO_TA_QUAN}.\n\nGiờ mở cửa: {GIO_MO_CUA}\nHãy đến và thưởng thức nhé!',
+                    'en-US': 'Welcome to {TEN_POI}.\n\n{MO_TA_QUAN}.\n\nOpening hours: {GIO_MO_CUA}\n\nCome and enjoy!',
+                    'zh-CN': '欢迎来到 {TEN_POI}。\n\n{MO_TA_QUAN}。\n\n营业时间: {GIO_MO_CUA}\n\n欢迎品尝！'
+                }
+            },
+            {
+                id: 'template_004',
+                name: '🌟 Giới thiệu đặc sản (Nổi bật)',
+                text: {
+                    'vi-VN': '{TEN_POI} được yêu thích nhờ {MON_DAC_SAN}.\nHãy ghé {TEN_POI} để thưởng thức hương vị đặc biệt.',
+                    'en-US': '{TEN_POI} is loved for {MON_DAC_SAN}.\nVisit {TEN_POI} to enjoy the special taste.',
+                    'zh-CN': '{TEN_POI} 因 {MON_DAC_SAN} 而受欢迎。\n欢迎光临 {TEN_POI} 品尝独特风味。'
+                }
+            }
+        ];
+
+        const languages = [
+            { id: 'vi-VN', label: 'Tiếng Việt', defaultVoice: 'vi-VN-HoaiMyNeural' },
+            { id: 'en-US', label: 'English',    defaultVoice: 'en-US-JennyNeural'   },
+            { id: 'zh-CN', label: '中文',        defaultVoice: 'zh-CN-XiaoxiaoNeural'}
+        ];
+        const FEMALE_VOICES = new Set([
+            'vi-VN-HoaiMyNeural',
+            'en-US-JennyNeural',
+            'zh-CN-XiaoxiaoNeural'
+        ]);
+
+        let currentTemplate    = templates[0];
+        let poisWithoutAudio   = [];     // all unique POI objects (show all, not just missing audio)
+        let poiMissingLangsMap = new Map(); // poiId  → Set<lang>  (langs still missing)
+        let selectedPOIs       = new Set();
+        let selectedLangs      = new Set(['vi-VN', 'en-US', 'zh-CN']);
+        let editedScripts      = new Map(); // poiId -> vi script
+        let translatedScripts  = new Map(); // key = "poiId-lang" -> translated text
+        let translateTimers    = new Map(); // poiId -> timeout id
+        let translatingPoi     = new Set(); // poiId currently translating
+        let ttsVoices          = [];
+        let previewLangTemplate = 'vi-VN';
+        let previewLangScript   = 'vi-VN';
+
+        // ─── HELPERS ─────────────────────────────────────────────────────────────────
+        function getPoiId(poi) {
+            const id = poi.poI_ID ?? poi.poi_ID ?? poi.poiId ?? poi.POI_ID;
+            return id !== undefined && id !== null ? String(id) : null;
+        }
+
+        function clampScript(text, language) {
+            const isZh = (language || '').startsWith('zh');
+            let truncated = false;
+            let trimmedText = text || '';
+
+            if (isZh) {
+                const maxChars = Math.floor(MAX_TTS_SECONDS * CHARS_PER_SECOND_ZH);
+                const stripped = (text || '').replace(/\s+/g, '');
+                if (stripped.length > maxChars) {
+                    let count = 0, result = '';
+                    for (const ch of (text || '')) {
+                        result += ch;
+                        if (!/\s/.test(ch)) count++;
+                        if (count >= maxChars) break;
+                    }
+                    trimmedText = result;
+                    truncated = true;
+                }
+                const charCount = trimmedText.replace(/\s+/g, '').length;
+                return { text: trimmedText, truncated, estimatedSeconds: Math.round((charCount / CHARS_PER_SECOND_ZH) * 100) / 100 };
+            } else {
+                const maxWords = Math.floor(MAX_TTS_SECONDS * WORDS_PER_SECOND_DEFAULT);
+                const words = (text || '').split(/\s+/).filter(Boolean);
+                if (words.length > maxWords) {
+                    trimmedText = words.slice(0, maxWords).join(' ');
+                    truncated = true;
+                }
+                const wordCount = trimmedText.split(/\s+/).filter(Boolean).length;
+                return { text: trimmedText, truncated, estimatedSeconds: Math.round((wordCount / WORDS_PER_SECOND_DEFAULT) * 100) / 100 };
+            }
+        }
+
+        function getActiveTemplateText(language) {
+            const lang = language || 'vi-VN';
+            const method = getMethod();
+            if (method === 'custom') return document.getElementById('customTemplate').value || '';
+            return currentTemplate.text[lang] || currentTemplate.text['vi-VN'] || '';
+        }
+
+        // ─── TEMPLATE RENDERING ──────────────────────────────────────────────────────
+        function renderTemplates() {
+            const list = document.getElementById('templateList');
+            list.innerHTML = templates.map(t => `
+                <div class="template-item ${t.id === currentTemplate.id ? 'active' : ''}" onclick="selectTemplate('${t.id}')">${t.name}</div>
+            `).join('');
+            renderTemplatePreviewTabs();
+        }
+
+        function renderTemplatePreviewTabs() {
+            const tabs = document.getElementById('templatePreviewTabs');
+            const langs = languages.map(l => l.id);
+            if (!tabs) return;
+            if (!langs.includes(previewLangTemplate)) previewLangTemplate = langs[0];
+            tabs.innerHTML = langs.map(l => {
+                const info = languages.find(x => x.id === l);
+                return `<button class="preview-tab ${l === previewLangTemplate ? 'active' : ''}" onclick="setTemplatePreviewLang('${l}')">${info ? info.label : l}</button>`;
+            }).join('');
+            document.getElementById('templatePreview').textContent = getActiveTemplateText(previewLangTemplate);
+        }
+
+        function setTemplatePreviewLang(lang) {
+            previewLangTemplate = lang;
+            renderTemplatePreviewTabs();
+        }
+
+        function selectTemplate(id) {
+            currentTemplate = templates.find(t => t.id === id) || templates[0];
+            renderTemplates();
+        }
+
+        // ─── LANGUAGE RENDERING ──────────────────────────────────────────────────────
+        function renderLanguages() {
+            const grid = document.getElementById('langGrid');
+            grid.innerHTML = languages.map(l => `
+                <label class="lang-item">
+                    <input type="checkbox" ${selectedLangs.has(l.id) ? 'checked' : ''} onchange="toggleLang('${l.id}')">
+                    <span>${l.label}</span>
+                </label>
+            `).join('');
+            renderVoices();
+        }
+
+        function renderVoices() {
+            const container = document.getElementById('voiceOptions');
+            const selected = Array.from(selectedLangs);
+            if (!selected.length) {
+                container.innerHTML = '<div style="color:var(--muted);">Chọn ngôn ngữ để hiển thị giọng đọc.</div>';
+                return;
+            }
+            container.innerHTML = selected.map(lang => {
+                const voices = ttsVoices.filter(v => v.language === lang);
+                const fallback = languages.find(l => l.id === lang)?.defaultVoice;
+                const options = voices.length
+                    ? voices.map(vo => {
+                        const raw = vo.name || vo.voice;
+                        const clean = raw.replace(/\s*\(female\)\s*/i, '').trim();
+                        return `<option value="${vo.voice}">${clean || raw}</option>`;
+                    }).join('')
+                    : `<option value="${fallback}">${fallback}</option>`;
+                const langLabel = languages.find(l => l.id === lang)?.label || lang;
+                return `
+                    <div class="field">
+                        <label>Giọng đọc ${langLabel}</label>
+                        <select data-voice-lang="${lang}">${options}</select>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleLang(lang) {
+            if (selectedLangs.has(lang)) selectedLangs.delete(lang);
+            else selectedLangs.add(lang);
+            renderVoices();
+            renderTemplatePreviewTabs();
+            updateSummary();
+            loadPOIs();
+        }
+
+        async function loadVoices() {
+            try {
+                const resp = await api.request('/TTS/voices');
+                ttsVoices = (resp || []).filter(v => FEMALE_VOICES.has(v.voice));
+            } catch { ttsVoices = []; }
+            renderVoices();
+        }
+
+        // ─── MISSING INFO ─────────────────────────────────────────────────────────────
+        function getMissingInfo(poi) {
+            const allMissing = new Map();
+            for (const lang of selectedLangs) {
+                const vars = extractVariables(getActiveTemplateText(lang));
+                const map  = buildVariableMap(poi, lang);
+                const missing = vars.filter(v => !map[v] || map[v].toString().trim() === '');
+                if (missing.length) allMissing.set(lang, missing);
+            }
+            return allMissing;
+        }
+
+        function hasMissingInfo(poi) {
+            for (const [, m] of getMissingInfo(poi)) if (m.length) return true;
+            return false;
+        }
+
+        function getMissingInfoDisplay(poi) {
+            const result = getMissingInfo(poi);
+            const parts  = [];
+            for (const [lang, missing] of result) {
+                const langLabel = languages.find(l => l.id === lang)?.label || lang;
+                parts.push(`${langLabel}: ${missing.join(', ')}`);
+            }
+            return parts;
+        }
+
+        function extractVariables(text) {
+            const matches = text.match(/\{[A-Z0-9_]+\}/g) || [];
+            return Array.from(new Set(matches.map(v => v.replace(/[{}]/g, ''))));
+        }
+
+        // ─── VARIABLE MAP ─────────────────────────────────────────────────────────────
+        function _firstSentences(text, maxSentences) {
+            const s = (text || '').trim().replace(/\s+/g, ' ');
+            if (!s) return '';
+            const parts = s.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [s];
+            return parts.slice(0, maxSentences).join(' ').trim();
+        }
+
+        function buildVariableMap(poi, language) {
+            language = language || 'vi-VN';
+            const toList = (value) => {
+                if (Array.isArray(value)) return value.filter(Boolean);
+                if (typeof value === 'string' && value.trim()) return [value.trim()];
+                return [];
+            };
+
+            let name = poi.name_Vi || '';
+            if (language === 'en-US' && poi.name_En) name = poi.name_En;
+            if (language === 'zh-CN' && poi.name_Zh) name = poi.name_Zh;
+
+            let description = poi.description_Vi || '';
+            if (language === 'en-US' && poi.description_En) description = poi.description_En;
+            if (language === 'zh-CN' && poi.description_Zh) description = poi.description_Zh;
+            description = _firstSentences(description, 2);
+
+            let signatureList  = toList(poi.signatureDishes?.length ? poi.signatureDishes : poi.signatureDish);
+            let specialtiesList = toList(poi.specialties);
+            if (language === 'en-US') {
+                if (poi.signatureDishes_En) signatureList   = toList(poi.signatureDishes_En);
+                if (poi.specialties_En)     specialtiesList = toList(poi.specialties_En);
+            }
+            if (language === 'zh-CN') {
+                if (poi.signatureDishes_Zh) signatureList   = toList(poi.signatureDishes_Zh);
+                if (poi.specialties_Zh)     specialtiesList = toList(poi.specialties_Zh);
+            }
+            const monDacSan = signatureList.length ? signatureList.join(', ') : specialtiesList.join(', ');
+
+            let address = poi.address || '';
+            if (language === 'en-US' && poi.address_En) address = poi.address_En;
+            if (language === 'zh-CN' && poi.address_Zh) address = poi.address_Zh;
+
+            let gioMoCua = poi.openingHoursText || (Array.isArray(poi.openingHours) ? poi.openingHours.join('; ') : '');
+            if (language === 'en-US' && poi.openingHoursText_En) gioMoCua = poi.openingHoursText_En;
+            if (language === 'zh-CN' && poi.openingHoursText_Zh) gioMoCua = poi.openingHoursText_Zh;
+
+            const giaTrungBinh = (() => {
+                if (poi.averagePrice !== undefined && poi.averagePrice !== null && !Number.isNaN(Number(poi.averagePrice)))
+                    return `${Number(poi.averagePrice).toLocaleString('vi-VN')}đ`;
+                if (poi.priceLevel !== undefined && poi.priceLevel !== null)
+                    return ({ 1: 'Bình dân', 2: 'Trung bình', 3: 'Khá cao', 4: 'Cao cấp' })[poi.priceLevel] || '';
+                return '';
+            })();
+
+            return { TEN_POI: name, MON_DAC_SAN: monDacSan, MO_TA_QUAN: description, DIA_CHI: address, GIO_MO_CUA: gioMoCua, GIA_TRUNG_BINH: giaTrungBinh };
+        }
+
+        function buildScript(poi, language) {
+            language = language || 'vi-VN';
+            const map = buildVariableMap(poi, language);
+            let text  = getActiveTemplateText(language);
+            Object.keys(map).forEach(k => { text = text.replaceAll(`{${k}}`, map[k] || ''); });
+            return text.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+        }
+
+        function getBaseScriptForPoi(poi) {
+            const id = getPoiId(poi);
+            if (id && editedScripts.has(id)) return editedScripts.get(id);
+            return buildScript(poi, 'vi-VN');
+        }
+
+        function getScriptForPoiLang(poi, lang) {
+            const id = getPoiId(poi);
+            const normalized = normalizeLangId(lang);
+            if (normalized === 'vi-VN') return getBaseScriptForPoi(poi);
+            const key = `${id}-${normalized}`;
+            if (translatedScripts.has(key)) return translatedScripts.get(key);
+            return buildScript(poi, normalized);
+        }
+
+        function setEditedScript(poiId, text) {
+            if (!poiId) return;
+            const cleaned = (text || '').trim();
+            editedScripts.set(String(poiId), cleaned);
+            // Invalidate translations for this POI when source changes
+            Array.from(translatedScripts.keys())
+                .filter(k => k.startsWith(String(poiId) + '-'))
+                .forEach(k => translatedScripts.delete(k));
+        }
+
+        function setTranslateHint(poiId, message, isError = false) {
+            const row = document.querySelector(`[data-edit-id="${poiId}"]`);
+            if (!row) return;
+            const hint = row.querySelector('[data-translate-hint]');
+            if (!hint) return;
+            hint.textContent = message || '';
+            hint.style.color = isError ? '#991B1B' : 'var(--muted)';
+        }
+
+        function handleEditScriptInput(poiId, text) {
+            setEditedScript(poiId, text);
+            scheduleTranslatePoi(poiId);
+        }
+
+        function scheduleTranslatePoi(poiId) {
+            const id = String(poiId);
+            if (translateTimers.has(id)) {
+                clearTimeout(translateTimers.get(id));
+            }
+            setTranslateHint(id, 'Đang chờ dịch...');
+            const timer = setTimeout(() => {
+                translateTimers.delete(id);
+                translatePoi(id, { notifyOnError: false });
+            }, 700);
+            translateTimers.set(id, timer);
+        }
+
+        async function translatePoi(poiId, options = {}) {
+            const notifyOnError = options.notifyOnError === true;
+            const id = String(poiId);
+            const targets = getTranslateTargets();
+            if (!targets.length) {
+                setTranslateHint(id, 'Không cần dịch (chỉ chọn tiếng Việt).');
+                return;
+            }
+            if (translatingPoi.has(id)) return;
+
+            const poi = poisWithoutAudio.find(p => String(getPoiId(p)) === id);
+            if (!poi) return;
+            const baseText = getBaseScriptForPoi(poi);
+            if (!baseText) {
+                setTranslateHint(id, 'Nội dung trống, chưa thể dịch.', true);
+                return;
+            }
+
+            try {
+                translatingPoi.add(id);
+                setTranslateHint(id, 'Đang dịch...');
+                const res = await api.autoTranslate(baseText, targets);
+                if (res && typeof res === 'object') {
+                    Object.keys(res).forEach(k => {
+                        const langId = (k === 'en') ? 'en-US' : (k === 'zh-CN' ? 'zh-CN' : k);
+                        const key = `${id}-${langId}`;
+                        const value = (res[k] || '').trim();
+                        if (value) translatedScripts.set(key, value);
+                    });
+                    setTranslateHint(id, 'Đã cập nhật bản dịch EN/ZH.');
+                } else {
+                    setTranslateHint(id, 'Không nhận được kết quả dịch.', true);
+                }
+            } catch (err) {
+                setTranslateHint(id, 'Dịch thất bại, vui lòng thử lại.', true);
+                if (notifyOnError) showTopRightToast(err?.message || 'Không thể tự động dịch.', 'error');
+            } finally {
+                translatingPoi.delete(id);
+            }
+        }
+
+        function renderEditScripts() {
+            const list = document.getElementById('editPoiList');
+            if (!list) return;
+            const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
+            if (!selected.length) {
+                list.innerHTML = '<div style="color:var(--muted);padding:0.75rem;">Chưa chọn POI nào.</div>';
+                return;
+            }
+            list.innerHTML = selected.map(p => {
+                const id = getPoiId(p);
+                const name = p.name_Vi || p.name_En || `POI ${id}`;
+                const address = p.address || '';
+                const text = getBaseScriptForPoi(p);
+                return `
+                    <div class="edit-item" data-edit-id="${id}">
+                        <div class="edit-item-head">
+                            <div>
+                                <div class="edit-item-title">${name}</div>
+                                <div class="edit-item-sub">${address}</div>
+                                <div data-translate-hint style="font-size:0.82rem;color:var(--muted);margin-top:0.25rem;">Sửa tiếng Việt, hệ thống sẽ tự dịch EN/ZH.</div>
+                            </div>
+                            <button class="btn btn-outline" onclick="resetEditText('${id}')">Reset</button>
+                        </div>
+                        <textarea class="edit-textarea" oninput="handleEditScriptInput('${id}', this.value)">${text}</textarea>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function resetEditText(poiId) {
+            const poi = poisWithoutAudio.find(p => String(getPoiId(p)) === String(poiId));
+            if (!poi) return;
+            editedScripts.delete(String(poiId));
+            Array.from(translatedScripts.keys())
+                .filter(k => k.startsWith(String(poiId) + '-'))
+                .forEach(k => translatedScripts.delete(k));
+            const row = document.querySelector(`[data-edit-id="${poiId}"]`);
+            const textarea = row?.querySelector('textarea');
+            if (textarea) textarea.value = buildScript(poi, 'vi-VN');
+            setTranslateHint(String(poiId), 'Đã reset nội dung. Hãy sửa để tự dịch lại.');
+        }
+
+        function getTranslateTargets() {
+            const targets = [];
+            Array.from(selectedLangs).forEach(l => {
+                const norm = normalizeLangId(l);
+                if (norm === 'en-US') targets.push('en');
+                if (norm === 'zh-CN') targets.push('zh-CN');
+            });
+            return Array.from(new Set(targets));
+        }
+
+        async function autoTranslateAll(options = {}) {
+            const notify = options.notify !== false;
+            const button = document.getElementById('btnAutoTranslate');
+            const targets = getTranslateTargets();
+            if (!targets.length) {
+                if (notify) showTopRightToast('Không có ngôn ngữ cần dịch (chỉ chọn tiếng Việt).', 'warning');
+                return;
+            }
+            const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
+            if (!selected.length) {
+                if (notify) showTopRightToast('Vui lòng chọn POI trước.', 'warning');
+                return;
+            }
+            for (const poi of selected) {
+                const id = getPoiId(poi);
+                const baseText = getBaseScriptForPoi(poi);
+                if (!baseText) {
+                    if (notify) showTopRightToast('Nội dung trống cho một số POI. Vui lòng nhập text trước khi dịch.', 'warning');
+                    return;
+                }
+            }
+
+            try {
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = 'Đang dịch...';
+                }
+                for (const poi of selected) {
+                    const id = getPoiId(poi);
+                    await translatePoi(id, { notifyOnError: true });
+                }
+                if (notify) showTopRightToast('Đã tự động dịch xong.', 'success');
+            } catch (err) {
+                if (notify) showTopRightToast(err?.message || 'Không thể tự động dịch.', 'error');
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Tự động dịch';
+                }
+            }
+        }
+
+        // ─── POI LOADING ──────────────────────────────────────────────────────────────
+        const LANG_LABEL_MAP = { 'vi-VN': 'VI', 'en-US': 'EN', 'zh-CN': 'ZH' };
+
+        async function loadPOIs(forceRefresh = false) {
+            const langs = Array.from(selectedLangs);
+            try {
+                // Load ALL POIs (so created POIs are not hidden)
+                const rawAll = await api.getPOIs(1, 5000);
+                const allPois = (rawAll && Array.isArray(rawAll.data)) ? rawAll.data : (rawAll || []);
+                const poiObjects = new Map();
+                (allPois || []).forEach(p => {
+                    const id = getPoiId(p);
+                    if (id === null) return;
+                    if (!poiObjects.has(id)) poiObjects.set(id, p);
+                });
+
+                // For each language, fetch POIs that still need audio
+                const perLang = langs.length
+                    ? await Promise.all(langs.map(async l => {
+                        try { return { lang: l, pois: await api.getPOIsWithoutAudio(l) }; }
+                        catch { return { lang: l, pois: [] }; }
+                    }))
+                    : [];
+
+                // Build: poiId → Set<missing lang>
+                poiMissingLangsMap.clear();
+                perLang.forEach(({ lang, pois }) => {
+                    (pois || []).forEach(p => {
+                        const id = getPoiId(p);
+                        if (id === null) return;
+                        if (!poiMissingLangsMap.has(id)) poiMissingLangsMap.set(id, new Set());
+                        poiMissingLangsMap.get(id).add(lang);
+                        if (!poiObjects.has(id)) poiObjects.set(id, p);
+                    });
+                });
+
+                // Show ALL POIs (not only missing ones)
+                poisWithoutAudio = Array.from(poiObjects.values());
+                const validIds = new Set(poisWithoutAudio.map(p => getPoiId(p)));
+                selectedPOIs = new Set(Array.from(selectedPOIs).filter(id => validIds.has(id)));
+                document.getElementById('poiCount').textContent = poisWithoutAudio.length;
+                renderPOIs(); updateSummary();
+            const editCard = document.getElementById('step3');
+            if (editCard && !editCard.classList.contains('hidden')) {
+                renderEditScripts();
+            }
+        } catch (err) { console.error('Lỗi load POI:', err); }
+        }
+
+        async function refreshPOIs() {
+            console.log('🔄 Đang làm mới danh sách POI...');
+            await loadPOIs(true);
+            console.log('Đã làm mới!');
+        }
+
+        function renderPOIs() {
+            const grid = document.getElementById('poisGrid');
+            if (!poisWithoutAudio.length) {
+                grid.innerHTML = '<div style="color:var(--muted);padding:1rem;">Không có POI nào.</div>';
+                return;
+            }
+            const allSelectedLangs = Array.from(selectedLangs);
+            grid.innerHTML = poisWithoutAudio.map(p => {
+                const id           = getPoiId(p);
+                const missingLangs = poiMissingLangsMap.get(id) || new Set();
+                const doneLangs    = allSelectedLangs.filter(l => !missingLangs.has(l));
+                const missingList  = getMissingInfoDisplay(p);
+                const hasWarn      = missingList.length > 0;
+
+                // Language badge HTML
+                const missingBadges = Array.from(missingLangs).map(l =>
+                    `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;">🔊 ${LANG_LABEL_MAP[l]||l}</span>`
+                ).join(' ');
+                const doneBadges = doneLangs.map(l =>
+                    `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7;">${LANG_LABEL_MAP[l]||l}</span>`
+                ).join(' ');
+
+                return `
+                    <div class="poi-item">
+                        <input type="checkbox" class="poi-checkbox" data-poi-id="${id}" onchange="updateSelection()" ${selectedPOIs.has(id) ? 'checked' : ''}>
+                        <div style="flex:1">
+                            <div class="poi-name">${p.name_Vi || 'POI ' + id}</div>
+                            <div class="poi-address" style="color:var(--muted);font-size:0.88rem;">${p.address || 'Chưa có địa chỉ'}</div>
+                            ${hasWarn ? `<div class="poi-warn">⚠️ Thiếu thông tin TTS:<br>${missingList.map(m => `&nbsp;• ${m}`).join('<br>')}</div>` : ''}
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0;">
+                            ${doneBadges}
+                            ${missingBadges}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleSelectAll() {
+            const checked = document.getElementById('selectAll').checked;
+            document.querySelectorAll('.poi-checkbox').forEach(cb => { cb.checked = checked; });
+            updateSelection();
+        }
+
+        function updateSelection() {
+            selectedPOIs.clear();
+            document.querySelectorAll('.poi-checkbox:checked').forEach(cb => { selectedPOIs.add(cb.getAttribute('data-poi-id')); });
+            const invalid = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && hasMissingInfo(p));
+            document.getElementById('poiWarning').textContent =
+                invalid.length ? `⚠️ ${invalid.length} POI thiếu thông tin sẽ bị bỏ qua khi tạo` : '';
+            updateSummary();
+            const editCard = document.getElementById('step3');
+            if (editCard && !editCard.classList.contains('hidden')) {
+                renderEditScripts();
+            }
+        }
+
+        // ─── SUMMARY & PREVIEW ────────────────────────────────────────────────────────
+        function updateSummary() {
+            // Count audio files = sum of missing langs per selected valid POI
+            let totalFiles = 0;
+            const validSelected = poisWithoutAudio.filter(p => {
+                const id = getPoiId(p);
+                return selectedPOIs.has(id) && !hasMissingInfo(p);
+            });
+            validSelected.forEach(p => {
+                const id = getPoiId(p);
+                const missing = poiMissingLangsMap.get(id);
+                // Only count langs that are both selected and still missing
+                const toCreate = missing
+                    ? Array.from(selectedLangs).filter(l => missing.has(l)).length
+                    : selectedLangs.size;
+                totalFiles += toCreate;
+            });
+            document.getElementById('sumPois').textContent  = selectedPOIs.size;
+            document.getElementById('sumLangs').textContent = selectedLangs.size;
+            document.getElementById('sumFiles').textContent = totalFiles;
+            const totalMin = Math.max(1, Math.round(totalFiles * MAX_TTS_SECONDS / 60));
+            document.getElementById('sumEst').textContent   = `~${totalMin} phút`;
+            renderScriptPreviewTabs(validSelected[0] || null);
+        }
+
+        function renderScriptPreviewTabs(firstPoi) {
+            const tabs    = document.getElementById('scriptPreviewTabs');
+            const preview = document.getElementById('scriptPreview');
+            const label   = document.getElementById('scriptPreviewLabel');
+            if (!tabs || !preview) return;
+            const langs = languages.map(l => l.id);
+            if (!langs.length || !firstPoi) {
+                tabs.innerHTML   = '';
+                preview.textContent = 'Chưa chọn POI.';
+                return;
+            }
+            if (!langs.includes(previewLangScript)) previewLangScript = langs[0];
+            tabs.innerHTML = langs.map(l => {
+                const info = languages.find(x => x.id === l);
+                return `<button class="preview-tab ${l === previewLangScript ? 'active' : ''}" onclick="setScriptPreviewLang('${l}')">${info ? info.label : l}</button>`;
+            }).join('');
+
+            // If exactly 1 POI selected -> show filled script; otherwise show template with placeholders
+            const validSelected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
+            const isOnePoi = validSelected.length === 1;
+            if (label) {
+                label.textContent = isOnePoi
+                    ? `Xem trước script của "${firstPoi.name_Vi || firstPoi.name_En || 'POI'}"`
+                    : 'Xem trước template (script mẫu)';
+            }
+
+            let displayText;
+            if (isOnePoi) {
+                // Show actual filled script for this POI
+                const script  = getScriptForPoiLang(firstPoi, previewLangScript);
+                const clamped = clampScript(script, previewLangScript);
+                displayText = clamped.text;
+            } else {
+                // Show template with unresolved placeholders
+                displayText = getActiveTemplateText(previewLangScript) || 'Chưa có template.';
+            }
+            preview.textContent = displayText;
+        }
+
+        function normalizeLangId(lang) {
+            if (!lang) return 'vi-VN';
+            const l = String(lang).toLowerCase();
+            if (l.startsWith('vi')) return 'vi-VN';
+            if (l.startsWith('en')) return 'en-US';
+            if (l.startsWith('zh')) return 'zh-CN';
+            return lang;
+        }
+
+        async function fetchExistingAudioMap(poiIds) {
+            const map = new Map();
+            const requests = poiIds.map(async poiId => {
+                try {
+                    const res = await api.request(`/Audio?poiId=${poiId}&status=published&pageSize=200`);
+                    const list = res?.data || [];
+                    list.forEach(a => {
+                        const key = `${poiId}-${normalizeLangId(a.language)}`;
+                        if (!map.has(key) && a.audioUrl) {
+                            map.set(key, a);
+                        }
+                    });
+                } catch {}
+            });
+            await Promise.all(requests);
+            return map;
+        }
+
+        async function renderPairStatus() {
+            const listEl = document.getElementById('pairStatusList');
+            if (!listEl) return;
+            const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
+            const langs = Array.from(selectedLangs).map(normalizeLangId);
+            if (!selected.length || !langs.length) {
+                listEl.innerHTML = '<div style="color:var(--muted);">Chọn POI và ngôn ngữ để xem trạng thái.</div>';
+                return;
+            }
+
+            listEl.innerHTML = '<div style="color:var(--muted);">Đang kiểm tra audio đã có...</div>';
+            const poiIds = selected.map(p => getPoiId(p)).filter(Boolean);
+            const existMap = await fetchExistingAudioMap(poiIds);
+
+            listEl.innerHTML = selected.flatMap(poi => {
+                const poiId = getPoiId(poi);
+                const poiName = poi.name_Vi || poi.name_En || `POI ${poiId}`;
+                return langs.map(lang => {
+                    const key = `${poiId}-${lang}`;
+                    const existing = existMap.get(key);
+                    if (existing && existing.audioUrl) {
+                        const url = resolveAudioUrl(existing.audioUrl);
+                        return `
+                            <div class="result-item">
+                                <div class="result-head">
+                                    <div>
+                                        <div class="result-title">${poiName} — ${lang}</div>
+                                        <div class="result-sub">Đã có audio</div>
+                                    </div>
+                                </div>
+                                <audio controls src="${url}"></audio>
+                            </div>
+                        `;
+                    }
+                    return `
+                        <div class="result-item" data-gen-key="${key}">
+                            <div class="result-head">
+                                <div>
+                                    <div class="result-title">${poiName} — ${lang}</div>
+                                    <div class="result-sub">Chưa có audio</div>
+                                </div>
+                                <div class="result-actions">
+                                    <button class="btn btn-primary" onclick="generatePair('${poiId}','${lang}')">Tạo audio</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }).join('');
+        }
+
+        async function generatePair(poiId, lang) {
+            const poi = poisWithoutAudio.find(p => String(getPoiId(p)) === String(poiId));
+            if (!poi) return;
+            const poiName = poi.name_Vi || poi.name_En || `POI ${poiId}`;
+            const key = `${poiId}-${lang}`;
+            const container = document.querySelector(`[data-gen-key="${key}"]`);
+            if (container) container.innerHTML = '<div style="color:var(--muted);">Đang tạo audio...</div>';
+
+            try {
+                const script      = getScriptForPoiLang(poi, lang);
+                const clamp = clampScript(script, lang);
+                const scriptToUse = clamp.text;
+                const voice = getVoiceForLang(lang);
+                const ttsConfig = {
+                    provider: 'edge-tts',
+                    voice,
+                    speed: getSliderValue('rate', 1.0),
+                    volume: getSliderValue('volume', 1.0)
+                };
+
+                const ttsResult = await api.request('/TTS/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        text: scriptToUse,
+                        language: lang,
+                        voice,
+                        poiName: poiName,
+                        speed: ttsConfig.speed,
+                        volume: ttsConfig.volume
+                    })
+                });
+
+                await api.request('/Audio', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        poiId: parseInt(poiId),
+                        language: lang,
+                        title: poi.name_Vi || poi.name_En || `POI ${poiId}`,
+                        description: scriptToUse.substring(0, 500),
+                        fileName: ttsResult.fileName,
+                        filePath: ttsResult.filePath,
+                        fileSize: ttsResult.fileSize,
+                        duration: ttsResult.durationSeconds,
+                        type: 'TTS',
+                        ttsText: scriptToUse,
+                        ttsVoice: voice,
+                        ttsProvider: ttsConfig.provider,
+                        ttsSpeed: ttsConfig.speed,
+                        ttsConfig: ttsConfig,
+                        templateId: currentTemplate.id,
+                        templateName: currentTemplate.name,
+                        templateVariables: buildVariableMap(poi, lang)
+                    })
+                });
+
+                const url = resolveAudioUrl(ttsResult.filePath);
+                if (container) {
+                    container.removeAttribute('data-gen-key');
+                    container.innerHTML = `
+                        <div class="result-head">
+                            <div>
+                                <div class="result-title">${poi.name_Vi || poi.name_En || `POI ${poiId}`} — ${lang}</div>
+                                <div class="result-sub">Đã có audio</div>
+                            </div>
+                        </div>
+                        <audio controls src="${url}"></audio>
+                    `;
+                }
+            } catch (e) {
+                if (container) container.innerHTML = `<div style="color:var(--muted);">Lỗi tạo audio: ${e.message || e}</div>`;
+            }
+        }
+
+        function setScriptPreviewLang(lang) {
+            previewLangScript = lang;
+            const validSelected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
+            renderScriptPreviewTabs(validSelected[0] || null);
+        }
+
+        function getSliderValue(id, fallback) {
+            const el = document.getElementById(id);
+            const val = el ? parseFloat(el.value) : NaN;
+            return Number.isFinite(val) ? val : fallback;
+        }
+
+        // ─── VALIDATION ───────────────────────────────────────────────────────────────
+        async function validateAndGoStep(step) {
+            if (step === 2) { goStep(2); return; }
+            if (step === 3) {
+                if (selectedPOIs.size === 0) { showValidationError('step2', 'Vui lòng chọn ít nhất 1 POI.'); return; }
+                goStep(3); return;
+            }
+            if (step === 4) {
+                const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)));
+                const hasEmpty = selected.some(p => !getBaseScriptForPoi(p));
+                if (hasEmpty) { showValidationError('step3', 'Vui lòng nhập nội dung cho tất cả POI.'); return; }
+                goStep(4); return;
+            }
+            if (step === 5) {
+                if (selectedLangs.size === 0) { showValidationError('step4', 'Vui lòng chọn ít nhất 1 ngôn ngữ.'); return; }
+                const needsTranslation = Array.from(selectedLangs).some(l => normalizeLangId(l) !== 'vi-VN');
+                if (needsTranslation) {
+                    const selected = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
+                    const missing = selected.some(p => {
+                        const id = getPoiId(p);
+                        return Array.from(selectedLangs).some(l => {
+                            const norm = normalizeLangId(l);
+                            if (norm === 'vi-VN') return false;
+                            return !translatedScripts.has(`${id}-${norm}`);
+                        });
+                    });
+                    if (missing) {
+                        try {
+                            await autoTranslateAll({ notify: false });
+                        } catch {
+                            // ignore and let validation below decide
+                        }
+                        const stillMissing = selected.some(p => {
+                            const id = getPoiId(p);
+                            return Array.from(selectedLangs).some(l => {
+                                const norm = normalizeLangId(l);
+                                if (norm === 'vi-VN') return false;
+                                return !translatedScripts.has(`${id}-${norm}`);
+                            });
+                        });
+                        if (stillMissing) {
+                            showValidationError('step4', 'Không thể tự động dịch đầy đủ. Vui lòng thử lại.');
+                            return;
+                        }
+                    }
+                }
+                goStep(5); return;
+            }
+            goStep(step);
+        }
+function showValidationError(stepId, message) {
+            document.getElementById('validationErr_' + stepId)?.remove();
+            const el = document.createElement('div');
+            el.id        = 'validationErr_' + stepId;
+            el.className = 'validation-err';
+            el.textContent = '⚠️ ' + message;
+            document.getElementById(stepId).appendChild(el);
+            setTimeout(() => el.remove(), 4000);
+        }
+
+        // ─── ERROR DIALOG ─────────────────────────────────────────────────────────────
+        // Dừng tiến trình, hiện dialog, chờ admin chọn: 'retry' | 'skip' | 'stop'
+        function showErrorDialog(poiName, lang, errorMsg) {
+            return new Promise(resolve => {
+                document.getElementById('errOverlay')?.remove();
+
+                const overlay = document.createElement('div');
+                overlay.id        = 'errOverlay';
+                overlay.className = 'err-overlay';
+                overlay.innerHTML = `
+                    <div class="err-dialog">
+                        <div class="err-dialog-icon">⚠️</div>
+                        <div class="err-dialog-title">Lỗi tạo audio</div>
+                        <div class="err-dialog-poi">
+                            <strong>${poiName}</strong> &nbsp;·&nbsp; ${lang}
+                        </div>
+                        <div class="err-dialog-msg">${errorMsg}</div>
+                        <div class="err-dialog-actions">
+                            <button class="btn btn-primary" id="eb-retry">🔄 Thử lại</button>
+                            <button class="btn btn-warn"    id="eb-skip" >⏭ Bỏ qua</button>
+                            <button class="btn btn-danger"  id="eb-stop" >⛔ Dừng lại</button>
+                        </div>
+                        <div class="err-dialog-hint">Tiến trình đang tạm dừng — chọn hành động để tiếp tục</div>
+                    </div>`;
+                document.body.appendChild(overlay);
+
+                const done = action => { overlay.remove(); resolve(action); };
+                document.getElementById('eb-retry').onclick = () => done('retry');
+                document.getElementById('eb-skip').onclick  = () => done('skip');
+                document.getElementById('eb-stop').onclick  = () => done('stop');
+            });
+        }
+
+        // ─── GENERATE AUDIO ──────────────────────────────────────────────────────────
+        let currentAudioPlayer = null; // Track currently playing audio
+        let generatedAudioFiles = new Map(); // legacy
+        let generatedItems = new Map(); // key = "poiId-lang"
+
+        async function generateAudio() {
+            const validPOIs = poisWithoutAudio.filter(p => selectedPOIs.has(getPoiId(p)) && !hasMissingInfo(p));
+
+            if (validPOIs.length === 0 || selectedLangs.size === 0) {
+                showTopRightToast('Không có POI hợp lệ hoặc chưa chọn ngôn ngữ.', 'warning');
+                return;
+            }
+
+            const needsTranslation = Array.from(selectedLangs).some(l => normalizeLangId(l) !== 'vi-VN');
+            if (needsTranslation) {
+                const missing = validPOIs.some(p => {
+                    const id = getPoiId(p);
+                    return Array.from(selectedLangs).some(l => {
+                        const norm = normalizeLangId(l);
+                        if (norm === 'vi-VN') return false;
+                        return !translatedScripts.has(`${id}-${norm}`);
+                    });
+                });
+                if (missing) {
+                    await autoTranslateAll({ notify: false });
+                    const stillMissing = validPOIs.some(p => {
+                        const id = getPoiId(p);
+                        return Array.from(selectedLangs).some(l => {
+                            const norm = normalizeLangId(l);
+                            if (norm === 'vi-VN') return false;
+                            return !translatedScripts.has(`${id}-${norm}`);
+                        });
+                    });
+                    if (stillMissing) {
+                        showTopRightToast('Không thể tự động dịch đầy đủ. Vui lòng thử lại.', 'error');
+                        return;
+                    }
+                }
+            }
+
+            const progressCard = document.getElementById('progressCard');
+            const progressLog  = document.getElementById('progressLog');
+            progressCard.classList.remove('hidden');
+            progressLog.innerHTML = '';
+            progressLog.classList.add('hidden');
+            generatedAudioFiles.clear();
+            generatedItems.clear();
+
+            let completed = 0, failed = 0, stopped = false;
+            const total = validPOIs.length * selectedLangs.size;
+            updateProgress(completed, total, failed);
+
+            outer:
+            for (const poi of validPOIs) {
+                const poiId   = getPoiId(poi);
+                const poiName = poi.name_Vi || 'POI ' + poiId;
+                // Only generate for languages that are actually missing for this POI
+                const missingForPoi = poiMissingLangsMap.get(poiId);
+                const langsToGenerate = Array.from(selectedLangs).filter(l => !missingForPoi || missingForPoi.has(l));
+
+                for (const lang of langsToGenerate) {
+                    if (stopped) break outer;
+
+                    // Thêm dòng "đang xử lý" vào log
+                    const logEl = addLog(progressLog, `⏳ Đang tạo: ${poiName} — ${lang}`, 'pending');
+
+                    let taskDone = false;
+                    while (!taskDone && !stopped) {
+                        try {
+                            const script      = getScriptForPoiLang(poi, lang);
+                            const clamp       = clampScript(script, lang);
+                            const scriptToUse = clamp.text;
+                            const voice       = getVoiceForLang(lang);
+
+                            const ttsConfig = {
+                                provider: 'edge-tts',
+                                voice,
+                                speed:  getSliderValue('rate', 1.0),
+                                volume: getSliderValue('volume', 1.0)
+                            };
+
+                            const ttsResult = await api.request('/TTS/generate', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    text: scriptToUse,
+                                    language: lang,
+                                    voice,
+                                    poiName: poiName,
+                                    speed: ttsConfig.speed,
+                                    volume: ttsConfig.volume,
+                                    isTemp: true
+                                })
+                            });
+
+                            const audioKey = `${poiId}-${lang}`;
+                            generatedItems.set(audioKey, {
+                                key: audioKey,
+                                poi,
+                                poiId,
+                                poiName,
+                                lang,
+                                text: scriptToUse,
+                                voice,
+                                ttsConfig,
+                                templateId: currentTemplate.id,
+                                templateName: currentTemplate.name,
+                                filePath: ttsResult.filePath,
+                                fileName: ttsResult.fileName,
+                                fileSize: ttsResult.fileSize,
+                                duration: ttsResult?.durationSeconds ?? clamp.estimatedSeconds,
+                                truncated: ttsResult?.truncated ?? clamp.truncated
+                            });
+
+                            completed++;
+                            taskDone = true;
+                            updateLogEl(logEl, `${poiName} — ${lang}${clamp.truncated ? ' (đã cắt)' : ''}`, 'ok', audioKey);
+
+                        } catch (e) {
+                            const errMsg = e?.message || 'Lỗi không xác định';
+                            updateLogEl(logEl, `${poiName} — ${lang}: ${errMsg}`, 'err');
+                            console.error(`TTS [${poiName}/${lang}]:`, e);
+
+                            // Dừng tiến trình, hiện dialog cho admin
+                            const action = await showErrorDialog(poiName, lang, errMsg);
+
+                            if (action === 'retry') {
+                                // Thử lại — vòng while gọi lại API
+                                updateLogEl(logEl, `🔄 Đang thử lại: ${poiName} — ${lang}`, 'pending');
+
+                            } else if (action === 'skip') {
+                                // Bỏ qua task này, sang task tiếp theo
+                                failed++;
+                                taskDone = true;
+                                updateLogEl(logEl, `⏭ Đã bỏ qua: ${poiName} — ${lang}`, 'err');
+
+                            } else if (action === 'stop') {
+                                // Dừng toàn bộ
+                                failed++;
+                                stopped  = true;
+                                taskDone = true;
+                                updateLogEl(logEl, `⛔ Đã dừng tại: ${poiName} — ${lang}`, 'err');
+                            }
+                        }
+
+                        updateProgress(completed, total, failed);
+                    }
+                }
+            }
+
+            const remaining = total - completed - failed;
+            if (stopped && remaining > 0) {
+                showTopRightToast('Tạo audio thất bại.', 'error', 4200);
+            } else {
+                showSuccessOnly(completed, total, failed);
+            }
+
+            progressCard.classList.add('hidden');
+            renderResults();
+        }
+
+        function showSuccessOnly(completed, total, failed) {
+            const isSuccess = failed === 0 && completed > 0;
+            const titleText = isSuccess ? 'Tạo audio thành công' : 'Tạo audio thất bại';
+            const messageText = isSuccess
+                ? 'Đã tạo audio thành công. Bạn có thể nghe thử và lưu từng file bên dưới.'
+                : 'Tạo audio thất bại. Vui lòng thử lại.';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'success-overlay';
+            overlay.innerHTML = `
+                <div class="success-dialog">
+                    <div class="success-dialog-title">${titleText}</div>
+                    <div class="success-dialog-msg">${messageText}</div>
+                    <div class="err-dialog-actions">
+                        <button class="btn btn-primary" id="successClose">Đóng</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            document.getElementById('successClose').onclick = () => overlay.remove();
+        }
+
+        function renderResults() {
+            const card = document.getElementById('resultsCard');
+            const list = document.getElementById('resultsList');
+            if (!card || !list) return;
+            const items = Array.from(generatedItems.values());
+            if (!items.length) {
+                card.classList.add('hidden');
+                list.innerHTML = '';
+                return;
+            }
+            card.classList.remove('hidden');
+            list.innerHTML = items.map(item => {
+                const url = resolveAudioUrl(item.filePath);
+                return `
+                    <div class="result-item" data-key="${item.key}">
+                        <div class="result-head">
+                            <div>
+                                <div class="result-title">${item.poiName} — ${item.lang}</div>
+                                <div class="result-sub">${item.fileName || ''}</div>
+                            </div>
+                            <div class="result-actions"></div>
+                        </div>
+                        <audio controls preload="none" src="${url}"></audio>
+                        <textarea class="result-textarea" readonly style="cursor:default;resize:none;background:var(--card,#f9fafb);">${item.text}</textarea>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function resolveAudioUrl(rawUrl) {
+            if (!rawUrl) return '';
+            if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+            const apiRoot = API_BASE_URL.replace(/\/api\/?$/, '');
+            if (rawUrl.startsWith('/')) return `${apiRoot}${rawUrl}`;
+            return `${apiRoot}/${rawUrl}`;
+        }
+
+        async function deleteTempFile(filePath) {
+            if (!filePath) return;
+            try {
+                await api.request('/TTS/delete-temp', { method: 'POST', body: JSON.stringify({ filePath }) });
+            } catch {}
+        }
+
+        async function regenerateItem(key) {
+            const item = generatedItems.get(key);
+            if (!item) return;
+
+            // ★ Always read fresh text from DOM — item.text may be stale if user edited
+            //   without triggering oninput (e.g., keyboard shortcuts, programmatic paste)
+            const row = document.querySelector(`.result-item[data-key="${key}"]`);
+            const textarea = row?.querySelector('textarea.result-textarea');
+            const text = (textarea ? textarea.value : item.text || '').trim();
+            if (!text) { showTopRightToast('Nội dung trống.', 'warning'); return; }
+            item.text = text; // sync back
+
+            const voice = getVoiceForLang(item.lang);
+
+            // UI feedback (disable button + show busy)
+            const regenBtn = row?.querySelector('button.btn.btn-outline');
+            const oldBtnText = regenBtn?.textContent;
+            if (regenBtn) {
+                regenBtn.disabled = true;
+                regenBtn.textContent = 'Đang tạo...';
+            }
+            try {
+                // Prefer current slider values if user changed them after initial generate
+                const speed = getSliderValue('rate', item.ttsConfig?.speed ?? 1.0);
+                const volume = getSliderValue('volume', item.ttsConfig?.volume ?? 1.0);
+
+                const ttsResult = await api.request('/TTS/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        text,
+                        language: item.lang,
+                        voice,
+                        poiName: item.poiName,
+                        speed,
+                        volume,
+                        isTemp: true
+                    })
+                });
+
+                // ★ Delete OLD temp file BEFORE generating to avoid same-filename race condition.
+                //   TTS uses a fixed filename based on POI name + language, so both old & new
+                //   would share the same name. Deleting AFTER would erase the newly-created file.
+                const oldFilePath = item.filePath;
+                if (oldFilePath) {
+                    try { await deleteTempFile(oldFilePath); } catch {}
+                }
+
+                item.filePath = ttsResult.filePath;
+                item.fileName = ttsResult.fileName;
+                item.fileSize = ttsResult.fileSize;
+                item.duration = ttsResult.durationSeconds;
+                item.truncated = ttsResult.truncated;
+                item.voice = voice;
+                item.ttsConfig = { ...(item.ttsConfig || {}), speed, volume, voice };
+                renderResults();
+            } catch (e) {
+                const msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Không thể tạo lại.');
+                showTopRightToast(msg, 'error');
+            } finally {
+                if (regenBtn) {
+                    regenBtn.disabled = false;
+                    regenBtn.textContent = oldBtnText || 'Tạo lại';
+                }
+            }
+        }
+
+        async function saveItem(key) {
+            const item = generatedItems.get(key);
+            if (!item) return;
+            const text = (item.text || '').trim();
+            if (!text) { showTopRightToast('Nội dung trống.', 'warning'); return; }
+            try {
+                await api.request('/Audio', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        poiId: parseInt(item.poiId),
+                        language: item.lang,
+                        title: item.poiName,
+                        description: text.substring(0, 500),
+                        fileName: item.fileName,
+                        filePath: item.filePath,
+                        fileSize: item.fileSize,
+                        duration: item.duration,
+                        type: 'TTS',
+                        ttsText: text,
+                        ttsVoice: item.voice,
+                        ttsProvider: item.ttsConfig?.provider,
+                        ttsSpeed: item.ttsConfig?.speed,
+                        ttsConfig: item.ttsConfig,
+                        templateId: item.templateId,
+                        templateName: item.templateName,
+                        templateVariables: buildVariableMap(item.poi, item.lang)
+                    })
+                });
+                generatedItems.delete(key);
+                renderResults();
+                // If no items remain, refresh POI list so status/badges are updated
+                if (generatedItems.size === 0) {
+                    await afterAllSaved();
+                }
+            } catch (e) {
+                showTopRightToast(e.message || 'Không thể lưu audio.', 'error');
+            }
+        }
+
+        async function discardItem(key) {
+            const item = generatedItems.get(key);
+            if (!item) return;
+            await deleteTempFile(item.filePath);
+            generatedItems.delete(key);
+            renderResults();
+        }
+
+        async function saveAll() {
+            const keys = Array.from(generatedItems.keys());
+            for (const key of keys) {
+                await saveItem(key);
+            }
+            // After saving all: refresh POI list + summary
+            await afterAllSaved();
+        }
+
+        async function discardAll() {
+            const keys = Array.from(generatedItems.keys());
+            for (const key of keys) {
+                await discardItem(key);
+            }
+        }
+
+        async function afterAllSaved() {
+            // Reload POI list so latest status/badges are refreshed
+            await loadPOIs();
+            updateSummary();
+
+            // All done — go back to step 2 and show success toast
+            goStep(2);
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:.75rem 1.5rem;border-radius:9999px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:9999;animation:errFadeIn .2s ease';
+            toast.textContent = 'Đã lưu toàn bộ audio! Bạn có thể tiếp tục chỉnh sửa và tạo lại nếu cần.';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3500);
+        }
+
+        // ─── LOG HELPERS ──────────────────────────────────────────────────────────────
+        // Thêm dòng mới vào log, trả về element để cập nhật sau
+        function addLog(container, message, type) {
+            if (!container || container.classList.contains('hidden')) return null;
+            const el = document.createElement('div');
+            el.className   = `log-entry log-${type}`;
+            el.innerHTML = `<span class="log-message">${message}</span>`;
+            container.appendChild(el);
+            container.scrollTop = container.scrollHeight;
+            return el;
+        }
+
+        // Cập nhật nội dung + màu của dòng log đã có (dùng cho retry/skip/done)
+        function updateLogEl(el, message, type, audioKey = null) {
+            if (!el) return;
+            el.className   = `log-entry log-${type}`;
+            
+            // If this is a successful log and we have audio, add player button
+            if (type === 'ok' && audioKey && generatedAudioFiles.has(audioKey)) {
+                const audioInfo = generatedAudioFiles.get(audioKey);
+                el.innerHTML = `
+                    <span class="log-message">${message}</span>
+                    <div class="audio-player-mini">
+                        <small style="color: #6B7280;">🎵 ${audioInfo.fileName}</small>
+                        <button onclick="playAudio('${audioKey}')" title="Phát audio">▶</button>
+                    </div>
+                `;
+            } else {
+                el.innerHTML = `<span class="log-message">${message}</span>`;
+            }
+            
+            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+
+        // Play audio from generated files
+        function playAudio(audioKey) {
+            if (!generatedAudioFiles.has(audioKey)) {
+                showTopRightToast('File audio không tồn tại', 'error');
+                return;
+            }
+
+            // Stop current audio if playing
+            if (currentAudioPlayer) {
+                currentAudioPlayer.pause();
+                currentAudioPlayer = null;
+            }
+
+            const audioInfo = generatedAudioFiles.get(audioKey);
+            const audioUrl = `/Uploads/${audioInfo.fileName}`; // Adjust path based on your API
+            
+            currentAudioPlayer = new Audio(audioUrl);
+            currentAudioPlayer.play().catch(err => {
+                console.error('Lỗi phát audio:', err);
+                showTopRightToast(`Không thể phát audio: ${err.message}`, 'error');
+            });
+
+            // Update button to show playing state
+            const buttons = document.querySelectorAll('.audio-player-mini button');
+            buttons.forEach(btn => btn.textContent = '▶');
+            event.target.textContent = '⏸';
+
+            currentAudioPlayer.onended = () => {
+                event.target.textContent = '▶';
+                currentAudioPlayer = null;
+            };
+        }
+
+        function updateProgress(completed, total, failed) {
+            const percent = total ? Math.round((completed / total) * 100) : 0;
+            const circle = document.getElementById('progressCircle');
+            const percentLabel = document.getElementById('progressPercent');
+            if (circle) {
+                circle.style.setProperty('--p', String(Math.max(0, Math.min(100, percent))));
+            }
+            if (percentLabel) {
+                percentLabel.textContent = `${percent}%`;
+            }
+        }
+
+        // ─── MISC ─────────────────────────────────────────────────────────────────────
+        function getMethod() {
+            return 'custom';
+        }
+
+        function getVoiceForLang(lang) {
+            const select = document.querySelector(`[data-voice-lang="${lang}"]`);
+            return select ? select.value : (languages.find(l => l.id === lang)?.defaultVoice || '');
+        }
+
+        function goStep(step) {
+            const ids = ['step1', 'step2', 'step3', 'step4', 'step5'];
+            ids.forEach((id, idx) => {
+                document.getElementById(id).classList.toggle('hidden', idx !== step - 1);
+                document.querySelectorAll('.step')[idx].classList.toggle('active', idx === step - 1);
+            });
+            if (step === 3) {
+                renderEditScripts();
+            }
+            if (step === 5) {
+                updateSummary();
+                // Hide results until user triggers generation
+                document.getElementById('resultsCard').classList.add('hidden');
+            }
+        }
+
+        // "Quay lại" from step 5: warn user if there are pending generated items
+        async function goBackFromStep5() {
+            const hasResults = generatedItems.size > 0;
+            if (!hasResults) { goStep(4); return; }
+
+            // Custom confirm popup (same style as showErrorDialog)
+            const ok = await new Promise(resolve => {
+                document.getElementById('confirmBackOverlay')?.remove();
+                const overlay = document.createElement('div');
+                overlay.id        = 'confirmBackOverlay';
+                overlay.className = 'err-overlay';
+                overlay.innerHTML = `
+                    <div class="err-dialog">
+                        <div class="err-dialog-icon">⚠️</div>
+                        <div class="err-dialog-title">Quay lại?</div>
+                        <div class="err-dialog-msg">
+                             Quay lại sẽ xóa toàn bộ kết quả audio đã tạo.<br>
+                            Bạn có chắc muốn tiếp tục không?
+                        </div>
+                        <div class="err-dialog-actions">
+                            <button class="btn btn-danger" id="cb-confirm">🗑 Xóa &amp; Quay lại</button>
+                            <button class="btn btn-outline" id="cb-cancel">Hủy</button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(overlay);
+                const done = val => { overlay.remove(); resolve(val); };
+                document.getElementById('cb-confirm').onclick = () => done(true);
+                document.getElementById('cb-cancel').onclick  = () => done(false);
+            });
+
+            if (!ok) return;
+            await discardAll();
+            goStep(4);
+        }
+
+        // ─── INIT ─────────────────────────────────────────────────────────────────────
+        (async () => {
+            const canAccess = await ensureVendorPremiumAudioAccess();
+            if (!canAccess) return;
+
+            renderLanguages();
+            loadVoices();
+            loadPOIs();
+            updateSummary();
+            try { sessionStorage.removeItem('tts_current_step'); } catch {}
+            goStep(1);
+        })();
+    </script>
+</body>
+</html>
