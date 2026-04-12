@@ -164,11 +164,6 @@
             <div class="stat-value" id="totalAudios">—</div>
             <div class="stat-label">Tổng Audio Files</div>
         </div>
-        <div class="stat-card" onclick="location.href='translation'">
-            <div class="stat-icon accent"><i class="fas fa-globe"></i></div>
-            <div class="stat-value" id="totalTranslations">—</div>
-            <div class="stat-label">Bản dịch</div>
-        </div>
     </div>
 
     <!-- Content grid -->
@@ -276,8 +271,6 @@
         document.getElementById('viewAllPoisBtn').href = 'poi-list?scope=mine';
         document.querySelector('#totalPOIs').closest('.stat-card').setAttribute('onclick', "location.href='poi-list?scope=mine'");
         document.querySelector('#activePOIs').closest('.stat-card').setAttribute('onclick', "location.href='poi-list?scope=mine'");
-        // Hide translation stat card (vendors don't manage translations)
-        document.getElementById('totalTranslations').closest('.stat-card').style.display = 'none';
         // Hide admin-only quick links
         document.querySelectorAll('.quick-links .quick-card').forEach(card => {
             const href = card.getAttribute('href');

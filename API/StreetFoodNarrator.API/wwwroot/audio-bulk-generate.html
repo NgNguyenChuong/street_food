@@ -77,8 +77,49 @@
         .summary-item { background: var(--light); border-radius: 12px; padding: 0.8rem; text-align: center; }
         .summary-item .value { font-weight: 800; color: var(--primary); }
 
-        .progress { background: var(--light); border-radius: 999px; height: 10px; overflow: hidden; }
-        .progress > div { height: 100%; background: var(--gradient); width: 0%; transition: width 0.3s; }
+        .progress-circle-wrap {
+            display: flex;
+            justify-content: center;
+            margin: 0.4rem 0 0.2rem;
+            position: relative;
+        }
+        .progress-circle {
+            --p: 0;
+            width: 112px;
+            height: 112px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(farthest-side, #fff 70%, transparent 71%),
+                conic-gradient(var(--primary) calc(var(--p) * 1%), #E5E7EB 0);
+            animation: progress-spin 1.25s linear infinite;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        }
+        .progress-circle::before {
+            content: '';
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: inset 0 0 0 1px #f1f5f9;
+        }
+        .progress-percent {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #1F2937;
+            pointer-events: none;
+        }
+        @keyframes progress-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
 
         .result-list { display: grid; gap: 0.75rem; }
         .result-item {
@@ -220,6 +261,7 @@
             font-weight: 800;
             color: var(--dark);
             margin-bottom: 0.6rem;
+            text-align: center;
         }
 
         @media (max-width: 900px) {
@@ -386,8 +428,10 @@
         <div class="progress-overlay hidden" id="progressCard">
             <div class="progress-dialog">
                 <div class="progress-title">Đang tạo audio...</div>
-                <div class="progress"><div id="progressFill"></div></div>
-                <div id="progressText" style="margin-top:0.5rem;font-weight:600;">0 / 0</div>
+                <div class="progress-circle-wrap">
+                    <div class="progress-circle" id="progressCircle" style="--p: 0;"></div>
+                    <div class="progress-percent" id="progressPercent">0%</div>
+                </div>
                 <div id="progressLog" class="hidden" style="margin-top:0.75rem;max-height:200px;overflow-y:auto;"></div>
             </div>
         </div>
@@ -1581,10 +1625,7 @@ function showValidationError(stepId, message) {
                                 <div class="result-title">${item.poiName} — ${item.lang}</div>
                                 <div class="result-sub">${item.fileName || ''}</div>
                             </div>
-                            <div class="result-actions">
-                                <button class="btn btn-primary" onclick="saveItem('${item.key}')">Lưu</button>
-                                <button class="btn btn-danger" onclick="discardItem('${item.key}')">Bỏ</button>
-                            </div>
+                            <div class="result-actions"></div>
                         </div>
                         <audio controls preload="none" src="${url}"></audio>
                         <textarea class="result-textarea" readonly style="cursor:default;resize:none;background:var(--card,#f9fafb);">${item.text}</textarea>
@@ -1820,9 +1861,14 @@ function showValidationError(stepId, message) {
 
         function updateProgress(completed, total, failed) {
             const percent = total ? Math.round((completed / total) * 100) : 0;
-            document.getElementById('progressFill').style.width = percent + '%';
-            document.getElementById('progressText').textContent =
-                `${completed + failed} / ${total} — ${completed} thành công, ${failed} lỗi`;
+            const circle = document.getElementById('progressCircle');
+            const percentLabel = document.getElementById('progressPercent');
+            if (circle) {
+                circle.style.setProperty('--p', String(Math.max(0, Math.min(100, percent))));
+            }
+            if (percentLabel) {
+                percentLabel.textContent = `${percent}%`;
+            }
         }
 
         // ─── MISC ─────────────────────────────────────────────────────────────────────

@@ -19,86 +19,35 @@ public class TranslationsController : ControllerBase
         _sequence = sequence;
     }
 
+    private ActionResult TranslationManagementDisabled()
+    {
+        return StatusCode(StatusCodes.Status410Gone, new
+        {
+            message = "Translation management has been removed from this system."
+        });
+    }
+
     /// <summary>
     /// Get all translations with filtering
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<TranslationListResponse>> GetTranslations(
+    public ActionResult<TranslationListResponse> GetTranslations(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         [FromQuery] string? search = null,
         [FromQuery] string? category = null,
         [FromQuery] string? status = null)
     {
-        var filter = Builders<Translation>.Filter.Empty;
-
-        if (!string.IsNullOrEmpty(search))
-        {
-            var keyFilter = Builders<Translation>.Filter.Regex(t => t.Key, 
-                new MongoDB.Bson.BsonRegularExpression(search, "i"));
-            var viFilter = Builders<Translation>.Filter.Regex(t => t.Vietnamese, 
-                new MongoDB.Bson.BsonRegularExpression(search, "i"));
-            var enFilter = Builders<Translation>.Filter.Regex(t => t.English, 
-                new MongoDB.Bson.BsonRegularExpression(search, "i"));
-            filter = Builders<Translation>.Filter.Or(keyFilter, viFilter, enFilter);
-        }
-
-        if (!string.IsNullOrEmpty(category))
-        {
-            filter &= Builders<Translation>.Filter.Eq(t => t.Category, category);
-        }
-
-        if (!string.IsNullOrEmpty(status))
-        {
-            filter &= Builders<Translation>.Filter.Eq(t => t.Status, status);
-        }
-
-        var total = await _db.Translations.CountDocumentsAsync(filter);
-        var skip = (page - 1) * pageSize;
-
-        var translations = await _db.Translations
-            .Find(filter)
-            .Sort(Builders<Translation>.Sort.Ascending(t => t.Key))
-            .Skip(skip)
-            .Limit(pageSize)
-            .ToListAsync();
-
-        var dtos = translations.Select(t => new TranslationDto
-        {
-            Id = t.Id.ToString(),
-            Translation_ID = t.Translation_ID,
-            Key = t.Key,
-            Category = t.Category,
-            Vietnamese = t.Vietnamese,
-            English = t.English,
-            Chinese = t.Chinese,
-            Status = t.Status,
-            CreatedAt = t.CreatedAt
-        }).ToList();
-
-        return Ok(new TranslationListResponse
-        {
-            Data = dtos,
-            Total = (int)total,
-            Page = page,
-            PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling((double)total / pageSize)
-        });
+        return TranslationManagementDisabled();
     }
 
     /// <summary>
     /// Get translation by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<Translation>> GetTranslation(string id)
+    public ActionResult<Translation> GetTranslation(string id)
     {
-        if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
-            return BadRequest("Invalid translation ID format");
-
-        var translation = await _db.Translations.Find(t => t.Id == objectId).FirstOrDefaultAsync();
-        if (translation == null) return NotFound();
-
-        return Ok(translation);
+        return TranslationManagementDisabled();
     }
 
     /// <summary>
@@ -106,29 +55,9 @@ public class TranslationsController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<Translation>> CreateTranslation([FromBody] CreateTranslationRequest request)
+    public ActionResult<Translation> CreateTranslation([FromBody] CreateTranslationRequest request)
     {
-        // Check if key already exists
-        var existing = await _db.Translations.Find(t => t.Key == request.Key).FirstOrDefaultAsync();
-        if (existing != null)
-            return BadRequest($"Translation with key '{request.Key}' already exists");
-
-        var translationId = await _sequence.GetNextAsync("Translation_ID");
-
-        var translation = new Translation
-        {
-            Translation_ID = translationId,
-            Key = request.Key,
-            Category = request.Category ?? "general",
-            Vietnamese = request.Vietnamese,
-            English = request.English,
-            Chinese = request.Chinese,
-            Status = request.Status ?? "draft",
-            CreatedAt = DateTime.UtcNow
-        };
-
-        await _db.Translations.InsertOneAsync(translation);
-        return CreatedAtAction(nameof(GetTranslation), new { id = translation.Id.ToString() }, translation);
+        return TranslationManagementDisabled();
     }
 
     /// <summary>
@@ -136,22 +65,9 @@ public class TranslationsController : ControllerBase
     /// </summary>
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateTranslation(string id, [FromBody] UpdateTranslationRequest request)
+    public IActionResult UpdateTranslation(string id, [FromBody] UpdateTranslationRequest request)
     {
-        if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
-            return BadRequest("Invalid translation ID format");
-
-        var update = Builders<Translation>.Update
-            .Set(t => t.Vietnamese, request.Vietnamese)
-            .Set(t => t.English, request.English)
-            .Set(t => t.Chinese, request.Chinese)
-            .Set(t => t.Status, request.Status)
-            .Set(t => t.UpdatedAt, DateTime.UtcNow);
-
-        var result = await _db.Translations.UpdateOneAsync(t => t.Id == objectId, update);
-        if (result.MatchedCount == 0) return NotFound();
-
-        return NoContent();
+        return TranslationManagementDisabled();
     }
 
     /// <summary>
@@ -159,15 +75,9 @@ public class TranslationsController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteTranslation(string id)
+    public IActionResult DeleteTranslation(string id)
     {
-        if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
-            return BadRequest("Invalid translation ID format");
-
-        var result = await _db.Translations.DeleteOneAsync(t => t.Id == objectId);
-        if (result.DeletedCount == 0) return NotFound();
-
-        return NoContent();
+        return TranslationManagementDisabled();
     }
 
     /// <summary>
@@ -175,20 +85,9 @@ public class TranslationsController : ControllerBase
     /// </summary>
     [HttpGet("stats")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<TranslationStatsResponse>> GetStats()
+    public ActionResult<TranslationStatsResponse> GetStats()
     {
-        var total = await _db.Translations.CountDocumentsAsync(Builders<Translation>.Filter.Empty);
-        var done = await _db.Translations.CountDocumentsAsync(t => t.Status == "done");
-        var draft = await _db.Translations.CountDocumentsAsync(t => t.Status == "draft");
-        var needReview = await _db.Translations.CountDocumentsAsync(t => t.Status == "need_review");
-
-        return Ok(new TranslationStatsResponse
-        {
-            Total = (int)total,
-            Done = (int)done,
-            Draft = (int)draft,
-            NeedReview = (int)needReview
-        });
+        return TranslationManagementDisabled();
     }
 
     /// <summary>
