@@ -96,7 +96,7 @@ function renderTours(data) {
             <span>🚶 ${t.dist}</span>
           </div>
           <div class="tour-foot">
-            <span class="badge ${t.status==='active'?'b-green':'b-yellow'}">${t.status==='active'?'✅ Hoạt động':'📝 Bản nháp'}</span>
+            <span class="badge ${t.status==='active'?'b-green':'b-yellow'}">${t.status==='active'?'Hoạt động':'📝 Bản nháp'}</span>
             <div class="actions">
               <button class="a-btn a-edit" onclick="event.stopPropagation();editTour(${t.id})">✎</button>
               <button class="a-btn a-del"  onclick="event.stopPropagation();delRow(this,'tour này')">✕</button>
@@ -130,7 +130,7 @@ function openTourDetail(id) {
         <h3 style="font-size:18px;font-weight:700;margin-bottom:4px">${t.name}</h3>
         <p style="font-size:13px;color:var(--muted)">${t.desc}</p>
       </div>
-      <span class="badge ${t.status==='active'?'b-green':'b-yellow'}">${t.status==='active'?'✅ Hoạt động':'📝 Bản nháp'}</span>
+      <span class="badge ${t.status==='active'?'b-green':'b-yellow'}">${t.status==='active'?'Hoạt động':'📝 Bản nháp'}</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px">

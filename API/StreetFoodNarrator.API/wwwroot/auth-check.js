@@ -43,9 +43,9 @@
     // Optional: Validate session and make user info available
     try {
         window.currentUser = JSON.parse(session);
-        console.log('✅ Auth check passed for:', window.currentUser.email || window.currentUser.name);
+        console.log('Auth check passed for:', window.currentUser.email || window.currentUser.name);
     } catch (e) {
-        console.error('❌ Invalid session data:', e);
+        console.error('Invalid session data:', e);
         localStorage.removeItem('userSession');
         sessionStorage.removeItem('userSession');
         sessionStorage.setItem('auth_last_redirect', now.toString());

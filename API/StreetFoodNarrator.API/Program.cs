@@ -118,11 +118,11 @@ if (args.Contains("--reset-pois", StringComparer.OrdinalIgnoreCase))
     try
     {
         await PoiSeedReset.RunAsync(services);
-        Console.WriteLine("✅ POI reset completed.");
+        Console.WriteLine("POI reset completed.");
     }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"❌ POI reset failed: {ex.Message}");
+        Console.Error.WriteLine($"POI reset failed: {ex.Message}");
         Console.Error.WriteLine(ex);
     }
     return;

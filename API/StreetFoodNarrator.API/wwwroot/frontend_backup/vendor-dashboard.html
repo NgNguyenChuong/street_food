@@ -1361,11 +1361,11 @@
 
             try {
                 await api.createPOI(poiData);
-                alert('✅ Tạo gian hàng thành công!');
+                alert('Tạo gian hàng thành công!');
                 closeAddPOIModal();
                 loadDashboard();
             } catch (error) {
-                alert('❌ Lỗi: ' + error.message);
+                alert('Lỗi: ' + error.message);
             }
         }
 

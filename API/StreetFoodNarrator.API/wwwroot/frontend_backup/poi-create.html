@@ -1492,7 +1492,7 @@
             
             try {
                 const result = await api.createPOI(poiData);
-                alert('✅ Tạo gian hàng thành công!\n\nBạn có thể thêm file thuyết minh tại trang Quản lý Audio.');
+                alert('Tạo gian hàng thành công!\n\nBạn có thể thêm file thuyết minh tại trang Quản lý Audio.');
                 
                 if (isVendor) {
                     window.location.href = 'vendor-dashboard';
@@ -1500,7 +1500,7 @@
                     window.location.href = 'poi-list.html';
                 }
             } catch (error) {
-                errorDiv.textContent = '❌ Lỗi: ' + error.message;
+                errorDiv.textContent = 'Lỗi: ' + error.message;
                 errorDiv.style.display = 'block';
                 submitBtns.forEach(btn => {
                     btn.disabled = false;

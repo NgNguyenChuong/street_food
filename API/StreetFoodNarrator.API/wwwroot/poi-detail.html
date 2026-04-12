@@ -669,7 +669,7 @@ function renderHeader() {
         ${addr  ? `<div class="meta-chip"><i class="fas fa-map-marker-alt"></i>${addr}</div>` : ''}
         ${cat   ? `<div class="meta-chip"><i class="fas fa-tag"></i>${cat}</div>` : ''}
         ${phone ? `<div class="meta-chip"><i class="fas fa-phone"></i>${phone}</div>` : ''}
-        <span class="badge ${isAct ? 'badge-active':'badge-inactive'}">${isAct ? '✅ Đang hoạt động':'❌ Dừng hoạt động'}</span>
+        <span class="badge ${isAct ? 'badge-active':'badge-inactive'}">${isAct ? 'Đang hoạt động':'Dừng hoạt động'}</span>
     `;
 
     // Edit link
@@ -702,7 +702,7 @@ function renderInfo() {
     const lon  = p.location?.longitude ?? p.Location?.Longitude ?? p.longitude ?? p.Longitude;
     const mapUrl = p.mapUrl || p.MapUrl;
     const mapUrlDisplay = mapUrl
-        ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--primary);font-weight:600;word-break:break-all;">${mapUrl}</a>`
+        ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--primary);font-weight:600;word-break:break-all;">URL map</a>`
         : '—';
     const avgP = p.averagePrice || p.AveragePrice;
     const rat  = p.rating || p.Rating;

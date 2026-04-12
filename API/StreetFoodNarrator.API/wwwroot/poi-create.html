@@ -1596,7 +1596,7 @@
             if (isAdmin) {
                 const selectedVendorId = parseInt(document.getElementById('vendorSelect')?.value || '', 10);
                 if (Number.isNaN(selectedVendorId)) {
-                    errorDiv.textContent = '❌ Admin phải chọn Vendor trước khi tạo POI.';
+                    errorDiv.textContent = 'Admin phải chọn Vendor trước khi tạo POI.';
                     errorDiv.style.display = 'block';
                     submitBtns.forEach(btn => {
                         btn.disabled = false;
@@ -1615,7 +1615,7 @@
 
                 const myVendorId = parseInt((currentVendorProfile?.vendorId ?? currentVendorProfile?.VendorId ?? ''), 10);
                 if (Number.isNaN(myVendorId)) {
-                    errorDiv.textContent = '❌ Không xác định được Vendor hiện tại. Vui lòng vào lại tài khoản Vendor.';
+                    errorDiv.textContent = 'Không xác định được Vendor hiện tại. Vui lòng vào lại tài khoản Vendor.';
                     errorDiv.style.display = 'block';
                     submitBtns.forEach(btn => {
                         btn.disabled = false;
@@ -1692,7 +1692,7 @@
                     poiData.latitude = lat;
                     poiData.longitude = lng;
                 } else {
-                    errorDiv.textContent = '❌ Vui lòng dán link Google Maps và bấm "Lấy tọa độ" trước khi tạo POI.';
+                    errorDiv.textContent = 'Vui lòng dán link Google Maps và bấm "Lấy tọa độ" trước khi tạo POI.';
                     errorDiv.style.display = 'block';
                     submitBtns.forEach(btn => {
                         btn.disabled = false;
@@ -1717,7 +1717,7 @@
                     setTimeout(() => { window.location.href = 'poi-list'; }, 350);
                 }
             } catch (error) {
-                errorDiv.textContent = '❌ Lỗi: ' + error.message;
+                errorDiv.textContent = 'Lỗi: ' + error.message;
                 errorDiv.style.display = 'block';
                 submitBtns.forEach(btn => {
                     btn.disabled = false;

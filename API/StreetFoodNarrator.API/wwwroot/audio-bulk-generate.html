@@ -998,7 +998,7 @@
         async function refreshPOIs() {
             console.log('🔄 Đang làm mới danh sách POI...');
             await loadPOIs(true);
-            console.log('✅ Đã làm mới!');
+            console.log('Đã làm mới!');
         }
 
         function renderPOIs() {
@@ -1020,7 +1020,7 @@
                     `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;">🔊 ${LANG_LABEL_MAP[l]||l}</span>`
                 ).join(' ');
                 const doneBadges = doneLangs.map(l =>
-                    `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7;">✅ ${LANG_LABEL_MAP[l]||l}</span>`
+                    `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7;">${LANG_LABEL_MAP[l]||l}</span>`
                 ).join(' ');
 
                 return `
@@ -1494,11 +1494,11 @@ function showValidationError(stepId, message) {
 
                             completed++;
                             taskDone = true;
-                            updateLogEl(logEl, `✅ ${poiName} — ${lang}${clamp.truncated ? ' (đã cắt)' : ''}`, 'ok', audioKey);
+                            updateLogEl(logEl, `${poiName} — ${lang}${clamp.truncated ? ' (đã cắt)' : ''}`, 'ok', audioKey);
 
                         } catch (e) {
                             const errMsg = e?.message || 'Lỗi không xác định';
-                            updateLogEl(logEl, `❌ ${poiName} — ${lang}: ${errMsg}`, 'err');
+                            updateLogEl(logEl, `${poiName} — ${lang}: ${errMsg}`, 'err');
                             console.error(`TTS [${poiName}/${lang}]:`, e);
 
                             // Dừng tiến trình, hiện dialog cho admin
@@ -1530,7 +1530,7 @@ function showValidationError(stepId, message) {
 
             const remaining = total - completed - failed;
             if (stopped && remaining > 0) {
-                showTopRightToast(`Đã dừng sớm. Thành công: ${completed}, Lỗi / bỏ qua: ${failed}, Chưa xử lý: ${remaining}`, 'warning', 5500);
+                showTopRightToast('Tạo audio thất bại.', 'error', 4200);
             } else {
                 showSuccessOnly(completed, total, failed);
             }
@@ -1540,16 +1540,18 @@ function showValidationError(stepId, message) {
         }
 
         function showSuccessOnly(completed, total, failed) {
+            const isSuccess = failed === 0 && completed > 0;
+            const titleText = isSuccess ? 'Tạo audio thành công' : 'Tạo audio thất bại';
+            const messageText = isSuccess
+                ? 'Đã tạo audio thành công. Bạn có thể nghe thử và lưu từng file bên dưới.'
+                : 'Tạo audio thất bại. Vui lòng thử lại.';
+
             const overlay = document.createElement('div');
             overlay.className = 'success-overlay';
             overlay.innerHTML = `
                 <div class="success-dialog">
-                    <div class="success-dialog-title">Tạo audio thành công</div>
-                    <div class="success-dialog-msg">
-                        ✅ Thành công: ${completed} / ${total}<br>
-                        ❌ Lỗi: ${failed} / ${total}<br>
-                        Bạn có thể nghe thử và lưu từng file bên dưới.
-                    </div>
+                    <div class="success-dialog-title">${titleText}</div>
+                    <div class="success-dialog-msg">${messageText}</div>
                     <div class="err-dialog-actions">
                         <button class="btn btn-primary" id="successClose">Đóng</button>
                     </div>
@@ -1744,7 +1746,7 @@ function showValidationError(stepId, message) {
             goStep(2);
             const toast = document.createElement('div');
             toast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:.75rem 1.5rem;border-radius:9999px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:9999;animation:errFadeIn .2s ease';
-            toast.textContent = '✅ Đã lưu toàn bộ audio! Bạn có thể tiếp tục chỉnh sửa và tạo lại nếu cần.';
+            toast.textContent = 'Đã lưu toàn bộ audio! Bạn có thể tiếp tục chỉnh sửa và tạo lại nếu cần.';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3500);
         }
@@ -1820,7 +1822,7 @@ function showValidationError(stepId, message) {
             const percent = total ? Math.round((completed / total) * 100) : 0;
             document.getElementById('progressFill').style.width = percent + '%';
             document.getElementById('progressText').textContent =
-                `${completed + failed} / ${total} — ✅ ${completed} thành công, ❌ ${failed} lỗi`;
+                `${completed + failed} / ${total} — ${completed} thành công, ${failed} lỗi`;
         }
 
         // ─── MISC ─────────────────────────────────────────────────────────────────────

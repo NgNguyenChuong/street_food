@@ -39,7 +39,7 @@ public static class DbInitializer
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, "Admin");
-                Console.WriteLine("✅ Admin account created: admin@streetfood.vn / Admin@123");
+                Console.WriteLine("Admin account created: admin@streetfood.vn / Admin@123");
             }
         }
 
@@ -173,7 +173,7 @@ public static class DbInitializer
         if (pois.Count > 0)
             await db.POIs.InsertManyAsync(pois);
 
-        Console.WriteLine($"✅ Seeded {pois.Count} POIs từ Phố Ẩm thực Vĩnh Khánh.");
+        Console.WriteLine($"Seeded {pois.Count} POIs từ Phố Ẩm thực Vĩnh Khánh.");
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -226,7 +226,7 @@ public static class DbInitializer
             var result = await userManager.CreateAsync(vendor, "Vendor@123");
             if (!result.Succeeded)
             {
-                Console.WriteLine($"❌ Không tạo được user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                Console.WriteLine($"Không tạo được user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                 continue;
             }
 
@@ -258,7 +258,7 @@ public static class DbInitializer
             createdCount++;
         }
 
-        Console.WriteLine($"✅ Seeded {createdCount} vendors (tất cả status: pending, password: Vendor@123).");
+        Console.WriteLine($"Seeded {createdCount} vendors (tất cả status: pending, password: Vendor@123).");
     }
 
     /// <summary>
@@ -312,7 +312,7 @@ public static class DbInitializer
             if (result.ModifiedCount > 0) updated++;
         }
 
-        Console.WriteLine($"✅ Linked POIs: updated={updated}");
+        Console.WriteLine($"Linked POIs: updated={updated}");
         if (missingVendors.Count > 0)
             Console.WriteLine($"⚠️ Missing vendors: {string.Join(", ", missingVendors)}");
         if (missingPois.Count > 0)
@@ -484,7 +484,7 @@ public static class DbInitializer
         };
         await db.POITours.InsertManyAsync(poiTourVeKhuya);
 
-        Console.WriteLine("✅ Seeded 3 tours: 'Tour Ốc Huyền Thoại', 'Tour Lẩu & Nướng Đặc Sắc', 'Tour Ẩm Thực Về Khuya'.");
+        Console.WriteLine("Seeded 3 tours: 'Tour Ốc Huyền Thoại', 'Tour Lẩu & Nướng Đặc Sắc', 'Tour Ẩm Thực Về Khuya'.");
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -573,7 +573,7 @@ public static class DbInitializer
         {
             await db.Devices.InsertManyAsync(devicesToInsert);
             existingDevices.AddRange(devicesToInsert);
-            Console.WriteLine($"✅ Seeded {devicesToInsert.Count} devices for analytics (minimum {minimumDevices}).");
+            Console.WriteLine($"Seeded {devicesToInsert.Count} devices for analytics (minimum {minimumDevices}).");
         }
 
         return existingDevices
@@ -644,7 +644,7 @@ public static class DbInitializer
         if (logs.Count > 0)
         {
             await db.NarrationLogs.InsertManyAsync(logs.OrderByDescending(l => l.TriggeredAt));
-            Console.WriteLine($"✅ Seeded {logs.Count} narration logs for analytics history (target {targetLogs}).");
+            Console.WriteLine($"Seeded {logs.Count} narration logs for analytics history (target {targetLogs}).");
         }
     }
 }

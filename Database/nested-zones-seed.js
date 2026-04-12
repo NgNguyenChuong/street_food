@@ -244,7 +244,7 @@ db.POIs.createIndex({ "POI_ID": 1 });
 // VERIFY DATA
 // ============================================
 print("\n========================================");
-print("✅ Seed Data Loaded Successfully!");
+print("Seed Data Loaded Successfully!");
 print("========================================\n");
 
 print("Total POIs inserted: " + db.POIs.countDocuments());

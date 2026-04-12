@@ -126,7 +126,7 @@ public static class AppConfig
             // Ensure trailing slash
             url = url.TrimEnd('/') + "/";
             Preferences.Set(CUSTOM_API_URL_KEY, url);
-            Console.WriteLine($"[AppConfig] ✅ Custom API URL set: {url}");
+            Console.WriteLine($"[AppConfig] Custom API URL set: {url}");
         }
     }
 
@@ -136,7 +136,7 @@ public static class AppConfig
     public static void ClearCustomApiUrl()
     {
         Preferences.Remove(CUSTOM_API_URL_KEY);
-        Console.WriteLine("[AppConfig] ✅ Custom API URL cleared, using defaults");
+        Console.WriteLine("[AppConfig] Custom API URL cleared, using defaults");
     }
 
     /// <summary>

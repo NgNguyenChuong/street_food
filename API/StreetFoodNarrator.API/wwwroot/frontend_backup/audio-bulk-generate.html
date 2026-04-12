@@ -805,11 +805,11 @@
 
                             completed++;
                             taskDone = true;
-                            updateLogEl(logEl, `✅ ${poiName} — ${lang}${clamp.truncated ? ' (đã cắt)' : ''}`, 'ok');
+                            updateLogEl(logEl, `${poiName} — ${lang}${clamp.truncated ? ' (đã cắt)' : ''}`, 'ok');
 
                         } catch (e) {
                             const errMsg = e?.message || 'Lỗi không xác định';
-                            updateLogEl(logEl, `❌ ${poiName} — ${lang}: ${errMsg}`, 'err');
+                            updateLogEl(logEl, `${poiName} — ${lang}: ${errMsg}`, 'err');
                             console.error(`TTS [${poiName}/${lang}]:`, e);
 
                             // Dừng tiến trình, hiện dialog cho admin
@@ -841,9 +841,13 @@
 
             const remaining = total - completed - failed;
             if (stopped && remaining > 0) {
-                alert(`⛔ Đã dừng sớm.\n\n✅ Thành công: ${completed}\n❌ Lỗi / bỏ qua: ${failed}\n⏳ Chưa xử lý: ${remaining}`);
+                alert('Tạo audio thất bại.');
             } else {
-                alert(`✅ Hoàn thành!\n\nThành công: ${completed} / ${total}\nLỗi: ${failed} / ${total}`);
+                if (failed === 0 && completed > 0) {
+                    alert('Đã tạo audio thành công.');
+                } else {
+                    alert('Tạo audio thất bại.');
+                }
             }
         }
 
@@ -869,7 +873,7 @@
             const percent = total ? Math.round((completed / total) * 100) : 0;
             document.getElementById('progressFill').style.width = percent + '%';
             document.getElementById('progressText').textContent =
-                `${completed + failed} / ${total} — ✅ ${completed} thành công, ❌ ${failed} lỗi`;
+                `${completed + failed} / ${total} — ${completed} thành công, ${failed} lỗi`;
         }
 
         // ─── MISC ─────────────────────────────────────────────────────────────────────
