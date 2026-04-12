@@ -290,17 +290,9 @@
         <div class="card" id="step1">
             <h2>TTS HÀNG LOẠT - CHỌN PHƯƠNG THỨC</h2>
             <div class="option-grid">
-                <div class="option active" data-method="template">
-                    <h3>Dùng Template có sẵn (Khuyến nghị)</h3>
-                    <p>Nhanh, đơn giản, chuẩn.</p>
-                </div>
-                <div class="option" data-method="custom">
+                <div class="option active" data-method="custom" style="grid-column: 1 / -1;">
                     <h3>Tự viết Template</h3>
-                    <p>Linh hoạt, tùy chỉnh theo ý.</p>
-                </div>
-                <div class="option" data-method="import">
-                    <h3>Nhập từ Excel/CSV</h3>
-                    <p>Hàng trăm POI cùng lúc.</p>
+                    <p>Linh hoạt, tùy chỉnh theo ý. Chế độ này là phương thức duy nhất đang được sử dụng.</p>
                 </div>
             </div>
             <div class="actions" style="margin-top: 1rem;">
@@ -312,7 +304,7 @@
         <div class="card hidden" id="step2">
             <h2>BƯỚC 1: CHỌN TEMPLATE</h2>
 
-            <div id="customTemplateBox" class="hidden" style="margin-bottom: 1rem;">
+            <div id="customTemplateBox" style="margin-bottom: 1rem;">
                 <div class="field">
                     <label>Template tùy chỉnh</label>
                     <textarea id="customTemplate" rows="6" placeholder="Nhập template của bạn với biến {TEN_POI}, {DIA_CHI}..."></textarea>
@@ -320,23 +312,6 @@
                 <div style="color:var(--muted);font-size:0.85rem;">
                     Biến hỗ trợ: {TEN_POI}, {MON_DAC_SAN}, {MO_TA_QUAN}, {GIO_MO_CUA}, {GIA_TRUNG_BINH}
                 </div>
-            </div>
-
-            <div id="templateBox" class="two-col">
-                <div class="template-list" id="templateList"></div>
-                <div>
-                    <div style="font-weight:700;margin-bottom:0.5rem;">Xem trước template</div>
-                    <div class="preview-tabs" id="templatePreviewTabs"></div>
-                    <div class="preview-box" id="templatePreview"></div>
-                </div>
-            </div>
-
-            <div id="importBox" class="hidden" style="margin-top:1rem;">
-                <div class="field">
-                    <label>Import Excel/CSV</label>
-                    <input type="file" accept=".csv,.xlsx">
-                </div>
-                <div style="color: var(--muted); font-size: 0.9rem;">Demo UI. Chưa nối backend import.</div>
             </div>
 
             <h2 style="margin-top:1.5rem;">BƯỚC 2: CHỌN POI</h2>
@@ -420,7 +395,6 @@
 
             <div class="actions" style="margin-top: 1rem;">
                 <button class="btn btn-outline" onclick="goBackFromStep5()">Quay lại</button>
-                <button class="btn btn-outline" onclick="saveDraft()">Lưu nháp</button>
                 <button class="btn btn-primary" onclick="generateAudio()">Tạo ngay</button>
             </div>
         </div>
@@ -1873,28 +1847,12 @@ function showValidationError(stepId, message) {
 
         // ─── MISC ─────────────────────────────────────────────────────────────────────
         function getMethod() {
-            const active = document.querySelector('.option.active');
-            return active ? active.getAttribute('data-method') : 'template';
+            return 'custom';
         }
 
         function getVoiceForLang(lang) {
             const select = document.querySelector(`[data-voice-lang="${lang}"]`);
             return select ? select.value : (languages.find(l => l.id === lang)?.defaultVoice || '');
-        }
-
-        function saveDraft() {
-            const draft = {
-                templateId: currentTemplate.id,
-                selectedPOIs: Array.from(selectedPOIs),
-                selectedLangs: Array.from(selectedLangs),
-                method: getMethod(),
-                customTemplate: document.getElementById('customTemplate')?.value || '',
-                savedAt: new Date().toISOString()
-            };
-            try {
-                localStorage.setItem('tts_draft', JSON.stringify(draft));
-                showTopRightToast(`Đã lưu nháp lúc ${new Date().toLocaleString('vi-VN')}`, 'success');
-            } catch { showTopRightToast('Không thể lưu nháp.', 'error'); }
         }
 
         function goStep(step) {
@@ -1948,24 +1906,11 @@ function showValidationError(stepId, message) {
             goStep(4);
         }
 
-        // ─── OPTION CLICK ─────────────────────────────────────────────────────────────
-        document.querySelectorAll('.option').forEach(opt => {
-            opt.addEventListener('click', () => {
-                document.querySelectorAll('.option').forEach(o => o.classList.remove('active'));
-                opt.classList.add('active');
-                const method = opt.getAttribute('data-method');
-                document.getElementById('templateBox').classList.toggle('hidden', method !== 'template');
-                document.getElementById('customTemplateBox').classList.toggle('hidden', method !== 'custom');
-                document.getElementById('importBox').classList.toggle('hidden', method !== 'import');
-            });
-        });
-
         // ─── INIT ─────────────────────────────────────────────────────────────────────
         (async () => {
             const canAccess = await ensureVendorPremiumAudioAccess();
             if (!canAccess) return;
 
-            renderTemplates();
             renderLanguages();
             loadVoices();
             loadPOIs();
