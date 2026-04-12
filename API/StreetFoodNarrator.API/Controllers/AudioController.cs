@@ -1478,29 +1478,27 @@ public class AudioController : ControllerBase
             return vendor;
         }
 
-        if (!User.IsInRole("Vendor"))
+        // Fallback by email and bind UserId if a profile already exists.
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        if (!string.IsNullOrWhiteSpace(email))
         {
-            return null;
+            vendor = await _db.VendorProfiles.Find(v => v.ContactEmail == email).FirstOrDefaultAsync();
+            if (vendor != null)
+            {
+                if (string.IsNullOrWhiteSpace(vendor.UserId))
+                {
+                    var update = Builders<VendorProfile>.Update
+                        .Set(v => v.UserId, userId)
+                        .Set(v => v.UpdatedAt, DateTime.UtcNow);
+                    await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, update);
+                }
+
+                return vendor;
+            }
         }
 
-        var vendorId = await _sequence.GetNextAsync("vendor_id");
-        var email = User.FindFirstValue(ClaimTypes.Email);
-        var name = User.FindFirstValue(ClaimTypes.Name);
-        var fallbackName = !string.IsNullOrWhiteSpace(name)
-            ? name
-            : (!string.IsNullOrWhiteSpace(email) ? email.Split('@')[0] : "Vendor");
-
-        vendor = new VendorProfile
-        {
-            VendorId = vendorId,
-            UserId = userId,
-            ContactName = name,
-            ContactEmail = email,
-            BusinessName = fallbackName
-        };
-
-        await _db.VendorProfiles.InsertOneAsync(vendor);
-        return vendor;
+        // Do not auto-create vendor profile here to avoid duplicate inserts.
+        return null;
     }
 
     private async Task<bool> VendorOwnsPoiAsync(int vendorId, int poiId)
