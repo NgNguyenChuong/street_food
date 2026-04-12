@@ -80,6 +80,7 @@ public static class AppConfig
     public const double FallbackNearMeters = 400.0;
     public const double SpotZoneMinMeters = 15.0;
     public const double SpotZoneMaxMeters = 40.0;
+    public const double SpotZoneFallbackRadiusMeters = 30.0;
     public const double SpotZoneGpsErrorBufferMeters = 8.0;
     public const double SpotZoneConfidenceThreshold = 0.7;
     public const int SpotZoneActivationDelayMs = 1500;
@@ -160,5 +161,14 @@ public static class AppConfig
         return string.IsNullOrEmpty(path)
             ? baseUrl
             : $"{baseUrl}/{path}";
+    }
+
+    /// <summary>
+    /// Normalizes a per-spot geofence radius so DB, tracking-state, and geofence checks stay aligned.
+    /// </summary>
+    public static double NormalizeSpotRadiusMeters(double radiusMeters)
+    {
+        var rawRadius = radiusMeters > 0 ? radiusMeters : SpotZoneFallbackRadiusMeters;
+        return Math.Clamp(rawRadius, SpotZoneMinMeters, SpotZoneMaxMeters);
     }
 }

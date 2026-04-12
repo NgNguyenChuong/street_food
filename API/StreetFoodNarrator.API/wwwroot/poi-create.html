@@ -803,6 +803,11 @@
                             Giới thiệu ngắn về đặc sản và điểm nổi bật của quán
                         </div>
                     </div>
+
+                    <div class="form-help" id="vendorRadiusNotice">
+                        <i class="fas fa-ruler-combined"></i>
+                        Geofence Spot được hệ thống chuẩn hóa 15-40m, mặc định 30m nếu bỏ trống
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -928,10 +933,10 @@
                 <div class="geofence-grid">
                     <div class="form-group">
                         <label class="form-label">Bán kính kích hoạt (m)</label>
-                        <input type="number" class="form-input" id="triggerRadius" min="10" max="500" value="50">
-                        <div class="form-help">
+                        <input type="number" class="form-input" id="triggerRadius" min="15" max="40" value="30">
+                        <div class="form-help" id="triggerRadiusHelp">
                             <i class="fas fa-circle-notch"></i>
-                            10-500 mét
+                            Spot: 15-40m, mặc định 30m nếu để trống
                         </div>
                     </div>
                     <div class="form-group">
@@ -944,10 +949,10 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Thời gian chờ (phút)</label>
-                        <input type="number" class="form-input" id="cooldownMinutes" min="0" max="240" value="0">
+                        <input type="number" class="form-input" id="cooldownMinutes" min="0" max="5" value="5">
                         <div class="form-help">
                             <i class="fas fa-stopwatch"></i>
-                            0 cho Spot, 30 cho Area
+                            Spot: 0-5p (mặc định 5p), District/Area: mặc định 30p
                         </div>
                     </div>
                 </div>
@@ -1635,14 +1640,47 @@
                 const zoneType = document.getElementById('zoneType')?.value || 'Spot';
                 poiData.zoneType = zoneType;
 
+                const isSpot = zoneType === 'Spot';
+                const radiusMin = isSpot ? 15 : 10;
+                const radiusMax = isSpot ? 40 : 500;
+                const cooldownMin = 0;
+                const cooldownMax = isSpot ? 5 : 240;
+                const zoneLabel = isSpot ? 'Spot' : 'District/Area';
+
                 const triggerRadius = parseInt(document.getElementById('triggerRadius')?.value || '', 10);
-                if (!Number.isNaN(triggerRadius)) poiData.triggerRadius = triggerRadius;
+                if (!Number.isNaN(triggerRadius)) {
+                    if (triggerRadius < radiusMin || triggerRadius > radiusMax) {
+                        errorDiv.textContent = `❌ Bán kính geofence của ${zoneLabel} phải trong khoảng ${radiusMin}-${radiusMax}m.`;
+                        errorDiv.style.display = 'block';
+                        submitBtns.forEach(btn => {
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-check"></i> Tạo gian hàng';
+                        });
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return;
+                    }
+
+                    poiData.triggerRadius = triggerRadius;
+                }
 
                 const priority = parseInt(document.getElementById('priority')?.value || '', 10);
                 if (!Number.isNaN(priority)) poiData.priority = priority;
 
                 const cooldown = parseInt(document.getElementById('cooldownMinutes')?.value || '', 10);
-                if (!Number.isNaN(cooldown)) poiData.cooldownMinutes = cooldown;
+                if (!Number.isNaN(cooldown)) {
+                    if (cooldown < cooldownMin || cooldown > cooldownMax) {
+                        errorDiv.textContent = `❌ Cooldown của ${zoneLabel} phải trong khoảng ${cooldownMin}-${cooldownMax} phút.`;
+                        errorDiv.style.display = 'block';
+                        submitBtns.forEach(btn => {
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-check"></i> Tạo gian hàng';
+                        });
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return;
+                    }
+
+                    poiData.cooldownMinutes = cooldown;
+                }
 
                 const maxPlays = parseInt(document.getElementById('maxPlaysPerSession')?.value || '', 10);
                 if (!Number.isNaN(maxPlays)) poiData.maxPlaysPerSession = maxPlays;
@@ -1740,18 +1778,81 @@
 
         const zoneTypeSelect = document.getElementById('zoneType');
         const cooldownInput = document.getElementById('cooldownMinutes');
+        const triggerRadiusInput = document.getElementById('triggerRadius');
+        const triggerRadiusHelp = document.getElementById('triggerRadiusHelp');
+
+        const enforceZoneInputRanges = () => {
+            if (!zoneTypeSelect) return;
+            const isSpot = zoneTypeSelect.value === 'Spot';
+            const zoneLabel = isSpot ? 'Spot' : 'District/Area';
+
+            if (cooldownInput) {
+                const min = Number(cooldownInput.min || 0);
+                const max = Number(cooldownInput.max || (isSpot ? 5 : 240));
+                const value = Number(cooldownInput.value);
+                if (!Number.isNaN(value) && (value < min || value > max)) {
+                    cooldownInput.value = String(Math.min(max, Math.max(min, value)));
+                    showToast(`Cooldown của ${zoneLabel} chỉ được trong khoảng ${min}-${max} phút.`, 'warning');
+                }
+            }
+
+            if (triggerRadiusInput) {
+                const min = Number(triggerRadiusInput.min || (isSpot ? 15 : 10));
+                const max = Number(triggerRadiusInput.max || (isSpot ? 40 : 500));
+                const value = Number(triggerRadiusInput.value);
+                if (!Number.isNaN(value) && (value < min || value > max)) {
+                    triggerRadiusInput.value = String(Math.min(max, Math.max(min, value)));
+                    showToast(`Bán kính geofence của ${zoneLabel} chỉ được trong khoảng ${min}-${max}m.`, 'warning');
+                }
+            }
+        };
+
         if (cooldownInput) {
             cooldownInput.dataset.auto = 'true';
             cooldownInput.addEventListener('input', () => { cooldownInput.dataset.auto = 'false'; });
+            cooldownInput.addEventListener('change', enforceZoneInputRanges);
+        }
+        if (triggerRadiusInput) {
+            triggerRadiusInput.dataset.auto = 'true';
+            triggerRadiusInput.addEventListener('input', () => { triggerRadiusInput.dataset.auto = 'false'; });
+            triggerRadiusInput.addEventListener('change', enforceZoneInputRanges);
         }
         const applyZoneDefaults = () => {
-            if (!zoneTypeSelect || !cooldownInput) return;
-            if (cooldownInput.dataset.auto === 'false' && cooldownInput.value !== '') return;
-            cooldownInput.value = zoneTypeSelect.value === 'Spot' ? '0' : '30';
-            cooldownInput.dataset.auto = 'true';
+            if (!zoneTypeSelect) return;
+
+            const isSpot = zoneTypeSelect.value === 'Spot';
+
+            if (cooldownInput && !(cooldownInput.dataset.auto === 'false' && cooldownInput.value !== '')) {
+                cooldownInput.min = '0';
+                cooldownInput.max = isSpot ? '5' : '240';
+                cooldownInput.value = isSpot ? '5' : '30';
+                cooldownInput.dataset.auto = 'true';
+            }
+
+            if (triggerRadiusInput) {
+                triggerRadiusInput.min = isSpot ? '15' : '10';
+                triggerRadiusInput.max = isSpot ? '40' : '500';
+                triggerRadiusInput.placeholder = isSpot ? '30' : '50';
+                if (!(triggerRadiusInput.dataset.auto === 'false' && triggerRadiusInput.value !== '')) {
+                    triggerRadiusInput.value = isSpot ? '30' : '50';
+                    triggerRadiusInput.dataset.auto = 'true';
+                }
+            }
+
+            if (triggerRadiusHelp) {
+                triggerRadiusHelp.innerHTML = isSpot
+                    ? '<i class="fas fa-circle-notch"></i> Spot: 15-40m, mặc định 30m nếu để trống'
+                    : '<i class="fas fa-circle-notch"></i> District/Area: nhập 10-500m theo quy mô khu vực';
+            }
         };
-        if (zoneTypeSelect) zoneTypeSelect.addEventListener('change', applyZoneDefaults);
+        if (zoneTypeSelect) {
+            zoneTypeSelect.addEventListener('change', () => {
+                applyZoneDefaults();
+                enforceZoneInputRanges();
+            });
+        }
         applyZoneDefaults();
+        enforceZoneInputRanges();
 
         // Image Upload Handle
         document.getElementById('imageFile')?.addEventListener('change', async (e) => {

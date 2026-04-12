@@ -19,7 +19,7 @@
         <Grid Grid.Row="0" Padding="16,52,16,8" ColumnDefinitions="*,Auto" ColumnSpacing="10">
             <VerticalStackLayout Grid.Column="0" Spacing="4">
                 <Label x:Name="SavedHeaderTitleLabel" Text="Đã lưu" FontSize="22" FontAttributes="Bold" TextColor="White"/>
-                <Label x:Name="SavedHeaderSubtitleLabel" Text="Các Tour và POI yêu thích" FontSize="13" TextColor="#6B7280"/>
+                <Label x:Name="SavedHeaderSubtitleLabel" Text="Các tour và quán yêu thích" FontSize="13" TextColor="#6B7280"/>
             </VerticalStackLayout>
 
             <Border Grid.Column="1"
@@ -53,7 +53,7 @@
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnSavedPoiSegmentTapped"/>
                 </Border.GestureRecognizers>
-                <Label x:Name="SavedPoiLabel" Text="POI đã lưu" FontSize="12"
+                  <Label x:Name="SavedPoiLabel" Text="Quán đã lưu" FontSize="12"
                        TextColor="#6B7280" HorizontalOptions="Center"/>
             </Border>
         </Grid>
@@ -183,7 +183,7 @@
                                TextColor="#4B5563" HorizontalOptions="Center"/>
                            <Label x:Name="EmptySavedPoiTitleLabel" Text="Chưa có quán nào được lưu" FontSize="15"
                                TextColor="#6B7280" HorizontalOptions="Center"/>
-                           <Label x:Name="EmptySavedPoiSubtitleLabel" Text="Nhấn tim ❤ trong tab Map/Explore để lưu POI" FontSize="12"
+                           <Label x:Name="EmptySavedPoiSubtitleLabel" Text="Nhấn tim ❤ trong tab Map/Explore để lưu quán" FontSize="12"
                                TextColor="#4B5563" HorizontalOptions="Center"/>
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>

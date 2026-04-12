@@ -138,6 +138,18 @@
                                            TextColor="#64748B" />
                                 </VerticalStackLayout>
                             </Border>
+
+                            <Button x:Name="VipSimulateRenewButton"
+                                    Text="Test gia hạn +3 phút"
+                                    IsVisible="False"
+                                    HeightRequest="40"
+                                    CornerRadius="10"
+                                    BackgroundColor="#143426"
+                                    BorderColor="#2E6A4D"
+                                    BorderWidth="1"
+                                    TextColor="#A7F3D0"
+                                    FontAttributes="Bold"
+                                    Clicked="OnVipSimulateRenewClicked" />
                         </VerticalStackLayout>
 
                         <BoxView HeightRequest="1" BackgroundColor="#1E3D2A" Opacity="0.5" />

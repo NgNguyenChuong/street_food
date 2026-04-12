@@ -405,9 +405,9 @@ public partial class MainPage : ContentPage
             await DisplayAlertAsync(
                 Ui("Thông báo", "Notice", "提示"),
                 Ui(
-                    "Đăng ký VIP để có thể sử dụng các chức năng hấp dẫn khác trong app:\n• Tương tác với nhiều POI khác\n• Xem thêm nhiều tour đặc sắc",
-                    "Subscribe to VIP to unlock more exciting app features:\n• Interact with more POIs\n• Access more curated tours",
-                    "订阅 VIP 以解锁更多精彩功能：\n• 与更多 POI 互动\n• 查看更多精选路线"),
+                    "Đăng ký VIP để có thể sử dụng các chức năng hấp dẫn khác trong app:\n• Tương tác với nhiều quán khác\n• Xem thêm nhiều tour đặc sắc",
+                    "Subscribe to VIP to unlock more exciting app features:\n• Interact with more places\n• Access more curated tours",
+                    "订阅 VIP 以解锁更多精彩功能：\n• 与更多店铺互动\n• 查看更多精选路线"),
                 "OK");
             return;
         }

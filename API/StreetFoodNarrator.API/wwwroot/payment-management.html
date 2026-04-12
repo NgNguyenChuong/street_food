@@ -114,6 +114,10 @@
             margin-top: 0.15rem;
         }
 
+        #vendorPremiumExpire { font-size: 1.05rem; }
+        #simulateBtn { margin-top: 0.65rem; }
+        #simulateExpiringBtn { margin-top: 0.55rem; }
+
         .stat-label { color: #667085; font-size: 0.85rem; }
 
         .toolbar {
@@ -175,15 +179,37 @@
             padding: 0.2rem 0.6rem;
             font-size: 0.74rem;
             font-weight: 700;
-            text-transform: uppercase;
+            text-transform: none;
+            white-space: nowrap;
         }
 
         .badge.pending { background: rgba(245,158,11,0.16); color: #946100; }
         .badge.approved { background: rgba(6,214,160,0.18); color: #037d5d; }
         .badge.rejected { background: rgba(239,71,111,0.16); color: #a81841; }
+        .badge.active { background: rgba(6,214,160,0.18); color: #037d5d; }
+        .badge.expired { background: rgba(148,163,184,0.2); color: #475467; }
+        .badge.unknown { background: rgba(99,102,241,0.14); color: #4338ca; }
 
         .muted { color: #6b7484; font-size: 0.83rem; }
         .hidden { display: none; }
+
+        .ellipsis-text {
+            display: inline-block;
+            max-width: 240px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: bottom;
+        }
+
+        #adminAppTable td.col-device .ellipsis-text { max-width: 250px; }
+        #adminAppTable td.col-invoice .ellipsis-text { max-width: 210px; }
+        #adminAppTable td.col-transfer .ellipsis-text { max-width: 260px; }
+        #adminAppTable td.col-stt,
+        #adminAppTable th.col-stt {
+            width: 70px;
+            text-align: center;
+        }
 
         .empty {
             padding: 1.6rem 1rem;
@@ -202,7 +228,7 @@
             .toolbar { flex-direction: column; }
             .input, .select { width: 100%; min-width: 0; }
             .table-wrap { overflow-x: auto; }
-            table { min-width: 860px; }
+            table { min-width: 1120px; }
         }
     </style>
 </head>
@@ -232,18 +258,18 @@
                 <div class="card-head"><i class="fas fa-calendar-check"></i> Hết hạn</div>
                 <div class="card-body">
                     <div class="stat-label">Ngày hết hạn premium</div>
-                    <div class="stat-value" id="vendorPremiumExpire" style="font-size:1.05rem">--</div>
+                    <div class="stat-value" id="vendorPremiumExpire">--</div>
                 </div>
             </article>
             <article class="card">
                 <div class="card-head"><i class="fas fa-money-check-dollar"></i> Đăng ký mới</div>
                 <div class="card-body">
                     <div class="stat-label">Premium 1 năm - 1.990.000 VND</div>
-                    <button class="btn btn-primary" id="simulateBtn" onclick="simulatePayment()" style="margin-top:0.65rem">
+                    <button class="btn btn-primary" id="simulateBtn" onclick="simulatePayment()">
                         <i class="fas fa-bolt"></i>
                         Giả lập thanh toán
                     </button>
-                    <button class="btn btn-outline" id="simulateExpiringBtn" onclick="simulateExpiringPayment()" style="margin-top:0.55rem">
+                    <button class="btn btn-outline" id="simulateExpiringBtn" onclick="simulateExpiringPayment()">
                         <i class="fas fa-hourglass-end"></i>
                         Giả lập còn 3 phút
                     </button>
@@ -272,58 +298,126 @@
     </section>
 
     <section id="adminSection" class="hidden">
-        <div class="cards">
-            <article class="card">
-                <div class="card-head"><i class="fas fa-list-check"></i> Tổng submissions</div>
-                <div class="card-body">
-                    <div class="stat-label">Số yêu cầu</div>
-                    <div class="stat-value" id="adminTotal">0</div>
-                </div>
-            </article>
-            <article class="card">
-                <div class="card-head"><i class="fas fa-hourglass-half"></i> Chờ duyệt</div>
-                <div class="card-body">
-                    <div class="stat-label">Pending</div>
-                    <div class="stat-value" id="adminPending">0</div>
-                </div>
-            </article>
-            <article class="card">
-                <div class="card-head"><i class="fas fa-circle-check"></i> Đã duyệt</div>
-                <div class="card-body">
-                    <div class="stat-label">Approved</div>
-                    <div class="stat-value" id="adminApproved">0</div>
-                </div>
-            </article>
+        <div id="adminVendorPanel">
+            <div class="cards">
+                <article class="card">
+                    <div class="card-head"><i class="fas fa-list-check"></i> Tổng submissions</div>
+                    <div class="card-body">
+                        <div class="stat-label">Số yêu cầu</div>
+                        <div class="stat-value" id="adminTotal">0</div>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card-head"><i class="fas fa-hourglass-half"></i> Chờ duyệt</div>
+                    <div class="card-body">
+                        <div class="stat-label">Pending</div>
+                        <div class="stat-value" id="adminPending">0</div>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card-head"><i class="fas fa-circle-check"></i> Đã duyệt</div>
+                    <div class="card-body">
+                        <div class="stat-label">Approved</div>
+                        <div class="stat-value" id="adminApproved">0</div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="toolbar">
+                <select class="select" id="statusFilter">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+                <input class="input" id="searchInput" placeholder="Tìm theo vendor, submission hoặc transaction...">
+                <button class="btn btn-outline" onclick="loadAdminData()"><i class="fas fa-filter"></i>Lọc</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Submission</th>
+                        <th>Vendor</th>
+                        <th>Gói</th>
+                        <th>Số tiền</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th>Ghi chú</th>
+                        <th>Hành động</th>
+                    </tr>
+                    </thead>
+                    <tbody id="adminTableBody"></tbody>
+                </table>
+                <div id="adminEmpty" class="empty hidden">Không có dữ liệu theo bộ lọc.</div>
+            </div>
         </div>
 
-        <div class="toolbar">
-            <select class="select" id="statusFilter">
-                <option value="">Tất cả trạng thái</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-            </select>
-            <input class="input" id="searchInput" placeholder="Tìm theo vendor, submission hoặc transaction...">
-            <button class="btn btn-outline" onclick="loadAdminData()"><i class="fas fa-filter"></i>Lọc</button>
-        </div>
+        <div id="adminAppPanel" class="hidden">
+            <div class="cards">
+                <article class="card">
+                    <div class="card-head"><i class="fas fa-receipt"></i> Tổng giao dịch app</div>
+                    <div class="card-body">
+                        <div class="stat-label">Số lượt thanh toán</div>
+                        <div class="stat-value" id="appTotal">0</div>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card-head"><i class="fas fa-crown"></i> VIP đang hoạt động</div>
+                    <div class="card-body">
+                        <div class="stat-label">Active</div>
+                        <div class="stat-value" id="appActive">0</div>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card-head"><i class="fas fa-clock-rotate-left"></i> VIP đã hết hạn</div>
+                    <div class="card-body">
+                        <div class="stat-label">Expired</div>
+                        <div class="stat-value" id="appExpired">0</div>
+                    </div>
+                </article>
+            </div>
 
-        <div class="table-wrap">
-            <table>
-                <thead>
-                <tr>
-                    <th>Submission</th>
-                    <th>Vendor</th>
-                    <th>Gói</th>
-                    <th>Số tiền</th>
-                    <th>Trạng thái</th>
-                    <th>Ngày tạo</th>
-                    <th>Ghi chú</th>
-                    <th>Hành động</th>
-                </tr>
-                </thead>
-                <tbody id="adminTableBody"></tbody>
-            </table>
-            <div id="adminEmpty" class="empty hidden">Không có dữ liệu theo bộ lọc.</div>
+            <div class="toolbar">
+                <select class="select" id="appStatusFilter">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="active">Đang hoạt động</option>
+                    <option value="expired">Đã hết hạn</option>
+                </select>
+                <select class="select" id="appPlatformFilter">
+                    <option value="">Tất cả nền tảng</option>
+                    <option value="android">Android</option>
+                    <option value="ios">iOS</option>
+                </select>
+                <select class="select" id="appSortOrder">
+                    <option value="newest">Mới nhất đến cũ nhất</option>
+                    <option value="oldest">Cũ nhất đến mới nhất</option>
+                </select>
+                <input class="input" id="appFromDate" type="date" aria-label="Từ ngày đăng ký">
+                <input class="input" id="appToDate" type="date" aria-label="Đến ngày đăng ký">
+                <input class="input" id="appSearchInput" placeholder="Tìm theo thiết bị, mã hóa đơn, mã khôi phục...">
+                <button class="btn btn-outline" onclick="loadAdminAppData()"><i class="fas fa-filter"></i>Lọc</button>
+            </div>
+
+            <div class="table-wrap">
+                <table id="adminAppTable">
+                    <thead>
+                    <tr>
+                        <th class="col-stt">STT</th>
+                        <th>Gói đăng ký</th>
+                        <th>Mã thiết bị</th>
+                        <th>Trạng thái</th>
+                        <th>Mã hóa đơn</th>
+                        <th>Ngày đăng ký</th>
+                        <th>Ngày hết hạn</th>
+                        <th>Nội dung chuyển khoản</th>
+                    </tr>
+                    </thead>
+                    <tbody id="adminAppTableBody"></tbody>
+                </table>
+                <div id="adminAppEmpty" class="empty hidden">Không có dữ liệu thanh toán app theo bộ lọc.</div>
+            </div>
         </div>
     </section>
 </main>
@@ -331,6 +425,7 @@
 <script>
     let isAdmin = false;
     let isVendor = false;
+    let adminPaymentMode = 'vendor';
 
     function fmtDate(value) {
         if (!value) return '--';
@@ -345,8 +440,45 @@
     }
 
     function statusBadge(status) {
-        const s = (status || 'pending').toLowerCase();
-        return `<span class="badge ${s}">${s}</span>`;
+        const s = (status || 'unknown').toLowerCase();
+        const labelMap = {
+            pending: 'Chờ duyệt',
+            approved: 'Đã duyệt',
+            rejected: 'Từ chối',
+            active: 'Đang hoạt động',
+            expired: 'Đã hết hạn',
+            unknown: 'Không rõ'
+        };
+        const label = labelMap[s] || s;
+        return `<span class="badge ${s}">${label}</span>`;
+    }
+
+    function getAdminPaymentModeFromUrl() {
+        const mode = new URLSearchParams(window.location.search).get('mode');
+        return String(mode || '').toLowerCase() === 'app' ? 'app' : 'vendor';
+    }
+
+    async function switchAdminPaymentMode(mode) {
+        if (!isAdmin) return;
+
+        adminPaymentMode = mode === 'app' ? 'app' : 'vendor';
+        const showVendor = adminPaymentMode === 'vendor';
+
+        document.getElementById('adminVendorPanel').classList.toggle('hidden', !showVendor);
+        document.getElementById('adminAppPanel').classList.toggle('hidden', showVendor);
+
+        document.getElementById('pageTitle').textContent = showVendor
+            ? 'Quản lý thanh toán dịch vụ'
+            : 'Quản lý thanh toán người dùng app';
+        document.getElementById('pageSubtitle').textContent = showVendor
+            ? 'Admin duyệt yêu cầu premium để vendor được đăng POI quảng bá vào tour.'
+            : 'Theo dõi các lượt xác nhận thanh toán và trạng thái VIP theo thiết bị từ app mobile.';
+
+        if (showVendor) {
+            await loadAdminData();
+        } else {
+            await loadAdminAppData();
+        }
     }
 
     function roleSetup() {
@@ -375,7 +507,7 @@
 
         if (isAdmin) {
             document.getElementById('pageTitle').textContent = 'Quản lý thanh toán dịch vụ';
-            document.getElementById('pageSubtitle').textContent = 'Admin duyệt yêu cầu premium để vendor được đăng POI quảng bá vào tour.';
+            document.getElementById('pageSubtitle').textContent = 'Theo dõi thanh toán vendor và người dùng app từ menu Quản lý thanh toán ở sidebar.';
         } else {
             document.getElementById('pageTitle').textContent = 'Thanh toán gói dịch vụ';
             document.getElementById('pageSubtitle').textContent = 'Đăng ký premium 1 năm để mở quyền thêm POI và được admin đưa POI vào tour quảng cáo.';
@@ -523,9 +655,94 @@
         }
     }
 
+    async function loadAdminAppData() {
+        const status = document.getElementById('appStatusFilter').value;
+        const platform = document.getElementById('appPlatformFilter').value;
+        const sortOrder = document.getElementById('appSortOrder').value;
+        const fromDateText = document.getElementById('appFromDate').value;
+        const toDateText = document.getElementById('appToDate').value;
+        const search = document.getElementById('appSearchInput').value.trim();
+
+        try {
+            const res = await PaymentApi.listAppSubscriptions({ status, platform, search });
+            let rows = Array.isArray(res?.data) ? res.data : [];
+
+            const fromDate = fromDateText ? new Date(`${fromDateText}T00:00:00`) : null;
+            const toDate = toDateText ? new Date(`${toDateText}T23:59:59.999`) : null;
+
+            if (fromDate || toDate) {
+                rows = rows.filter(item => {
+                    const registeredAt = new Date(item.invoiceCreatedAtUtc || item.confirmedAtUtc || item.startsAtUtc || 0);
+                    if (Number.isNaN(registeredAt.getTime())) return false;
+                    if (fromDate && registeredAt < fromDate) return false;
+                    if (toDate && registeredAt > toDate) return false;
+                    return true;
+                });
+            }
+
+            rows.sort((a, b) => {
+                const timeA = new Date(a.invoiceCreatedAtUtc || a.confirmedAtUtc || a.startsAtUtc || 0).getTime();
+                const timeB = new Date(b.invoiceCreatedAtUtc || b.confirmedAtUtc || b.startsAtUtc || 0).getTime();
+                return sortOrder === 'oldest' ? timeA - timeB : timeB - timeA;
+            });
+
+            const total = rows.length;
+            const active = rows.filter(x => (x.status || '').toLowerCase() === 'active').length;
+            const expired = rows.filter(x => (x.status || '').toLowerCase() === 'expired').length;
+
+            document.getElementById('appTotal').textContent = String(total);
+            document.getElementById('appActive').textContent = String(active);
+            document.getElementById('appExpired').textContent = String(expired);
+
+            const body = document.getElementById('adminAppTableBody');
+            body.innerHTML = '';
+
+            if (!rows.length) {
+                document.getElementById('adminAppEmpty').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('adminAppEmpty').classList.add('hidden');
+            rows.forEach((item, index) => {
+                const planName = item.planCode || '--';
+                const deviceId = item.deviceId || '--';
+                const deviceMeta = `${item.platform || '--'} | ${item.model || '--'}`;
+                const invoiceNumber = item.invoiceNumber || '--';
+                const recoveryCode = item.recoveryCode || '--';
+                const transferContent = item.transferContent || '--';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="col-stt">${index + 1}</td>
+                    <td><div class="muted">${planName}</div></td>
+                    <td class="col-device">
+                        <span class="ellipsis-text" title="${deviceId}">${deviceId}</span>
+                        <div class="muted"><span class="ellipsis-text" title="${deviceMeta}">${deviceMeta}</span></div>
+                    </td>
+                    <td>
+                        ${statusBadge(item.status)}
+                    </td>
+                    <td class="col-invoice">
+                        <span class="ellipsis-text" title="${invoiceNumber}">${invoiceNumber}</span>
+                    </td>
+                    <td>${fmtDate(item.invoiceCreatedAtUtc)}</td>
+                    <td>${fmtDate(item.expiresAtUtc)}</td>
+                    <td class="col-transfer"><span class="ellipsis-text" title="${transferContent}">${transferContent}</span></td>
+                `;
+                body.appendChild(tr);
+            });
+        } catch (err) {
+            alert(err.message || 'Không thể tải dữ liệu thanh toán người dùng app.');
+        }
+    }
+
     function refreshPage() {
         if (isAdmin) {
-            loadAdminData();
+            if (adminPaymentMode === 'app') {
+                loadAdminAppData();
+            } else {
+                loadAdminData();
+            }
         } else {
             loadVendorData();
         }
@@ -534,7 +751,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
         if (!roleSetup()) return;
         if (isAdmin) {
-            await loadAdminData();
+            await switchAdminPaymentMode(getAdminPaymentModeFromUrl());
         } else {
             await loadVendorData();
         }

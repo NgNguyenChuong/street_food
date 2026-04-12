@@ -11,6 +11,8 @@ namespace StreetFoodNarrator.App.Helpers;
 public static class CustomAlert
 {
     private static readonly SemaphoreSlim AlertGate = new(1, 1);
+    private static readonly object PendingAlertKeysLock = new();
+    private static readonly HashSet<string> PendingAlertKeys = new(StringComparer.Ordinal);
     private const string OverlayClassId = "__custom_alert_overlay";
     private const string WrapperClassId = "__custom_alert_wrapper";
     private const uint EnterAnimationMs = 70;
@@ -103,6 +105,10 @@ public static class CustomAlert
         Page? hostPage = null)
     {
         if (options == null || options.Count == 0)
+            return null;
+
+        var requestKey = BuildSelectionAlertKey(title, options, cancelText);
+        if (!TryRegisterPendingAlertKey(requestKey))
             return null;
 
         await AlertGate.WaitAsync();
@@ -254,6 +260,7 @@ public static class CustomAlert
         finally
         {
             AlertGate.Release();
+            UnregisterPendingAlertKey(requestKey);
         }
     }
 
@@ -269,6 +276,10 @@ public static class CustomAlert
         AlertType type,
         string? dontShowAgainText)
     {
+        var requestKey = BuildStandardAlertKey(title, message, primaryText, secondaryText, type, dontShowAgainText);
+        if (!TryRegisterPendingAlertKey(requestKey))
+            return new AlertResult(false, false);
+
         await AlertGate.WaitAsync();
         try
         {
@@ -514,8 +525,59 @@ public static class CustomAlert
         finally
         {
             AlertGate.Release();
+            UnregisterPendingAlertKey(requestKey);
         }
     }
+
+    private static bool TryRegisterPendingAlertKey(string key)
+    {
+        lock (PendingAlertKeysLock)
+        {
+            if (PendingAlertKeys.Contains(key))
+                return false;
+
+            PendingAlertKeys.Add(key);
+            return true;
+        }
+    }
+
+    private static void UnregisterPendingAlertKey(string key)
+    {
+        lock (PendingAlertKeysLock)
+        {
+            PendingAlertKeys.Remove(key);
+        }
+    }
+
+    private static string BuildStandardAlertKey(
+        string title,
+        string message,
+        string primaryText,
+        string? secondaryText,
+        AlertType type,
+        string? dontShowAgainText)
+    {
+        return string.Join("|",
+            "standard",
+            type.ToString(),
+            NormalizeAlertKeyPart(title),
+            NormalizeAlertKeyPart(message),
+            NormalizeAlertKeyPart(primaryText),
+            NormalizeAlertKeyPart(secondaryText),
+            NormalizeAlertKeyPart(dontShowAgainText));
+    }
+
+    private static string BuildSelectionAlertKey(string title, IReadOnlyList<string> options, string cancelText)
+    {
+        return string.Join("|",
+            "selection",
+            NormalizeAlertKeyPart(title),
+            string.Join("~", options.Select(NormalizeAlertKeyPart)),
+            NormalizeAlertKeyPart(cancelText));
+    }
+
+    private static string NormalizeAlertKeyPart(string? value)
+        => (value ?? string.Empty).Trim();
 
     private static async Task CloseDialogAsync(Grid overlay)
     {

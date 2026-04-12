@@ -25,6 +25,7 @@ public partial class SettingsPage : ContentPage
     private bool _isVoicePickerExpanded;
     private bool _isLoadingGpsTestModeSwitch;
     private bool _isApplyingControls;
+    private bool _isSimulatingVipRenewal;
     private bool _hasPendingChanges;
     private bool _initialGpsTestModeEnabled;
     private bool _initialSimulationToolsVisible;
@@ -32,9 +33,9 @@ public partial class SettingsPage : ContentPage
     private string _pendingLocationSourceMode = AppConfig.LocationSourceReal;
 
     private const string PrefSettings = "UserSettings";
-    private const string PrefHapticFeedback = "settings_haptic_feedback";
-    private const string PrefKeepScreenOn = "settings_keep_screen_on";
-    private const string PrefLargeText = "settings_large_text";
+    private const string PrefHapticFeedback = UserPreferenceEffects.PrefHapticFeedback;
+    private const string PrefKeepScreenOn = UserPreferenceEffects.PrefKeepScreenOn;
+    private const string PrefLargeText = UserPreferenceEffects.PrefLargeText;
     private const string HasOnboardedPreferenceKey = "has_onboarded";
     private const string AutoOpenInZoneOnNextMainPageKey = "auto_open_inzone_on_next_mainpage";
 
@@ -55,8 +56,8 @@ public partial class SettingsPage : ContentPage
     private static readonly IReadOnlyList<GpsTestPoiPointMobileRequest> FixedGpsTestPoiPoints =
     [
         new() { Latitude = 10.842078975289178, Longitude = 106.60899362124417, Priority = 10 },
-        new() { Latitude = 10.842098731748207, Longitude = 106.60896276355663, Priority = 9 },
-        new() { Latitude = 10.84207831569258, Longitude = 106.60906602860645, Priority = 8 }
+        new() { Latitude = 10.842611200000000, Longitude = 106.608708400000000, Priority = 9 },
+        new() { Latitude = 10.843128900000000, Longitude = 106.608430900000000, Priority = 8 }
     ];
 
     private readonly List<LocationSourceOption> _locationSourceOptions = new();
@@ -139,6 +140,7 @@ public partial class SettingsPage : ContentPage
         if (_mainViewModel == null)
         {
             HeaderVipBadge.IsVisible = false;
+            VipSimulateRenewButton.IsVisible = false;
             VipStatusValueLabel.Text = Localize(
                 "Bạn chưa kích hoạt VIP",
                 "VIP is not active",
@@ -174,10 +176,18 @@ public partial class SettingsPage : ContentPage
                     "Đang đồng bộ thời hạn VIP...",
                     "Syncing VIP validity...",
                     "正在同步 VIP 有效期...");
+
+            VipSimulateRenewButton.Text = Localize(
+                "Test gia hạn +3 phút",
+                "Test +3 minute renewal",
+                "测试续期 +3 分钟");
+            VipSimulateRenewButton.IsVisible = true;
+            VipSimulateRenewButton.IsEnabled = !_isSimulatingVipRenewal;
             return;
         }
 
         HeaderVipBadgeLabel.Text = "VIP";
+        VipSimulateRenewButton.IsVisible = false;
         VipStatusValueLabel.Text = Localize(
             "Bạn chưa kích hoạt VIP",
             "VIP is not active",
@@ -186,6 +196,118 @@ public partial class SettingsPage : ContentPage
             "Đăng ký VIP để mở thêm tour và tính năng cao cấp",
             "Subscribe to VIP to unlock more tours and premium features",
             "订阅 VIP 以解锁更多路线与高级功能");
+    }
+
+    private async void OnVipSimulateRenewClicked(object sender, EventArgs e)
+    {
+        if (_isSimulatingVipRenewal)
+            return;
+
+        if (_mainViewModel == null || !_mainViewModel.IsVipUser)
+        {
+            await CustomAlert.ShowAsync(
+                Localize("VIP chưa kích hoạt", "VIP is not active", "VIP 未激活"),
+                Localize(
+                    "Cần có gói VIP đang hoạt động để test gia hạn 3 phút.",
+                    "An active VIP plan is required to test +3 minute renewal.",
+                    "需要先有有效 VIP 套餐才能测试 +3 分钟续期。"),
+                "OK",
+                AlertType.Info);
+            ApplyVipStatusUi();
+            return;
+        }
+
+        _isSimulatingVipRenewal = true;
+        VipSimulateRenewButton.IsEnabled = false;
+
+        try
+        {
+            var status = await SimulateVipRenewalAsync();
+            if (status == null || !status.IsVip)
+            {
+                await CustomAlert.ShowAsync(
+                    Localize("Không thể gia hạn test", "Cannot run renewal test", "无法执行续期测试"),
+                    Localize(
+                        "Không thể mô phỏng gia hạn lúc này. Vui lòng thử lại.",
+                        "Unable to simulate renewal right now. Please try again.",
+                        "当前无法模拟续期，请稍后重试。"),
+                    "OK",
+                    AlertType.Warning);
+                await RefreshVipStatusUiAsync(forceSync: true);
+                return;
+            }
+
+            _mainViewModel.ApplyVipSubscriptionFromServer(status.IsVip, status.InvoiceCreatedAtUtc, status.ExpiresAtUtc);
+            await _mainViewModel.RefreshVipSubscriptionStatusAsync(force: true);
+            ApplyVipStatusUi();
+
+            var expiresText = status.ExpiresAtUtc.HasValue
+                ? status.ExpiresAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                : Localize("đang cập nhật", "updating", "更新中");
+
+            await CustomAlert.ShowAsync(
+                Localize("Gia hạn test thành công", "Renewal test succeeded", "续期测试成功"),
+                Localize(
+                    $"Đã đặt thời hạn test = thời điểm tạo hóa đơn + 3 phút. Hiệu lực hiện tại: {expiresText}",
+                    $"Test expiry is now set to invoice-created-time + 3 minutes. Current expiry: {expiresText}",
+                    $"测试到期时间已设为发票创建时间 + 3 分钟。当前到期时间：{expiresText}"),
+                "OK",
+                AlertType.Success);
+        }
+        catch (Exception ex)
+        {
+            await CustomAlert.ShowAsync(
+                Localize("Lỗi", "Error", "错误"),
+                Localize(
+                    "Mô phỏng gia hạn thất bại",
+                    "Renewal simulation failed",
+                    "续期模拟失败") + $": {ex.Message}",
+                "OK",
+                AlertType.Error);
+        }
+        finally
+        {
+            _isSimulatingVipRenewal = false;
+            VipSimulateRenewButton.IsEnabled = true;
+            ApplyVipStatusUi();
+        }
+    }
+
+    private async Task<VipSubscriptionStatusDto?> SimulateVipRenewalAsync()
+    {
+        var deviceId = GetOrCreateAnonymousDeviceId();
+        var url = AppConfig.BuildApiUrl("api/Subscriptions/simulate-renew-3-minutes");
+        var payload = new SimulateVipRenewMobileRequest
+        {
+            DeviceId = deviceId,
+            Platform = DeviceInfo.Current.Platform.ToString(),
+            Model = DeviceInfo.Current.Model,
+            OsVersion = DeviceInfo.Current.VersionString,
+            AppVersion = AppInfo.Current.VersionString
+        };
+
+        using var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(15)
+        };
+
+        using var response = await client.PostAsJsonAsync(url, payload);
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return await response.Content.ReadFromJsonAsync<VipSubscriptionStatusDto>(MobileJsonOptions);
+    }
+
+    private static string GetOrCreateAnonymousDeviceId()
+    {
+        const string key = "analytics_anonymous_device_id";
+        var current = Preferences.Get(key, string.Empty);
+        if (!string.IsNullOrWhiteSpace(current))
+            return current;
+
+        var created = $"m-{Guid.NewGuid():N}";
+        Preferences.Set(key, created);
+        return created;
     }
 
     private string BuildDataSourceFooterText()
@@ -345,7 +467,7 @@ public partial class SettingsPage : ContentPage
         KeepScreenOnSwitch.IsToggled = Preferences.Get(PrefKeepScreenOn, false);
         LargeTextSwitch.IsToggled = Preferences.Get(PrefLargeText, false);
 
-        DeviceDisplay.Current.KeepScreenOn = KeepScreenOnSwitch.IsToggled;
+        UserPreferenceEffects.ApplyCurrentPreferences();
     }
 
     private async Task LoadVoicesAsync()
@@ -459,7 +581,8 @@ public partial class SettingsPage : ContentPage
         Preferences.Set(PrefHapticFeedback, HapticFeedbackSwitch.IsToggled);
         Preferences.Set(PrefKeepScreenOn, KeepScreenOnSwitch.IsToggled);
         Preferences.Set(PrefLargeText, LargeTextSwitch.IsToggled);
-        DeviceDisplay.Current.KeepScreenOn = KeepScreenOnSwitch.IsToggled;
+        UserPreferenceEffects.ApplyCurrentPreferences();
+        UserPreferenceEffects.ApplyLargeTextToVisibleWindows();
 
         if (_mainViewModel != null)
         {
@@ -765,6 +888,8 @@ public partial class SettingsPage : ContentPage
 
     private async void OnBackClicked(object sender, EventArgs e)
     {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+
         try
         {
             var shouldOpenExploreMap = Preferences.Get(AppConfig.AutoOpenExploreMapOnNextMainPageKey, false);
@@ -882,6 +1007,8 @@ public partial class SettingsPage : ContentPage
 
     private async void OnLogoutClicked(object sender, EventArgs e)
     {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+
         try
         {
             var confirmed = await CustomAlert.ShowConfirmAsync(
@@ -908,6 +1035,8 @@ public partial class SettingsPage : ContentPage
 
     private async void OnResetDefaultsClicked(object sender, EventArgs e)
     {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+
         try
         {
             var confirmed = await CustomAlert.ShowConfirmAsync(
@@ -938,7 +1067,8 @@ public partial class SettingsPage : ContentPage
             Preferences.Set(PrefLargeText, false);
             Preferences.Set(PrefSettings, JsonSerializer.Serialize(_settings));
 
-            DeviceDisplay.Current.KeepScreenOn = false;
+            UserPreferenceEffects.ApplyCurrentPreferences();
+            UserPreferenceEffects.ApplyLargeTextToVisibleWindows();
 
             _languageService.ApplyLanguage(_pendingLanguageCode);
 
@@ -1058,6 +1188,8 @@ public partial class SettingsPage : ContentPage
 
     private async void OnSaveChangesClicked(object sender, EventArgs e)
     {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+
         try
         {
             if (!_hasPendingChanges)
@@ -1149,7 +1281,14 @@ public partial class SettingsPage : ContentPage
         _hasPendingChanges = true;
         if (e.Value)
         {
-            try { HapticFeedback.Default.Perform(HapticFeedbackType.Click); } catch { }
+            try
+            {
+                HapticFeedback.Default.Perform(HapticFeedbackType.Click);
+            }
+            catch
+            {
+                // Ignore unsupported-device errors.
+            }
         }
     }
 
@@ -1168,15 +1307,16 @@ public partial class SettingsPage : ContentPage
             return;
 
         _hasPendingChanges = true;
+        UserPreferenceEffects.ApplyLargeTextToVisibleWindows(e.Value);
         var msg = e.Value
             ? Localize(
-                "Đã bật văn bản lớn. Một số màn hình sẽ áp dụng sau khi mở lại.",
-                "Large text is enabled. Some screens will update after reopening.",
-                "已启用大号文字。部分页面需重新打开后生效。")
+                "Đã bật văn bản lớn và áp dụng ngay trên màn hình hiện tại.",
+                "Large text is enabled and applied immediately on the current screen.",
+                "已启用大号文字，并立即应用到当前页面。")
             : Localize(
-                "Đã tắt văn bản lớn.",
-                "Large text is disabled.",
-                "已关闭大号文字。");
+                "Đã tắt văn bản lớn và khôi phục cỡ chữ mặc định.",
+                "Large text is disabled and default font sizes are restored.",
+                "已关闭大号文字，并恢复默认字号。");
         _ = MainThread.InvokeOnMainThreadAsync(() =>
             CustomAlert.ShowAsync(Localize("Hiển thị", "Display", "显示"), msg, "OK", AlertType.Info));
     }
@@ -1329,4 +1469,20 @@ public sealed class GpsTestPoiPointMobileRequest
 public sealed class GpsTestPoiMobileDto
 {
     public int POI_ID { get; set; }
+}
+
+public sealed class SimulateVipRenewMobileRequest
+{
+    public string DeviceId { get; set; } = string.Empty;
+    public string? Platform { get; set; }
+    public string? Model { get; set; }
+    public string? OsVersion { get; set; }
+    public string? AppVersion { get; set; }
+}
+
+public sealed class VipSubscriptionStatusDto
+{
+    public bool IsVip { get; set; }
+    public DateTime? InvoiceCreatedAtUtc { get; set; }
+    public DateTime? ExpiresAtUtc { get; set; }
 }

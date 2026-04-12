@@ -264,10 +264,14 @@ public class ZoneRepository : IZoneRepository
         var cooldown = dto.CooldownMinutes != 0
             ? dto.CooldownMinutes
             : zoneType == "Spot" ? 0 : 30;
+        var radius = string.Equals(zoneType, "Spot", StringComparison.OrdinalIgnoreCase)
+            ? (int)Math.Round(AppConfig.NormalizeSpotRadiusMeters(dto.TriggerRadius))
+            : (dto.TriggerRadius > 0 ? dto.TriggerRadius : 50);
 
         return new POI
         {
             Id = dto.POI_ID,
+            ServerObjectId = dto.Id,
             Name_Vi = dto.Name_Vi ?? string.Empty,
             Name_En = dto.Name_En ?? string.Empty,
             Name_Zh = dto.Name_Zh,
@@ -276,16 +280,23 @@ public class ZoneRepository : IZoneRepository
             Description_Zh = dto.Description_Zh,
             Latitude = (double)dto.Latitude,
             Longitude = (double)dto.Longitude,
-            Radius = dto.TriggerRadius > 0 ? dto.TriggerRadius : 50,
+            MapUrl = dto.MapUrl,
+            Radius = radius,
             ZoneType = zoneType,
             ZoneLevel = zoneLevel,
             Priority = dto.Priority != 0 ? dto.Priority : 5,
             CooldownMinutes = cooldown,
             ParentZoneId = dto.ParentZoneId,
             MaxPlaysPerSession = dto.MaxPlaysPerSession != 0 ? dto.MaxPlaysPerSession : 1,
+            AudioCount = dto.AudioCount,
+            VendorId = dto.VendorId,
+            ReviewStatus = dto.ReviewStatus,
             AudioUrl_Vi = dto.AudioUrl_Vi,
             AudioUrl_En = dto.AudioUrl_En,
             AudioUrl_Zh = dto.AudioUrl_Zh,
+            Script_Vi = dto.Script_Vi,
+            Script_En = dto.Script_En,
+            Script_Zh = dto.Script_Zh,
             ImageUrl = dto.ImageUrl,
             SignatureDish = dto.SignatureDish,
             FunFact = dto.FunFact,
@@ -296,9 +307,21 @@ public class ZoneRepository : IZoneRepository
             PhoneNumber = dto.PhoneNumber,
             AveragePrice = dto.AveragePrice,
             Rating = dto.Rating,
+            NumReviews = dto.NumReviews,
+            PriceLevel = dto.PriceLevel,
+            PlayCount = dto.PlayCount,
+            MeanPlay = dto.MeanPlay,
             OpeningHoursText = dto.OpeningHoursText,
-            SignatureDishesJson = dto.SignatureDishes != null ? string.Join(",", dto.SignatureDishes) : null,
-            IsActive = dto.IsActive
+            SignatureDishesJson = dto.SignatureDishes != null && dto.SignatureDishes.Count > 0
+                ? string.Join(",", dto.SignatureDishes)
+                : dto.SignatureDish,
+            PendingChangesJson = dto.PendingChanges != null
+                ? JsonSerializer.Serialize(dto.PendingChanges)
+                : null,
+            IsDeleted = dto.IsDeleted,
+            IsActive = dto.IsActive && !dto.IsDeleted,
+            CreatedAt = dto.CreatedAt == default ? DateTime.Now : dto.CreatedAt,
+            DeletedAt = dto.DeletedAt
         };
     }
 

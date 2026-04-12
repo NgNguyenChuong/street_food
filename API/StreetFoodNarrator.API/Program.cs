@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Rewrite;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
 using MongoDB.Driver;
@@ -13,11 +14,16 @@ using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
-const int QrCodeExpiryDays = 5;
+const int QrCodeExpiryWindowDays = 5;
+const int QrCodeExpiryWindowMinutesForTest = 3;
 var configuredAndroidApkDownloadUrl = builder.Configuration["AppDownload:AndroidApkUrl"]?.Trim();
 var androidApkDownloadUrl = string.IsNullOrWhiteSpace(configuredAndroidApkDownloadUrl)
     ? "/uploads/streetfood-narrator.apk"
     : configuredAndroidApkDownloadUrl;
+var configuredAndroidApkLandingPageUrl = builder.Configuration["AppDownload:AndroidLandingPageUrl"]?.Trim();
+var androidApkLandingPageUrl = string.IsNullOrWhiteSpace(configuredAndroidApkLandingPageUrl)
+    ? "/apk-download.html"
+    : configuredAndroidApkLandingPageUrl;
 
 // Add services to the container
 builder.Services.AddControllers()
@@ -174,7 +180,8 @@ var publicHtmlPages = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     "/",
     "/index.html",
     "/login.html",
-    "/register.html"
+    "/register.html",
+    "/apk-download.html"
 };
 
 app.Use(async (context, next) =>
@@ -233,8 +240,14 @@ app.Use(async (context, next) =>
     }
 });
 
+var staticContentTypeProvider = new FileExtensionContentTypeProvider();
+staticContentTypeProvider.Mappings[".apk"] = "application/vnd.android.package-archive";
+
 app.UseDefaultFiles(); // Enable index.html as default landing
-app.UseStaticFiles(); // Serve static files from wwwroot
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = staticContentTypeProvider
+}); // Serve static files from wwwroot
 
 // Serve runtime uploads from outside wwwroot to avoid StaticWebAssets build-time locks
 var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "Uploads");
@@ -242,7 +255,8 @@ Directory.CreateDirectory(uploadsRoot);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsRoot),
-    RequestPath = "/uploads"
+    RequestPath = "/uploads",
+    ContentTypeProvider = staticContentTypeProvider
 });
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
@@ -262,14 +276,20 @@ app.MapGet("/qr/{**deepPath}", (HttpContext context, string? deepPath) =>
     var appDeepLink = $"streetfood://qr/{normalizedPath}{queryPart}";
     var expiresAtUtc = TryParseQrExpiry(context.Request.Query);
     var isExpired = expiresAtUtc.HasValue && DateTimeOffset.UtcNow > expiresAtUtc.Value;
+    var isTestMode = IsQrTestMode(context.Request.Query);
+    var qrResetText = isTestMode
+        ? $"{QrCodeExpiryWindowMinutesForTest} phut"
+        : $"{QrCodeExpiryWindowDays} ngay";
 
     var expiryText = expiresAtUtc.HasValue
         ? $"Mã QR có hiệu lực đến: {expiresAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)}"
-        : $"Mã QR được làm mới định kỳ mỗi {QrCodeExpiryDays} ngày.";
+        : $"Mã QR được làm mới định kỳ mỗi {qrResetText}.";
 
     var safeAppDeepLink = WebUtility.HtmlEncode(appDeepLink);
     var safeApkDownloadUrl = WebUtility.HtmlEncode(androidApkDownloadUrl);
+    var safeApkLandingPageUrl = WebUtility.HtmlEncode(androidApkLandingPageUrl);
     var safeExpiryText = WebUtility.HtmlEncode(expiryText);
+    var safeQrResetText = WebUtility.HtmlEncode(qrResetText);
 
     var htmlTemplate = """
 <!doctype html>
@@ -417,15 +437,16 @@ app.MapGet("/qr/{**deepPath}", (HttpContext context, string? deepPath) =>
         }
     </style>
 </head>
-<body data-app-link="__APP_LINK__" data-apk-link="__APK_LINK__" data-is-expired="__IS_EXPIRED__">
+<body data-app-link="__APP_LINK__" data-apk-link="__APK_LINK__" data-fallback-link="__FALLBACK_LINK__" data-is-expired="__IS_EXPIRED__">
     <main class="card">
         <h1 id="title">Đang mở Street Food Narrator...</h1>
         <p class="sub" id="subtitle">Nếu điện thoại đã cài app, ứng dụng sẽ tự mở tại quán bạn vừa quét QR.</p>
         <p class="meta" id="expiryInfo">__EXPIRY_TEXT__</p>
 
-        <div class="actions">
+        <div class="actions" id="actionGroup">
             <button class="btn btn-primary" id="openAppBtn" type="button">Mở ứng dụng</button>
             <a class="btn btn-secondary" id="downloadApkBtn" href="__APK_LINK__" target="_blank" rel="noopener noreferrer">Tải APK Android</a>
+            <button class="btn btn-secondary" id="downloadQrBtn" type="button">Tải mã QR</button>
         </div>
 
         <p class="hint" id="fallbackHint">Nếu app chưa mở sau vài giây, hãy bấm <b>Tải APK Android</b> để cài đặt rồi quét lại QR này.</p>
@@ -436,12 +457,17 @@ app.MapGet("/qr/{**deepPath}", (HttpContext context, string? deepPath) =>
         (() => {
             const appLink = document.body.dataset.appLink || "";
             const apkLink = document.body.dataset.apkLink || "";
+            const fallbackLink = document.body.dataset.fallbackLink || "";
             const isExpired = (document.body.dataset.isExpired || "false") === "true";
+            let appOpened = false;
 
             const openBtn = document.getElementById("openAppBtn");
             const downloadBtn = document.getElementById("downloadApkBtn");
+            const downloadQrBtn = document.getElementById("downloadQrBtn");
+            const actions = document.getElementById("actionGroup");
             const title = document.getElementById("title");
             const subtitle = document.getElementById("subtitle");
+            const expiryInfo = document.getElementById("expiryInfo");
             const hint = document.getElementById("fallbackHint");
             const expiredHint = document.getElementById("expiredHint");
 
@@ -450,24 +476,99 @@ app.MapGet("/qr/{**deepPath}", (HttpContext context, string? deepPath) =>
                 window.location.href = appLink;
             };
 
-            openBtn.addEventListener("click", openApp);
+            const scheduleFallbackToDownloadPage = () => {
+                if (isExpired || !fallbackLink) return;
+                window.setTimeout(() => {
+                    if (appOpened) return;
+                    window.location.href = fallbackLink;
+                }, 2200);
+            };
+
+            document.addEventListener("visibilitychange", () => {
+                if (document.visibilityState === "hidden")
+                    appOpened = true;
+            });
+
+            window.addEventListener("pagehide", () => {
+                appOpened = true;
+            });
+
+            openBtn.addEventListener("click", () => {
+                openApp();
+                scheduleFallbackToDownloadPage();
+            });
 
             if (!apkLink || apkLink === "#") {
                 downloadBtn.classList.add("disabled");
                 downloadBtn.removeAttribute("href");
             }
 
+            if (downloadQrBtn) {
+                downloadQrBtn.addEventListener("click", async () => {
+                    const qrPayload = window.location.href;
+                    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=1024x1024&margin=16&ecc=M&data="
+                        + encodeURIComponent(qrPayload);
+
+                    try {
+                        const response = await fetch(qrUrl, { cache: "no-store" });
+                        if (!response.ok) throw new Error("QR download failed");
+
+                        const blob = await response.blob();
+                        const objectUrl = URL.createObjectURL(blob);
+                        const anchor = document.createElement("a");
+                        anchor.href = objectUrl;
+                        anchor.download = "streetfood-qr.png";
+                        document.body.appendChild(anchor);
+                        anchor.click();
+                        anchor.remove();
+                        URL.revokeObjectURL(objectUrl);
+                    } catch {
+                        window.open(qrUrl, "_blank", "noopener,noreferrer");
+                    }
+                });
+            }
+
             if (isExpired) {
                 title.textContent = "QR đã hết hạn";
-                subtitle.textContent = "Mỗi mã QR chỉ có hiệu lực trong __QR_DAYS__ ngày. Hãy dùng mã mới để tiếp tục.";
-                openBtn.classList.add("disabled");
-                openBtn.disabled = true;
+                if (subtitle) {
+                    subtitle.textContent = "";
+                    subtitle.style.display = "none";
+                }
+                if (expiryInfo) {
+                    expiryInfo.style.display = "none";
+                }
+                if (actions) {
+                    actions.style.display = "none";
+                }
+                hint.classList.remove("visible");
                 expiredHint.classList.add("visible");
+
+                window.setTimeout(() => {
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    }
+
+                    window.setTimeout(() => {
+                        if (document.visibilityState === "hidden") return;
+                        try {
+                            window.open("", "_self");
+                            window.close();
+                        } catch {
+                            // ignored
+                        }
+
+                        window.setTimeout(() => {
+                            if (document.visibilityState === "hidden") return;
+                            window.location.replace("about:blank");
+                        }, 450);
+                    }, 450);
+                }, 1800);
                 return;
             }
 
             window.setTimeout(openApp, 120);
-            window.setTimeout(() => hint.classList.add("visible"), 1400);
+            scheduleFallbackToDownloadPage();
+            window.setTimeout(() => hint.classList.add("visible"), 900);
         })();
     </script>
 </body>
@@ -477,9 +578,10 @@ app.MapGet("/qr/{**deepPath}", (HttpContext context, string? deepPath) =>
     var html = htmlTemplate
         .Replace("__APP_LINK__", safeAppDeepLink, StringComparison.Ordinal)
         .Replace("__APK_LINK__", safeApkDownloadUrl, StringComparison.Ordinal)
+        .Replace("__FALLBACK_LINK__", safeApkLandingPageUrl, StringComparison.Ordinal)
         .Replace("__IS_EXPIRED__", isExpired ? "true" : "false", StringComparison.Ordinal)
         .Replace("__EXPIRY_TEXT__", safeExpiryText, StringComparison.Ordinal)
-        .Replace("__QR_DAYS__", QrCodeExpiryDays.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        .Replace("__QR_RESET_TEXT__", safeQrResetText, StringComparison.Ordinal);
 
     return Results.Content(html, "text/html; charset=utf-8");
 });
@@ -523,4 +625,26 @@ static DateTimeOffset? TryParseQrExpiry(IQueryCollection query)
                 return parsed.ToUniversalTime();
 
         return null;
+}
+
+static bool IsQrTestMode(IQueryCollection query)
+{
+    if (query.TryGetValue("mode", out var modeValues))
+    {
+        var mode = modeValues.ToString();
+        if (string.Equals(mode, "test", StringComparison.OrdinalIgnoreCase))
+            return true;
+    }
+
+    if (query.TryGetValue("cycle", out var cycleValues))
+    {
+        var cycle = cycleValues.ToString();
+        if (!string.IsNullOrWhiteSpace(cycle) &&
+            cycle.StartsWith("test-", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }

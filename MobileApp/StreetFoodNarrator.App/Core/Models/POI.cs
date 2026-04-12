@@ -15,6 +15,11 @@ public class POI
 {
     [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
+
+    /// <summary>
+    /// Backend Mongo ObjectId string for diagnostics/reconciliation.
+    /// </summary>
+    public string? ServerObjectId { get; set; }
     
     /// <summary>
     /// Vĩ độ (Latitude)
@@ -87,6 +92,10 @@ public class POI
     public string? AudioUrl_Vi { get; set; }
     public string? AudioUrl_En { get; set; }
     public string? AudioUrl_Zh { get; set; }
+
+    public string? Script_Vi { get; set; }
+    public string? Script_En { get; set; }
+    public string? Script_Zh { get; set; }
     
     // ============================================
     // MEDIA & METADATA
@@ -182,6 +191,11 @@ public class POI
     /// Địa chỉ cụ thể
     /// </summary>
     public string? Address { get; set; }
+
+    /// <summary>
+    /// External map url/deeplink from backend.
+    /// </summary>
+    public string? MapUrl { get; set; }
     
     /// <summary>
     /// Số điện thoại liên hệ
@@ -202,6 +216,21 @@ public class POI
     /// Số lượng đánh giá
     /// </summary>
     public int NumReviews { get; set; } = 0;
+
+    /// <summary>
+    /// Mức giá chuẩn hóa (1-5).
+    /// </summary>
+    public int? PriceLevel { get; set; }
+
+    /// <summary>
+    /// Tổng số lượt nghe đã chốt từ backend analytics.
+    /// </summary>
+    public long PlayCount { get; set; }
+
+    /// <summary>
+    /// Thời lượng nghe trung bình (giây) từ backend analytics.
+    /// </summary>
+    public double MeanPlay { get; set; }
     
     /// <summary>
     /// Danh mục (ẨM THỰC ĐƯỜNG PHỐ, etc.)
@@ -499,6 +528,31 @@ public class POI
     
     [Indexed]
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Soft-delete trạng thái từ backend.
+    /// </summary>
+    public bool IsDeleted { get; set; } = false;
+
+    /// <summary>
+    /// Số lượng audio được backend tổng hợp cho POI.
+    /// </summary>
+    public int AudioCount { get; set; }
+
+    /// <summary>
+    /// Vendor ID sở hữu POI.
+    /// </summary>
+    public int? VendorId { get; set; }
+
+    /// <summary>
+    /// Trạng thái duyệt nội dung từ backend.
+    /// </summary>
+    public string? ReviewStatus { get; set; }
+
+    /// <summary>
+    /// Pending change set serialized JSON.
+    /// </summary>
+    public string? PendingChangesJson { get; set; }
 
     /// <summary>
     /// User đã tim/lưu quán này (local only, không sync với server)

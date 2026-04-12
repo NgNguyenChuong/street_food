@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
@@ -21,6 +22,55 @@ public class SubscriptionsController : ControllerBase
     {
         _db = db;
         _sequence = sequence;
+    }
+
+    [HttpGet("admin/subscriptions")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<object>> GetAdminSubscriptions(
+        [FromQuery] string? status = null,
+        [FromQuery] string? platform = null,
+        [FromQuery] string? search = null)
+    {
+        var rows = await _db.DeviceSubscriptions
+            .Find(Builders<DeviceSubscription>.Filter.Empty)
+            .SortByDescending(x => x.InvoiceCreatedAtUtc)
+            .Limit(300)
+            .ToListAsync();
+
+        if (!string.IsNullOrWhiteSpace(platform))
+        {
+            var normalizedPlatform = platform.Trim().ToLowerInvariant();
+            rows = rows
+                .Where(x => (x.Platform ?? string.Empty).ToLowerInvariant() == normalizedPlatform)
+                .ToList();
+        }
+
+        var data = rows.Select(ToAdminDto).ToList();
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var normalizedStatus = status.Trim().ToLowerInvariant();
+            data = data
+                .Where(x => x.Status == normalizedStatus)
+                .ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var keyword = search.Trim().ToLowerInvariant();
+            data = data
+                .Where(x =>
+                    (x.DeviceId ?? string.Empty).ToLowerInvariant().Contains(keyword)
+                    || (x.InvoiceNumber ?? string.Empty).ToLowerInvariant().Contains(keyword)
+                    || (x.RecoveryCode ?? string.Empty).ToLowerInvariant().Contains(keyword)
+                    || (x.TransferContent ?? string.Empty).ToLowerInvariant().Contains(keyword)
+                    || (x.Platform ?? string.Empty).ToLowerInvariant().Contains(keyword)
+                    || (x.Model ?? string.Empty).ToLowerInvariant().Contains(keyword)
+                    || x.SubscriptionId.ToString().Contains(keyword))
+                .ToList();
+        }
+
+        return Ok(new { data, total = data.Count });
     }
 
     /// <summary>
@@ -176,6 +226,62 @@ public class SubscriptionsController : ControllerBase
     }
 
     /// <summary>
+    /// Test-only endpoint: simulate VIP expiry as invoice-created-time + 3 minutes.
+    /// This helps test short expiry flows without using the current expiry as a base.
+    /// </summary>
+    [HttpPost("simulate-renew-3-minutes")]
+    public async Task<ActionResult<SubscriptionStatusResponse>> SimulateRenewThreeMinutes([FromBody] SimulateRenewRequest request)
+    {
+        var deviceId = request.DeviceId?.Trim();
+        if (string.IsNullOrWhiteSpace(deviceId))
+            return BadRequest(new { message = "DeviceId is required." });
+
+        var latest = await _db.DeviceSubscriptions
+            .Find(s => s.DeviceId == deviceId)
+            .SortByDescending(s => s.ExpiresAtUtc)
+            .FirstOrDefaultAsync();
+
+        if (latest == null)
+            return NotFound(new { message = "No subscription found for this device." });
+
+        var now = DateTime.UtcNow;
+        var simulatedExpiresAt = latest.InvoiceCreatedAtUtc.AddMinutes(3);
+        var simulatedIsVip = simulatedExpiresAt > now;
+        var nextStatus = simulatedIsVip ? "active" : "expired";
+
+        var update = Builders<DeviceSubscription>.Update
+            .Set(s => s.ExpiresAtUtc, simulatedExpiresAt)
+            .Set(s => s.Status, nextStatus)
+            .Set(s => s.ConfirmedAtUtc, now)
+            .Set(s => s.Platform, request.Platform ?? latest.Platform)
+            .Set(s => s.Model, request.Model ?? latest.Model)
+            .Set(s => s.OsVersion, request.OsVersion ?? latest.OsVersion)
+            .Set(s => s.AppVersion, request.AppVersion ?? latest.AppVersion);
+
+        await _db.DeviceSubscriptions.UpdateOneAsync(s => s.Id == latest.Id, update);
+
+        var heartbeatRequest = new ConfirmDevicePaymentRequest
+        {
+            DeviceId = deviceId,
+            Platform = request.Platform,
+            Model = request.Model,
+            OsVersion = request.OsVersion,
+            AppVersion = request.AppVersion
+        };
+
+        await UpsertDeviceHeartbeatAsync(deviceId, heartbeatRequest, now);
+
+        return Ok(BuildStatusResponse(
+            isVip: simulatedIsVip,
+            deviceId: deviceId,
+            invoiceNumber: latest.InvoiceNumber,
+            invoiceCreatedAtUtc: latest.InvoiceCreatedAtUtc,
+            startsAtUtc: latest.StartsAtUtc,
+            expiresAtUtc: simulatedExpiresAt,
+            recoveryCode: latest.RecoveryCode));
+    }
+
+    /// <summary>
     /// Returns current VIP status for a device. If expired, status is reset automatically.
     /// </summary>
     [HttpGet("status")]
@@ -307,6 +413,44 @@ public class SubscriptionsController : ControllerBase
         var tokenText = new string(token);
         return $"VIP-{tokenText[..5]}-{tokenText[5..]}";
     }
+
+    private static AdminDeviceSubscriptionDto ToAdminDto(DeviceSubscription row)
+    {
+        var now = DateTime.UtcNow;
+        var rawStatus = string.IsNullOrWhiteSpace(row.Status)
+            ? "unknown"
+            : row.Status.Trim().ToLowerInvariant();
+        var isVipNow = rawStatus == "active" && row.ExpiresAtUtc > now;
+        var status = rawStatus == "active" && !isVipNow
+            ? "expired"
+            : rawStatus;
+        var remainingDays = isVipNow
+            ? Math.Max(0, (int)Math.Ceiling((row.ExpiresAtUtc - now).TotalDays))
+            : 0;
+
+        return new AdminDeviceSubscriptionDto
+        {
+            SubscriptionId = row.Subscription_ID,
+            DeviceId = row.DeviceId,
+            PlanCode = row.PlanCode,
+            Status = status,
+            InvoiceNumber = row.InvoiceNumber,
+            RecoveryCode = row.RecoveryCode,
+            InvoiceCreatedAtUtc = row.InvoiceCreatedAtUtc,
+            StartsAtUtc = row.StartsAtUtc,
+            ExpiresAtUtc = row.ExpiresAtUtc,
+            ConfirmedAtUtc = row.ConfirmedAtUtc,
+            RestoredAtUtc = row.RestoredAtUtc,
+            RestoredFromDeviceId = row.RestoredFromDeviceId,
+            TransferContent = row.TransferContent,
+            Platform = row.Platform,
+            Model = row.Model,
+            OsVersion = row.OsVersion,
+            AppVersion = row.AppVersion,
+            IsVipNow = isVipNow,
+            RemainingDays = remainingDays
+        };
+    }
 }
 
 public class ConfirmDevicePaymentRequest
@@ -362,4 +506,45 @@ public class RestoreDeviceVipRequest
 
     [MaxLength(30)]
     public string? AppVersion { get; set; }
+}
+
+public class SimulateRenewRequest
+{
+    [Required, MaxLength(120)]
+    public string DeviceId { get; set; } = string.Empty;
+
+    [MaxLength(40)]
+    public string? Platform { get; set; }
+
+    [MaxLength(120)]
+    public string? Model { get; set; }
+
+    [MaxLength(40)]
+    public string? OsVersion { get; set; }
+
+    [MaxLength(30)]
+    public string? AppVersion { get; set; }
+}
+
+public class AdminDeviceSubscriptionDto
+{
+    public int SubscriptionId { get; set; }
+    public string DeviceId { get; set; } = string.Empty;
+    public string PlanCode { get; set; } = "TourExplore";
+    public string Status { get; set; } = "unknown";
+    public string InvoiceNumber { get; set; } = string.Empty;
+    public string RecoveryCode { get; set; } = string.Empty;
+    public DateTime InvoiceCreatedAtUtc { get; set; }
+    public DateTime StartsAtUtc { get; set; }
+    public DateTime ExpiresAtUtc { get; set; }
+    public DateTime ConfirmedAtUtc { get; set; }
+    public DateTime? RestoredAtUtc { get; set; }
+    public string? RestoredFromDeviceId { get; set; }
+    public string? TransferContent { get; set; }
+    public string? Platform { get; set; }
+    public string? Model { get; set; }
+    public string? OsVersion { get; set; }
+    public string? AppVersion { get; set; }
+    public bool IsVipNow { get; set; }
+    public int RemainingDays { get; set; }
 }
