@@ -492,9 +492,25 @@ function getCurrentQrExpiryEpochSeconds() {
     return Math.floor(windowEndMs / 1000);
 }
 
+function getQrPublicBaseUrl() {
+    const params = new URLSearchParams(window.location.search || '');
+    const fromQuery = (params.get('publicBaseUrl') || params.get('qrBase') || '').trim();
+    const fallback = window.location.origin;
+    const candidate = fromQuery || fallback;
+
+    try {
+        const normalized = new URL(candidate, fallback);
+        return `${normalized.protocol}//${normalized.host}`;
+    } catch {
+        return fallback;
+    }
+}
+
 function getTourQrLink(tourId) {
     const exp = getCurrentQrExpiryEpochSeconds();
-    return `https://streetfoodnarrator.app/qr/tour/${encodeURIComponent(String(tourId || '').trim())}?exp=${exp}`;
+    const publicBase = getQrPublicBaseUrl();
+    const apiBase = `${publicBase}/`;
+    return `${publicBase}/qr/tour/${encodeURIComponent(String(tourId || '').trim())}?exp=${exp}&api=${encodeURIComponent(apiBase)}`;
 }
 
 /* --- RENDER CARDS --- */

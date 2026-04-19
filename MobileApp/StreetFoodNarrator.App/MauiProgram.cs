@@ -59,6 +59,9 @@ public static class MauiProgram
         builder.Services.AddSingleton<IVirtualTourViewModel, VirtualTourViewModel>();
         builder.Services.AddSingleton<IOfflineRoutingService, OfflineRoutingService>();
 
+        // Device activity heartbeat (online/offline tracking)
+        builder.Services.AddSingleton<DeviceActivityService>();
+
         // Location default: real GPS service.
         // Simulated GPS is still available via runtime switch in SettingsPage.
         builder.Services.AddSingleton<ILocationService, LocationService>();

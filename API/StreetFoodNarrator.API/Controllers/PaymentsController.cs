@@ -4,6 +4,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using StreetFoodNarrator.API.Data;
 using StreetFoodNarrator.API.Models;
+using System.Globalization;
 using System.Security.Claims;
 
 namespace StreetFoodNarrator.API.Controllers;
@@ -96,19 +97,48 @@ public class PaymentsController : ControllerBase
 
     [HttpGet("me")]
     [Authorize(Roles = "Vendor")]
-    public async Task<ActionResult<object>> GetMySubmissions()
+    public async Task<ActionResult<object>> GetMySubmissions(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? fromDate = null,
+        [FromQuery] string? toDate = null)
     {
         var vendor = await ResolveCurrentVendorAsync();
         if (vendor == null)
             return Forbid();
 
+        var filter = Builders<ServiceSubmission>.Filter.Eq(x => x.VendorId, vendor.VendorId);
+
+        if (!string.IsNullOrWhiteSpace(status))
+            filter &= Builders<ServiceSubmission>.Filter.Eq(x => x.Status, status.Trim().ToLowerInvariant());
+
+        if (TryParseDateBoundary(fromDate, endOfDay: false, out var fromUtc))
+            filter &= Builders<ServiceSubmission>.Filter.Gte(x => x.RequestedAt, fromUtc);
+
+        if (TryParseDateBoundary(toDate, endOfDay: true, out var toUtc))
+            filter &= Builders<ServiceSubmission>.Filter.Lte(x => x.RequestedAt, toUtc);
+
         var rows = await _db.ServiceSubmissions
-            .Find(x => x.VendorId == vendor.VendorId)
+            .Find(filter)
             .SortByDescending(x => x.RequestedAt)
             .Limit(50)
             .ToListAsync();
 
         var data = rows.Select(x => ToDto(x, vendor.BusinessName)).ToList();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var keyword = search.Trim().ToLowerInvariant();
+            data = data.Where(x =>
+                    (x.BusinessName ?? string.Empty).ToLowerInvariant().Contains(keyword) ||
+                    (x.TransactionRef ?? string.Empty).ToLowerInvariant().Contains(keyword) ||
+                    (x.PlanName ?? string.Empty).ToLowerInvariant().Contains(keyword) ||
+                    (x.PaymentMethod ?? string.Empty).ToLowerInvariant().Contains(keyword) ||
+                    (x.ReviewNote ?? string.Empty).ToLowerInvariant().Contains(keyword) ||
+                    x.SubmissionId.ToString().Contains(keyword))
+                .ToList();
+        }
+
         return Ok(new { data, total = data.Count });
     }
 
@@ -228,11 +258,21 @@ public class PaymentsController : ControllerBase
 
     [HttpGet("admin/submissions")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<object>> GetAllSubmissions([FromQuery] string? status = null, [FromQuery] string? search = null)
+    public async Task<ActionResult<object>> GetAllSubmissions(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? fromDate = null,
+        [FromQuery] string? toDate = null)
     {
         var filter = Builders<ServiceSubmission>.Filter.Empty;
         if (!string.IsNullOrWhiteSpace(status))
             filter &= Builders<ServiceSubmission>.Filter.Eq(x => x.Status, status.Trim().ToLowerInvariant());
+
+        if (TryParseDateBoundary(fromDate, endOfDay: false, out var fromUtc))
+            filter &= Builders<ServiceSubmission>.Filter.Gte(x => x.RequestedAt, fromUtc);
+
+        if (TryParseDateBoundary(toDate, endOfDay: true, out var toUtc))
+            filter &= Builders<ServiceSubmission>.Filter.Lte(x => x.RequestedAt, toUtc);
 
         var rows = await _db.ServiceSubmissions
             .Find(filter)
@@ -355,6 +395,24 @@ public class PaymentsController : ControllerBase
             .ToListAsync();
 
         return vendors.ToDictionary(v => v.VendorId, v => v.BusinessName);
+    }
+
+    private static bool TryParseDateBoundary(string? rawValue, bool endOfDay, out DateTime boundaryUtc)
+    {
+        boundaryUtc = default;
+
+        if (string.IsNullOrWhiteSpace(rawValue))
+            return false;
+
+        if (!DateTime.TryParseExact(rawValue.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+            return false;
+
+        var boundary = endOfDay
+            ? parsedDate.Date.AddDays(1).AddTicks(-1)
+            : parsedDate.Date;
+
+        boundaryUtc = DateTime.SpecifyKind(boundary, DateTimeKind.Utc);
+        return true;
     }
 
     private async Task<(bool IsActive, DateTime? ExpiresAt)> GetActivePremiumAsync(VendorProfile vendor)

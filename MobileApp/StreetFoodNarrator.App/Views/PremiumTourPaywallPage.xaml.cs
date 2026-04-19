@@ -441,6 +441,14 @@ public partial class PremiumTourPaywallPage : ContentPage
         {
             await navigation.PopModalAsync(false);
         }
+
+        // Force tour list to re-render with updated VIP access state after payment.
+        if (_viewModel != null)
+            _ = Task.Run(() => MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                try { await _viewModel.LoadToursAsync(forceSyncNow: false); }
+                catch { }
+            }));
     }
 
     private static string FormatLocalDate(DateTime? value)

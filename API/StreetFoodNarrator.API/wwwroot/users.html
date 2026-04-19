@@ -1294,6 +1294,7 @@
             <div class="card">
               <div class="card-head">
                 <div class="card-title"><i class="fas fa-language"></i>Ngôn ngữ nghe nhiều nhất</div>
+                <span class="badge badge-blue" id="platformTopBadge">—</span>
               </div>
               <div class="chart-box" style="height:170px"><canvas id="platformChart"></canvas></div>
             </div>
@@ -1389,12 +1390,11 @@
             <span class="badge badge-muted" id="movementCountBadge">0 log</span>
           </div>
 
-          <div class="movement-table-head" style="grid-template-columns: 1.2fr 1.3fr 1.5fr .95fr .8fr;">
+          <div class="movement-table-head" style="grid-template-columns: 1.2fr 1.3fr 1.7fr 1fr;">
             <div class="movement-col">Thời gian</div>
             <div class="movement-col">Session (ẩn danh)</div>
             <div class="movement-col">Tọa độ GPS</div>
             <div class="movement-col">Hành động</div>
-            <div class="movement-col">Thời gian ở lại (~ là ước tính)</div>
           </div>
 
           <div id="routeList" class="movement-list-wrap"></div>
@@ -1413,39 +1413,6 @@
   <script src="api.js"></script>
 
   <script>
-    /* ── MOCK DATA LAYER ──────────────────────────────────────────── */
-    // In production, replace these with real API calls (AnalyticsApi, POIApi, etc.)
-
-    const MOCK_POIS = [
-      { poiId: 1, poiName: 'Bánh mì Hòa Mã', lat: 10.7721, lon: 106.6903, address: 'Đường Cao Thắng, Q.3' },
-      { poiId: 2, poiName: 'Phở Hùng', lat: 10.7698, lon: 106.6878, address: 'Nguyễn Trãi, Q.1' },
-      { poiId: 3, poiName: 'Cơm tấm Bà Ghẻ', lat: 10.7756, lon: 106.6965, address: 'Phạm Ngũ Lão, Q.1' },
-      { poiId: 4, poiName: 'Hủ tiếu Nam Vang', lat: 10.7667, lon: 106.6944, address: 'Trần Hưng Đạo, Q.5' },
-      { poiId: 5, poiName: 'Bún bò Huế 63', lat: 10.7788, lon: 106.6999, address: 'Đinh Tiên Hoàng, Q.Bình Thạnh' },
-      { poiId: 6, poiName: 'Bánh cuốn Thanh Trì', lat: 10.7643, lon: 106.6820, address: 'Nguyễn Văn Cừ, Q.5' },
-      { poiId: 7, poiName: 'Cháo lòng Cô Loan', lat: 10.7711, lon: 106.7010, address: 'Hai Bà Trưng, Q.3' },
-      { poiId: 8, poiName: 'Gỏi cuốn Bến Thành', lat: 10.7725, lon: 106.6980, address: 'Lê Lợi, Q.1' },
-    ];
-
-    const MOCK_AUDIOS = [
-      { poi_ID: 1, duration: 82 }, { poi_ID: 2, duration: 95 }, { poi_ID: 3, duration: 74 },
-      { poi_ID: 4, duration: 110 }, { poi_ID: 5, duration: 88 }, { poi_ID: 6, duration: 64 },
-      { poi_ID: 7, duration: 91 }, { poi_ID: 8, duration: 78 },
-    ];
-
-    const MOCK_OVERVIEW = {
-      totalDevices: 342, activeDevicesLast7Days: 87,
-      totalNarrations: 1248, totalAudioPlayed: 934
-    };
-
-    const MOCK_DEVICES = Array.from({ length: 342 }, (_, i) => (
-      {
-        deviceId: `dev-${i}`,
-        platform: 'Android',
-        totalSessions: Math.floor(Math.random() * 8) + 1
-      }
-    ));
-
     /* ── CHART COLORS ──────────────────────────────────────────── */
     const CC = ['#FF6B35', '#4A9EFF', '#2DD4BF', '#F59E0B', '#EC4899', '#8B5CF6', '#22C55E', '#FB923C'];
 
@@ -1495,6 +1462,106 @@
 
     function getLogSessionKey(log) {
       return String(log?.sessionId ?? log?.SessionId ?? log?.userId ?? log?.UserId ?? '').trim();
+    }
+
+    function parseDwellSeconds(rawValue) {
+      if (rawValue === null || rawValue === undefined || rawValue === '') return null;
+      const n = Number(rawValue);
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    }
+
+    function normalizeActionType(log) {
+      return String(log?.actionType || '').trim().toLowerCase();
+    }
+
+    function normalizeTriggerType(log) {
+      return String(log?.triggerType || '').trim().toLowerCase();
+    }
+
+    function isEnterLog(log) {
+      const action = normalizeActionType(log);
+      const trigger = normalizeTriggerType(log);
+      return action === 'geofenceenter' || trigger === 'geofenceenter';
+    }
+
+    function isExitLog(log) {
+      const action = normalizeActionType(log);
+      const trigger = normalizeTriggerType(log);
+      return action === 'exitzone' || trigger === 'geofenceexit';
+    }
+
+    function isPlaybackLog(log) {
+      if (!log) return false;
+      if (log.wasPlayed === true) return true;
+      const action = normalizeActionType(log);
+      return action === 'narrationplayed';
+    }
+
+    function buildCompletedVisitMetrics(logs, poiById) {
+      const visitsByPoi = new Map();
+      const weightByPoi = new Map();
+
+      const ordered = [...(logs || [])].sort((a, b) => toTimestamp(a?.triggeredAt) - toTimestamp(b?.triggeredAt));
+      const openBySession = new Map();
+
+      const getSessionMap = (sessionKey) => {
+        let state = openBySession.get(sessionKey);
+        if (!state) {
+          state = new Map();
+          openBySession.set(sessionKey, state);
+        }
+        return state;
+      };
+
+      for (const log of ordered) {
+        const poiId = String(getLogPoiId(log));
+        if (!poiById.has(poiId) || poiId === '0') continue;
+
+        const sessionKey = getLogSessionKey(log);
+        if (!sessionKey) continue;
+
+        const ts = toTimestamp(log?.triggeredAt);
+        const sessionState = getSessionMap(sessionKey);
+        const current = sessionState.get(poiId);
+
+        if (isEnterLog(log)) {
+          // Reset active window for this POI inside this session.
+          sessionState.set(poiId, {
+            enteredAt: ts > 0 ? ts : Date.now(),
+            played: false
+          });
+          continue;
+        }
+
+        if (isPlaybackLog(log)) {
+          if (current?.enteredAt) {
+            current.played = true;
+            sessionState.set(poiId, current);
+          }
+          continue;
+        }
+
+        if (!isExitLog(log)) continue;
+
+        if (!current?.enteredAt) continue;
+
+        if (current.played) {
+          visitsByPoi.set(poiId, (visitsByPoi.get(poiId) || 0) + 1);
+
+          const dwellRaw = parseDwellSeconds(log?.dwellSeconds);
+          const dwellWeight = dwellRaw != null && dwellRaw > 0
+            ? Math.min(2.5, dwellRaw / 120)
+            : 1;
+          weightByPoi.set(poiId, (weightByPoi.get(poiId) || 0) + dwellWeight);
+        }
+
+        sessionState.delete(poiId);
+      }
+
+      return {
+        visitsByPoi,
+        weightByPoi
+      };
     }
 
     function distanceMeters(lat1, lon1, lat2, lon2) {
@@ -1871,10 +1938,14 @@
       }
     }
 
-    function renderHeatMap(logs, pois, synCount) {
+    function renderHeatMap(logs, pois, synCount, rangeDays = 30) {
       ensureMaps();
       if (heatLayer) { heatMapInst.removeLayer(heatLayer); heatLayer = null; }
       poiLayerGrp.clearLayers();
+
+      const rangeLabel = Number.isFinite(Number(rangeDays)) && Number(rangeDays) > 0
+        ? `${Math.round(Number(rangeDays))} ngày qua`
+        : 'khoảng đã lọc';
 
       const safePois = (Array.isArray(pois) ? pois : []).filter(p => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lon)));
       const fallbackPoiMap = new Map();
@@ -1896,56 +1967,62 @@
       }
       const mapPois = safePois.length ? safePois : Array.from(fallbackPoiMap.values());
 
+      const poiById = new Map(
+        mapPois.map(p => [String(Number(p.poiId || 0)), p]).filter(([id]) => id !== '0')
+      );
+
+      const visitMetrics = buildCompletedVisitMetrics(logs, poiById);
+      const interactionCountByPoi = visitMetrics.visitsByPoi;
+      const heatWeightByPoi = visitMetrics.weightByPoi;
+
       // POI chips
       const chips = document.getElementById('poiChips');
       chips.innerHTML = mapPois.slice(0, 16).map(p => `
-    <span class="badge badge-muted" style="cursor:default;font-size:.7rem">📍 ${p.poiName}</span>
+    <span class="badge badge-muted" style="cursor:default;font-size:.7rem">📍 ${p.poiName} (${num(interactionCountByPoi.get(String(Number(p.poiId || 0))) || 0)})</span>
   `).join('') || '<span class="badge badge-muted" style="font-size:.7rem">Chưa có điểm POI trong khoảng thời gian này</span>';
 
       const focusSel = document.getElementById('heatPoiFocusSelect');
       if (focusSel) {
         focusSel.innerHTML = '<option value="">Focus theo POI...</option>' + mapPois.slice(0, 60).map((p, i) => {
           const id = p.poiId || `poi-${i}`;
-          return `<option value="${String(id)}">${p.poiName}</option>`;
+          const interactionCount = Number(interactionCountByPoi.get(String(Number(id))) || 0);
+          return `<option value="${String(id)}">${p.poiName} (${num(interactionCount)})</option>`;
         }).join('');
       }
 
       // POI markers — rõ ràng và có tên hiển thị
       mapPois.forEach((poi, i) => {
         const color = POI_DOT_COLORS[i % POI_DOT_COLORS.length];
+        const poiIdKey = String(Number(poi.poiId || 0));
+        const interactionCount = Number(interactionCountByPoi.get(poiIdKey) || 0);
         L.marker([poi.lat, poi.lon], { icon: makePOIIcon(color, poi.poiName) })
-          .bindPopup(`<b style="color:${color}">${poi.poiName}</b><br><span style="font-size:11px;color:#666">${poi.address || ''}</span>`)
+          .bindPopup(`
+            <b style="color:${color}">${esc(poi.poiName)}</b><br>
+            <span style="font-size:11px;color:#666">${esc(poi.address || '')}</span><br>
+            <span style="font-size:11px;color:#334155">Lượt tương tác (${esc(rangeLabel)}): <b>${num(interactionCount)}</b></span>
+          `)
           .addTo(poiLayerGrp);
       });
       if (!heatPoiMarkersVisible) poiLayerGrp.clearLayers();
 
       const hpCount = document.getElementById('heatPointCount');
-      if (hpCount) hpCount.textContent = `${num(logs.length)} log`;
+      if (hpCount) {
+        const totalCompletedVisits = [...interactionCountByPoi.values()].reduce((sum, value) => sum + Number(value || 0), 0);
+        hpCount.textContent = `${num(totalCompletedVisits)} lượt hợp lệ`;
+      }
 
       const synTag = document.getElementById('syntheticTag');
 
       const heat = [];
-      const poiById = new Map(
-        mapPois.map(p => [String(Number(p.poiId || 0)), p]).filter(([id]) => id !== '0')
-      );
-      const bucket = new Map();
-      for (const l of logs) {
-        const poiId = String(Number(l.poI_ID || l.poiId || l.poi_ID || 0));
-        const poi = poiById.get(poiId);
-        if (!poi) continue;
-        const dwellSeconds = Number(l.dwellSeconds || 0);
-        const weight = 1 + (dwellSeconds > 0 ? Math.min(5, dwellSeconds / 20) : 0);
-        bucket.set(poiId, (bucket.get(poiId) || 0) + weight);
-      }
-      const max = Math.max(1, ...bucket.values());
-      for (const [poiId, c] of bucket) {
+      const max = Math.max(1, ...heatWeightByPoi.values());
+      for (const [poiId, c] of heatWeightByPoi) {
         const poi = poiById.get(poiId);
         if (!poi) continue;
         const lat = Number(poi.lat);
         const lon = Number(poi.lon);
         heat.push([lat, lon, Math.max(.1, c / max)]);
       }
-      if (synTag) synTag.textContent = `POI nóng: ${num(bucket.size)}`;
+      if (synTag) synTag.textContent = `POI nóng: ${num(heatWeightByPoi.size)}`;
 
       if (heat.length && typeof L.heatLayer === 'function') {
         heatLayer = L.heatLayer(heat, {
@@ -2142,6 +2219,27 @@
       return action === 'narrationplayed';
     }
 
+    function resolveLanguageCode(log) {
+      const deviceId = String(log?.deviceId ?? log?.DeviceId ?? '').trim().toLowerCase();
+      const raw = String(
+        log?.language
+        ?? log?.Language
+        ?? log?.lang
+        ?? log?.Lang
+        ?? log?.preferredLanguage
+        ?? log?.PreferredLanguage
+        ?? log?.audioLanguage
+        ?? log?.AudioLanguage
+        ?? (deviceId ? devicePreferredLanguageMap.get(deviceId) : '')
+        ?? ''
+      ).trim().toLowerCase();
+
+      if (raw.startsWith('vi')) return 'vi';
+      if (raw.startsWith('en')) return 'en';
+      if (raw.startsWith('zh') || raw.startsWith('cn')) return 'zh';
+      return null;
+    }
+
     function playbackMethodLabel(log) {
       if (!isRealPlaybackLog(log)) return null;
 
@@ -2159,56 +2257,88 @@
     
     function narrationLanguageCode(log) {
       if (!isRealPlaybackLog(log)) return null;
-
-      const deviceId = String(log.deviceId ?? log.DeviceId ?? '').trim().toLowerCase();
-      const raw = String(
-        log.language
-        ?? log.Language
-        ?? log.lang
-        ?? log.Lang
-        ?? log.audioLanguage
-        ?? log.AudioLanguage
-        ?? (deviceId ? devicePreferredLanguageMap.get(deviceId) : '')
-        ?? ''
-      ).trim().toLowerCase();
-
-      if (raw.startsWith('vi')) return 'vi';
-      if (raw.startsWith('en')) return 'en';
-      if (raw.startsWith('zh') || raw.startsWith('cn')) return 'zh';
-      return null;
+      return resolveLanguageCode(log);
     }
 
-    function renderLanguageDonut(logs) {
+    function renderLanguageDonut(logs, devices = []) {
       if (chartInst.platform) { chartInst.platform.destroy(); chartInst.platform = null; }
-
-      const counts = { vi: 0, en: 0, zh: 0 };
-      for (const l of logs || []) {
-        const code = narrationLanguageCode(l);
-        if (!code || !(code in counts)) continue;
-        counts[code]++;
-      }
+      const topBadge = document.getElementById('platformTopBadge');
 
       const labels = ['Tiếng Việt', 'Tiếng Anh', 'Tiếng Trung'];
-      const vals = [counts.vi, counts.en, counts.zh];
-      const total = vals.reduce((s, v) => s + v, 0);
-
-      const ctx = document.getElementById('platformChart').getContext('2d');
-      if (total <= 0) {
+      const codeOrder = ['vi', 'en', 'zh'];
+      const makeEmptyDonut = (text) => {
+        const ctx = document.getElementById('platformChart').getContext('2d');
         chartInst.platform = new Chart(ctx, {
           type: 'doughnut',
-          data: { labels: ['Chưa có dữ liệu nghe'], datasets: [{ data: [1], backgroundColor: ['#CBD5E1'], borderWidth: 0 }] },
+          data: { labels: [text], datasets: [{ data: [1], backgroundColor: ['#CBD5E1'], borderWidth: 0 }] },
           options: {
             maintainAspectRatio: false,
             cutout: '66%',
             plugins: {
               legend: { position: 'bottom', labels: { color: '#7C8497', font: { size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
-              tooltip: { callbacks: { label: () => 'Chưa có dữ liệu ngôn ngữ' } }
+              tooltip: { callbacks: { label: () => text } }
             }
           }
         });
+      };
+
+      const playbackCounts = { vi: 0, en: 0, zh: 0 };
+      for (const l of logs || []) {
+        const code = narrationLanguageCode(l);
+        if (!code || !(code in playbackCounts)) continue;
+        playbackCounts[code]++;
+      }
+
+      const playbackTotal = Object.values(playbackCounts).reduce((s, v) => s + v, 0);
+
+      // Fallback for dashboards where playback logs haven't arrived yet:
+      // estimate language from latest interaction logs that still carry language/device preference.
+      const interactionCounts = (() => {
+        const m = { vi: 0, en: 0, zh: 0 };
+        for (const l of logs || []) {
+          const code = resolveLanguageCode(l);
+          if (!code || !(code in m)) continue;
+          m[code]++;
+        }
+        return m;
+      })();
+      const interactionTotal = Object.values(interactionCounts).reduce((s, v) => s + v, 0);
+
+      const deviceCounts = (() => {
+        const m = { vi: 0, en: 0, zh: 0 };
+        for (const d of devices || []) {
+          const code = resolveLanguageCode(d);
+          if (!code || !(code in m)) continue;
+          m[code]++;
+        }
+        return m;
+      })();
+      const deviceTotal = Object.values(deviceCounts).reduce((s, v) => s + v, 0);
+
+      const counts = playbackTotal > 0
+        ? playbackCounts
+        : (interactionTotal > 0 ? interactionCounts : deviceCounts);
+
+      const vals = [counts.vi, counts.en, counts.zh];
+      const total = vals.reduce((s, v) => s + v, 0);
+      if (total <= 0) {
+        if (topBadge) topBadge.textContent = 'Chưa có dữ liệu';
+        makeEmptyDonut('Chưa có dữ liệu ngôn ngữ');
         return;
       }
 
+      const topCode = codeOrder
+        .slice()
+        .sort((a, b) => counts[b] - counts[a])[0];
+      const topLabelMap = { vi: 'Việt', en: 'Anh', zh: 'Trung' };
+      if (topBadge) {
+        const prefix = playbackTotal > 0
+          ? 'Top'
+          : (interactionTotal > 0 ? 'Top (ước tính)' : 'Top (thiết bị)');
+        topBadge.textContent = `${prefix}: ${topLabelMap[topCode]} (${num(counts[topCode])})`;
+      }
+
+      const ctx = document.getElementById('platformChart').getContext('2d');
       chartInst.platform = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -2341,7 +2471,7 @@
         const sessionKey = getLogSessionKey(l);
         const action = String(l.actionType || '').toLowerCase();
         const trigger = String(l.triggerType || '').toLowerCase();
-        const dwellRaw = Number(l.dwellSeconds);
+        const dwellRaw = parseDwellSeconds(l?.dwellSeconds);
 
         return {
           rowIndex,
@@ -2350,7 +2480,7 @@
           sessionKey,
           action,
           trigger,
-          dwellSeconds: Number.isFinite(dwellRaw) && dwellRaw >= 0 ? dwellRaw : null,
+          dwellSeconds: dwellRaw,
           isExit: action === 'exitzone' || trigger === 'geofenceexit'
         };
       });
@@ -2367,7 +2497,32 @@
         list.sort((a, b) => a.ts - b.ts);
       }
 
+      const rowsBySession = new Map();
+      const latestTsBySession = new Map();
+      for (const r of rows) {
+        if (!r.sessionKey || r.ts <= 0) continue;
+        if (!rowsBySession.has(r.sessionKey)) rowsBySession.set(r.sessionKey, []);
+        rowsBySession.get(r.sessionKey).push(r);
+        const prevTs = latestTsBySession.get(r.sessionKey) || 0;
+        if (r.ts > prevTs) latestTsBySession.set(r.sessionKey, r.ts);
+      }
+
+      for (const list of rowsBySession.values()) {
+        list.sort((a, b) => a.ts - b.ts);
+      }
+
+      const latestOpenRowByKey = new Map();
+      for (const r of rows) {
+        if (!r.sessionKey || r.poiId <= 0 || r.ts <= 0 || r.isExit || r.dwellSeconds != null) continue;
+        const key = `${r.sessionKey}|${r.poiId}`;
+        const prev = latestOpenRowByKey.get(key);
+        if (!prev || r.ts > prev.ts) {
+          latestOpenRowByKey.set(key, r);
+        }
+      }
+
       const displayByRow = new Map();
+      const nowTs = Date.now();
       for (const r of rows) {
         if (r.dwellSeconds != null) {
           displayByRow.set(r.rowIndex, `${Math.round(r.dwellSeconds)}s`);
@@ -2376,15 +2531,44 @@
 
         if (!r.sessionKey || r.poiId <= 0 || r.ts <= 0) continue;
         const key = `${r.sessionKey}|${r.poiId}`;
-        const exits = exitsByKey.get(key);
-        if (!exits?.length) continue;
+        const exits = exitsByKey.get(key) || [];
+        const hasActiveSignal =
+          r.action === 'geofenceenter'
+          || r.action === 'locationping'
+          || r.action === 'narrationplayed'
+          || r.trigger === 'geofenceenter'
+          || r.trigger === 'proximity';
 
-        // Estimate from nearest future ExitZone in same session+POI, max 30 minutes.
+        // Estimate from nearest future exit event in same session+POI, max 30 minutes.
         const matchedExit = exits.find(e => e.ts >= r.ts && ((e.ts - r.ts) / 1000) <= 1800);
-        if (!matchedExit) continue;
-
-        if (matchedExit.dwellSeconds != null) {
+        if (matchedExit?.dwellSeconds != null) {
           displayByRow.set(r.rowIndex, `~${Math.round(matchedExit.dwellSeconds)}s`);
+          continue;
+        }
+
+        if (!hasActiveSignal) continue;
+
+        // Freeze estimate when this session moves to another POI (new location context).
+        const sessionRows = rowsBySession.get(r.sessionKey) || [];
+        const nextDifferentPoi = sessionRows.find(e => e.ts > r.ts && e.poiId > 0 && e.poiId !== r.poiId);
+        if (nextDifferentPoi) {
+          const estimatedSeconds = Math.max(0, Math.round((nextDifferentPoi.ts - r.ts) / 1000));
+          if (estimatedSeconds > 0 && estimatedSeconds <= 1800) {
+            displayByRow.set(r.rowIndex, `~${estimatedSeconds}s`);
+          }
+          continue;
+        }
+
+        // Live estimate is only for the latest open row of the currently active zone in session.
+        const latestOpen = latestOpenRowByKey.get(key);
+        const sessionLatestTs = latestTsBySession.get(r.sessionKey) || 0;
+        const isStillCurrentZone = latestOpen?.rowIndex === r.rowIndex && r.ts === sessionLatestTs;
+
+        if (isStillCurrentZone) {
+          const liveSeconds = Math.max(0, Math.round((nowTs - r.ts) / 1000));
+          if (liveSeconds > 0 && liveSeconds <= 1800) {
+            displayByRow.set(r.rowIndex, `~${liveSeconds}s`);
+          }
         }
       }
 
@@ -2422,7 +2606,6 @@
         const timeB = new Date(b.triggeredAt).getTime();
         return sortDir === 'asc' ? timeA - timeB : timeB - timeA;
       });
-      const dwellDisplayByRow = buildDwellDisplayByRow(sorted);
       
       const totalPages = Math.ceil(sorted.length / movementPageSize);
       if (movementPage > totalPages) movementPage = totalPages;
@@ -2434,7 +2617,6 @@
       let html = '';
       for (let rowOffset = 0; rowOffset < pagedLogs.length; rowOffset++) {
         const l = pagedLogs[rowOffset];
-        const globalRowIndex = startIdx + rowOffset;
         const timeText = l.triggeredAt ? new Date(l.triggeredAt).toLocaleString('vi-VN') : '—';
         const sessionRaw = l.sessionId || l.userId || 'ẩn danh';
         const sessionText = anonId(sessionRaw);
@@ -2443,24 +2625,12 @@
         const poiText = l.poiName || ((isFinite(lat) && isFinite(lon)) ? nearestPoiName(lat, lon, globalPois || []) : '—');
         const actionRaw = l.actionType || l.triggerType || 'LocationPing';
         const actionText = triggerLabel(actionRaw);
-        const dwellRaw = Number(l.dwellSeconds);
-        const hasRawDwell = Number.isFinite(dwellRaw) && dwellRaw >= 0;
-        const estimatedDwell = hasRawDwell ? '' : (dwellDisplayByRow.get(globalRowIndex) || '');
-        const dwellText = hasRawDwell
-          ? `${Math.round(dwellRaw)}s`
-          : (estimatedDwell || 'Chờ ExitZone');
-        const dwellTitle = hasRawDwell
-          ? 'Thời gian ở lại lưu trực tiếp từ app'
-          : (estimatedDwell
-            ? 'Ước tính từ log rời vùng gần nhất cùng phiên và POI'
-            : 'Chưa có log rời vùng (ExitZone) để tính thời gian ở lại');
 
-        html += `<div class="movement-row" style="grid-template-columns: 1.2fr 1.3fr 1.5fr .95fr .8fr;">
+        html += `<div class="movement-row" style="grid-template-columns: 1.2fr 1.3fr 1.7fr 1fr;">
       <div class="movement-cell" style="font-size:.85rem">${timeText}</div>
       <div class="movement-cell mono" style="font-size:.85rem">${sessionText}</div>
       <div class="movement-cell mono muted" style="font-size:.8rem">${gpsText}<div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">POI: ${esc(poiText)}</div></div>
       <div class="movement-cell"><span class="action-pill" style="font-size:.7rem">${actionText}</span></div>
-      <div class="movement-cell muted" title="${dwellTitle}">${dwellText}</div>
     </div>`;
       }
 
@@ -2523,9 +2693,20 @@
         const coords = [];
         routeSample.forEach((route, i) => {
           const segs = buildTrailSegments(route.points || []);
-          if (!segs.length) return;
-          segs.forEach(seg => coords.push(...seg));
-          drawTrailSegments(routeLayerGrp, segs, CC[i % CC.length], false);
+          if (segs.length) {
+            segs.forEach(seg => coords.push(...seg));
+            drawTrailSegments(routeLayerGrp, segs, CC[i % CC.length], false);
+            return;
+          }
+
+          // Fallback: draw simple path when segmented trail is empty.
+          const fallback = (route.points || [])
+            .map(p => [Number(p.lat), Number(p.lon)])
+            .filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+          if (fallback.length >= 2) {
+            coords.push(...fallback);
+            drawTrailSegments(routeLayerGrp, [fallback], CC[i % CC.length], false);
+          }
         });
 
         if (coords.length) {
@@ -2690,8 +2871,16 @@
     }
 
     /* ── MAIN REFRESH ─────────────────────────────────────────────── */
-    async function refreshDashboard() {
-      showToast('Đang tải dữ liệu…', 'info');
+    let dashboardRefreshInFlight = false;
+    let dashboardAutoRefreshTimer = null;
+    const DASHBOARD_AUTO_REFRESH_MS = 10000;
+
+    async function refreshDashboard(options = {}) {
+      const silent = !!options.silent;
+      if (dashboardRefreshInFlight) return;
+      dashboardRefreshInFlight = true;
+
+      if (!silent) showToast('Đang tải dữ liệu…', 'info');
       const days = Number(document.getElementById('rangeSelect').value || 30);
       const to = new Date();
       const from = new Date(to); from.setDate(from.getDate() - days);
@@ -2705,31 +2894,20 @@
         let topPois = [];
         let source = 'database';
 
-        try {
-          if (typeof requireAuth === 'function' && !requireAuth()) return;
-          const role = (typeof TokenManager !== 'undefined' ? (TokenManager.getRoleContext() || '').toLowerCase() : 'admin');
-          if (role !== 'admin') {
-            window.location.href = 'dashboard';
-            return;
-          }
-
-          const apiData = await loadDashboardDataFromApi(from, to);
-          overview = apiData.overview;
-          devices = apiData.devices;
-          pois = apiData.pois;
-          realLogs = apiData.realLogs;
-          audios = apiData.audios;
-          topPois = apiData.topPois || [];
-        } catch (apiErr) {
-          console.warn('Fallback to mock data:', apiErr);
-          source = 'mock';
-          overview = MOCK_OVERVIEW;
-          devices = MOCK_DEVICES;
-          pois = MOCK_POIS;
-          realLogs = [];
-          audios = MOCK_AUDIOS;
-          topPois = [];
+        if (typeof requireAuth === 'function' && !requireAuth()) return;
+        const role = (typeof TokenManager !== 'undefined' ? (TokenManager.getRoleContext() || '').toLowerCase() : 'admin');
+        if (role !== 'admin') {
+          window.location.href = 'dashboard';
+          return;
         }
+
+        const apiData = await loadDashboardDataFromApi(from, to);
+        overview = apiData.overview;
+        devices = apiData.devices;
+        pois = apiData.pois;
+        realLogs = apiData.realLogs;
+        audios = apiData.audios;
+        topPois = apiData.topPois || [];
 
         // Thống kê thời gian Audio
         globalPois = pois;
@@ -2752,8 +2930,9 @@
             .filter(([id, language]) => id && language)
         );
 
-        const allLogs = [...realLogs];
-        const routeLogs = allLogs.filter(isVinhKhanhNarrationLog);
+        // Only use Vinh Khanh logs for this dashboard.
+        const allLogs = [...realLogs].filter(isVinhKhanhNarrationLog);
+        const routeLogs = allLogs;
 
         // Build data
         const apiTopRows = normalizeTopPoiRows(topPois, 10);
@@ -2767,14 +2946,16 @@
         renderAvgListenChart(avgRows);
         renderHourlyChart(allLogs);
         renderDonut('triggerChart', 'trigger', allLogs, l => playbackMethodLabel(l), ' lượt');
-        renderLanguageDonut(allLogs);
-        renderHeatMap(routeLogs, pois, 0);
+        renderLanguageDonut(allLogs, devices);
+        renderHeatMap(routeLogs, pois, 0, days);
         renderRouteList(allRoutes, routeLogs);
 
-        showToast(`Đã cập nhật thống kê (${source})`, 'success');
+        if (!silent) showToast(`Đã cập nhật thống kê (${source})`, 'success');
       } catch (err) {
         console.error(err);
-        showToast(err.message || 'Lỗi tải dữ liệu', 'error');
+        if (!silent) showToast(err.message || 'Lỗi tải dữ liệu', 'error');
+      } finally {
+        dashboardRefreshInFlight = false;
       }
     }
 
@@ -2782,6 +2963,16 @@
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('routeSelect').addEventListener('change', e => selectRoute(Number(e.target.value || 0)));
       refreshDashboard();
+      if (!dashboardAutoRefreshTimer) {
+        dashboardAutoRefreshTimer = setInterval(() => refreshDashboard({ silent: true }), DASHBOARD_AUTO_REFRESH_MS);
+      }
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (dashboardAutoRefreshTimer) {
+        clearInterval(dashboardAutoRefreshTimer);
+        dashboardAutoRefreshTimer = null;
+      }
     });
   </script>
 </body>

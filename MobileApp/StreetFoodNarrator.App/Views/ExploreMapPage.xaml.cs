@@ -406,6 +406,7 @@ public partial class ExploreMapPage : ContentPage
         TabMapComponent.ClearSearchRequested += OnClearSearchRequested;
         TabMapComponent.SuggestionSelected += OnSuggestionSelected;
 
+        EnsureMapInfoInteractionHooked();
         _eventsHooked = true;
     }
 
@@ -441,6 +442,17 @@ public partial class ExploreMapPage : ContentPage
             MapView.Info -= OnMapInfoTapped;
 
         _eventsHooked = false;
+    }
+
+    private void EnsureMapInfoInteractionHooked()
+    {
+        if (MapView == null)
+            return;
+
+        MapView.InputTransparent = false;
+        MapView.CascadeInputTransparent = false;
+        MapView.Info -= OnMapInfoTapped;
+        MapView.Info += OnMapInfoTapped;
     }
 
     private void OnLanguageChanged(object? sender, string languageCode)
@@ -681,10 +693,7 @@ public partial class ExploreMapPage : ContentPage
         MapView.Map.Layers.Add(_userPinLayer);
         MapView.Map.Layers.Add(_pinsLayer);
 
-        MapView.InputTransparent = false;
-        MapView.CascadeInputTransparent = false;
-        MapView.Info -= OnMapInfoTapped;
-        MapView.Info += OnMapInfoTapped;
+        EnsureMapInfoInteractionHooked();
         MapView.Map.Navigator.RotationLock = true;
         MapView.UseFling = true;
 
@@ -3250,6 +3259,14 @@ public partial class ExploreMapPage : ContentPage
         UpdateNearFocusSheetState();
         UpdateNearRouteActionVisibility();
         UpdateVirtualStateAdvanceButton();
+
+        var isFarState = _vm.CurrentExploreState == MainViewModel.ExploreState.Far;
+        if (NearFocusOverlay != null)
+        {
+            // In FAR, let empty overlay areas pass through so users can always tap/pan the map.
+            NearFocusOverlay.CascadeInputTransparent = false;
+            NearFocusOverlay.InputTransparent = isFarState;
+        }
 
         var poi = ResolveNearFocusPoi();
         if (poi == null)

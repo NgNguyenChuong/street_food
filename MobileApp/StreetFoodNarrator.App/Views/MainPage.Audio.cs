@@ -21,7 +21,7 @@ public partial class MainPage
             {
                 Title = "Chia se diem den",
                 Text  = $"Toi dang o {_vm.PrimaryZoneName} trong tour am thuc!",
-                Uri   = "https://streetfoodnarrator.app"
+                Uri   = AppConfig.GetResolvedApiBaseUrl().TrimEnd('/')
             });
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Audio] OnShareClicked: {ex}"); }

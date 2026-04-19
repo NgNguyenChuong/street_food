@@ -1005,6 +1005,18 @@ public partial class SettingsPage : ContentPage
         return false;
     }
 
+    private async void OnTermsTapped(object sender, TappedEventArgs e)
+    {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+        await Navigation.PushModalAsync(new LegalPage(LegalPage.LegalType.Terms), false);
+    }
+
+    private async void OnPrivacyTapped(object sender, TappedEventArgs e)
+    {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+        await Navigation.PushModalAsync(new LegalPage(LegalPage.LegalType.Privacy), false);
+    }
+
     private async void OnLogoutClicked(object sender, EventArgs e)
     {
         UserPreferenceEffects.PerformHapticClickIfEnabled();

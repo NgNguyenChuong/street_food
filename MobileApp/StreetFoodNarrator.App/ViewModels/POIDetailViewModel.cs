@@ -63,7 +63,7 @@ public partial class POIDetailViewModel : ObservableObject
 
     // Rating display
     [ObservableProperty]
-    private string _ratingText = "4.5";
+    private string _ratingText = "";
 
     [ObservableProperty]
     private string _reviewCountText = "";

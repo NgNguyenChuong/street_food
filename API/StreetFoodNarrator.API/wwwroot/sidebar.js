@@ -196,6 +196,12 @@
                             <span>Lịch sử sử dụng</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="device-activity" class="nav-link">
+                            <i class="nav-icon fas fa-signal"></i>
+                            <span>Trạng thái hoạt động</span>
+                        </a>
+                    </li>
                     ` : ''}
                     <li class="nav-item">
                         <a href="/" class="nav-link" onclick="logout(); return false;">
@@ -1280,5 +1286,41 @@
             window.location.href = '/';
         });
     };
+
+    // ── Dashboard Heartbeat (vendor/admin) ──────────────────────────
+    (function startDashboardHeartbeat() {
+        var HB_MS = 60000;
+        var dashDeviceId = localStorage.getItem('sfn_dash_device_id');
+        if (!dashDeviceId) {
+            dashDeviceId = 'dash-' + crypto.randomUUID();
+            localStorage.setItem('sfn_dash_device_id', dashDeviceId);
+        }
+        var dashRole = isVendor ? 'vendor' : (isAdmin ? 'admin' : 'tourist');
+        function sendHb() {
+            var url = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : window.location.origin + '/api') + '/device-activity/heartbeat';
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId: dashDeviceId, platform: 'web', userRole: dashRole, clientType: 'dashboard' })
+            }).catch(function(){});
+        }
+        function sendDc() {
+            var url = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : window.location.origin + '/api') + '/device-activity/disconnect';
+            var body = JSON.stringify({ deviceId: dashDeviceId });
+            if (navigator.sendBeacon) { navigator.sendBeacon(url, new Blob([body], { type: 'application/json' })); }
+            else { try { var x = new XMLHttpRequest(); x.open('POST', url, false); x.setRequestHeader('Content-Type', 'application/json'); x.send(body); } catch(e){} }
+        }
+        var hbTimer = setInterval(sendHb, HB_MS);
+        sendHb();
+        document.addEventListener('visibilitychange', function() {
+            // Do NOT disconnect on tab hide — user may switch tabs momentarily.
+            // Rely on heartbeat threshold + beforeunload for accurate offline detection.
+            if (!document.hidden) {
+                sendHb();
+                if (!hbTimer) hbTimer = setInterval(sendHb, HB_MS);
+            }
+        });
+        window.addEventListener('beforeunload', sendDc);
+    })();
 })();
 

@@ -851,14 +851,14 @@ public partial class MainPage : ContentPage
         await SetMapToolVisibleAsync(false);
     }
 
-    private async Task<bool> EnsureSpotDataReadyAsync()
+    private async Task<bool> EnsureSpotDataReadyAsync(bool forceSyncNow = false)
     {
         if (_vm.AllPOIs.Any(p => p.ZoneType == "Spot"))
             return true;
 
         try
         {
-            await _vm.LoadAllPoisAsync(forceSyncNow: false);
+            await _vm.LoadAllPoisAsync(forceSyncNow: forceSyncNow);
         }
         catch (Exception ex)
         {
@@ -897,6 +897,8 @@ public partial class MainPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MainPage] StartVirtualPreviewAsync error: {ex}");
+            // Clean up all virtual tour state so a retry starts fresh.
+            CleanupVirtualTourState();
             ShowExploreStateMode();
             await DisplayAlertAsync("Không thể vào tour ảo", "Đã có lỗi khi mở tour ảo. Vui lòng thử lại.", "OK");
         }
@@ -923,6 +925,10 @@ public partial class MainPage : ContentPage
                 return;
             }
 
+            var apiBaseUpdatedFromQr = AppConfig.TryApplyApiBaseFromQr(payload.ApiBaseUrl);
+            if (apiBaseUpdatedFromQr)
+                System.Diagnostics.Debug.WriteLine($"[MainPage] API base updated from QR: {payload.ApiBaseUrl}");
+
             if (payload.IsExpired(DateTimeOffset.UtcNow))
             {
                 await DisplayAlertAsync(
@@ -937,14 +943,19 @@ public partial class MainPage : ContentPage
 
             if (payload.OpenMainPageOnly)
             {
+                Preferences.Set(SavedPage.OpenBrowseSegmentOnNextAppearKey, true);
                 _vm.CurrentAppMode = MainViewModel.AppMode.Explore;
                 _vm.IsLegacyMapVisible = false;
                 SyncExplorePresentationState();
                 ApplyMapPresentation();
+
+                if (Shell.Current != null)
+                    await Shell.Current.GoToAsync("//SavedPage", false);
+
                 return;
             }
 
-            await EnsureSpotDataReadyAsync();
+            await EnsureSpotDataReadyAsync(forceSyncNow: apiBaseUpdatedFromQr);
 
             StreetFoodNarrator.App.Core.Models.POI? targetPoi = null;
 
@@ -1412,6 +1423,15 @@ public partial class MainPage : ContentPage
 
         try
         {
+            // Only mark initialized if the map view is actually ready.
+            // InitializeMap() returns early (silently) when MapView?.Map == null,
+            // so we must guard here to allow retries on subsequent calls.
+            if (MapView?.Map == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[MainPage] EnsureMapInitialized: MapView not ready, skipping.");
+                return;
+            }
+
             InitializeMap();
             _isMapInitialized = true;
             UpdateZonePins();

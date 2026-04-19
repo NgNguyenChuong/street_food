@@ -489,9 +489,25 @@
         return Math.floor(windowEndMs / 1000);
     }
 
+    function getQrPublicBaseUrl() {
+        const params = new URLSearchParams(window.location.search || '');
+        const fromQuery = (params.get('publicBaseUrl') || params.get('qrBase') || '').trim();
+        const fallback = window.location.origin;
+        const candidate = fromQuery || fallback;
+
+        try {
+            const normalized = new URL(candidate, fallback);
+            return `${normalized.protocol}//${normalized.host}`;
+        } catch {
+            return fallback;
+        }
+    }
+
     function getPoiQrLink(id) {
         const exp = getCurrentQrExpiryEpochSeconds();
-        return `https://streetfoodnarrator.app/qr/poi/${encodeURIComponent(id)}?exp=${exp}`;
+        const publicBase = getQrPublicBaseUrl();
+        const apiBase = `${publicBase}/`;
+        return `${publicBase}/qr/poi/${encodeURIComponent(id)}?exp=${exp}&api=${encodeURIComponent(apiBase)}`;
     }
 
     function formatCategory(cat) {

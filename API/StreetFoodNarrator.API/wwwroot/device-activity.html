@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trạng thái hoạt động - Street Food Narrator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="sidebar.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2A;
+            --secondary: #004E89;
+            --accent: #FFD23F;
+            --success: #06D6A0;
+            --danger: #EF476F;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --border: #E8ECF1;
+            --shadow: rgba(26, 26, 46, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; background: linear-gradient(to bottom, #F0F4F8 0%, #FFFFFF 100%); color: var(--dark); overflow-x: hidden; }
+        .main-content { margin-left: 0; padding: 2rem; min-height: 100vh; transition: margin-left 0.3s; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+        .page-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header-actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+
+        /* Stats cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 18px; box-shadow: 0 4px 20px var(--shadow); position: relative; overflow: hidden; }
+        .stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px; background: var(--gradient); opacity: 0.04; border-radius: 0 18px 0 80%; }
+        .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin-bottom: 0.75rem; }
+        .stat-icon.green { background: rgba(6,214,160,0.12); color: var(--success); }
+        .stat-icon.blue { background: rgba(0,78,137,0.12); color: var(--secondary); }
+        .stat-icon.orange { background: rgba(255,107,53,0.12); color: var(--primary); }
+        .stat-icon.purple { background: rgba(139,92,246,0.12); color: #8B5CF6; }
+        .stat-value { font-size: 2rem; font-weight: 700; }
+        .stat-label { color: #666; font-size: 0.85rem; margin-top: 0.2rem; }
+
+        /* Filters */
+        .filters { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .filter-select, .filter-input {
+            padding: 0.6rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: white;
+            color: var(--dark);
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .filter-select:focus, .filter-input:focus { border-color: var(--primary); }
+        .filter-input { min-width: 200px; }
+        .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; font-family: inherit; }
+        .btn-primary { background: var(--gradient); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,107,53,0.3); }
+        .btn-outline { background: white; border: 2px solid var(--border); color: var(--dark); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* Table */
+        .card { background: white; border-radius: 18px; padding: 1.5rem; box-shadow: 0 4px 20px var(--shadow); margin-bottom: 1.5rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .card-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        thead { background: linear-gradient(to right, #F8F9FA, #F0F4F8); }
+        th { padding: 0.75rem 1rem; text-align: left; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); white-space: nowrap; }
+        td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); color: #555; font-size: 0.88rem; }
+        tr:hover td { background: rgba(255,107,53,0.02); }
+
+        .status-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem; border-radius: 50px; font-size: 0.78rem; font-weight: 600; }
+        .status-pill.online { background: rgba(6,214,160,0.15); color: #059669; }
+        .status-pill.offline { background: rgba(239,71,111,0.12); color: #dc2626; }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .status-dot.online { background: var(--success); animation: pulse 2s infinite; }
+        .status-dot.offline { background: var(--danger); }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+        .role-tag { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .role-tag.tourist { background: rgba(96,165,250,0.15); color: #2563eb; }
+        .role-tag.vendor { background: rgba(255,210,63,0.2); color: #b45309; }
+        .role-tag.admin { background: rgba(139,92,246,0.15); color: #7c3aed; }
+
+        .client-tag { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; background: rgba(0,0,0,0.05); color: #555; }
+
+        .premium-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.65rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; }
+        .premium-badge.vip { background: rgba(252,211,77,0.2); color: #b45309; }
+        .premium-badge.free { background: rgba(0,0,0,0.05); color: #aaa; font-weight: 400; }
+
+        .empty-row { text-align: center; padding: 2rem; color: #999; }
+
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; gap: 0.5rem; margin-top: 1rem; }
+        .page-btn { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 0.85rem; }
+        .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .page-btn:disabled { opacity: 0.4; cursor: default; }
+
+        /* Auto-refresh indicator */
+        .auto-refresh { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: #888; }
+        .auto-refresh .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+
+        @media (max-width: 768px) {
+            .main-content { padding: 1rem; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <h1 class="page-title">Trạng thái hoạt động</h1>
+        <div class="header-actions">
+            <div class="auto-refresh">
+                <span class="dot"></span>
+                <span>Tự động cập nhật mỗi 15 giây</span>
+            </div>
+            <button class="btn btn-outline" onclick="loadAll()"><i class="fas fa-sync-alt"></i> Làm mới</button>
+        </div>
+    </header>
+
+    <!-- Summary stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-wifi"></i></div>
+            <div class="stat-value" id="totalOnline">—</div>
+            <div class="stat-label">Đang online</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon blue"><i class="fas fa-user"></i></div>
+            <div class="stat-value" id="touristOnline">—</div>
+            <div class="stat-label">Tourist online</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-store"></i></div>
+            <div class="stat-value" id="vendorOnline">—</div>
+            <div class="stat-label">Vendor online</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple"><i class="fas fa-mobile-alt"></i></div>
+            <div class="stat-value" id="byClientBreakdown">—</div>
+            <div class="stat-label">Chi tiết nền tảng</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+        <select class="filter-select" id="filterRole">
+            <option value="">Tất cả vai trò</option>
+            <option value="tourist">Tourist</option>
+            <option value="vendor">Vendor</option>
+        </select>
+        <select class="filter-select" id="filterStatus">
+            <option value="">Tất cả trạng thái</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+        </select>
+        <input class="filter-input" id="filterSearch" placeholder="Tìm Device ID..." />
+        <input type="date" class="filter-select" id="filterFrom" title="Từ ngày" />
+        <input type="date" class="filter-select" id="filterTo" title="Đến ngày" />
+        <button class="btn btn-primary" onclick="applyFilters()"><i class="fas fa-search"></i> Lọc</button>
+    </div>
+
+    <!-- Device table -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Danh sách thiết bị</h2>
+            <span id="deviceCount" style="color:#888; font-size:0.85rem;"></span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Trạng thái</th>
+                        <th>Device ID</th>
+                        <th>Vai trò</th>
+                        <th>Nền tảng</th>
+                        <th>Premium</th>
+                        <th>Lần cuối đăng nhập</th>
+                        <th>Lần đầu đăng nhập</th>
+                    </tr>
+                </thead>
+                <tbody id="deviceTableBody">
+                    <tr><td colspan="7" class="empty-row"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+</main>
+
+<script src="api.js"></script>
+<script>
+    const roleContext = TokenManager.ensureRoleContext();
+    const user = TokenManager.getUser();
+    if (!user || !roleContext || roleContext.toLowerCase() !== 'admin') {
+        window.location.href = '/index';
+    }
+
+    let currentPage = 1;
+    const pageSize = 50;
+    let autoRefreshTimer = null;
+
+    function formatTime(d) {
+        if (!d) return '—';
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return '—';
+        const diff = (Date.now() - dt.getTime()) / 1000;
+        if (diff < 60) return Math.round(diff) + 's trước';
+        if (diff < 3600) return Math.round(diff / 60) + ' phút trước';
+        if (diff < 86400) return Math.round(diff / 3600) + ' giờ trước';
+        return dt.toLocaleString('vi-VN');
+    }
+
+    function formatDate(d) {
+        if (!d) return '—';
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return '—';
+        return dt.toLocaleDateString('vi-VN');
+    }
+
+    function shortDeviceId(id) {
+        if (!id) return '—';
+        if (id.length <= 16) return id;
+        return id.substring(0, 12) + '…';
+    }
+
+    function roleTag(role) {
+        const r = (role || 'tourist').toLowerCase();
+        const labels = { tourist: 'Tourist', vendor: 'Vendor', admin: 'Admin' };
+        return `<span class="role-tag ${r}">${labels[r] || r}</span>`;
+    }
+
+    function clientTag(ct) {
+        const icons = { web: 'fa-globe', android: 'fa-android', ios: 'fa-apple', dashboard: 'fa-desktop' };
+        const c = (ct || 'web').toLowerCase();
+        return `<span class="client-tag"><i class="fas ${icons[c] || 'fa-question'}"></i> ${c}</span>`;
+    }
+
+    function statusPill(isOnline) {
+        if (isOnline) return `<span class="status-pill online"><span class="status-dot online"></span>Online</span>`;
+        return `<span class="status-pill offline"><span class="status-dot offline"></span>Offline</span>`;
+    }
+
+    function premiumBadge(isVip, role) {
+        var r = (role || '').toLowerCase();
+        if (r === 'vendor') return `<span class="premium-badge" style="background:rgba(255,107,53,0.15);color:#c2410c;">&#9670; Vip</span>`;
+        if (isVip) return `<span class="premium-badge vip">&#9733; VIP</span>`;
+        return `<span class="premium-badge free">Free</span>`;
+    }
+
+    async function loadSummary() {
+        try {
+            const data = await DeviceActivityApi.onlineSummary();
+            document.getElementById('totalOnline').textContent = data.totalOnline || 0;
+            document.getElementById('touristOnline').textContent = data.touristOnline || 0;
+            document.getElementById('vendorOnline').textContent = data.vendorOnline || 0;
+
+            const ct = data.byClientType || {};
+            const parts = [];
+            if (ct.web) parts.push(`Web: ${ct.web}`);
+            if (ct.android) parts.push(`Android: ${ct.android}`);
+            if (ct.ios) parts.push(`iOS: ${ct.ios}`);
+            document.getElementById('byClientBreakdown').innerHTML = parts.length
+                ? `<span style="font-size:0.85rem;font-weight:500">${parts.join(' · ')}</span>`
+                : '0';
+        } catch (err) {
+            console.error('Load summary failed:', err);
+        }
+    }
+
+    async function loadDevices() {
+        const role = document.getElementById('filterRole').value;
+        const status = document.getElementById('filterStatus').value;
+        const search = document.getElementById('filterSearch').value.trim();
+        const dateFrom = document.getElementById('filterFrom').value;
+        const dateTo = document.getElementById('filterTo').value;
+
+        try {
+            const result = await DeviceActivityApi.all({ role, status, search, dateFrom, dateTo, page: currentPage, pageSize });
+            const devices = result.data || [];
+            const total = result.total || 0;
+
+            document.getElementById('deviceCount').textContent = `${total} thiết bị`;
+
+            const tbody = document.getElementById('deviceTableBody');
+            if (!devices.length) {
+                tbody.innerHTML = `<tr><td colspan="7" class="empty-row">Không tìm thấy thiết bị nào</td></tr>`;
+            } else {
+                tbody.innerHTML = devices.map(d => `
+                    <tr>
+                        <td>${statusPill(d.isOnline)}</td>
+                        <td title="${d.deviceId || ''}" style="font-family:monospace;font-size:0.8rem">${shortDeviceId(d.deviceId)}</td>
+                        <td>${roleTag(d.userRole)}</td>
+                        <td>${d.platform || '—'}</td>
+                        <td>${premiumBadge(d.isVip, d.userRole)}</td>
+                        <td>${formatTime(d.lastSeen)}</td>
+                        <td>${formatDate(d.firstSeen)}</td>
+                    </tr>
+                `).join('');
+            }
+
+            renderPagination(total);
+        } catch (err) {
+            console.error('Load devices failed:', err);
+            document.getElementById('deviceTableBody').innerHTML =
+                `<tr><td colspan="6" class="empty-row" style="color:var(--danger)">Lỗi tải dữ liệu: ${err.message || err}</td></tr>`;
+        }
+    }
+
+    function renderPagination(total) {
+        const totalPages = Math.ceil(total / pageSize);
+        const container = document.getElementById('pagination');
+        if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+        let html = '';
+        html += `<button class="page-btn" ${currentPage <= 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})"><i class="fas fa-chevron-left"></i></button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            if (totalPages > 7 && Math.abs(i - currentPage) > 2 && i !== 1 && i !== totalPages) {
+                if (i === currentPage - 3 || i === currentPage + 3) html += `<span style="padding:0.4rem">…</span>`;
+                continue;
+            }
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" ${currentPage >= totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})"><i class="fas fa-chevron-right"></i></button>`;
+        container.innerHTML = html;
+    }
+
+    function goPage(p) {
+        currentPage = p;
+        loadDevices();
+    }
+
+    function applyFilters() {
+        currentPage = 1;
+        loadDevices();
+    }
+
+    function loadAll() {
+        loadSummary();
+        loadDevices();
+    }
+
+    // Auto-refresh every 15 seconds
+    function startAutoRefresh() {
+        stopAutoRefresh();
+        autoRefreshTimer = setInterval(loadAll, 15000);
+    }
+
+    function stopAutoRefresh() {
+        if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+    }
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) stopAutoRefresh();
+        else { loadAll(); startAutoRefresh(); }
+    });
+
+    // Filter on Enter key
+    document.getElementById('filterSearch').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') applyFilters();
+    });
+
+    // Initial load
+    loadAll();
+    startAutoRefresh();
+</script>
+</body>
+</html>
