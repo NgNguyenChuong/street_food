@@ -733,9 +733,11 @@ document.getElementById("langSelect").addEventListener("change",function(e){
 function switchTab(tabId){
   // stop any playing audio when changing tabs
   var _ba=document.getElementById("bsAudio");if(_ba&&!_ba.paused)_ba.pause();
-  var _da=document.getElementById("dA");if(_da&&!_da.paused)_da.pause();
+  var _da=document.getElementById("dAudio");if(_da&&!_da.paused)_da.pause();
   var _ra=document.getElementById("rtAudio");if(_ra&&!_ra.paused)_ra.pause();
   speechSynthesis.cancel();
+  // hide map bottom sheet when leaving map tab
+  if(tabId!=="tabMap"){document.getElementById("mapBS").classList.remove("open");}
   document.querySelectorAll(".tab-btn").forEach(function(x){x.classList.remove("active");});
   document.querySelectorAll(".tab-panel").forEach(function(x){x.style.display="none";x.classList.remove("active");});
   var btn=document.querySelector('[data-tab="'+tabId+'"]');if(btn)btn.classList.add("active");
@@ -1452,6 +1454,14 @@ window._sfnPlay=function(id){
 
 // ── DETAIL SHEET ──────────────────────────────────────────────────────────
 function openDetail(poi){
+  // stop any existing detail audio before rebuilding sheet
+  var _existingDA=document.getElementById("dAudio");if(_existingDA){_existingDA.pause();_existingDA.src="";}
+  // sync with map sheet audio: if same POI is playing, capture its position
+  var _bsA=document.getElementById("bsAudio");
+  var _bsSamePoi=(_bsA&&bsCurrPoiId===pid(poi));
+  var _bsSavedTime=(_bsSamePoi&&_bsA&&!_bsA.paused)?_bsA.currentTime:0;
+  if(_bsA&&!_bsA.paused){_bsA.pause();}
+  speechSynthesis.cancel();
   currentPoi=poi;
   var saveBtn=document.getElementById("sheetSaveBtn");if(saveBtn)saveBtn.style.display="";
   var lang=LANG.current,id=pid(poi),nme=nm(poi);
@@ -1542,8 +1552,8 @@ function openDetail(poi){
   var saveBtn=document.getElementById("sheetSaveBtn");
   if(saveBtn){saveBtn.textContent=isSaved(id)?"❤️":"🤍";saveBtn.classList.toggle("saved",isSaved(id));}
   document.getElementById("detailOverlay").classList.add("open");
-  // Auto-play audio if available and allowed
-  if(dA&&canPlay){setTimeout(function(){dA.play().catch(function(){});},300);}
+  // Auto-play audio; restore position if continuing from map sheet (same POI)
+  if(dA&&canPlay){setTimeout(function(){if(_bsSavedTime>0){dA.currentTime=_bsSavedTime;}dA.play().catch(function(){});},300);}
 }
 
 window.closeDetailAndOpenPaywall=function(){

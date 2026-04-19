@@ -126,17 +126,7 @@ public class AudioService : IAudioService
         }
     }
 
-    private static string GetOrCreateAnonymousDeviceId()
-    {
-        const string key = "analytics_anonymous_device_id";
-        var current = Preferences.Get(key, string.Empty);
-        if (!string.IsNullOrWhiteSpace(current))
-            return current;
-
-        var created = $"m-{Guid.NewGuid():N}";
-        Preferences.Set(key, created);
-        return created;
-    }
+    private static string GetOrCreateAnonymousDeviceId() => AppConfig.GetOrCreateDeviceId();
 
 #if ANDROID
     private sealed class AudioFocusChangeListener : Java.Lang.Object, global::Android.Media.AudioManager.IOnAudioFocusChangeListener

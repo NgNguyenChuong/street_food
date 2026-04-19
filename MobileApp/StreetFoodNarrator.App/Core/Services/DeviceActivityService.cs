@@ -50,16 +50,7 @@ public class DeviceActivityService
         _ = SendDisconnectAsync();
     }
 
-    private string GetDeviceId()
-    {
-        var id = Microsoft.Maui.Storage.Preferences.Get("device_unique_id", "");
-        if (string.IsNullOrEmpty(id))
-        {
-            id = $"m-{Guid.NewGuid():N}";
-            Microsoft.Maui.Storage.Preferences.Set("device_unique_id", id);
-        }
-        return id;
-    }
+    private static string GetDeviceId() => AppConfig.GetOrCreateDeviceId();
 
     private string GetPlatform()
     {

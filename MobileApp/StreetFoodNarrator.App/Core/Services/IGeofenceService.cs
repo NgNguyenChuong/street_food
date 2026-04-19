@@ -521,17 +521,7 @@ public class GeofenceService : IGeofenceService
         return baseRadius + spotBuffer + dynamicAccuracyBuffer;
     }
 
-    private static string GetOrCreateAnonymousDeviceId()
-    {
-        const string key = "analytics_anonymous_device_id";
-        var current = Microsoft.Maui.Storage.Preferences.Get(key, string.Empty);
-        if (!string.IsNullOrWhiteSpace(current))
-            return current;
-
-        var created = $"m-{Guid.NewGuid():N}";
-        Microsoft.Maui.Storage.Preferences.Set(key, created);
-        return created;
-    }
+    private static string GetOrCreateAnonymousDeviceId() => AppConfig.GetOrCreateDeviceId();
 
     private static string ResolveCurrentLanguageCode()
     {

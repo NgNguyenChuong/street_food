@@ -40,10 +40,10 @@ public static class AppConfig
 
     // ── Backend API ───────────────────────────────────────────────
                 // ── Emulator (Android AVD): dùng ngrok public URL để test ngoài LAN
-        public static string EmulatorApiBaseUrl { get; set; } = "https://trunks-moody-scrap.ngrok-free.dev/";
+        public static string EmulatorApiBaseUrl { get; set; } = "https://audacious-perceive-octopus.ngrok-free.dev/";
 
                 // ── Máy thật (Real Device): dùng ngrok public URL
-        public static string DefaultRealDeviceApiUrl { get; set; } = "https://trunks-moody-scrap.ngrok-free.dev/";
+        public static string DefaultRealDeviceApiUrl { get; set; } = "https://audacious-perceive-octopus.ngrok-free.dev/";
     public const int NetworkTimeoutSeconds = 30;
     public static bool UseBackendApi { get; set; } = true;
     public const string DataVersionKey = "pois_data_version";
@@ -90,6 +90,49 @@ public static class AppConfig
     // ── Feature flags ──────────────────────────────────────────────
     public const bool DefaultUseSimulatedGps = false;
     public const bool UseSimulatedGPS = DefaultUseSimulatedGps;
+
+    // ── Device Identity ───────────────────────────────────────────
+    /// <summary>
+    /// Canonical key used across ALL services for the anonymous device ID.
+    /// Never change this key — it is persisted in Preferences indefinitely.
+    /// </summary>
+    private const string DeviceIdPrimaryKey = "analytics_anonymous_device_id";
+    private const string DeviceIdLegacyKey  = "device_unique_id"; // used by old heartbeat service
+
+    private static string? _cachedDeviceId;
+    private static readonly object _deviceIdLock = new();
+
+    /// <summary>
+    /// Returns a stable, unique ID for this app installation.
+    /// Thread-safe: uses a lock on first creation and caches the result in memory.
+    /// Also migrates from the legacy <c>device_unique_id</c> key so that existing
+    /// users who had the old APK keep the same heartbeat/subscription ID.
+    /// </summary>
+    public static string GetOrCreateDeviceId()
+    {
+        if (_cachedDeviceId is not null) return _cachedDeviceId;
+
+        lock (_deviceIdLock)
+        {
+            if (_cachedDeviceId is not null) return _cachedDeviceId;
+
+            var id = Preferences.Get(DeviceIdPrimaryKey, "");
+
+            if (string.IsNullOrEmpty(id))
+            {
+                // Migrate from the legacy key so the heartbeat ID matches any
+                // existing subscription that was registered with the old heartbeat ID.
+                id = Preferences.Get(DeviceIdLegacyKey, "");
+                if (string.IsNullOrEmpty(id))
+                    id = $"m-{Guid.NewGuid():N}";
+
+                Preferences.Set(DeviceIdPrimaryKey, id);
+            }
+
+            _cachedDeviceId = id;
+            return id;
+        }
+    }
 
     private const string CUSTOM_API_URL_KEY = "CustomApiUrl";
 
