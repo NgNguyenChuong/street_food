@@ -1041,10 +1041,10 @@ const PaymentApi = {
             method: 'POST',
             body: JSON.stringify({ remainingMinutes })
         }),
-    mySubmissions: () => api.request('/Payments/me'),
+    mySubmissions: ({ status, search, fromDate, toDate } = {}) => api.request('/Payments/me' + qs({ status, search, fromDate, toDate })),
     myPremiumStatus: () => api.request('/Payments/me/premium-status'),
-    listSubmissions: ({ status, search } = {}) =>
-        api.request('/Payments/admin/submissions' + qs({ status, search })),
+    listSubmissions: ({ status, search, fromDate, toDate } = {}) =>
+        api.request('/Payments/admin/submissions' + qs({ status, search, fromDate, toDate })),
     listAppSubscriptions: ({ status, platform, search } = {}) =>
         api.request('/Subscriptions/admin/subscriptions' + qs({ status, platform, search })),
     reviewSubmission: (submissionId, status, note) =>
@@ -1338,6 +1338,14 @@ function formatDate(dateString) {
 }
 
 
+
+const DeviceActivityApi = {
+    onlineSummary: () => api.request('/device-activity/online-summary'),
+    online: ({ role, clientType, page = 1, pageSize = 50 } = {}) =>
+        api.request('/device-activity/online' + qs({ role, clientType, page, pageSize })),
+    all: ({ role, status, search, dateFrom, dateTo, page = 1, pageSize = 50 } = {}) =>
+        api.request('/device-activity/all' + qs({ role, status, search, dateFrom, dateTo, page, pageSize })),
+};
 
 // Format file size
 

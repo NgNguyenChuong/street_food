@@ -244,3 +244,17 @@ const AnalyticsApi = {
   topPOIs: (limit=10) => apiFetch('/api/Analytics/top-pois' + qs({ limit })),
 };
 
+// ═══════════════════════════════════════════════════════
+// DeviceActivityApi
+// GET /device-activity/online-summary → online counts
+// GET /device-activity/online → online devices list
+// GET /device-activity/all → all devices with status
+// ═══════════════════════════════════════════════════════
+const DeviceActivityApi = {
+  onlineSummary: () => apiFetch('/api/device-activity/online-summary'),
+  online: ({ role, clientType, page=1, pageSize=50 }={}) =>
+    apiFetch('/api/device-activity/online' + qs({ role, clientType, page, pageSize })),
+  all: ({ role, status, search, page=1, pageSize=50 }={}) =>
+    apiFetch('/api/device-activity/all' + qs({ role, status, search, page, pageSize })),
+};
+

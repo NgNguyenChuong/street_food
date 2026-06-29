@@ -121,6 +121,26 @@ public class NotificationsController : ControllerBase
             .Find(v => v.UserId == userId && !v.IsDeleted)
             .FirstOrDefaultAsync();
 
+        if (vendor == null)
+        {
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                vendor = await _db.VendorProfiles
+                    .Find(v => v.ContactEmail == email && !v.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (vendor != null && string.IsNullOrWhiteSpace(vendor.UserId))
+                {
+                    var bindUpdate = Builders<VendorProfile>.Update
+                        .Set(v => v.UserId, userId)
+                        .Set(v => v.UpdatedAt, DateTime.UtcNow);
+
+                    await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, bindUpdate);
+                }
+            }
+        }
+
         return vendor?.VendorId;
     }
 

@@ -109,7 +109,11 @@ public class QrController : ControllerBase
 
         var expUnix = expiresAtUtc.ToUnixTimeSeconds();
         var modeQuery = mode == "test" ? "&mode=test" : string.Empty;
-        var qrRelativeUrl = $"/qr/main?entry=vinh-khanh-ben-xe&cycle={Uri.EscapeDataString(cycleCode)}&exp={expUnix}{modeQuery}";
+        var apiBaseForMobile = BuildAbsoluteUrl("/");
+        var apiQuery = string.IsNullOrWhiteSpace(apiBaseForMobile)
+            ? string.Empty
+            : $"&api={Uri.EscapeDataString(apiBaseForMobile)}";
+        var qrRelativeUrl = $"/qr/main?entry=vinh-khanh-ben-xe&cycle={Uri.EscapeDataString(cycleCode)}&exp={expUnix}{modeQuery}{apiQuery}";
         var qrAbsoluteUrl = BuildAbsoluteUrl(qrRelativeUrl);
 
         return new

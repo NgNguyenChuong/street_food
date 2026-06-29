@@ -68,6 +68,7 @@
               IsVisible="False"
               BackgroundColor="Transparent"
               InputTransparent="False"
+              CascadeInputTransparent="False"
               RowDefinitions="Auto,*,Auto,Auto">
 
             <Grid Grid.Row="0"

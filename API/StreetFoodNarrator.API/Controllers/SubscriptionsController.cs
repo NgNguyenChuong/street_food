@@ -86,6 +86,34 @@ public class SubscriptionsController : ControllerBase
 
         var now = DateTime.UtcNow;
 
+        // Idempotency: if same device + same transfer content was submitted within 10 minutes,
+        // return the existing subscription instead of creating a duplicate.
+        if (!string.IsNullOrWhiteSpace(request.TransferContent))
+        {
+            var transferContentTrimmed = request.TransferContent.Trim();
+            var cutoff = now.AddMinutes(-10);
+            var recentDuplicate = await _db.DeviceSubscriptions
+                .Find(s => s.DeviceId == deviceId
+                            && s.TransferContent == transferContentTrimmed
+                            && s.InvoiceCreatedAtUtc >= cutoff)
+                .SortByDescending(s => s.InvoiceCreatedAtUtc)
+                .FirstOrDefaultAsync();
+
+            if (recentDuplicate != null)
+            {
+                var dupIsVip = string.Equals(recentDuplicate.Status, "active", StringComparison.OrdinalIgnoreCase)
+                               && recentDuplicate.ExpiresAtUtc > now;
+                return Ok(BuildStatusResponse(
+                    isVip: dupIsVip,
+                    deviceId: deviceId,
+                    invoiceNumber: recentDuplicate.InvoiceNumber,
+                    invoiceCreatedAtUtc: recentDuplicate.InvoiceCreatedAtUtc,
+                    startsAtUtc: recentDuplicate.StartsAtUtc,
+                    expiresAtUtc: recentDuplicate.ExpiresAtUtc,
+                    recoveryCode: recentDuplicate.RecoveryCode));
+            }
+        }
+
         var latest = await _db.DeviceSubscriptions
             .Find(s => s.DeviceId == deviceId)
             .SortByDescending(s => s.ExpiresAtUtc)

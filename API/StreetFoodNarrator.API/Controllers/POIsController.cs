@@ -497,8 +497,9 @@ public class POIsController : ControllerBase
             NumReviews = p.NumReviews,
             PlayCount = p.PlayCount,
             MeanPlay = p.MeanPlay,
+            NumLikes = p.NumLikes,
             PriceLevel = p.PriceLevel,
-            ImageUrl = p.ImageUrl,
+            ImageUrl = NormalizeImageUrlForResponse(p.ImageUrl),
             FunFact = p.FunFact,
             AudioUrl_Vi = p.AudioUrl_Vi,
             AudioUrl_En = p.AudioUrl_En,
@@ -515,6 +516,36 @@ public class POIsController : ControllerBase
             MaxPlaysPerSession = p.MaxPlaysPerSession,
             PendingChanges = p.PendingChanges
         }).ToList();
+    }
+
+    /// <summary>
+    /// Tăng lượt thích cho POI (anonymous, idempotent per device).
+    /// Mobile app gọi khi user bấm tim một quán.
+    /// </summary>
+    [HttpPost("{id}/like")]
+    [AllowAnonymous]
+    public async Task<ActionResult> LikePOI(int id, [FromQuery] string? deviceId)
+    {
+        var update = Builders<POI>.Update.Inc(p => p.NumLikes, 1);
+        var result = await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
+        if (result.MatchedCount == 0)
+            return NotFound(new { message = "POI not found" });
+        return Ok(new { success = true });
+    }
+
+    /// <summary>
+    /// Giảm lượt thích cho POI khi user bỏ tim.
+    /// </summary>
+    [HttpDelete("{id}/like")]
+    [AllowAnonymous]
+    public async Task<ActionResult> UnlikePOI(int id, [FromQuery] string? deviceId)
+    {
+        var update = Builders<POI>.Update.Inc(p => p.NumLikes, -1);
+        var result = await _db.POIs.UpdateOneAsync(
+            p => p.POI_ID == id && p.DeletedAt == null && p.NumLikes > 0, update);
+        if (result.MatchedCount == 0)
+            return Ok(new { success = true }); // Already 0 or not found — not an error
+        return Ok(new { success = true });
     }
 
     /// <summary>
@@ -582,6 +613,9 @@ public class POIsController : ControllerBase
             var audios = await _db.AudioContents.Find(publishedFilter).ToListAsync();
             poi.AudioContents = audios;
         }
+
+        poi.ImageUrl = NormalizeImageUrlForResponse(poi.ImageUrl);
+        poi.ImageUrls = NormalizeImageUrlsForResponse(poi.ImageUrls);
 
         return Ok(poi);
     }
@@ -710,8 +744,8 @@ public class POIsController : ControllerBase
             PriceLevel = model.PriceLevel,
             Rating = model.Rating,
             Tags = model.Tags,
-            ImageUrl = model.ImageUrl,
-            ImageUrls = model.ImageUrls,
+            ImageUrl = NormalizeImageUrlForStorage(model.ImageUrl),
+            ImageUrls = NormalizeImageUrlsForStorage(model.ImageUrls),
             FunFact = model.FunFact,
             AudioUrl_Vi = model.AudioUrl_Vi,
             AudioUrl_En = model.AudioUrl_En,
@@ -739,6 +773,7 @@ public class POIsController : ControllerBase
 
         await _db.POIs.InsertOneAsync(poi);
         _logger.LogInformation("CreatePOI saved MapUrl for POI_ID={PoiId}: {MapUrl}", poi.POI_ID, poi.MapUrl ?? "<null>");
+        await CreateAdminNotificationForPoiSubmissionAsync(poi, vendorId.Value);
 
         if (!string.IsNullOrWhiteSpace(idempotencyKey) && !string.IsNullOrWhiteSpace(actorUserId))
         {
@@ -794,6 +829,22 @@ public class POIsController : ControllerBase
             }
 
             var vendor = await _db.VendorProfiles.Find(v => v.UserId == userId).FirstOrDefaultAsync();
+            if (vendor == null)
+            {
+                var email = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name;
+                if (!string.IsNullOrWhiteSpace(email))
+                {
+                    vendor = await _db.VendorProfiles.Find(v => v.ContactEmail == email).FirstOrDefaultAsync();
+                    if (vendor != null && string.IsNullOrWhiteSpace(vendor.UserId))
+                    {
+                        var bindUpdate = Builders<VendorProfile>.Update
+                            .Set(v => v.UserId, userId)
+                            .Set(v => v.UpdatedAt, DateTime.UtcNow);
+                        await _db.VendorProfiles.UpdateOneAsync(v => v.VendorId == vendor.VendorId, bindUpdate);
+                    }
+                }
+            }
+
             if (vendor == null || poi.VendorId != vendor.VendorId)
             {
                 return Forbid();
@@ -838,12 +889,16 @@ public class POIsController : ControllerBase
         var latitude = model.Latitude.HasValue ? (double)model.Latitude.Value : poi.Location.Latitude;
         var longitude = model.Longitude.HasValue ? (double)model.Longitude.Value : poi.Location.Longitude;
 
-        var imageUrl = !string.IsNullOrWhiteSpace(model.ImageUrl) ? model.ImageUrl : poi.ImageUrl;
+        var imageUrl = !string.IsNullOrWhiteSpace(model.ImageUrl)
+            ? NormalizeImageUrlForStorage(model.ImageUrl)
+            : NormalizeImageUrlForStorage(poi.ImageUrl);
         var imageUrls = isAdmin
-            ? (model.ImageUrls ?? poi.ImageUrls)
+            ? (model.ImageUrls != null
+                ? NormalizeImageUrlsForStorage(model.ImageUrls)
+                : NormalizeImageUrlsForStorage(poi.ImageUrls))
             : (!string.IsNullOrWhiteSpace(model.ImageUrl)
-                ? new List<string> { model.ImageUrl }
-                : poi.ImageUrls);
+                ? NormalizeImageUrlsForStorage(new List<string> { model.ImageUrl })
+                : NormalizeImageUrlsForStorage(poi.ImageUrls));
         var parentZoneId = isAdmin ? (model.ParentZoneId ?? poi.ParentZoneId) : poi.ParentZoneId;
         var audioUrlVi = isAdmin ? (model.AudioUrl_Vi ?? poi.AudioUrl_Vi) : poi.AudioUrl_Vi;
         var audioUrlEn = isAdmin ? (model.AudioUrl_En ?? poi.AudioUrl_En) : poi.AudioUrl_En;
@@ -1303,7 +1358,7 @@ public class POIsController : ControllerBase
             return BadRequest(new { message = "File size exceeds 5MB limit" });
         }
 
-        var uploadsPath = Path.Combine(_env.WebRootPath, "uploads", "images");
+        var uploadsPath = Path.Combine(_env.ContentRootPath, "Uploads", "images");
         Directory.CreateDirectory(uploadsPath);
 
         var fileName = $"{Guid.NewGuid()}{extension}";
@@ -1576,6 +1631,38 @@ public class POIsController : ControllerBase
         await InsertAppNotificationSafeAsync(notification);
     }
 
+    private async Task CreateAdminNotificationForPoiSubmissionAsync(POI poi, int vendorId)
+    {
+        var vendor = await _db.VendorProfiles
+            .Find(v => v.VendorId == vendorId)
+            .Project(v => new { v.BusinessName, v.ContactName })
+            .FirstOrDefaultAsync();
+
+        var vendorLabel = vendor?.BusinessName?.Trim();
+        if (string.IsNullOrWhiteSpace(vendorLabel))
+        {
+            vendorLabel = vendor?.ContactName?.Trim();
+        }
+        if (string.IsNullOrWhiteSpace(vendorLabel))
+        {
+            vendorLabel = $"Vendor #{vendorId}";
+        }
+
+        var notification = new BsonDocument
+        {
+            { "AudienceRole", "admin" },
+            { "Kind", "warning" },
+            { "Title", "POI mới chờ duyệt" },
+            { "Message", $"{vendorLabel} vừa gửi POI \"{poi.Name_Vi}\" để duyệt." },
+            { "Href", "poi-list?reviewStatus=pending" },
+            { "Category", "poi-submit" },
+            { "Status", "pending" },
+            { "CreatedAt", DateTime.UtcNow }
+        };
+
+        await InsertAppNotificationSafeAsync(notification);
+    }
+
     private async Task InsertAppNotificationSafeAsync(BsonDocument notification)
     {
         try
@@ -1644,6 +1731,61 @@ public class POIsController : ControllerBase
 
         return uri.ToString();
     }
+
+    private static string? NormalizeImageUrlForStorage(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+            return null;
+
+        var value = rawUrl.Trim();
+
+        if (Uri.TryCreate(value, UriKind.Absolute, out _))
+            return value;
+
+        value = value.Replace('\\', '/');
+
+        var uploadsMatch = Regex.Match(value, @"(?:^|/)(?:wwwroot/)?uploads/(.+)$", RegexOptions.IgnoreCase);
+        if (uploadsMatch.Success)
+            return "/uploads/" + uploadsMatch.Groups[1].Value.TrimStart('/');
+
+        var fileName = Path.GetFileName(value);
+        var hasExtension = !string.IsNullOrWhiteSpace(fileName) && fileName.Contains('.');
+        if (hasExtension && !value.Contains('/'))
+            return "/uploads/images/" + fileName;
+
+        if (!value.StartsWith('/'))
+            value = "/" + value;
+
+        return value;
+    }
+
+    private static string? NormalizeImageUrlForResponse(string? rawUrl)
+    {
+        return NormalizeImageUrlForStorage(rawUrl);
+    }
+
+    private static List<string>? NormalizeImageUrlsForStorage(IEnumerable<string>? rawUrls)
+    {
+        if (rawUrls == null)
+            return null;
+
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rawUrl in rawUrls)
+        {
+            var normalized = NormalizeImageUrlForStorage(rawUrl);
+            if (!string.IsNullOrWhiteSpace(normalized))
+            {
+                set.Add(normalized);
+            }
+        }
+
+        return set.Count == 0 ? null : set.ToList();
+    }
+
+    private static List<string>? NormalizeImageUrlsForResponse(IEnumerable<string>? rawUrls)
+    {
+        return NormalizeImageUrlsForStorage(rawUrls);
+    }
 }
 
 // DTOs
@@ -1704,6 +1846,7 @@ public class POIDto
     public int NumReviews { get; set; }
     public long PlayCount { get; set; }
     public double MeanPlay { get; set; }
+    public long NumLikes { get; set; }
     public int? PriceLevel { get; set; }
     public string? ImageUrl { get; set; }
     public string? FunFact { get; set; }

@@ -178,6 +178,30 @@
             align-items: flex-start;
         }
 
+        .qr-expiry-box {
+            margin-top: 12px;
+            background: #eaf7ee;
+            border: 1px solid #b7e2c5;
+            border-radius: 10px;
+            padding: 11px 14px;
+            font-size: 13px;
+            color: #195c35;
+            display: none;
+            gap: 10px;
+            align-items: flex-start;
+            line-height: 1.5;
+        }
+
+        .qr-expiry-box.visible {
+            display: flex;
+        }
+
+        .qr-expiry-box.expired {
+            background: #ffecec;
+            border-color: #ffbebe;
+            color: #8f2121;
+        }
+
         .warn-icon {
             flex-shrink: 0;
             margin-top: 1px;
@@ -224,6 +248,10 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     Tải APK ngay
                 </a>
+                <button id="openAppBtn" class="btn-copy" type="button">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M8 5H5a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="#004e89" stroke-width="2"/><path d="M10 14L21 3" stroke="#004e89" stroke-width="2"/><path d="M15 3h6v6" stroke="#004e89" stroke-width="2"/></svg>
+                    <span id="openLabel">Mở ứng dụng</span>
+                </button>
                 <button id="copyBtn" class="btn-copy" type="button">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" stroke="#004e89" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="#004e89" stroke-width="2"/></svg>
                     <span id="copyLabel">Sao chép link</span>
@@ -239,24 +267,221 @@
                 <svg class="warn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#d4a017" stroke-width="2"/><line x1="12" y1="9" x2="12" y2="13" stroke="#d4a017" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="#d4a017"/></svg>
                 Nếu Android cảnh báo bảo mật, hãy bật quyền cài đặt ứng dụng không rõ nguồn trong trình duyệt hoặc trình quản lý tệp rồi thử lại.
             </div>
+
+            <div id="qrExpiryBox" class="qr-expiry-box" role="status" aria-live="polite">
+                <svg class="warn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 8v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1" fill="currentColor"/><path d="M12 22C17.523 22 22 17.523 22 12S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" stroke="currentColor" stroke-width="2"/></svg>
+                <span id="qrExpiryText"></span>
+            </div>
         </div>
 
     </div>
 
     <script>
         (function () {
-            var apkUrl = window.location.origin + "/uploads/streetfood-narrator.apk";
+            var defaultApkPath = "/uploads/streetfood-narrator.apk";
+            var queryParams = new URLSearchParams(window.location.search);
+            var requestedApk = queryParams.get("apk");
+            var requestedDeepLink = queryParams.get("dl");
+            var requestedApiBase = queryParams.get("api");
+            var requestedExpiry = queryParams.get("exp") || queryParams.get("expires") || queryParams.get("expiry") || queryParams.get("expiresAt") || queryParams.get("expires_at");
+            var apkUrl;
+            var deepLinkUrl = "";
+            var expiryInterval = null;
+            var expiryPopupShown = false;
+
+            function normalizeHttpBaseUrl(value) {
+                if (!value) return "";
+                try {
+                    var u = new URL(value, window.location.origin);
+                    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+                    return u.protocol + "//" + u.host + "/";
+                } catch (e) {
+                    return "";
+                }
+            }
+
+            function buildFallbackDeepLink() {
+                var apiBase = normalizeHttpBaseUrl(requestedApiBase);
+                if (!apiBase) {
+                    apiBase = normalizeHttpBaseUrl(window.location.origin);
+                }
+                if (!apiBase) return "";
+                return "streetfood://qr/main?screen=main&api=" + encodeURIComponent(apiBase);
+            }
+
+            function parseExpiryToMillis(rawValue) {
+                if (!rawValue) return Number.NaN;
+                var value = String(rawValue).trim();
+                if (!value) return Number.NaN;
+
+                if (/^\d+$/.test(value)) {
+                    var epoch = Number(value);
+                    if (epoch > 0) {
+                        if (epoch > 1000000000000) return epoch;
+                        return epoch * 1000;
+                    }
+                }
+
+                var parsed = Date.parse(value);
+                return Number.isNaN(parsed) ? Number.NaN : parsed;
+            }
+
+            function readExpiryFromDeepLink(link) {
+                if (!link) return Number.NaN;
+
+                try {
+                    var parsed = new URL(link);
+                    var expFromQuery = parsed.searchParams.get("exp")
+                        || parsed.searchParams.get("expires")
+                        || parsed.searchParams.get("expiry")
+                        || parsed.searchParams.get("expiresAt")
+                        || parsed.searchParams.get("expires_at");
+                    var millis = parseExpiryToMillis(expFromQuery);
+                    if (!Number.isNaN(millis)) return millis;
+                } catch (e) {
+                    // ignore URL parse errors and continue with regex fallback
+                }
+
+                var markerIndex = link.indexOf("?");
+                if (markerIndex < 0) return Number.NaN;
+
+                var rawQuery = link.slice(markerIndex + 1);
+                var params = new URLSearchParams(rawQuery);
+                var expFallback = params.get("exp")
+                    || params.get("expires")
+                    || params.get("expiry")
+                    || params.get("expiresAt")
+                    || params.get("expires_at");
+
+                return parseExpiryToMillis(expFallback);
+            }
+
+            function formatRemaining(ms) {
+                var totalSeconds = Math.max(0, Math.floor(ms / 1000));
+                var minutes = Math.floor(totalSeconds / 60);
+                var seconds = totalSeconds % 60;
+
+                if (minutes > 0) {
+                    return minutes + " phút " + String(seconds).padStart(2, "0") + " giây";
+                }
+
+                return seconds + " giây";
+            }
+
+            function tryExitWebPage() {
+                if (window.history.length > 1) {
+                    window.history.back();
+                }
+
+                window.setTimeout(function () {
+                    try {
+                        window.open("", "_self");
+                        window.close();
+                    } catch (e) {
+                        // ignored
+                    }
+
+                    window.setTimeout(function () {
+                        if (document.visibilityState === "hidden") return;
+                        window.location.replace("about:blank");
+                    }, 450);
+                }, 350);
+            }
+
+            try {
+                if (requestedApk) {
+                    apkUrl = new URL(requestedApk, window.location.origin).toString();
+                } else {
+                    apkUrl = new URL(defaultApkPath, window.location.origin).toString();
+                }
+            } catch (e) {
+                apkUrl = window.location.origin + defaultApkPath;
+            }
+
+            deepLinkUrl = requestedDeepLink ? requestedDeepLink.trim() : "";
+            if (!deepLinkUrl) {
+                deepLinkUrl = buildFallbackDeepLink();
+            }
+
+            var expiresAtMs = parseExpiryToMillis(requestedExpiry);
+            if (Number.isNaN(expiresAtMs)) {
+                expiresAtMs = readExpiryFromDeepLink(deepLinkUrl);
+            }
 
             var downloadBtn = document.getElementById("downloadBtn");
             var downloadMeta = document.getElementById("downloadMeta");
+            var openAppBtn = document.getElementById("openAppBtn");
+            var openLabel = document.getElementById("openLabel");
             var copyBtn = document.getElementById("copyBtn");
             var copyLabel = document.getElementById("copyLabel");
+            var qrExpiryBox = document.getElementById("qrExpiryBox");
+            var qrExpiryText = document.getElementById("qrExpiryText");
 
             if (downloadBtn) {
                 downloadBtn.setAttribute("href", apkUrl);
             }
             if (downloadMeta) {
                 downloadMeta.textContent = apkUrl;
+            }
+
+            if (openAppBtn) {
+                if (!deepLinkUrl) {
+                    openAppBtn.disabled = true;
+                    openAppBtn.style.opacity = "0.55";
+                    openAppBtn.style.cursor = "not-allowed";
+                    if (openLabel) openLabel.textContent = "Mo app (chua san sang)";
+                } else {
+                    openAppBtn.addEventListener("click", function () {
+                        window.location.href = deepLinkUrl;
+                    });
+                }
+            }
+
+            function renderExpiryState() {
+                if (!qrExpiryBox || !qrExpiryText || Number.isNaN(expiresAtMs)) return;
+
+                var remainingMs = expiresAtMs - Date.now();
+                qrExpiryBox.classList.add("visible");
+
+                if (remainingMs <= 0) {
+                    qrExpiryBox.classList.add("expired");
+                    qrExpiryText.textContent = "Mã QR này đã hết hạn. Vui lòng lấy mã mới trước khi mở ứng dụng.";
+
+                    if (openAppBtn) {
+                        openAppBtn.disabled = true;
+                        openAppBtn.style.opacity = "0.55";
+                        openAppBtn.style.cursor = "not-allowed";
+                    }
+                    if (openLabel) {
+                        openLabel.textContent = "Mã QR đã hết hạn";
+                    }
+
+                    if (expiryInterval) {
+                        window.clearInterval(expiryInterval);
+                        expiryInterval = null;
+                    }
+
+                    if (!expiryPopupShown) {
+                        expiryPopupShown = true;
+                        window.setTimeout(function () {
+                            try {
+                                window.alert("Mã QR đã hết hạn. Vui lòng lấy mã mới để tiếp tục.");
+                            } catch (e) {
+                                // ignored
+                            }
+                            tryExitWebPage();
+                        }, 120);
+                    }
+                    return;
+                }
+
+                qrExpiryBox.classList.remove("expired");
+                qrExpiryText.textContent = "Mã QR còn hiệu lực: " + formatRemaining(remainingMs);
+            }
+
+            renderExpiryState();
+            if (!Number.isNaN(expiresAtMs)) {
+                expiryInterval = window.setInterval(renderExpiryState, 1000);
             }
 
             if (copyBtn) {

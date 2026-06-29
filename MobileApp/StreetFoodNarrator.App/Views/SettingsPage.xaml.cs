@@ -298,17 +298,7 @@ public partial class SettingsPage : ContentPage
         return await response.Content.ReadFromJsonAsync<VipSubscriptionStatusDto>(MobileJsonOptions);
     }
 
-    private static string GetOrCreateAnonymousDeviceId()
-    {
-        const string key = "analytics_anonymous_device_id";
-        var current = Preferences.Get(key, string.Empty);
-        if (!string.IsNullOrWhiteSpace(current))
-            return current;
-
-        var created = $"m-{Guid.NewGuid():N}";
-        Preferences.Set(key, created);
-        return created;
-    }
+    private static string GetOrCreateAnonymousDeviceId() => AppConfig.GetOrCreateDeviceId();
 
     private string BuildDataSourceFooterText()
     {
@@ -1003,6 +993,18 @@ public partial class SettingsPage : ContentPage
         }
 
         return false;
+    }
+
+    private async void OnTermsTapped(object sender, TappedEventArgs e)
+    {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+        await Navigation.PushModalAsync(new LegalPage(LegalPage.LegalType.Terms), false);
+    }
+
+    private async void OnPrivacyTapped(object sender, TappedEventArgs e)
+    {
+        UserPreferenceEffects.PerformHapticClickIfEnabled();
+        await Navigation.PushModalAsync(new LegalPage(LegalPage.LegalType.Privacy), false);
     }
 
     private async void OnLogoutClicked(object sender, EventArgs e)

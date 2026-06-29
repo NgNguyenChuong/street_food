@@ -198,6 +198,9 @@ public partial class SavedPage : ContentPage
             if (!string.IsNullOrWhiteSpace(rawUrl) &&
                 QrDeepLinkManager.TryParse(rawUrl, out var payload, out _))
             {
+                if (!string.IsNullOrWhiteSpace(payload.ApiBaseUrl))
+                    AppConfig.TryApplyApiBaseFromQr(payload.ApiBaseUrl);
+
                 if (!string.IsNullOrWhiteSpace(payload.TourId))
                 {
                     pendingTourId = payload.TourId.Trim();

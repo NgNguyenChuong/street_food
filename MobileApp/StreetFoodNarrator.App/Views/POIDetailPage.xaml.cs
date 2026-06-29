@@ -281,11 +281,36 @@ public partial class POIDetailPage : ContentPage
                 await db.SavePOIAsync(_poi);
             }
 
+            // Sync NumLikes lên backend (fire-and-forget)
+            _ = SyncLikeToBackendAsync(_poi.Id, _poi.IsLikedByUser);
+
             UpdateLikeIcon();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[POIDetail] Like toggle error: {ex}");
+        }
+    }
+
+    private static async Task SyncLikeToBackendAsync(int poiId, bool isLiked)
+    {
+        try
+        {
+            var baseUrl = AppConfig.GetResolvedApiBaseUrl()?.TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(baseUrl)) return;
+
+            var deviceId = AppConfig.GetOrCreateDeviceId();
+            var http = MauiProgram.Services.GetRequiredService<HttpClient>();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+            if (isLiked)
+                await http.PostAsync($"{baseUrl}/api/POIs/{poiId}/like?deviceId={Uri.EscapeDataString(deviceId)}", null, cts.Token);
+            else
+                await http.DeleteAsync($"{baseUrl}/api/POIs/{poiId}/like?deviceId={Uri.EscapeDataString(deviceId)}", cts.Token);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIDetail] SyncLikeToBackend failed: {ex.Message}");
         }
     }
 

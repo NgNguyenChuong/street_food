@@ -106,17 +106,7 @@ public partial class PremiumTourPaywallPage : ContentPage
         return $"SUB_Tour_Explore_{modelToken}";
     }
 
-    private static string GetOrCreateAnonymousDeviceId()
-    {
-        const string key = "analytics_anonymous_device_id";
-        var current = Preferences.Get(key, string.Empty);
-        if (!string.IsNullOrWhiteSpace(current))
-            return current;
-
-        var created = $"m-{Guid.NewGuid():N}";
-        Preferences.Set(key, created);
-        return created;
-    }
+    private static string GetOrCreateAnonymousDeviceId() => AppConfig.GetOrCreateDeviceId();
 
     private void ShowIntroStep()
     {
@@ -441,6 +431,14 @@ public partial class PremiumTourPaywallPage : ContentPage
         {
             await navigation.PopModalAsync(false);
         }
+
+        // Force tour list to re-render with updated VIP access state after payment.
+        if (_viewModel != null)
+            _ = Task.Run(() => MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                try { await _viewModel.LoadToursAsync(forceSyncNow: false); }
+                catch { }
+            }));
     }
 
     private static string FormatLocalDate(DateTime? value)

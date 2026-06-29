@@ -39,14 +39,11 @@ public static class AppConfig
     public const double DefaultZoom      = 24;
 
     // ── Backend API ───────────────────────────────────────────────
-        // ── Emulator (Android AVD): http://10.0.2.2:5004/
-        //    (10.0.2.2 là địa chỉ host PC khi chạy trên máy ảo Android)
-      //  public static string EmulatorApiBaseUrl { get; set; } = "http://10.0.2.2:5004/";
-    public static string EmulatorApiBaseUrl { get; set; } = "https://unmarshalled-strictly-ricarda.ngrok-free.dev/";
+                // ── Emulator (Android AVD): dùng ngrok public URL để test ngoài LAN
+        public static string EmulatorApiBaseUrl { get; set; } = "https://audacious-perceive-octopus.ngrok-free.dev/";
 
-        // ── Máy thật (Real Device): dùng IP LAN của PC chạy API
-      //  public static string DefaultRealDeviceApiUrl { get; set; } = "http://192.168.100.9:5004/";
-    public static string DefaultRealDeviceApiUrl { get; set; } = "https://unmarshalled-strictly-ricarda.ngrok-free.dev/";
+                // ── Máy thật (Real Device): dùng ngrok public URL
+        public static string DefaultRealDeviceApiUrl { get; set; } = "https://audacious-perceive-octopus.ngrok-free.dev/";
     public const int NetworkTimeoutSeconds = 30;
     public static bool UseBackendApi { get; set; } = true;
     public const string DataVersionKey = "pois_data_version";
@@ -94,6 +91,49 @@ public static class AppConfig
     public const bool DefaultUseSimulatedGps = false;
     public const bool UseSimulatedGPS = DefaultUseSimulatedGps;
 
+    // ── Device Identity ───────────────────────────────────────────
+    /// <summary>
+    /// Canonical key used across ALL services for the anonymous device ID.
+    /// Never change this key — it is persisted in Preferences indefinitely.
+    /// </summary>
+    private const string DeviceIdPrimaryKey = "analytics_anonymous_device_id";
+    private const string DeviceIdLegacyKey  = "device_unique_id"; // used by old heartbeat service
+
+    private static string? _cachedDeviceId;
+    private static readonly object _deviceIdLock = new();
+
+    /// <summary>
+    /// Returns a stable, unique ID for this app installation.
+    /// Thread-safe: uses a lock on first creation and caches the result in memory.
+    /// Also migrates from the legacy <c>device_unique_id</c> key so that existing
+    /// users who had the old APK keep the same heartbeat/subscription ID.
+    /// </summary>
+    public static string GetOrCreateDeviceId()
+    {
+        if (_cachedDeviceId is not null) return _cachedDeviceId;
+
+        lock (_deviceIdLock)
+        {
+            if (_cachedDeviceId is not null) return _cachedDeviceId;
+
+            var id = Preferences.Get(DeviceIdPrimaryKey, "");
+
+            if (string.IsNullOrEmpty(id))
+            {
+                // Migrate from the legacy key so the heartbeat ID matches any
+                // existing subscription that was registered with the old heartbeat ID.
+                id = Preferences.Get(DeviceIdLegacyKey, "");
+                if (string.IsNullOrEmpty(id))
+                    id = $"m-{Guid.NewGuid():N}";
+
+                Preferences.Set(DeviceIdPrimaryKey, id);
+            }
+
+            _cachedDeviceId = id;
+            return id;
+        }
+    }
+
     private const string CUSTOM_API_URL_KEY = "CustomApiUrl";
 
     /// <summary>
@@ -122,12 +162,11 @@ public static class AppConfig
     /// <param name="url">Full URL including trailing slash, e.g. "http://192.168.1.100:5004/"</param>
     public static void SetCustomApiUrl(string url)
     {
-        if (!string.IsNullOrEmpty(url))
+        if (!string.IsNullOrWhiteSpace(url) &&
+            TryNormalizeHttpBaseUrl(url, out var normalized))
         {
-            // Ensure trailing slash
-            url = url.TrimEnd('/') + "/";
-            Preferences.Set(CUSTOM_API_URL_KEY, url);
-            Console.WriteLine($"[AppConfig] Custom API URL set: {url}");
+            Preferences.Set(CUSTOM_API_URL_KEY, normalized);
+            Console.WriteLine($"[AppConfig] Custom API URL set: {normalized}");
         }
     }
 
@@ -146,6 +185,24 @@ public static class AppConfig
     public static bool HasCustomApiUrl()
     {
         return !string.IsNullOrEmpty(Preferences.Get(CUSTOM_API_URL_KEY, ""));
+    }
+
+    /// <summary>
+    /// Apply API base URL from QR payload if it is valid and differs from current resolved URL.
+    /// Returns true when the active API URL was updated.
+    /// </summary>
+    public static bool TryApplyApiBaseFromQr(string? apiBaseUrl)
+    {
+        if (!TryNormalizeHttpBaseUrl(apiBaseUrl, out var normalized))
+            return false;
+
+        var current = GetResolvedApiBaseUrl().TrimEnd('/') + "/";
+        if (string.Equals(current, normalized, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        Preferences.Set(CUSTOM_API_URL_KEY, normalized);
+        Console.WriteLine($"[AppConfig] API base updated from QR: {normalized}");
+        return true;
     }
 
     /// <summary>
@@ -170,5 +227,24 @@ public static class AppConfig
     {
         var rawRadius = radiusMeters > 0 ? radiusMeters : SpotZoneFallbackRadiusMeters;
         return Math.Clamp(rawRadius, SpotZoneMinMeters, SpotZoneMaxMeters);
+    }
+
+    private static bool TryNormalizeHttpBaseUrl(string? rawUrl, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(rawUrl))
+            return false;
+
+        if (!Uri.TryCreate(rawUrl.Trim(), UriKind.Absolute, out var parsed))
+            return false;
+
+        if (!string.Equals(parsed.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        normalized = $"{parsed.Scheme}://{parsed.Authority}/";
+        return true;
     }
 }

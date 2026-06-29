@@ -1,12 +1,12 @@
-# StreetFoodNarrator - Use Case + Sequence + Activity Theo Sự Kiện Chức Năng (PlantUML)
+﻿# StreetFoodNarrator - Use Case + Sequence + Activity Theo Sự Kiện Chức Năng (PlantUML)
 
 Ghi chú: Tài liệu này dùng PlantUML cho toàn bộ sơ đồ Use Case và Sequence.
 
 Xem thêm class diagram cho báo cáo tại: Documentation/Project-Class-Diagrams.md
 
-## Bảng đánh dấu flow — Toàn bộ F0–F34
+## Bảng đánh dấu flow — Toàn bộ F0–F37
 
-> Mỗi sự kiện luôn có 4 phần chính: **Đặc tả Use Case** (bảng chuẩn + luồng chính/thay thế/ngoại lệ) · **Use Case Diagram** (PlantUML) · **Sequence Diagram** (PlantUML) · **Activity Diagram** (PlantUML). Bản đầy đủ bên dưới đã bổ sung Activity cho toàn bộ F0-F34; khi trích sang PRD DOCX có thể chọn subset trọng tâm.
+> Mỗi sự kiện luôn có 4 phần chính: **Đặc tả Use Case** (bảng chuẩn + luồng chính/thay thế/ngoại lệ) · **Use Case Diagram** (PlantUML) · **Sequence Diagram** (PlantUML) · **Activity Diagram** (PlantUML). Bản đầy đủ bên dưới đã bổ sung Activity cho toàn bộ F0-F37; khi trích sang PRD DOCX có thể chọn subset trọng tâm.
 
 | Flow ID | Sự kiện | Nhóm | Flow này làm gì |
 |---|---|---|---|
@@ -22,7 +22,7 @@ Xem thêm class diagram cho báo cáo tại: Documentation/Project-Class-Diagram
 | F9 | Sự kiện 9 | Web Vendor | Vendor xem và lọc POI của mình |
 | F10 | Sự kiện 10 | Web Vendor/Admin | Auto-translate nội dung POI sang đa ngôn ngữ |
 | F11 | Sự kiện 11 | Web Admin | Xem và phân tích narration logs |
-| F12 | Sự kiện 12 | User App | Xử lý QR deeplink vào POI/Tour |
+| F12 | Sự kiện 12 | User App | QR landing → 2 lựa chọn: Web App hoặc Tải APK |
 | F13 | Sự kiện 13 | Web Admin | Admin đăng nhập web và truy cập trang bảo vệ |
 | F14 | Sự kiện 14 | Web Admin | Admin duyệt hồ sơ Vendor pending |
 | F15 | Sự kiện 15 | Web Admin | Admin duyệt nội dung POI pending từ Vendor |
@@ -36,15 +36,18 @@ Xem thêm class diagram cho báo cáo tại: Documentation/Project-Class-Diagram
 | F23 | Sự kiện 23 | Web / Auth | Đăng ký tài khoản web (mặc định role Vendor) |
 | F24 | Sự kiện 24 | User App | Xem và tham gia Tour từ Mobile App |
 | F25 | Sự kiện 25 | Web Admin | Quản lý bản dịch nội dung POI (Translations) |
-| F26 | Sự kiện 26 | Web Admin | Theo dõi thiết bị và lịch sử truy cập |
-| F27 | Sự kiện 27 | Web Vendor/Admin | Vendor gửi thanh toán premium, Admin duyệt submission |
-| F28 | Sự kiện 28 | User App + API | Xác nhận VIP theo thiết bị và khôi phục bằng recovery code |
-| F29 | Sự kiện 29 | Web Admin | Quản lý thanh toán user app theo thiết bị (admin mode app) |
+| F26 | Sự kiện 26 | Web Admin | Xem thống kê người dùng  |
+| F27 | Sự kiện 27 | Web Vendor | Vendor thanh toán premium và kích hoạt ngay |
+| F28 | Sự kiện 28 | User App + Web PWA + API | Xác nhận VIP theo thiết bị (Mobile + Web PWA 3 bước) và khôi phục bằng recovery code |
+| F29 | Sự kiện 29 | Web Admin | Admin quản lý thanh toán Tourist (user app theo thiết bị) |
 | F30 | Sự kiện 30 | Web Admin | Vận hành QR campaign công cộng (status + test rotate) |
-| F31 | Sự kiện 31 | Web Public + Android User | Tải APK từ landing công khai và fallback từ QR |
+| F31 | Sự kiện 31 | Web Public + Android User | Tải APK từ landing công khai, deeplink từ QR, và fallback iOS → Web |
 | F32 | Sự kiện 32 | User App | Onboarding lần đầu: chọn ngôn ngữ, xin quyền vị trí, vào map |
 | F33 | Sự kiện 33 | User App | Hoàn tất dữ liệu offline theo 2 pha: dữ liệu thiết yếu trước, đồng bộ đầy đủ nền sau |
-| F34 | Sự kiện 34 | User App | Hiển thị bản đồ an toàn khi offline và không có tile cache |
+| F34 | Sự kiện 34 | User App | ExploreMap — Toàn bộ use case bản đồ khám phá (init, GPS, pins, filter, route, InZone, tour, QR, offline, i18n) |
+| F35 | Sự kiện 35 | User App | Tương tác tab Đã lưu (Saved): xem danh sách đã lưu, mở chi tiết, bỏ lưu |
+| F36 | Sự kiện 36 | Web Admin | Admin theo dõi thanh toán Vendor (không duyệt thủ công) |
+| F37 | Sự kiện 37 | Web Admin | Admin theo dõi trạng thái hoạt động thiết bị theo thời gian thực (Device Activity) |
 
 ## Bản Trích Dùng Cho PRD (Copy Nhanh)
 
@@ -52,8 +55,8 @@ Xem thêm class diagram cho báo cáo tại: Documentation/Project-Class-Diagram
 
 | Nhãn | Flow ID | Gợi ý đưa vào PRD DOCX |
 |---|---|---|
-| [PRD] | F0, F1, F2, F4, F12, F17, F20, F24, F27, F31, F32, F33, F34 | Nhóm flow chính, có thể dùng trực tiếp cho PRD |
-| [CHI TIẾT] | F3, F5, F6, F7, F8, F9, F10, F11, F13, F14, F15, F16, F18, F19, F21, F22, F23, F25, F26, F28, F29, F30 | Để phụ lục kỹ thuật / SDD / tài liệu triển khai |
+| [PRD] | F0, F1, F2, F4, F12, F17, F20, F24, F27, F31, F32, F33, F34, F35 | Nhóm flow chính, có thể dùng trực tiếp cho PRD |
+| [CHI TIẾT] | F3, F5, F6, F7, F8, F9, F10, F11, F13, F14, F15, F16, F18, F19, F21, F22, F23, F25, F26, F28, F29, F30, F36 | Để phụ lục kỹ thuật / SDD / tài liệu triển khai |
 
 Quy ước đọc nhanh: các tiêu đề có hậu tố `(PRD)` là nội dung ưu tiên đưa vào PRD; các sự kiện còn lại mặc định là `(CHI TIẾT)`.
 
@@ -73,173 +76,6 @@ Quy ước đọc nhanh: các tiêu đề có hậu tố `(PRD)` là nội dung 
 | Ảnh hưởng chuỗi tính năng | Tác động trực tiếp đến các flow lõi khác (GPS/geofence, audio, tour, analytics, khả dụng offline) |
 
 Ghi chú áp dụng: F32-F34 được giữ trong nhóm PRD vì đều đạt các ngưỡng trên, không phải flow UI đơn lẻ.
-
-## Data Flow Diagram (DFD)
-
-> Format bên dưới theo kiểu DFD classic giống mẫu tham chiếu: tiến trình đánh số `1.0`, `1.1`...; kho dữ liệu ký hiệu `D1..Dn`; mũi tên biểu diễn luồng dữ liệu vào/ra.
-
-### DFD Mức 0 - Context (Process 1.0)
-
-```plantuml
-@startuml
-left to right direction
-skinparam shadowing false
-skinparam rectangleRoundCorner 16
-skinparam rectangle {
-  BorderColor #4A5568
-  BackgroundColor #F8FAFC
-}
-skinparam database {
-  BorderColor #4A5568
-  BackgroundColor #EEF2FF
-}
-
-rectangle "Tourist" as E1
-rectangle "Vendor" as E2
-rectangle "Admin" as E3
-rectangle "Public User" as E4
-rectangle "Mobile OS Services" as E5
-
-rectangle "1.0\nStreetFoodNarrator Platform" as P0 #E6FFFA
-
-E1 --> P0 : Yeu cau trai nghiem\nvi tri/tour/audio
-P0 --> E1 : Map/POI/audio\ntrang thai truy cap
-
-E2 --> P0 : POI/menu/audio submit\npremium request
-P0 --> E2 : Ket qua duyet\nthong bao van hanh
-
-E3 --> P0 : Lenh duyet/noi dung\ncau hinh tour/QR
-P0 --> E3 : KPI/analytics\nqueue can duyet
-
-E4 --> P0 : QR landing/APK request
-P0 --> E4 : Deeplink/APK response
-
-E5 --> P0 : Permission state\nlocation updates\naudio focus events
-P0 --> E5 : Permission request\nlocation subscription\naudio control
-@enduml
-```
-
-### DFD Mức 1 - Phân rã Process 1.0
-
-```plantuml
-@startuml
-left to right direction
-skinparam shadowing false
-skinparam rectangleRoundCorner 16
-skinparam rectangle {
-  BorderColor #4A5568
-  BackgroundColor #F8FAFC
-}
-skinparam database {
-  BorderColor #4A5568
-  BackgroundColor #EEF2FF
-}
-
-rectangle "Tourist" as E1
-rectangle "Vendor" as E2
-rectangle "Admin" as E3
-rectangle "Public User" as E4
-
-rectangle "1.1\nOnboarding\n& Session Init" as P11 #E6FFFA
-rectangle "1.2\nSync Engine\n& Offline Cache" as P12 #E6FFFA
-rectangle "1.3\nGeofence\n& Narration Runtime" as P13 #E6FFFA
-rectangle "1.4\nTour Access\n& Subscription Gate" as P14 #E6FFFA
-rectangle "1.5\nCMS\n& Moderation" as P15 #E6FFFA
-rectangle "1.6\nAnalytics\n& Notifications" as P16 #E6FFFA
-rectangle "1.7\nQR Landing\n& APK Distribution" as P17 #E6FFFA
-
-database "D0 Preferences\n(onboarding/lang/sync flags)" as D0
-database "D1 Core Content\n(POI/Tour/Menu/AudioMeta)" as D1
-database "D2 Local SQLite Cache" as D2
-database "D3 Media + Tile Cache" as D3
-database "D4 Notifications Store" as D4
-database "D5 Device Subscriptions" as D5
-database "D6 QR Campaign State" as D6
-
-E1 --> P11 : First-run input\nlanguage + permission choice
-P11 <--> D0 : Save/read onboarding state
-P11 --> P12 : Trigger cache-first load
-
-P12 <--> D1 : POI/tour/menu delta sync
-P12 <--> D2 : Read/write local cache
-P12 <--> D3 : Preload media/maps/routes
-P12 --> E1 : Ready state + offline availability
-
-E1 --> P13 : Location/move events\nmanual playback actions
-P13 <--> D2 : Read geofence/POI metadata
-P13 <--> D3 : Read local audio/media cache
-P13 --> D1 : Write narration logs
-P13 --> E1 : Auto/manual narration
-
-E1 --> P14 : Join tour / VIP confirm\nrecovery code restore
-P14 <--> D1 : Tour list + policy data
-P14 <--> D5 : VIP status + expiry + recovery
-P14 --> E1 : Access granted/locked + paywall
-
-E2 --> P15 : POI/menu/audio submit
-E3 --> P15 : Approve/reject decisions
-P15 <--> D1 : Update content status
-P15 --> D4 : Emit moderation notifications
-
-E3 --> P16 : KPI/report/filter request
-E2 --> P16 : Notification polling
-P16 <--> D1 : Analytics read model
-P16 <--> D4 : Notification query/feed
-P16 --> E3 : Dashboard/heatmap/report
-P16 --> E2 : Sidebar notifications
-
-E4 --> P17 : QR/APK request
-E3 --> P17 : Rotate/test campaign
-P17 <--> D6 : QR campaign state
-P17 <--> D1 : Deep link config + publish meta
-P17 --> E4 : Landing/deeplink/APK file
-@enduml
-```
-
-### DFD Mức 2 - Chi tiết Process 1.2 (Offline-first)
-
-```plantuml
-@startuml
-left to right direction
-skinparam shadowing false
-skinparam rectangleRoundCorner 16
-skinparam rectangle {
-  BorderColor #4A5568
-  BackgroundColor #F8FAFC
-}
-skinparam database {
-  BorderColor #4A5568
-  BackgroundColor #EEF2FF
-}
-
-rectangle "Tourist" as E1
-
-rectangle "1.2.1\nLoad Local Cache" as P121 #E6FFFA
-rectangle "1.2.2\nSync Delta/Full\nFrom API" as P122 #E6FFFA
-rectangle "1.2.3\nDeferred Offline\nCompletion" as P123 #E6FFFA
-
-database "D0 Preferences" as D0
-database "D1 Core Content API" as D1
-database "D2 Local SQLite" as D2
-database "D3 Media/Tile Cache" as D3
-
-E1 --> P121 : App startup request
-P121 <--> D2 : Read cached POI/tour
-P121 --> E1 : Fast initial UI
-P121 --> P122 : Need sync check
-
-P122 <--> D1 : Request delta/full data
-P122 --> D2 : Merge + persist new content
-P122 --> D0 : Update lastSync/version
-P122 --> E1 : Refreshed data state
-P122 --> P123 : Schedule background completion
-
-P123 <--> D1 : Download menu/audio/image/route metadata
-P123 <--> D3 : Cache media/map/route assets
-P123 --> D0 : Mark has_full_offline + size/version
-P123 --> E1 : Offline readiness improved
-@enduml
-```
 
 ## Sequence End-To-End Dùng Cho PRD
 
@@ -341,11 +177,11 @@ API -> DB: Lưu trạng thái chờ duyệt
 API -> DB: Tạo thông báo cho Admin
 
 A -> Web: Mở danh sách chờ duyệt
-Web -> API: Lấy POI và submission đang chờ duyệt
+Web -> API: Lấy POI đang chờ duyệt
 API -> DB: Truy vấn dữ liệu chờ duyệt
 API --> Web: Danh sách cần duyệt
 
-A -> Web: Duyệt POI / duyệt premium
+A -> Web: Duyệt POI
 Web -> API: Gửi quyết định duyệt hoặc từ chối
 API -> DB: Cập nhật kết quả duyệt
 API -> DB: Tạo thông báo kết quả cho Vendor
@@ -363,7 +199,7 @@ Noti --> V: Hiển thị kết quả duyệt
 | Mục rà soát | Kết luận từ code hiện tại | Hành động trong tài liệu này |
 |---|---|---|
 | F8 Notification | Không có SignalR/Hub; web dùng polling `GET /api/Notifications/sidebar` (10s khi visible, 30s khi hidden) | Sửa F8 sang polling flow + sequence/activity mới |
-| F12 QR | Có thêm server landing `/qr/{**deepPath}` trong `Program.cs`, có check hạn link + fallback tải APK | Mở rộng F12 thành flow web landing -> deep link app |
+| F12 QR | Landing page không còn auto-open deeplink; giờ hiển thị 2 lựa chọn: **Dùng Web ngay** + **Tải APK**. iOS auto-redirect sang web-app. Có `scanBehavior` flags trong API response. Deeplink chỉ trigger từ APK download page khi có `?dl=` | Đã cập nhật F12 thành flow 2 lựa chọn + iOS redirect + deeplink từ APK page |
 | F16 Audio | Upload/replace audio thủ công đang tắt (`410`), luồng chính là TTS + moderation theo bộ 3 ngôn ngữ | Sửa F16 theo workflow thực tế Vendor/Admin |
 | F20 Tour | Không dùng bảng `POI_Tour`; thứ tự stop nằm trong `Tour.PoiIds`; có rule chỉ 1 free tour active và POI vendor phải còn premium | Sửa F20 theo rule validate thực tế |
 | F21 Menu | `DELETE /api/MenuItems/{id}` bị disable (`405`); nghiệp vụ chính là bật/tắt bán qua `isAvailable` | Sửa F21 theo hướng không xóa món |
@@ -371,11 +207,15 @@ Noti --> V: Hiển thị kết quả duyệt
 | Tour access mobile | Mobile áp dụng free-first: non-VIP chỉ vào free tour; tour khác bị khóa/paywall | Sửa F24 và thêm F28 |
 | Virtual Tour (không ở thực địa) | Mobile có `VirtualTourViewModel` + `SimulatedLocationService`, hỗ trợ mô phỏng vị trí theo stop của tour | Bổ sung rõ vào F24 (luồng thay thế + sequence + activity) |
 | Audio focus mobile | `AudioService` có xử lý audio focus (mất focus thì pause/duck, có thể resume khi focus quay lại) | Bổ sung ghi chú vào F4 để bám code hiện tại |
-| Payment/Subscription | Có 2 luồng riêng: `PaymentsController` (vendor/admin duyệt premium) và `SubscriptionsController` (VIP theo device) | Bổ sung F27 + F28 |
-| Payment admin mode app | Admin có thêm panel `payment-management?mode=app`, đọc dữ liệu từ `GET /api/Subscriptions/admin/subscriptions` | Bổ sung F29 |
-| Premium notifications | Khi vendor submit premium và admin review, backend ghi `app_notifications` theo audience admin/vendor | Cập nhật F27 + liên kết F8 |
-| QR campaign admin ops | Có `QrController` với `GET /api/Qr/admin/status` và `POST /api/Qr/admin/test-rotate`, lưu state ở `qr_campaign_states` | Bổ sung F30 |
-| APK landing page | Có trang công khai `/apk-download.html` phục vụ tải APK + sao chép link chia sẻ | Bổ sung F31 |
+| Payment/Subscription | Có 2 luồng riêng: `PaymentsController` (vendor thanh toán premium auto-approve, kích hoạt ngay) và `SubscriptionsController` (VIP theo device). Web PWA (`web-app.html`) có paywall 3 bước riêng với QR ngân hàng, transfer content tự sinh, 5 điểm VIP gate | Đã cập nhật F28 bổ sung Web PWA paywall + VIP gates |
+| Payment admin mode app | Admin có thêm panel `payment-management?mode=app`, đọc dữ liệu từ `GET /api/Subscriptions/admin/subscriptions`. Trang có dropdown "Xem thêm" ở header với 3 mục legal (Điều khoản, Chính sách bảo mật, Chính sách hoàn tiền) hiện dưới dạng modal | Bổ sung F29 |
+| Payment admin mode vendor | Admin có panel `payment-management?mode=vendor`, đọc dữ liệu từ `GET /api/Payments/admin/submissions` để theo dõi trạng thái thanh toán premium của vendor. Luồng này chỉ theo dõi dữ liệu hệ thống, không có duyệt/từ chối thủ công từ admin | Bổ sung F36 |
+| Admin activity status | Admin có trang `device-activity` để theo dõi online/offline của tourist/vendor theo thời gian thực, gồm KPI tổng online + phân rã theo role/client type, bộ lọc role/status/search/date và auto-refresh 15s | Giữ ở F26 (theo dõi hoạt động thiết bị) |
+| Premium notifications | Khi vendor thanh toán premium thành công, backend có thể ghi nhận thông báo trạng thái premium ở luồng vendor (không cần vòng admin review) | Cập nhật F27 + liên kết F8 |
+| QR campaign admin ops | Có `QrController` với `GET /api/Qr/admin/status` và `POST /api/Qr/admin/test-rotate`, lưu state ở `qr_campaign_states`. Response có thêm `scanBehavior` object (`openAppIfInstalled`, `fallbackToDownloadPageIfMissing`, `showExpiredWhenOutdated`) | Đã cập nhật F30 bổ sung scanBehavior |
+| APK landing page | Trang `/apk-download.html` phục vụ tải APK + sao chép link. Nhận `?apk=` và `?dl=` từ QR landing (F12); nếu có `?dl=` hiện thêm nút "Mở ứng dụng" deeplink | Đã cập nhật F31 bổ sung deeplink từ QR |
+| Web-app Settings + Legal | `web-app.html` tab Settings có: VIP status card, restore form, language selector (vi/en/zh), device ID, legal overlay (Điều khoản + Chính sách bảo mật). Mobile `SettingsPage` cũng có Legal section mở `LegalPage` modal | Ghi nhận, không cần flow riêng — nằm trong F28 (VIP) và mô tả chung |
+| Web-app i18n | Full dictionary `T` object (vi/en/zh) + `applyI18n()` render toàn bộ UI theo ngôn ngữ. Audio player chỉ hiện tab cho ngôn ngữ có audio, không còn language pills cũ | Ghi nhận, phản ánh trong mô tả F4 và Settings |
 | Onboarding mobile | `App.CreateWindow` + `WelcomePage` có flow first-run: chọn ngôn ngữ, xin quyền vị trí, cho phép tiếp tục không bật GPS, rồi mới vào map | Bổ sung F32 để tăng trọng số trải nghiệm Tourist |
 | Offline data completion | `RunSimpleFlowAsync` và `DataSyncService` triển khai 2 pha: ưu tiên mở app nhanh, sau đó tự hoàn tất gói offline đầy đủ ở nền | Bổ sung F33 để mô tả chiến lược offline-first thực tế |
 | Offline map fallback | `MainPage.Map` có nhánh fallback khi offline và không có tile cache (`CreateOfflineFallbackLayer`) thay vì crash/trắng bản đồ | Bổ sung F34 cho case thực địa mất mạng |
@@ -607,22 +447,31 @@ UC1 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Tourist as U
-participant "Mobile App" as App
-participant "MainViewModel" as VM
-database "SQLite" as L
-participant "POIs API" as API
+participant "WelcomePage.xaml.cs" as WP
+participant "ZoneRepository.cs" as ZR
+participant "LocalDatabaseService.cs" as LD
+participant "POIsController" as API
 
-U -> App: Mở app
-App -> VM: Khởi tạo
-VM -> L: Đọc cache
-alt Có mạng
-  VM -> API: GET /api/pois/sync?version=lastVersion
-  API --> VM: Delta data
-  VM -> L: Gộp dữ liệu và lưu
-else Mất mạng
-  VM -> VM: Dùng dữ liệu local
+U -> WP: OnAppearing()
+WP -> WP: RunSimpleFlowAsync()
+WP -> ZR: LoadLocalAsync()
+ZR -> LD: InitializeAsync()
+ZR -> LD: GetAllActivePOIsAsync()
+LD --> ZR: List<POI>
+ZR --> WP: IsSeeded (true/false)
+
+alt [Có mạng]
+  WP -> ZR: SyncFromMongoAsync()
+  ZR -> API: GET /api/POIs/sync?sinceVersion={currentVersion}
+  API --> ZR: PoiSyncResponse (delta)
+  ZR -> LD: SavePOIsAsync(mapped)
+  ZR -> ZR: LoadLocalAsync()
+else [Mất mạng / cache rỗng]
+  ZR -> ZR: SeedFromBundledJsonAsync()
 end
-VM --> App: Render UI
+
+WP -> WP: ShowReadyState() / EnableStartButton()
+WP --> U: Render UI
 @enduml
 ```
 
@@ -690,8 +539,9 @@ stop
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
 | 4a | GeofenceService | Nhiều POI trong bán kính cùng lúc |
-| 4b | GeofenceService | Sort theo `audio_priority` (thấp = ưu tiên cao hơn) |
-| 4c | GeofenceService | Chỉ emit event cho POI có priority cao nhất |
+| 4b | GeofenceService | `UpdatePrimaryZoneAsync`: sort inline — IsLikedByUser DESC → NumLikes DESC → distance ASC → TriggerRadius ASC → POI_ID ASC |
+| 4c | GeofenceService | Hysteresis: nếu current zone vẫn trong range và bestZone gần hơn ≤ 8m → giữ nguyên zone cũ để tránh flapping |
+| 4d | GeofenceService | Emit `OnPrimaryZoneChanged` với primary POI đã chọn |
 
 **Luồng thay thế — Thoát khỏi zone:**
 
@@ -743,16 +593,23 @@ UC1 ..> UC4 : <<include>>
 actor Tourist as U
 participant "GPS Sensor" as GPS
 participant "LocationService" as LS
-participant "GeofenceService" as GS
 participant "MainViewModel" as VM
-
+participant "GeofenceService" as GS
 U -> GPS: Di chuyển thực tế
 GPS -> LS: Vị trí thay đổi
-LS -> GS: OnLocationChangedAsync
-GS -> GS: Debounce + kiểm tra khoảng cách
-GS -> GS: Đánh giá vào/ra
-GS --> VM: OnActiveZonesChanged
-GS --> VM: OnPrimaryZoneChanged
+LS -> VM: OnLocationUpdated (event)
+VM -> GS: OnLocationChangedAsync(loc)
+GS -> GS: Debounce (ShouldProcess)
+GS -> GS: Tính insideZones + diff (enteredZones, exitedZones)
+GS -> VM: OnActiveZonesChanged (event)
+alt Có zone thoát ra
+  GS -> GS: HandleExitAsync(exitedZone)
+end
+alt Có zone mới vào
+  GS -> GS: LogEntry(enteredZone)
+end
+GS -> GS: UpdatePrimaryZoneAsync(insideZones)
+note right: Sort + hysteresis bên trong;\nemit OnPrimaryZoneChanged khi có thay đổi
 VM -> VM: Cập nhật trạng thái UI
 @enduml
 ```
@@ -769,7 +626,7 @@ if (Có quyền vị trí?) then (Có)
     if (Có POI trong bán kính geofence?) then (Có)
       :Debounce ENTER 3 giây;
       if (Qua cooldown 5 phút?) then (Có)
-        :Chọn primary zone theo audio_priority;
+        :GeofenceService.UpdatePrimaryZoneAsync() sort inline\n(IsLikedByUser DESC → NumLikes DESC → distance ASC → TriggerRadius ASC → POI_ID ASC)\nHysteresis: giữ zone cũ nếu bestZone gần hơn ≤ 8m;
         :Emit OnActiveZonesChanged/OnPrimaryZoneChanged;
       else (Không)
         :Bỏ qua trigger mới;
@@ -910,7 +767,7 @@ stop
 | **Use Case ID** | F4 |
 | **Tên** | Phát thuyết minh audio với fallback 4 tầng |
 | **Tác nhân chính** | Tourist (tap nút phát) hoặc Hệ thống (auto từ geofence F2) |
-| **Tác nhân phụ** | AudioService, AudioCacheService, TTSController |
+| **Tác nhân phụ** | AudioService, AudioCacheService, TTSController, `NarrationQueueService`|
 | **Kích hoạt** | Nhấn nút Phát **hoặc** sự kiện ENTER_ZONE từ geofence |
 | **Tiền điều kiện** | Có POI ID và ngôn ngữ hiện tại của người dùng |
 | **Hậu điều kiện** | Audio được phát thành công qua một trong 4 tầng; NarrationLog được ghi |
@@ -926,6 +783,15 @@ stop
 | **Tầng 3** | AudioService | Không có published audio → `POST /api/TTS/generate` với text POI |
 | **Tầng 4** | AudioService | TTS API thất bại/offline → Native MAUI `TextToSpeech.SpeakAsync()` |
 | 3 | App | Ghi NarrationLog sau khi phát xong |
+
+**Luồng bổ sung — xử lý hàng đợi generate khi nhiều tourist cùng trigger:**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 3a | API | Nhiều request cùng `poiId+language` đi vào bước TTS |
+| 3b | `NarrationQueueService` | Gom theo key, chỉ cho 1 request generate trước; request còn lại chờ kết quả |
+| 3c | API | Khi request đầu tạo xong audioUrl, các request chờ dùng lại URL/cache đã có |
+| 3d | App | Playback vẫn độc lập từng máy; queue chỉ áp dụng cho bước generate |
 
 **Luồng thay thế — Đang phát audio khác:**
 
@@ -944,10 +810,25 @@ stop
 | 2e | AudioService | Tạm dừng hoặc giảm âm lượng phiên phát hiện tại |
 | 3e | AudioService | Khi focus quay lại, resume hoặc phát lại theo trạng thái hàng chờ |
 
+**Luồng thay thế — Điều khiển phát lại (Pause / Resume / Stop / Volume):**
+
+| Method | Trigger | Hành động |
+|--------|---------|-----------|
+| `PlayAsync(zoneId, audioUrl, duration, fallbackText)` | Geofence ENTER_ZONE hoặc bấm nút Nghe | Finalize session POI cũ, khởi tạo player mới, request audio focus (Android), phát qua 4 tầng fallback |
+| `PauseAsync(zoneId)` | Tourist bấm nút Pause | Dừng phát tạm, lưu `_positions[zoneId]`, gọi `CaptureZoneProgress()`, abandon audio focus nếu không còn player nào đang phát |
+| `ResumeFromAsync(zoneId, pos)` | Tourist bấm nút Play lại | Request audio focus (Android), `player.Seek(pos)` + `player.Play()`, tiếp tục từ vị trí đã lưu |
+| `StopAsync(zoneId)` | Thoát trang chi tiết | Dừng và dispose player, reset `_positions[zoneId] = 0` (không finalize listen progress) |
+| `StopAllAsync()` | App chuyển nền / navigate away / POI switch | Dừng và dispose toàn bộ player trong `_players`, abandon audio focus hoàn toàn |
+| `SetVolumeAsync(zoneId, vol)` | User kéo thanh âm lượng | Clamp volume [0.0–1.0], áp dụng ngay cho `player.Volume` đang chạy |
+| `GetCurrentPosition(zoneId)` | UI cập nhật progress bar | Trả `player.CurrentPosition` nếu player còn tồn tại, ngược lại trả `_positions[zoneId]` cached |
+| `IsPlaying(zoneId)` | UI kiểm tra trạng thái nút Play/Pause | Trả `true` nếu player tồn tại và `player.IsPlaying == true` |
+
 **Ngoại lệ:**
 - Tất cả 4 tầng đều thất bại → log lỗi, hiện icon cảnh báo nhỏ, không crash app.
 - File audio corrupt → xóa khỏi cache, thử lại từ Tầng 2.
 - Audio focus mất kéo dài → kết thúc phiên phát hiện tại một cách an toàn, không crash app.
+
+
 
 ### Use Case Diagram
 ```plantuml
@@ -969,17 +850,23 @@ rectangle "Phát audio" {
   usecase "Phát thuyết minh" as UC1
   usecase "Dùng cache audio" as UC2
   usecase "Lấy published audio URL" as UC3
-  usecase "Lấy AudioUrl từ POI API" as UC4
-  usecase "Generate TTS và cache" as UC5
-  usecase "Fallback Native TTS" as UC6
+  usecase "Generate TTS và cache" as UC4
+  usecase "Fallback Native TTS" as UC5
+  usecase "Tạm dừng / Tiếp tục phát" as UC6
+  usecase "Dừng audio (Stop / StopAll)" as UC7
+  usecase "Điều chỉnh âm lượng" as UC8
+  usecase "Truy vấn trạng thái phát" as UC9
 }
 
 Tourist -- UC1
+Tourist -- UC6
+Tourist -- UC7
+Tourist -- UC8
+Tourist -- UC9
 UC1 ..> UC2 : <<include>>
 UC1 ..> UC3 : <<extend>>
 UC1 ..> UC4 : <<extend>>
 UC1 ..> UC5 : <<extend>>
-UC1 ..> UC6 : <<extend>>
 @enduml
 ```
 
@@ -987,30 +874,70 @@ UC1 ..> UC6 : <<extend>>
 ```plantuml
 @startuml
 actor Tourist as U
+participant "AudioPlayerUI" as UI
 participant "AudioService" as AS
 participant "AudioCacheService" as Cache
-participant "Audio/POI API" as API
-participant "TTS API" as TTS
+participant "AudioController" as API
+participant "TTSController" as TTS
+participant "NarrationQueueService" as Q
 
-U -> AS: Bấm phát
-AS -> Cache: Get cached stream
-alt Có cache
-  Cache --> AS: Stream
-else Không có cache
-  AS -> API: Get published audio
-  alt Published có file
-    API --> AS: Audio URL
-  else Published không có
-    AS -> API: GET /api/pois/{id}
-    alt Có direct AudioUrl
-      API --> AS: AudioUrl theo ngôn ngữ
-    else Không có direct URL
-      AS -> TTS: POST /api/tts/generate
-      TTS --> AS: URL đã tạo
+group PlayAsync — Bắt đầu phát
+  U -> AS: PlayAsync(zoneId, audioUrl, duration, fallbackText)
+  AS -> AS: FinalizeSessionsForSwitchAsync(nextZoneId)
+  AS -> Cache: GetOrDownloadCachedStreamAsync(zoneId, lang)
+  alt Có cache local
+    Cache --> AS: Stream (Tầng 1)
+  else Không có cache
+    AS -> API: GET /api/Audio/poi/{poiId}/{language} (Tầng 2)
+    alt Published có file
+      API --> AS: audioUrl
+    else Published không có
+      AS -> TTS: POST /api/TTS/generate (Tầng 3)
+      TTS -> Q: GetOrGenerateAudioAsync(poiId, lang, factory)
+      Q --> TTS: audioUrl
+      TTS --> AS: audioUrl
     end
   end
+  AS -> AS: CreatePlayer(stream) + player.Play()
+  AS --> U: Đang phát audio
 end
-AS --> U: Phát audio
+
+group PauseAsync — Tạm dừng
+  U -> AS: PauseAsync(zoneId)
+  AS -> AS: player.Pause()
+  AS -> AS: _positions[zoneId] = player.CurrentPosition
+  AS -> AS: CaptureZoneProgress(zoneId, currentPos)
+  note right: AbandonAudioFocusIfIdle() [Android]
+  AS --> UI: (pause hoàn tất)
+end
+
+group ResumeFromAsync — Tiếp tục phát
+  U -> AS: ResumeFromAsync(zoneId, positionSeconds)
+  AS -> AS: TryRequestAudioFocus() [Android]
+  AS -> AS: player.Seek(positionSeconds)
+  AS -> AS: player.Play()
+  AS --> UI: Tiếp tục từ vị trí đã lưu
+end
+
+group StopAsync / StopAllAsync — Dừng
+  U -> AS: StopAsync(zoneId)
+  AS -> AS: player.Stop(); player.Dispose()
+  AS -> AS: _positions[zoneId] = 0
+  note right: StopAllAsync() lặp toàn bộ _players;\nAbandonAudioFocus() sau cùng [Android]
+end
+
+group SetVolumeAsync — Âm lượng
+  U -> AS: SetVolumeAsync(zoneId, volume)
+  AS -> AS: player.Volume = Clamp(volume, 0.0, 1.0)
+  AS --> UI: (volume đã cập nhật)
+end
+
+group GetCurrentPosition / IsPlaying — Truy vấn trạng thái
+  UI -> AS: GetCurrentPosition(zoneId)
+  AS --> UI: player.CurrentPosition hoặc _positions[zoneId]
+  UI -> AS: IsPlaying(zoneId)
+  AS --> UI: player.IsPlaying (true/false)
+end
 @enduml
 ```
 
@@ -1025,20 +952,40 @@ if (POI sắp vào vùng và chưa có cache?) then (Có)
 endif
 
 if (Có file local/preload?) then (Có)
-  :Phát ngay từ cache;
+  :PlayAsync() — phát ngay từ cache (Tầng 1);
 else (Không)
   :Gọi API lấy published audio;
   if (Có URL published?) then (Có)
-    :Phát stream online + lưu cache;
+    :PlayAsync() — phát stream online + lưu cache (Tầng 2);
   else (Không)
-    :Gọi TTS generate;
+    :Đẩy request vào NarrationQueueService (key=poiId:lang);
+    :Gọi TTS generate (Tầng 3);
     if (TTS thành công?) then (Có)
-      :Phát audio TTS + lưu cache;
+      :PlayAsync() — phát audio TTS + lưu cache;
     else (Không)
-      :Fallback native TextToSpeech;
+      :Fallback native TextToSpeech (Tầng 4);
     endif
   endif
 endif
+
+repeat
+  :Đang phát — UI poll GetCurrentPosition() / IsPlaying();
+  if (Hành động người dùng?) then (Pause)
+    :PauseAsync() — lưu vị trí, release audio focus;
+    :Chờ người dùng bấm Play lại;
+    :ResumeFromAsync(pos) — seek + tiếp tục phát;
+  elseif (Điều chỉnh âm lượng) then
+    :SetVolumeAsync(vol) — clamp [0.0–1.0];
+  elseif (Stop / thoát trang chi tiết) then
+    :StopAsync() — dispose player, reset position;
+    break
+  elseif (POI switch / app chuyển nền) then
+    :StopAllAsync() — dispose toàn bộ player;
+    break
+  else (Tiếp tục phát)
+  endif
+repeat while (Phát chưa kết thúc?) is (Có)
+-> Không;
 
 :Ghi narration log;
 stop
@@ -1054,10 +1001,10 @@ stop
 | **Use Case ID** | F5 |
 | **Tên** | Tạo file audio TTS từ văn bản tại backend |
 | **Tác nhân chính** | Mobile App hoặc Web Admin/Vendor |
-| **Tác nhân phụ** | TTSController, TtsTextPreprocessor, tts_wrapper.py (Edge-TTS) |
+| **Tác nhân phụ** | TTSController, TtsTextPreprocessor, `NarrationQueueService`, tts_wrapper.py (Edge-TTS) |
 | **Kích hoạt** | `POST /api/TTS/generate` được gọi |
 | **Tiền điều kiện** | Text hợp lệ; Python runtime và edge-tts đã cài đặt |
-| **Hậu điều kiện** | File MP3 được tạo trong `/uploads/audio/`; trả về audioUrl |
+| **Hậu điều kiện** | File MP3 được tạo trong `/uploads/audio/`; trả về audioUrl; kết quả được cache trong `NarrationQueueService._audioUrlCache` |
 
 **Luồng chính:**
 
@@ -1065,12 +1012,15 @@ stop
 |------|----------|-----------|
 | 1 | Client | `POST /api/TTS/generate` `{ text, language, voice? }` |
 | 2 | TtsTextPreprocessor | Chuẩn hóa text: loại ký tự đặc biệt, số → chữ, viết tắt → đầy đủ |
-| 3 | TTSController | Kiểm tra cache: `MD5(text:lang).mp3` đã tồn tại? |
-| 4a | Cache HIT | Trả URL file đã có, header `X-Cache: HIT` (0ms) |
-| 4b | Cache MISS | Gọi `tts_wrapper.py --text "..." --lang vi --voice {voice}` |
-| 5 | tts_wrapper.py | Edge-TTS synthesize → xuất file MP3 tạm |
-| 6 | TTSController | Move file về `/uploads/audio/`, lưu metadata |
-| 7 | TTSController | Trả `{ audioUrl, duration, voice, cached: false }` |
+| 3 | `NarrationQueueService` | `GetOrGenerateAudioAsync(poiId, lang, factory)` — kiểm tra `_audioUrlCache` |
+| 4a | Cache HIT | Trả URL từ `_audioUrlCache` ngay, không lock |
+| 4b | Cache MISS | Acquire `perPoiLock` (SemaphoreSlim per key) + `_globalSlot` (max 3 concurrent) |
+| 4c | TTSController | Double-check cache sau khi vào lock; nếu vẫn miss → Kiểm tra file MD5 trên disk |
+| 5 | Cache MISS disk | Gọi `tts_wrapper.py --text "..." --lang vi --voice {voice}` |
+| 6 | tts_wrapper.py | Edge-TTS synthesize → xuất file MP3 tạm |
+| 7 | TTSController | Move file về `/uploads/audio/`, lưu metadata |
+| 8 | `NarrationQueueService` | Lưu `audioUrl` vào `_audioUrlCache[key]`; release locks |
+| 9 | TTSController | Trả `{ audioUrl, duration, voice, cached: false }` |
 
 **Luồng thay thế — Text quá dài:**
 
@@ -1120,21 +1070,40 @@ UC1 ..> UC5 : <<include>>
 @startuml
 participant Client as C
 participant "TTSController" as Ctrl
-participant "TTS Preprocessor" as Prep
+participant "NarrationQueueService" as Q
 participant "tts_wrapper.py" as Py
 participant Uploads as FS
 
-C -> Ctrl: POST /api/tts/generate
-Ctrl -> Prep: Validate và chuẩn hóa
-Ctrl -> Py: Execute Edge-TTS
-alt Thành công
-  Py --> Ctrl: MP3 path
-  Ctrl -> FS: Save
-  Ctrl --> C: audioUrl
-else Thất bại
-  Py --> Ctrl: error
-  Ctrl --> C: error response
+C -> Ctrl: POST /api/TTS/generate
+Ctrl -> Ctrl: Validate text + normalize
+Ctrl -> Q: GetOrGenerateAudioAsync(poiId, lang, factory)
+alt Cache hit (_audioUrlCache)
+  Q --> Ctrl: audioUrl (in-memory)
+else Cache miss
+  Q -> Q: Kiểm tra queue depth (max 20/key)
+  Q -> Q: Acquire perPoiLock (SemaphoreSlim, timeout 30s)
+  Q -> Q: Double-check cache sau khi vào lock
+  Q -> Q: Acquire _globalSlot (max 3 concurrent)
+  Q -> Ctrl: Gọi factory → MD5 cache check trên disk
+  alt File MD5 tồn tại trên disk
+    Ctrl --> Q: audioUrl (disk cache)
+  else
+    Ctrl -> Py: Execute Edge-TTS
+    alt Thành công
+      Py --> Ctrl: MP3 path
+      Ctrl -> FS: Save /uploads/audio
+      Ctrl --> Q: audioUrl
+    else Thất bại
+      Py --> Ctrl: error
+      Ctrl --> Q: null
+      Q --> Ctrl: null
+      Ctrl --> C: error response
+    end
+  end
+  Q -> Q: Lưu vào _audioUrlCache[key]; release slots
+  Q --> Ctrl: audioUrl
 end
+Ctrl --> C: { audioUrl, duration, voice, cached }
 @enduml
 ```
 
@@ -1601,7 +1570,7 @@ UC1 ..> UC4 : <<extend>>
 ```plantuml
 @startuml
 actor Vendor as V
-participant "Vendor Portal" as Web
+participant "poi-list.html" as Web
 participant POIsController as POI
 database "VendorProfile DB" as VP
 database "POIs DB" as DB
@@ -1801,7 +1770,7 @@ UC1 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Admin as A
-participant Dashboard as D
+participant "dashboard.html" as D
 participant AnalyticsController as An
 database "NarrationLogs DB" as L
 database "POIs DB" as P
@@ -1838,55 +1807,63 @@ stop
 @enduml
 ```
 
-## Sự kiện 12: Xử lý QR landing + deeplink vào POI/Tour (PRD)
+## Sự kiện 12: Xử lý QR landing + 2 lựa chọn trải nghiệm (PRD)
 
 ### Đặc tả Use Case
 
 | Trường | Nội dung |
 |--------|---------|
 | **Use Case ID** | F12 |
-| **Tên** | Mở đúng màn hình từ QR code (qua landing web + deeplink app) |
+| **Tên** | Quét QR → landing page với 2 lựa chọn: Web App hoặc Tải APK |
 | **Tác nhân chính** | Tourist |
-| **Tác nhân phụ** | `Program.cs` (`/qr/{**deepPath}`), `QrDeepLinkManager`, MainActivity |
-| **Kích hoạt** | Tourist quét QR link dạng `https://<host>/qr/...` hoặc mở trực tiếp deeplink |
-| **Tiền điều kiện** | App đã cài đặt; link hợp lệ và chưa hết hạn |
-| **Hậu điều kiện** | App mở đúng đích POI/Tour/Main; nếu chưa cài app thì được dẫn về trang tải APK |
+| **Tác nhân phụ** | `Program.cs` (`/qr/{**deepPath}`), `QrDeepLinkManager`, MainActivity, `apk-download.html`, `web-app.html` |
+| **Kích hoạt** | Tourist quét QR link dạng `https://<host>/qr/...` |
+| **Tiền điều kiện** | Backend đang chạy; QR code chưa hết hạn |
+| **Hậu điều kiện** | Tourist được chuyển đến web-app PWA (dùng ngay) hoặc trang tải APK (cài app native) |
 
-**Luồng chính:**
-
-| Bước | Tác nhân | Hành động |
-|------|----------|-----------|
-| 1 | Tourist | Quét QR |
-| 2 | Browser | Mở URL `GET /qr/{deepPath}?...` |
-| 3 | Backend | Tạo app link `streetfood://qr/{deepPath}{query}` + kiểm tra `exp/expires` |
-| 4 | Backend | Trả HTML landing page có nút mở app + fallback tải APK |
-| 5 | Landing JS | Tự động thử mở deeplink app; đồng thời lên lịch fallback |
-| 6 | Android OS | Nếu app có cài, Intent chuyển vào MainActivity |
-| 7 | QrDeepLinkManager | `SavePending(rawUrl)` rồi parse payload (`poiId`/`tourId`/`main`) |
-| 8 | MainPage | `ConsumePending()` khi app ready |
-| 9a | POI link | Navigate đến POI chi tiết |
-| 9b | Tour link | Navigate đến tour tương ứng |
-| 9c | Main link | Mở MainPage/Explore |
-
-**Luồng thay thế — Link hết hạn:**
+**Luồng chính — Landing page với 2 lựa chọn:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
-| 3a | Backend | QR đã hết hạn |
-| 3b | Landing | Hiện trạng thái "QR đã hết hạn", khóa nút mở app |
-| 3c | User | Quét lại mã mới tại điểm đến |
+| 1 | Tourist | Quét QR bằng camera điện thoại |
+| 2 | Browser | Mở URL `GET /qr/{deepPath}?entry=...&cycle=...&exp=...&api=...` |
+| 3 | Backend | Kiểm tra `exp` (Unix timestamp) → còn hạn hay hết hạn |
+| 4 | Backend | Build `streetfood://qr/...` deeplink + resolve `web-app` URL + APK URL |
+| 5 | Backend | Trả HTML landing card với tiêu đề "Chọn cách trải nghiệm" |
+| 6 | Landing | Hiển thị 2 nút: **🌐 Dùng trên Web ngay** (primary) và **📥 Tải ứng dụng Android** (secondary) |
+| 7a | Tourist | Chọn **Dùng trên Web ngay** → mở `web-app.html` kèm query params QR |
+| 7b | Tourist | Chọn **Tải ứng dụng Android** → mở `apk-download.html` kèm `?apk=...&dl=...` |
 
-**Luồng thay thế — Chưa cài app hoặc mở app thất bại:**
+**Luồng thay thế — iOS/iPadOS (auto-redirect):**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
-| 6a | Landing JS | Sau ~2.2s không chuyển app thành công |
-| 6b | Browser | Redirect sang `apk-download.html` |
-| 6c | Tourist | Cài app rồi quét lại QR |
+| 5a | Landing JS | Phát hiện iOS/iPadOS qua user-agent |
+| 5b | Landing JS | Tự động `window.location.replace(webAppUrl)` ngay trước khi body render |
+| 5c | Tourist | Không thấy landing page, vào thẳng web-app PWA |
+
+**Luồng thay thế — QR hết hạn:**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 3a | Backend | `exp` < thời gian hiện tại → QR đã hết hạn |
+| 3b | Landing | Ẩn nút chọn, hiện banner đỏ "QR này đã hết hạn" |
+| 3c | Tourist | Quét lại mã mới tại điểm đến |
+
+**Luồng thay thế — Deeplink vào app đã cài (từ APK download page):**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 8 | APK page | Nếu URL có `?dl=streetfood://...` → hiện thêm nút "Mở ứng dụng" |
+| 9 | Tourist | Nhấn mở → Android Intent chuyển vào MainActivity |
+| 10 | QrDeepLinkManager | `SavePending(rawUrl)` → parse payload (`poiId`/`tourId`/`main`) |
+| 11 | MainPage | `ConsumePending()` khi app ready → navigate đúng màn hình |
 
 **Ngoại lệ:**
+- File APK chưa publish → nút tải bị disabled (`disabled` class).
+- Web-app URL không resolve được → nút web bị disabled.
+- Landing page có countdown timer tự động; khi hết hạn real-time → chuyển sang trạng thái expired.
 - App chưa load xong khi nhận deeplink → payload được queue trong Preferences, xử lý sau khi MainPage ready.
-- Payload thiếu đích (`poi/tour/main`) hoặc sai format → app báo "Mã QR không hợp lệ".
 
 ### Use Case Diagram
 ```plantuml
@@ -1904,19 +1881,21 @@ skinparam rectangle {
 
 actor Tourist
 
-rectangle "QR Landing + Deeplink" {
-  usecase "Mở landing /qr" as UC1
+rectangle "QR Landing + 2 lựa chọn" {
+  usecase "Quét QR mở landing" as UC1
   usecase "Kiểm tra hạn QR" as UC2
-  usecase "Mở deeplink app" as UC3
-  usecase "Fallback tải APK" as UC4
-  usecase "Route vào POI/Tour/Main" as UC5
+  usecase "Chọn Dùng Web ngay" as UC3
+  usecase "Chọn Tải APK Android" as UC4
+  usecase "Auto-redirect iOS → Web" as UC5
+  usecase "Deeplink vào app đã cài" as UC6
 }
 
 Tourist -- UC1
 UC1 ..> UC2 : <<include>>
-UC1 ..> UC3 : <<include>>
+UC1 ..> UC3 : <<extend>>
 UC1 ..> UC4 : <<extend>>
-UC3 ..> UC5 : <<include>>
+UC1 ..> UC5 : <<extend>>
+UC4 ..> UC6 : <<extend>>
 @enduml
 ```
 
@@ -1926,29 +1905,35 @@ UC3 ..> UC5 : <<include>>
 actor Tourist as U
 participant Browser as B
 participant "Program.cs /qr" as QR
-participant "Landing JS" as JS
+participant "Landing Page" as LP
+participant "web-app.html" as WA
+participant "apk-download.html" as APK
 participant MainActivity as MA
 participant QrDeepLinkManager as Q
-participant MainPage as MP
 
 U -> B: Quét QR
-B -> QR: GET /qr/{deepPath}?exp=...
-QR -> QR: Build streetfood://qr/... + check expiry
-QR --> B: HTML landing
+B -> QR: GET /qr/{deepPath}?exp=...&api=...
+QR -> QR: Check expiry + build URLs
+QR --> B: HTML landing (2 nút chọn)
 
-alt QR còn hạn
-  B -> JS: Auto open deeplink
-  JS -> MA: Launch streetfood://qr/...
-  MA -> Q: SavePending(rawUrl)
-  MP -> Q: ConsumePending()
-  Q --> MP: Payload (poi/tour/main)
-  MP -> MP: Navigate đúng màn hình
+alt iOS / iPadOS
+  LP -> B: Auto redirect web-app.html
+  B -> WA: Mở web-app PWA
+else QR còn hạn (Android)
+  alt Tourist chọn "Dùng trên Web ngay"
+    U -> LP: Click nút Web
+    LP -> WA: Navigate web-app.html + query params
+  else Tourist chọn "Tải ứng dụng Android"
+    U -> LP: Click nút APK
+    LP -> APK: Navigate apk-download.html?apk=...&dl=streetfood://...
+    opt App đã cài — mở deeplink
+      U -> APK: Nhấn "Mở ứng dụng"
+      APK -> MA: Launch streetfood://qr/...
+      MA -> Q: SavePending(rawUrl)
+    end
+  end
 else QR hết hạn
-  B -> B: Hiển thị thông báo hết hạn
-end
-
-alt App không mở được
-  JS -> B: Redirect apk-download.html
+  LP -> LP: Hiện banner expired + ẩn nút chọn
 end
 @enduml
 ```
@@ -1957,21 +1942,29 @@ end
 ```plantuml
 @startuml
 start
-:Người dùng quét QR;
-:Mở /qr/{deepPath};
+:Tourist quét QR;
+:Browser mở /qr/{deepPath};
 :Backend kiểm tra hạn QR;
 
 if (QR còn hạn?) then (Có)
-  :Render landing + auto open deeplink;
-  if (Mở app thành công?) then (Có)
-    :Save pending deep link;
-    :MainPage consume payload;
-    :Đi tới POI/Tour/Main;
-  else (Không)
-    :Redirect trang tải APK;
+  if (iOS / iPadOS?) then (Có)
+    :Auto-redirect sang web-app.html;
+  else (Không — Android)
+    :Hiển thị landing card với 2 lựa chọn;
+    if (Chọn "Dùng trên Web ngay"?) then (Có)
+      :Mở web-app.html kèm query QR;
+    else (Chọn "Tải ứng dụng Android")
+      :Mở apk-download.html;
+      if (App đã cài + có deeplink?) then (Có)
+        :Mở app qua Intent deeplink;
+        :Navigate tới POI/Tour/Main;
+      else (Chưa cài)
+        :Tải APK và cài đặt;
+      endif
+    endif
   endif
 else (Không)
-  :Hiện trạng thái QR hết hạn;
+  :Hiện banner "QR đã hết hạn";
 endif
 
 stop
@@ -2152,7 +2145,7 @@ UC3 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Admin as A
-participant "Admin Vendor Page" as Web
+participant "vendors-list.html" as Web
 participant VendorsController as VC
 database "VendorProfile DB" as DB
 participant NotificationService as N
@@ -2269,7 +2262,7 @@ UC3 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Admin as A
-participant "Admin POI Page" as Web
+participant "poi-list.html (Admin)" as Web
 participant POIsController as POI
 database "POIs DB" as DB
 participant NotificationService as N
@@ -2390,7 +2383,7 @@ UC3 ..> UC4 : <<include>>
 @startuml
 actor Vendor as V
 actor Admin as A
-participant "Audio Web" as Web
+participant "audio-list.html" as Web
 participant AudioController as AC
 database "AudioContent DB" as DB
 database "app_notifications" as N
@@ -2517,7 +2510,7 @@ UC1 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Vendor as V
-participant "Vendor POI Form" as Web
+participant "poi-create.html / poi-edit.html" as Web
 participant POIsController as POI
 database "POIs DB" as DB
 database "VendorProfiles + ServiceSubmissions" as V
@@ -2839,7 +2832,7 @@ UC1 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Admin as A
-participant "Tour Admin Page" as Web
+participant "tour.html" as Web
 participant POIsController as POI
 participant ToursController as Tour
 database "Tours DB" as T
@@ -2959,7 +2952,7 @@ UC3 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Vendor as V
-participant "Menu Management Page" as Web
+participant "poi-edit.html (menu section)" as Web
 participant MenuItemsController as Menu
 database "MenuItems DB" as M
 database "POIs DB" as P
@@ -3071,7 +3064,7 @@ UC1 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Admin as A
-participant "User Admin Page" as Web
+participant "users.html" as Web
 participant UsersController as Uc
 database "Users DB" as U
 
@@ -3196,7 +3189,7 @@ note right of UC5 : Tạo profile sau lần đăng nhập đầu
 ```plantuml
 @startuml
 actor User as U
-participant "Register Page" as Web
+participant "register.html" as Web
 participant AuthController as Auth
 participant "Identity Service" as Id
 database "Users DB" as UDB
@@ -3235,6 +3228,151 @@ if (Input hợp lệ?) then (Có)
   endif
 else (Không)
   :Trả validation error từng trường;
+endif
+
+stop
+@enduml
+```
+
+---
+
+## Sự kiện 35: Tương tác tab Thư viện (Library) trên Mobile App (PRD)
+
+### Đặc tả Use Case
+
+| Trường | Nội dung |
+|--------|---------|
+| **Use Case ID** | F35 |
+| **Tên** | Tourist tương tác tab Thư viện gồm 2 phân đoạn: Danh sách tour và Đã lưu |
+| **Tác nhân chính** | Tourist |
+| **Tác nhân phụ** | `SavedPage`, `TabMenuView`, `TabSavedView`, `MainViewModel`, `LocalDatabaseService`, `Preferences`, `PremiumTourPaywallPage`, `POIDetailPage`, `TourDetailPopupPage` |
+| **Kích hoạt** | Tourist mở tab `Thư viện` trong app |
+| **Tiền điều kiện** | App đã tải dữ liệu local; tab Thư viện khả dụng |
+| **Hậu điều kiện** | Người dùng có thể chuyển qua lại giữa danh sách tour và danh sách đã lưu; thao tác lưu/bỏ lưu phản ánh ngay trên UI và được lưu local |
+| **Mức độ ưu tiên** | P1 |
+
+**Luồng chính:**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 1 | Tourist | Mở tab `Thư viện` (`SavedPage`) |
+| 2 | App | Hiển thị 2 segment trong tab Thư viện: `Danh sách tour` và `Đã lưu` |
+| 3 | MainViewModel | Warmup dữ liệu: nạp `AllTours` (cache-first) và `SavedPOIs`/`SavedTours` từ local |
+| 4 | Tourist | Chuyển segment giữa `Danh sách tour` (`TabMenuView`) và `Đã lưu` (`TabSavedView`) |
+| 5 | Tourist | Chọn item tour/POI để xem chi tiết |
+| 6 | App | Nếu item được phép truy cập theo policy hiện tại -> mở `TourDetailPopupPage` hoặc `POIDetailPage` |
+| 7 | Tourist | Nhấn tim để lưu/bỏ lưu tour hoặc POI |
+| 8 | MainViewModel | Cập nhật local state và refresh danh sách hiển thị ngay |
+
+**Luồng thay thế — item bị khóa theo subscription:**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 6a | App | Item không đủ quyền truy cập (free-first/VIP policy) |
+| 6b | App | Mở `PremiumTourPaywallPage` thay vì mở chi tiết |
+| 6c | Tourist | Đóng paywall, quay lại tab Thư viện |
+
+**Ngoại lệ:**
+- Segment `Danh sách tour` chưa có dữ liệu -> hiển thị trạng thái rỗng tương ứng.
+- Segment `Đã lưu` chưa có dữ liệu -> hiển thị EmptyView cho tour đã lưu hoặc quán đã lưu.
+
+### Use Case Diagram
+```plantuml
+@startuml
+left to right direction
+skinparam actorStyle stick
+skinparam usecase {
+  BackgroundColor #D9C2F0
+  BorderColor #6B4FA2
+}
+skinparam rectangle {
+  BackgroundColor #F2EBFA
+  BorderColor #D1B3FF
+}
+
+actor Tourist
+
+rectangle "Library tab interactions" {
+  usecase "Mở tab Thư viện" as UC1
+  usecase "Xem segment Danh sách tour" as UC2
+  usecase "Xem segment Đã lưu" as UC3
+  usecase "Mở chi tiết tour/POI" as UC4
+  usecase "Mở paywall khi item bị khóa" as UC5
+  usecase "Lưu hoặc bỏ lưu tour/POI" as UC6
+}
+
+Tourist -- UC1
+UC1 ..> UC2 : <<include>>
+UC1 ..> UC3 : <<include>>
+Tourist -- UC4
+Tourist -- UC6
+UC4 ..> UC5 : <<extend>>
+@enduml
+```
+
+### Sequence Diagram
+```plantuml
+@startuml
+actor Tourist as U
+participant "SavedPage (Library)" as Lib
+participant "TabMenuView" as Menu
+participant "TabSavedView" as Saved
+participant "MainViewModel" as VM
+database "LocalDatabaseService / Preferences" as Local
+participant "PremiumTourPaywallPage" as PW
+participant "POIDetailPage / TourDetailPopupPage" as Detail
+
+U -> Lib: Mở tab Thư viện
+Lib -> Lib: EnsureSavedDataWarmupAsync()
+Lib -> VM: LoadToursAsync(forceSyncNow: false)
+VM -> Local: Load AllTours + SavedTours + SavedPOIs
+Local --> VM: Dữ liệu local/cache
+VM --> Lib: Bind dữ liệu cho 2 segment
+
+U -> Lib: Chuyển sang "Danh sách tour"
+Lib -> Menu: Hiển thị TabMenuView
+
+U -> Lib: Chuyển sang "Đã lưu"
+Lib -> Saved: Hiển thị TabSavedView
+
+U -> Saved: Chọn item tour/POI
+alt Item được phép truy cập
+  Saved -> Detail: Mở TourDetailPopupPage/POIDetailPage
+else Item bị khóa theo subscription
+  Saved -> PW: Show PremiumTourPaywallPage
+end
+
+U -> Saved: Nhấn tim bỏ lưu
+Saved -> VM: ToggleSaveTourCommand/ToggleSavePOICommand
+VM -> Local: Persist trạng thái lưu/bỏ lưu
+VM --> Saved: Cập nhật danh sách ngay
+@enduml
+```
+
+### Activity Diagram
+```plantuml
+@startuml
+start
+:Mở tab Thư viện;
+:Nạp AllTours + SavedTours + SavedPOIs từ local/cache;
+
+if (Người dùng chọn segment Danh sách tour?) then (Có)
+  :Hiển thị TabMenuView;
+else (Không)
+  :Hiển thị TabSavedView (Đã lưu);
+endif
+
+if (User chọn item?) then (Có)
+  if (Item được phép truy cập?) then (Có)
+    :Mở trang chi tiết tương ứng;
+  else (Không)
+    :Hiển thị paywall VIP;
+  endif
+endif
+
+if (User nhấn tim bỏ lưu?) then (Có)
+  :Cập nhật trạng thái lưu local;
+  :Refresh danh sách trong segment hiện tại;
 endif
 
 stop
@@ -3345,8 +3483,8 @@ participant "MainViewModel" as VM
 participant "VirtualTourViewModel" as VT
 participant "SimulatedLocationService" as Sim
 participant "GeofenceService" as Geo
-participant "Tour UI" as UI
-participant "Paywall" as PW
+participant "TabTourView / TourDetailPopupPage" as UI
+participant "PremiumTourPaywallPage" as PW
 participant "SubscriptionsController" as Sub
 participant "ToursController" as TC
 participant "AudioService" as AS
@@ -3361,7 +3499,7 @@ UI -> VM: StartTourNow(tour)
 
 alt Tour được phép (free hoặc VIP)
   VM -> UI: Mở tour + stop list
-  UI -> AS: PlayAudioForPOI(...)
+  Geo -> AS: PlayAsync(zone.Id, audioUrl, duration)
   opt Người dùng bật tour ảo
     UI -> VT: StartVirtualTourSession(tour)
     VT -> Sim: Start theo thứ tự PoiIds
@@ -3369,7 +3507,7 @@ alt Tour được phép (free hoặc VIP)
       Sim -> Geo: Emit vị trí mô phỏng
       Geo -> VM: OnPrimaryZoneChanged(stopPoi)
       VM -> UI: Cập nhật điểm dừng hiện tại
-      UI -> AS: PlayAudioForPOI(stopPoi)
+      Geo -> AS: PlayAsync(zone.Id, audioUrl, duration)
     end
   end
 else Tour bị khóa
@@ -3502,7 +3640,7 @@ Admin -- UC6
 ```plantuml
 @startuml
 actor Admin as A
-participant "Translation Page" as Web
+participant "translation.html" as Web
 participant TranslationsController as TC
 participant AutoTranslateController as AT
 database "Translations DB" as TDB
@@ -3556,43 +3694,35 @@ stop
 
 ---
 
-## Sự kiện 26: Theo dõi thiết bị và lịch sử truy cập
+## Sự kiện 26: Xem thống kê người dùng
 
 ### Đặc tả Use Case
 
 | Trường | Nội dung |
 |--------|---------|
 | **Use Case ID** | F26 |
-| **Tên** | Theo dõi thiết bị và lịch sử truy cập |
+| **Tên** | Xem thống kê người dùng |
 | **Tác nhân chính** | Admin |
-| **Tác nhân phụ** | AnalyticsController, Mobile App (gửi log) |
-| **Kích hoạt** | Admin mở trang quản lý thiết bị / Mobile App tự động đăng ký |
-| **Tiền điều kiện** | Mobile App đã gửi device registration; Admin đã đăng nhập |
-| **Hậu điều kiện** | Admin thấy danh sách thiết bị, lịch sử sử dụng và narration log |
+| **Tác nhân phụ** | Mobile App / Web App (nguồn dữ liệu), AnalyticsController |
+| **Kích hoạt** | Admin mở trang `users.html` |
+| **Tiền điều kiện** | Admin đã đăng nhập; hệ thống đã có dữ liệu narration log từ client |
+| **Hậu điều kiện** | Admin xem được toàn bộ thống kê hành vi người dùng |
 | **Mức độ ưu tiên** | P2 |
 
-**Luồng chính — Mobile tự đăng ký thiết bị:**
+**Luồng chính:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
-| 1 | Mobile App | Khởi động, gọi `POST /api/Analytics/devices/register` với device info |
-| 2 | API | Upsert `DeviceInfo` vào collection `devices` |
-| 3 | Mobile App | Khi nghe audio → `POST /api/Analytics/narration-logs/mobile` |
-| 4 | API | Lưu `NarrationLog` vào collection `narration_logs` |
-
-**Luồng chính — Admin xem thống kê thiết bị:**
-
-| Bước | Tác nhân | Hành động |
-|------|----------|-----------|
-| 1 | Admin | Mở trang analytics / history |
-| 2 | Web | `GET /api/Analytics/devices` → danh sách thiết bị |
-| 3 | Web | `GET /api/Analytics/narration-logs` → lịch sử narration |
-| 4 | Admin | Lọc theo ngày, thiết bị, POI |
-| 5 | Admin | Xem chart / export nếu cần |
+| 1 | Admin | Mở `users.html` |
+| 2 | Web | Tải song song: tổng quan, narration logs, danh sách POI, thiết bị, top POI |
+| 3 | Web | Hiển thị KPI row: Tổng thiết bị, Lượt nghe audio, Thời gian nghe trung bình |
+| 4 | Web | Hiển thị section **Phân tích địa điểm & hành vi**: Top POI được kích hoạt, Thời gian nghe TB theo POI, Hoạt động theo giờ, Cách người dùng mở thuyết minh (auto/manual), Ngôn ngữ nghe nhiều nhất |
+| 5 | Web | Hiển thị section **Bản đồ & Di chuyển ẩn danh**: Heatmap tương tác, danh sách route, log di chuyển |
+| 6 | Admin | Lọc theo khoảng thời gian, xem chi tiết từng route/session |
 
 **Ngoại lệ:**
-- Device registration thất bại → App retry tự động, không block flow chính.
-- Admin lọc với khoảng thời gian quá lớn → API tự giới hạn kết quả trả về (pagination).
+- Chưa có dữ liệu → KPI hiển thị `-` hoặc `0`, chart trống, bản đồ trống.
+- Lỗi tải một API → các section khác vẫn hiển thị bình thường (độc lập nhau).
 
 ### Use Case Diagram
 
@@ -3610,22 +3740,22 @@ skinparam rectangle {
 }
 
 actor Admin
-actor "Mobile App" as App
+actor "Mobile App / Web App" as Client
 
-rectangle "Theo dõi thiết bị" {
-  usecase "Đăng ký thiết bị tự động" as UC1
-  usecase "Ghi log narration" as UC2
-  usecase "Xem danh sách thiết bị" as UC3
-  usecase "Xem lịch sử narration theo thiết bị" as UC4
-  usecase "Lọc và phân trang kết quả" as UC5
+rectangle "Thống kê người dùng (users.html)" {
+  usecase "Xem KPI tổng quan" as UC1
+  usecase "Xem Top POI & thời gian nghe" as UC2
+  usecase "Xem hoạt động theo giờ" as UC3
+  usecase "Xem heatmap & di chuyển ẩn danh" as UC4
+  usecase "Xem ngôn ngữ & cách mở thuyết minh" as UC5
 }
 
-App -- UC1
-App -- UC2
+Client ..> UC1 : <<cung cấp dữ liệu>>
+Admin -- UC1
+Admin -- UC2
 Admin -- UC3
 Admin -- UC4
-UC3 ..> UC5 : <<include>>
-UC4 ..> UC5 : <<include>>
+Admin -- UC5
 @enduml
 ```
 
@@ -3633,29 +3763,28 @@ UC4 ..> UC5 : <<include>>
 
 ```plantuml
 @startuml
-actor "Mobile App" as App
 actor Admin as A
-participant AnalyticsController as An
-database "Devices DB" as D
-database "NarrationLogs DB" as L
+participant "users.html" as W
+participant AnalyticsController as AC
+database MongoDB as DB
 
-== Mobile tự động đăng ký ==
-App -> An: POST /api/Analytics/devices/register
-An -> D: Upsert DeviceInfo
-D --> An: OK
-App -> An: POST /api/Analytics/narration-logs/mobile (sau khi nghe)
-An -> L: Insert NarrationLog
-L --> An: OK
+A -> W: Mở trang users.html
+W -> AC: GET /api/Analytics/overview
+W -> AC: GET /api/Analytics/narration-logs
+W -> AC: GET /api/Analytics/devices
+W -> AC: GET /api/Analytics/top-pois
+AC -> DB: Query các collection
+DB --> AC: Dữ liệu tổng hợp
+AC --> W: JSON response
 
-== Admin xem thống kê ==
-A -> An: GET /api/Analytics/devices
-An -> D: Query devices
-D --> An: Device list
-An --> A: Danh sách thiết bị
-
-A -> An: GET /api/Analytics/narration-logs?deviceId=...
-An -> L: Query logs + filter
-An --> A: NarrationLog list + paging
+W -> W: renderKpis() — Tổng thiết bị, Lượt nghe, Thời gian TB
+W -> W: renderTopPoisChart() — Bar chart Top POI
+W -> W: renderAvgListenChart() — Bảng thời gian nghe TB
+W -> W: renderHourlyChart() — Biểu đồ theo giờ
+W -> W: renderDonut() — Cách mở thuyết minh & Ngôn ngữ
+W -> W: renderHeatMap() — Heatmap tương tác
+W -> W: renderRouteList() — Danh sách route & log di chuyển
+W --> A: Dashboard đầy đủ
 @enduml
 ```
 
@@ -3663,64 +3792,70 @@ An --> A: NarrationLog list + paging
 ```plantuml
 @startuml
 start
+:Admin mở users.html;
+:Tải song song overview, logs, devices, top POIs;
 fork
-  :Mobile khởi động app;
-  :Gửi đăng ký thiết bị;
-  if (Đăng ký thất bại?) then (Có)
-    :Retry nền, không chặn user flow;
-  endif
+  :Render KPI row (thiết bị, lượt nghe, TB nghe);
 fork again
-  :Admin mở trang theo dõi thiết bị;
-  :Tải devices + narration logs;
-  :Lọc theo ngày/thiết bị/POI;
-  :Hiển thị bảng + biểu đồ;
+  :Render Top POI chart + bảng thời gian nghe TB;
+fork again
+  :Render biểu đồ theo giờ + donut ngôn ngữ/cách mở;
+fork again
+  :Render heatmap + route list + movement log;
 end fork
-
+:Admin xem, lọc khoảng thời gian, xem chi tiết;
 stop
 @enduml
 ```
 
 ---
 
-## Sự kiện 27: Vendor gửi thanh toán premium, Admin duyệt submission (PRD)
+## Sự kiện 27: Vendor thanh toán premium và kích hoạt ngay (PRD)
 
 ### Đặc tả Use Case
 
 | Trường | Nội dung |
 |--------|---------|
 | **Use Case ID** | F27 |
-| **Tên** | Quản lý submission thanh toán premium 1 năm |
-| **Tác nhân chính** | Vendor, Admin |
+| **Tên** | Vendor thanh toán premium 1 năm và kích hoạt ngay |
+| **Tác nhân chính** | Vendor |
 | **Tác nhân phụ** | `PaymentsController`, `ServiceSubmissions`, `VendorProfiles` |
-| **Kích hoạt** | Vendor thao tác tại `payment-management`; Admin mở danh sách submissions |
-| **Tiền điều kiện** | Vendor đã verify `approved`; Admin có role `Admin` |
-| **Hậu điều kiện** | Submission chuyển `approved/rejected`; nếu approved thì vendor có premium còn hạn |
+| **Kích hoạt** | Vendor thao tác tại `payment-management` và bấm thanh toán mô phỏng |
+| **Tiền điều kiện** | Vendor đã verify `approved`; chưa có premium còn hạn |
+| **Hậu điều kiện** | Premium được kích hoạt ngay; `ServiceSubmission` được ghi nhận trạng thái `approved` tự động |
 
 **Luồng chính:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
-| 1 | Vendor | Nhấn tạo yêu cầu thanh toán (demo): `POST /api/Payments/simulate-premium` |
-| 2 | API | Tạo `ServiceSubmission` trạng thái `pending` |
-| 2a | API | Ghi `app_notifications` cho Admin (category `premium-submit`) |
-| 3 | Vendor | Theo dõi yêu cầu qua `GET /api/Payments/me` |
-| 4 | Admin | Mở danh sách submissions: `GET /api/Payments/admin/submissions` |
-| 5 | Admin | Duyệt/từ chối: `POST /api/Payments/admin/submissions/{id}/review` |
-| 6 | API | Cập nhật trạng thái submission, ghi reviewer/note |
-| 6a | API | Ghi `app_notifications` cho Vendor (category `premium-review`) |
-| 7 | API | Nếu approved: cập nhật `VendorProfile.ServicePlan=premium`, set `PremiumExpiresAt` |
-| 8 | Vendor | Kiểm tra trạng thái premium qua `GET /api/Payments/me/premium-status` |
+| 1 | Vendor | Nhấn thanh toán: `POST /api/Payments/simulate-premium` |
+| 2 | API | Validate vendor đã verify và chưa có gói premium active |
+| 3 | API | Tạo `ServiceSubmission` với `status=approved`, `reviewedBy=system-auto` |
+| 4 | API | Cập nhật `VendorProfile.ServicePlan=premium`, set `PremiumExpiresAt` (1 năm) |
+| 5 | API | Trả kết quả thanh toán thành công, premium kích hoạt ngay |
+| 6 | Vendor | Kiểm tra trạng thái premium qua `GET /api/Payments/me/premium-status` |
 
 **Luồng thay thế — Tạo gói sắp hết hạn để test:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
 | 1a | Vendor | Gọi `POST /api/Payments/simulate-premium-expiring` |
-| 2a | API | Tạo submission approved backdated để còn vài phút hết hạn |
+| 2a | API | Tạo bản ghi approved với `expiresAt` gần để test cảnh báo/gia hạn |
+
+**Luồng thay thế — Premium hết hiệu lực:**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 1e | Hệ thống nền | `PremiumExpiryMonitorService` quét vendor premium đã hết hạn |
+| 2e | API | Reset `VendorProfile.ServicePlan` và `PremiumExpiresAt` về rỗng |
+| 3e | API | Tự động đặt `IsActive=false` cho POI đang active của vendor hết hạn premium |
+| 4e | Vendor | Khi mở `payment-management`, `GET /api/Payments/me/premium-status` trả `isPremiumActive=false` |
+| 5e | Vendor | Vendor cần thanh toán lại để kích hoạt premium mới |
 
 **Ngoại lệ:**
-- Vendor chưa được verify -> từ chối tạo submission premium.
-- Submission không còn trạng thái pending -> admin review bị từ chối.
+- Vendor chưa verify -> từ chối thanh toán premium.
+- Vendor đã có premium còn hạn -> trả conflict, không tạo gói chồng.
+- Premium vừa hết hạn trong lúc đang thao tác web -> các chức năng cần premium bị khóa theo trạng thái mới nhất.
 
 ### Use Case Diagram
 ```plantuml
@@ -3737,20 +3872,17 @@ skinparam rectangle {
 }
 
 actor Vendor
-actor Admin
 
-rectangle "Premium submission workflow" {
-  usecase "Tạo submission premium" as UC1
-  usecase "Admin review submission" as UC2
-  usecase "Kích hoạt premium cho vendor" as UC3
-  usecase "Theo dõi trạng thái premium" as UC4
+rectangle "Premium payment workflow" {
+  usecase "Thanh toán premium" as UC1
+  usecase "Kích hoạt premium ngay" as UC2
+  usecase "Theo dõi trạng thái premium" as UC3
 }
 
 Vendor -- UC1
-Admin -- UC2
-UC2 ..> UC3 : <<include>>
-Vendor -- UC4
-UC1 ..> UC4 : <<extend>>
+UC1 ..> UC2 : <<include>>
+Vendor -- UC3
+UC1 ..> UC3 : <<extend>>
 @enduml
 ```
 
@@ -3758,31 +3890,27 @@ UC1 ..> UC4 : <<extend>>
 ```plantuml
 @startuml
 actor Vendor as V
-actor Admin as A
-participant "Payment Page" as Web
+participant "payment-management.html" as Web
 participant PaymentsController as Pay
 database "ServiceSubmissions" as S
 database "VendorProfiles" as VP
-database "app_notifications" as N
 
-V -> Web: Tạo yêu cầu premium
+V -> Web: Bấm thanh toán premium
 Web -> Pay: POST /api/Payments/simulate-premium
-Pay -> S: Insert pending submission
-Pay -> N: Insert admin notification (premium-submit)
-Pay --> Web: Submission created
-
-A -> Web: Mở submissions pending
-Web -> Pay: GET /api/Payments/admin/submissions
-Pay -> S: Query submissions
-S --> Pay: Pending rows
-Pay --> Web: List
-
-A -> Web: Approve submission
-Web -> Pay: POST /api/Payments/admin/submissions/{id}/review
-Pay -> S: Update status=approved
+Pay -> Pay: Validate verify + premium active
+Pay -> S: Insert submission (approved, system-auto)
 Pay -> VP: Set ServicePlan=premium + PremiumExpiresAt
-Pay -> N: Insert vendor notification (premium-review)
-Pay --> Web: Review result
+Pay --> Web: Payment success + premium active
+
+V -> Web: Xem trạng thái premium
+Web -> Pay: GET /api/Payments/me/premium-status
+Pay --> Web: isPremiumActive + expiresAt
+
+opt Premium đã hết hạn
+  Pay -> VP: Clear ServicePlan + PremiumExpiresAt
+  Pay -> VP: Deactivate POIs IsActive=false của vendor hết hạn
+  Pay --> Web: isPremiumActive=false
+end
 @enduml
 ```
 
@@ -3790,30 +3918,32 @@ Pay --> Web: Review result
 ```plantuml
 @startuml
 start
-:Vendor tạo submission premium;
+:Vendor bấm thanh toán premium;
 
 if (Vendor đã verify?) then (Có)
-  :Set submission=pending;
-  :Notify Admin premium-submit;
-  :Admin mở danh sách và review;
-  if (Approve?) then (Có)
-    :Set submission=approved;
-    :Kích hoạt premium + PremiumExpiresAt;
-  else (Không)
-    :Set rejected + note;
+  if (Đang có premium active?) then (Không)
+    :Tạo submission approved tự động;
+    :Set ServicePlan=premium;
+    :Set PremiumExpiresAt +1 năm;
+    :Trả kết quả kích hoạt ngay;
+  else (Có)
+    :Trả conflict đã có premium;
   endif
-  :Notify Vendor premium-review;
 else (Không)
-  :Từ chối tạo submission premium;
+  :Từ chối thanh toán premium;
 endif
 
 :Vendor kiểm tra premium-status;
+if (Premium đã hết hạn?) then (Có)
+  :Hệ thống tự gỡ premium;
+  :Khóa POI active của vendor hết hạn;
+  :Yêu cầu thanh toán lại để mở premium;
+endif
 stop
 @enduml
 ```
 
 ---
-
 ## Sự kiện 28: Xác nhận VIP theo thiết bị và khôi phục bằng recovery code
 
 ### Đặc tả Use Case
@@ -3821,14 +3951,14 @@ stop
 | Trường | Nội dung |
 |--------|---------|
 | **Use Case ID** | F28 |
-| **Tên** | Quản lý VIP subscription theo `deviceId` |
-| **Tác nhân chính** | Tourist (mobile user) |
-| **Tác nhân phụ** | `PremiumTourPaywallPage`, `MainViewModel`, `SubscriptionsController` |
+| **Tên** | Quản lý VIP subscription theo `deviceId` (Mobile + Web PWA) |
+| **Tác nhân chính** | Tourist (mobile user hoặc web-app user) |
+| **Tác nhân phụ** | `PremiumTourPaywallPage` (mobile), `pwOverlay` (web-app), `MainViewModel`, `SubscriptionsController` |
 | **Kích hoạt** | User mở paywall do tour/POI bị khóa hoặc chủ động gia hạn |
-| **Tiền điều kiện** | Thiết bị có `deviceId` local; API subscription khả dụng |
-| **Hậu điều kiện** | VIP được kích hoạt/khôi phục theo thiết bị; app lưu `invoice/expires` local |
+| **Tiền điều kiện** | Thiết bị có `deviceId` local (`d-{UUID}` mobile, `w-{UUID}` web); API subscription khả dụng |
+| **Hậu điều kiện** | VIP được kích hoạt/khôi phục theo thiết bị; app/web lưu trạng thái VIP local |
 
-**Luồng chính — Xác nhận thanh toán thiết bị:**
+**Luồng chính — Mobile: Xác nhận thanh toán thiết bị:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
@@ -3839,26 +3969,47 @@ stop
 | 5 | App | `ApplyVipSubscriptionFromServer(...)` + lưu Preferences |
 | 6 | App | Mở khóa tính năng tour/POI cho user |
 
+**Luồng chính — Web PWA: Paywall 3 bước:**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 1 | Web | Mở `pwOverlay` (paywall modal) với thông báo mô tả |
+| 2 | User | **Bước 1:** Chọn "Đăng ký VIP" (hoặc "Khôi phục" → Settings, hoặc "Để sau" → đóng) |
+| 3 | Web | **Bước 2:** Hiển thị thông tin chuyển khoản + QR ngân hàng tự tạo theo `transferContent` |
+| 4 | User | Chuyển khoản xong, nhấn "Tôi đã chuyển khoản" |
+| 5 | Web | `POST /api/Subscriptions/confirm-device-payment` với `deviceId` (dạng `w-{UUID}`) |
+| 6 | API | Tạo subscription + invoice + recovery code |
+| 7 | Web | **Bước 3:** Hiển thị thành công + recovery code (có nút sao chép) + invoice number |
+| 8 | Web | Cập nhật `vip` state + `sessionChoice="vip"` → `renderAll()` mở khóa nội dung |
+
 **Luồng thay thế — Khôi phục VIP bằng recovery code:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
-| 1a | User | Nhập recovery code trên paywall |
-| 2a | App | `POST /api/Subscriptions/restore-device-vip` |
+| 1a | User | Nhập recovery code trên paywall (mobile) hoặc Settings (web) |
+| 2a | App/Web | `POST /api/Subscriptions/restore-device-vip` |
 | 3a | API | Nếu code còn hạn: restore VIP cho thiết bị hiện tại |
-| 4a | App | Cập nhật trạng thái VIP local và tiếp tục hành trình |
+| 4a | App/Web | Cập nhật trạng thái VIP local và tiếp tục hành trình |
 
-**Luồng phụ — Đồng bộ trạng thái định kỳ:**
+**Luồng phụ — Đồng bộ trạng thái:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
-| 1b | App | Mỗi chu kỳ, gọi `GET /api/Subscriptions/status?deviceId=...` |
+| 1b | App/Web | Khi khởi động: `GET /api/Subscriptions/status?deviceId=...` |
 | 2b | API | Trả trạng thái VIP hiện tại (có thể auto-expire) |
-| 3b | App | Đồng bộ lại badge/quyền truy cập |
+| 3b | App/Web | Đồng bộ badge/quyền truy cập |
+
+**Web-app VIP gates (5 điểm khóa):**
+1. **Welcome popup**: Hiện nếu `sessionChoice == null` và chưa VIP → chọn Free hoặc VIP
+2. **Saved list**: VIP-only gate panel nếu không `isVipMode()`
+3. **POI Detail (non-free)**: Khóa nếu `!isVipMode() && poiId != freePoiId`
+4. **Audio play**: Khóa nếu `!canPlayAudio(hasAudio, poiId)` → mở paywall
+5. **Premium tours**: Khóa nếu `!isVipMode() && !isFreeTour` → paywall với tên tour
 
 **Ngoại lệ:**
-- Recovery code không tồn tại hoặc đã hết hạn -> không mở khóa VIP.
-- API lỗi tạm thời -> app giữ trạng thái local gần nhất, retry ở chu kỳ sau.
+- Recovery code không tồn tại hoặc đã hết hạn → không mở khóa VIP.
+- API lỗi tạm thời → app/web giữ trạng thái local gần nhất, retry sau.
+- Web paywall QR: nội dung chuyển khoản (`transferContent`) có thể chỉnh sửa, QR tự regenerate theo giá trị mới.
 
 ### Use Case Diagram
 ```plantuml
@@ -3876,17 +4027,21 @@ skinparam rectangle {
 
 actor Tourist
 
-rectangle "VIP by device" {
-  usecase "Xác nhận thanh toán" as UC1
+rectangle "VIP by device (Mobile + Web)" {
+  usecase "Xác nhận thanh toán (Mobile)" as UC1
+  usecase "Paywall 3 bước (Web PWA)" as UC5
   usecase "Nhận recovery code" as UC2
   usecase "Khôi phục VIP" as UC3
-  usecase "Đồng bộ status định kỳ" as UC4
+  usecase "Đồng bộ status khi khởi động" as UC4
 }
 
 Tourist -- UC1
+Tourist -- UC5
 UC1 ..> UC2 : <<include>>
+UC5 ..> UC2 : <<include>>
 Tourist -- UC3
 UC1 ..> UC4 : <<include>>
+UC5 ..> UC4 : <<include>>
 UC3 ..> UC4 : <<include>>
 @enduml
 ```
@@ -3895,28 +4050,38 @@ UC3 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Tourist as T
-participant "PremiumTourPaywallPage" as PW
-participant MainViewModel as VM
+participant "PremiumTourPaywallPage" as MPW
+participant "Web PWA Paywall (pwOverlay)" as WPW
 participant SubscriptionsController as Sub
 database "DeviceSubscriptions" as DS
 
-T -> PW: Xác nhận đã chuyển khoản
-PW -> Sub: POST /api/Subscriptions/confirm-device-payment
+== Mobile Flow ==
+T -> MPW: Xác nhận đã chuyển khoản
+MPW -> Sub: POST /api/Subscriptions/confirm-device-payment (deviceId=d-...)
 Sub -> DS: Insert subscription + invoice + recovery code
-Sub --> PW: isVip + expiresAt + recoveryCode
-PW -> VM: ApplyVipSubscriptionFromServer(...)
-VM -> VM: Persist VIP state
+Sub --> MPW: isVip + expiresAt + recoveryCode
+MPW -> VM: ApplyVipSubscriptionFromServer(isVip, invoiceCreatedAtUtc, expiresAtUtc)
 
-loop Đồng bộ định kỳ
-  VM -> Sub: GET /api/Subscriptions/status?deviceId=...
-  Sub --> VM: Current VIP status
+== Web PWA Flow ==
+T -> WPW: Step 1: Chọn "Đăng ký VIP"
+WPW -> WPW: Step 2: Hiện QR + thông tin chuyển khoản
+T -> WPW: Nhấn "Tôi đã chuyển khoản"
+WPW -> Sub: POST /api/Subscriptions/confirm-device-payment (deviceId=w-...)
+Sub -> DS: Insert subscription + invoice + recovery code
+Sub --> WPW: isVip + expiresAt + recoveryCode
+WPW -> WPW: Step 3: Hiện thành công + recovery code
+WPW -> WPW: Cập nhật vip state + renderAll()
+
+== Khôi phục VIP ==
+opt Nhập recovery code
+  T -> Sub: POST /api/Subscriptions/restore-device-vip
+  Sub --> T: Restored status + isVip
 end
 
-opt Khôi phục VIP
-  T -> PW: Nhập recovery code
-  PW -> Sub: POST /api/Subscriptions/restore-device-vip
-  Sub --> PW: Restored status
-  PW -> VM: ApplyVipSubscriptionFromServer(...)
+== Đồng bộ ==
+loop Khi khởi động app/web
+  T -> Sub: GET /api/Subscriptions/status?deviceId=...
+  Sub --> T: { isVip, expiresAtUtc, recoveryCode, invoiceNumber }
 end
 @enduml
 ```
@@ -3925,31 +4090,46 @@ end
 ```plantuml
 @startuml
 start
-:Mở paywall;
+:Mở paywall (Mobile hoặc Web);
 
-if (Xác nhận thanh toán?) then (Có)
-  :POST confirm-device-payment;
-  :Nhận invoice + recovery code;
-  :Cập nhật VIP local;
-else (Không)
-  if (Nhập recovery code?) then (Có)
-    :POST restore-device-vip;
-    if (Code hợp lệ?) then (Có)
-      :Cập nhật VIP local;
-    else (Không)
-      :Thông báo restore thất bại;
-    endif
+if (Nền tảng?) then (Mobile)
+  :Hiển thị PremiumTourPaywallPage;
+  if (Xác nhận đã chuyển khoản?) then (Có)
+    :POST confirm-device-payment;
+    :Nhận invoice + recovery code;
+    :Cập nhật VIP local (Preferences);
+  endif
+else (Web PWA)
+  :Step 1: Giới thiệu VIP;
+  if (Chọn "Đăng ký VIP"?) then (Có)
+    :Step 2: Hiện QR + thông tin chuyển khoản;
+    :User chuyển khoản rồi nhấn xác nhận;
+    :POST confirm-device-payment;
+    :Step 3: Hiện thành công + recovery code;
+    :Cập nhật vip state + sessionChoice;
+    :renderAll() mở khóa nội dung;
+  else (Chọn "Để sau")
+    :Đóng paywall;
   endif
 endif
 
-:Đồng bộ status VIP định kỳ;
+if (Nhập recovery code?) then (Có)
+  :POST restore-device-vip;
+  if (Code hợp lệ?) then (Có)
+    :Cập nhật VIP local;
+  else (Không)
+    :Thông báo restore thất bại;
+  endif
+endif
+
+:Đồng bộ status VIP khi khởi động;
 stop
 @enduml
 ```
 
 ---
 
-## Sự kiện 29: Admin quản lý thanh toán user app theo thiết bị
+## Sự kiện 29: Admin quản lý thanh toán Tourist (user app theo thiết bị)
 
 ### Đặc tả Use Case
 
@@ -3959,7 +4139,7 @@ stop
 | **Tên** | Admin theo dõi thanh toán user app (VIP theo thiết bị) |
 | **Tác nhân chính** | Admin |
 | **Tác nhân phụ** | `payment-management.html`, `api.js`, `SubscriptionsController` |
-| **Kích hoạt** | Admin mở trang `payment-management?mode=app` |
+| **Kích hoạt** | Admin mở `payment-management?mode=app` |
 | **Tiền điều kiện** | Admin đã đăng nhập; API có dữ liệu `device_subscriptions` |
 | **Hậu điều kiện** | Admin xem được KPI active/expired và danh sách subscription theo bộ lọc |
 
@@ -3973,13 +4153,6 @@ stop
 | 4 | API | Trả dữ liệu `device_subscriptions` đã normalize status (`active/expired`) |
 | 5 | Web | Lọc theo status/platform/search/date + sort |
 | 6 | Web | Render KPI cards và bảng thanh toán user app |
-
-**Luồng thay thế — chuyển mode vendor/app trong cùng trang:**
-
-| Bước | Tác nhân | Hành động |
-|------|----------|-----------|
-| 2a | Admin | Chuyển query `mode=vendor` hoặc `mode=app` |
-| 2b | Web | Ẩn/hiện panel tương ứng và tải lại nguồn dữ liệu đúng controller |
 
 **Ngoại lệ:**
 - Token hết hạn hoặc role không đúng -> API trả `401/403`, web không hiển thị dữ liệu.
@@ -4002,7 +4175,7 @@ skinparam rectangle {
 actor Admin
 
 rectangle "Thanh toán user app" {
-  usecase "Chuyển mode quản lý thanh toán" as UC1
+  usecase "Mở mode app trên payment-management" as UC1
   usecase "Tải danh sách app subscriptions" as UC2
   usecase "Lọc/sort theo status-platform-date" as UC3
   usecase "Xem KPI active/expired" as UC4
@@ -4039,18 +4212,125 @@ Web -> Web: Filter/sort + render KPI/table
 ```plantuml
 @startuml
 start
-:Admin mở payment-management?mode=app;
+:Admin mở payment-management;
+:Mở mode "App/Tourist";
 :Gọi API danh sách app subscriptions;
-
 if (API trả 404 endpoint cũ?) then (Có)
   :Hiện cảnh báo process API chưa cập nhật;
   stop
 endif
-
 if (API thành công?) then (Có)
   :Normalize status active/expired;
   :Filter/sort theo status/platform/date/search;
   :Render KPI + bảng kết quả;
+else (Không)
+  :Hiện lỗi 401/403 hoặc lỗi tải dữ liệu;
+endif
+
+stop
+@enduml
+```
+
+---
+
+## Sự kiện 36: Admin theo dõi thanh toán Vendor (không duyệt thủ công)
+
+### Đặc tả Use Case
+
+| Trường | Nội dung |
+|--------|---------|
+| **Use Case ID** | F36 |
+| **Tên** | Admin theo dõi thanh toán Vendor |
+| **Tác nhân chính** | Admin |
+| **Tác nhân phụ** | `payment-management.html`, `api.js`, `PaymentsController` |
+| **Kích hoạt** | Admin mở `payment-management?mode=vendor` |
+| **Tiền điều kiện** | Admin đã đăng nhập; API có dữ liệu `service_submissions` |
+| **Hậu điều kiện** | Admin xem được lịch sử thanh toán premium của vendor theo bộ lọc |
+
+**Luồng chính:**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 1 | Admin | Chọn menu "Quản lý thanh toán" -> "Thanh toán vendor" |
+| 2 | Web | Mở panel vendor mode trên `payment-management` |
+| 3 | Web | Gọi `GET /api/Payments/admin/submissions` |
+| 4 | API | Trả dữ liệu `service_submissions` với trạng thái do hệ thống tự ghi nhận |
+| 5 | Web | Lọc theo status/search/date và render bảng thanh toán vendor |
+| 6 | Admin | Theo dõi trạng thái premium/expiry của vendor trên cùng màn hình |
+
+**Luồng thay thế — chuyển mode vendor/app trong cùng trang:**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 2a | Admin | Chuyển query `mode=vendor` hoặc `mode=app` |
+| 2b | Web | Ẩn/hiện panel tương ứng và tải lại nguồn dữ liệu đúng controller |
+
+**Ngoại lệ:**
+- Token hết hạn hoặc role không đúng -> API trả `401/403`, web không hiển thị dữ liệu.
+- Process API chạy bản cũ thiếu endpoint -> có thể gặp `404` cho `/api/Payments/admin/submissions`.
+
+Ghi chú nghiệp vụ: Luồng này không có thao tác duyệt/từ chối thủ công từ admin.
+
+### Use Case Diagram
+```plantuml
+@startuml
+left to right direction
+skinparam actorStyle stick
+skinparam usecase {
+  BackgroundColor #D9C2F0
+  BorderColor #6B4FA2
+}
+skinparam rectangle {
+  BackgroundColor #F2EBFA
+  BorderColor #D1B3FF
+}
+
+actor Admin
+
+rectangle "Thanh toán Vendor (admin theo dõi)" {
+  usecase "Mở mode vendor trên payment-management" as UC1
+  usecase "Tải danh sách submissions vendor" as UC2
+  usecase "Lọc theo status/search/date" as UC3
+  usecase "Xem trạng thái premium/expiry" as UC4
+}
+
+Admin -- UC1
+UC1 ..> UC2 : <<include>>
+UC2 ..> UC3 : <<include>>
+UC2 ..> UC4 : <<include>>
+@enduml
+```
+
+### Sequence Diagram
+```plantuml
+@startuml
+actor Admin as A
+participant "payment-management.html" as Web
+participant "api.js / PaymentApi" as Api
+participant PaymentsController as Pay
+database "service_submissions" as SS
+
+A -> Web: Mở payment-management?mode=vendor
+Web -> Api: PaymentApi.listSubmissions(...)
+Api -> Pay: GET /api/Payments/admin/submissions
+Pay -> SS: Query submissions + filter
+SS --> Pay: Rows
+Pay --> Api: data[]
+Api --> Web: data[]
+Web -> Web: Render bảng + KPI vendor payment
+@enduml
+```
+
+### Activity Diagram
+```plantuml
+@startuml
+start
+:Admin mở payment-management?mode=vendor;
+:Gọi API danh sách submissions vendor;
+
+if (API thành công?) then (Có)
+  :Lọc theo status/search/date;
+  :Hiển thị lịch sử thanh toán và trạng thái premium vendor;
 else (Không)
   :Hiện lỗi 401/403 hoặc lỗi tải dữ liệu;
 endif
@@ -4073,7 +4353,7 @@ stop
 | **Tác nhân phụ** | `dashboard.html`, `QrController`, `qr_campaign_states`, route `/qr/{**deepPath}` |
 | **Kích hoạt** | Admin mở dashboard và thao tác khối QR admin |
 | **Tiền điều kiện** | Admin đã đăng nhập; `QrApi` khả dụng |
-| **Hậu điều kiện** | Dashboard hiển thị QR hiện hành, hạn còn lại và link QR có thể chia sẻ |
+| **Hậu điều kiện** | Dashboard hiển thị QR hiện hành, hạn còn lại, link QR có thể chia sẻ và cấu hình `scanBehavior` |
 
 **Luồng chính:**
 
@@ -4083,9 +4363,10 @@ stop
 | 2 | Web | Gọi `GET /api/Qr/admin/status` |
 | 3 | API | Đọc/tạo state campaign trong `qr_campaign_states` |
 | 4 | API | Build `mode`, `cycleCode`, `expiresAt`, `qrRelativeUrl`, `qrAbsoluteUrl` |
-| 5 | Web | Render QR preview + metadata còn hạn |
-| 6 | Admin | Nhấn "Test đổi QR 3 phút" |
-| 7 | Web | `POST /api/Qr/admin/test-rotate` rồi refresh status |
+| 5 | API | Đính kèm `scanBehavior`: `openAppIfInstalled`, `fallbackToDownloadPageIfMissing`, `showExpiredWhenOutdated` |
+| 6 | Web | Render QR preview + metadata còn hạn |
+| 7 | Admin | Nhấn "Test đổi QR 3 phút" |
+| 8 | Web | `POST /api/Qr/admin/test-rotate` rồi refresh status |
 
 **Luồng thay thế — chu kỳ production:**
 
@@ -4182,32 +4463,43 @@ stop
 | **Use Case ID** | F31 |
 | **Tên** | Người dùng tải APK Android từ landing page |
 | **Tác nhân chính** | Android User |
-| **Tác nhân phụ** | `apk-download.html`, static `/uploads/*.apk`, route landing QR |
-| **Kích hoạt** | User mở `/apk-download.html` trực tiếp hoặc fallback từ landing QR |
+| **Tác nhân phụ** | `apk-download.html`, static `/uploads/*.apk`, QR landing page (F12) |
+| **Kích hoạt** | User mở `/apk-download.html` trực tiếp hoặc chọn "Tải ứng dụng Android" từ QR landing (F12) |
 | **Tiền điều kiện** | File APK đã publish ở `/uploads/streetfood-narrator.apk` |
-| **Hậu điều kiện** | User tải được APK hoặc sao chép link tải để chia sẻ |
+| **Hậu điều kiện** | User tải được APK, sao chép link, hoặc mở app đã cài qua deeplink |
 
 **Luồng chính:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
-| 1 | User | Mở trang tải APK |
-| 2 | Web | Tính `apkUrl = origin + /uploads/streetfood-narrator.apk` |
-| 3 | Web | Gắn href cho nút tải và hiển thị URL download |
-| 4 | User | Nhấn "Tải APK ngay" |
-| 5 | Browser | Bắt đầu tải file APK |
+| 1 | User | Mở trang tải APK (trực tiếp hoặc từ QR landing) |
+| 2 | Web | Đọc query params: `?apk=` (URL APK) và `?dl=` (deeplink app) |
+| 3 | Web | Tính `apkUrl` = param `apk` hoặc `origin + /uploads/streetfood-narrator.apk` |
+| 4 | Web | Gắn href cho nút tải và hiển thị URL download |
+| 5 | User | Nhấn "Tải APK ngay" |
+| 6 | Browser | Bắt đầu tải file APK |
 
 **Luồng thay thế — chia sẻ link:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
-| 4a | User | Nhấn "Sao chép link" |
-| 4b | Web | Ghi URL APK vào clipboard |
-| 4c | User | Gửi link cho thiết bị Android khác |
+| 5a | User | Nhấn "Sao chép link" |
+| 5b | Web | Ghi URL APK vào clipboard |
+| 5c | User | Gửi link cho thiết bị Android khác |
+
+**Luồng thay thế — Mở app đã cài (có deeplink từ QR):**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 2a | Web | Phát hiện query `?dl=streetfood://...` |
+| 2b | Web | Hiển thị thêm nút "Mở ứng dụng" |
+| 5d | User | Nhấn "Mở ứng dụng" |
+| 5e | Browser | Launch Intent `streetfood://qr/...` → app mở đúng màn hình |
 
 **Ngoại lệ:**
-- File APK chưa có trên server -> tải thất bại (`404`).
-- Trình duyệt không hỗ trợ clipboard -> hiển thị thông báo không sao chép được.
+- File APK chưa có trên server → tải thất bại (`404`).
+- Trình duyệt không hỗ trợ clipboard → hiển thị thông báo không sao chép được.
+- Deeplink không có (truy cập trực tiếp, không qua QR) → không hiện nút "Mở ứng dụng".
 
 ### Use Case Diagram
 ```plantuml
@@ -4244,10 +4536,11 @@ actor User as U
 participant "apk-download.html" as Web
 participant Browser as B
 participant "Static /uploads" as FS
+participant "MainActivity" as MA
 
-U -> B: Mở /apk-download.html
+U -> B: Mở /apk-download.html?apk=...&dl=streetfood://...
 B -> Web: Load page
-Web -> Web: Resolve apkUrl theo origin
+Web -> Web: Resolve apkUrl từ query ?apk= hoặc origin
 
 U -> Web: Nhấn Tải APK ngay
 Web -> FS: GET /uploads/streetfood-narrator.apk
@@ -4258,6 +4551,12 @@ opt Sao chép link
   U -> Web: Nhấn Sao chép link
   Web -> B: navigator.clipboard.writeText(apkUrl)
 end
+
+opt App đã cài + có deeplink
+  U -> Web: Nhấn Mở ứng dụng
+  Web -> MA: Launch streetfood://qr/...
+  MA -> MA: Navigate tới POI/Tour/Main
+end
 @enduml
 ```
 
@@ -4266,7 +4565,12 @@ end
 @startuml
 start
 :User mở trang apk-download;
-:Resolve apkUrl theo origin;
+:Đọc query params: ?apk= và ?dl=;
+:Resolve apkUrl;
+
+if (Có deeplink ?dl=...?) then (Có)
+  :Hiển thị thêm nút "Mở ứng dụng";
+endif
 
 if (User bấm Tải APK?) then (Có)
   :Request file /uploads/streetfood-narrator.apk;
@@ -4275,6 +4579,11 @@ if (User bấm Tải APK?) then (Có)
   else (Không)
     :Hiện lỗi 404 file chưa publish;
   endif
+endif
+
+if (User bấm Mở ứng dụng?) then (Có)
+  :Launch deeplink streetfood://...;
+  :App mở đúng màn hình;
 endif
 
 if (User bấm Sao chép link?) then (Có)
@@ -4380,8 +4689,8 @@ actor Tourist as U
 participant App
 participant "WelcomePage" as W
 participant "LanguageService" as Lang
-participant "Permissions API" as Perm
-participant Shell
+participant "MAUI Permissions" as Perm
+participant AppShell
 
 U -> App: Mở ứng dụng
 App -> App: CreateWindow() kiểm tra has_onboarded
@@ -4393,16 +4702,16 @@ alt User mới
   W -> Lang: Save + Apply ngôn ngữ mới
 
   U -> W: Bấm Bắt đầu
-  W -> Perm: Check/Request LocationWhenInUse
+  W -> Perm: Permissions.RequestAsync<LocationWhenInUse>()
 
   alt Được cấp quyền
-    W -> App: CompleteOnboarding()
-    W -> Shell: GoToAsync("//MapPage")
+    W -> App: App.CompleteOnboarding()
+    W -> AppShell: Shell.Current.GoToAsync("//MapPage")
   else Từ chối quyền
     W -> U: Hỏi Bật lại hay Tiếp tục không dùng vị trí
     alt Tiếp tục không dùng vị trí
-      W -> App: CompleteOnboarding()
-      W -> Shell: GoToAsync("//MapPage")
+      W -> App: App.CompleteOnboarding()
+      W -> AppShell: Shell.Current.GoToAsync("//MapPage")
     else Mở cài đặt
       W -> U: Mở Settings của hệ điều hành
     end
@@ -4612,73 +4921,84 @@ stop
 
 ---
 
-## Sự kiện 34: Bản đồ fallback khi offline và không có tile cache (PRD)
+## Sự kiện 34: ExploreMap — Bản đồ khám phá (PRD)
 
 ### Đặc tả Use Case
 
 | Trường | Nội dung |
 |--------|---------|
 | **Use Case ID** | F34 |
-| **Tên** | Đảm bảo bản đồ vẫn dùng được khi mất mạng và chưa có cache tile |
+| **Tên** | Hành trình tương tác bản đồ khám phá (ExploreMapPage) |
 | **Tác nhân chính** | Tourist |
-| **Tác nhân phụ** | `MainPage.Map`, `SimpleTileCache`, `Connectivity`, MapsUI layer fallback |
-| **Kích hoạt** | Tourist mở tab Map hoặc điều hướng vào `MapPage` |
-| **Tiền điều kiện** | Map view được khởi tạo; có thể online hoặc offline |
-| **Hậu điều kiện** | Nếu không tải được tile online thì app vẫn render fallback grid và giữ trải nghiệm điều hướng cơ bản |
-| **Subsystem bị tác động** | Map rendering pipeline (tile source + layer stack), connectivity handling, tile cache validation, route/pin overlay runtime |
-| **Ảnh hưởng hệ thống khi tương tác** | Cơ chế fail-safe chống trắng bản đồ/crash khi mất mạng; duy trì khả năng tương tác map để các flow phụ thuộc (định vị, điều hướng, tour) vẫn tiếp tục hoạt động |
-| **Mức độ ưu tiên** | P1 |
+| **Tác nhân phụ** | `ExploreMapPage`, `MainPage.Map`, `SimpleTileCache`, `Connectivity`, `IOfflineRoutingService`, `OfflineRouteCacheService`, `OSRM API`, `ITTSService`, `MainViewModel`, `LanguageService` |
+| **Kích hoạt** | Tourist mở ExploreMap từ Far-state hero, từ QR deep-link, hoặc từ Near Focus navigation |
+| **Tiền điều kiện** | App đã load POI; `MainViewModel` đã khởi tạo; GPS permission được cấp hoặc đã từ chối |
+| **Hậu điều kiện** | Bản đồ hiển thị đầy đủ POI pins, user pin, route (nếu có); trạng thái InZone/Near/Far phản ánh vị trí thực; audio playback được trigger đúng khi vào zone |
+| **Subsystem bị tác động** | Map rendering pipeline, GPS tracking, POI filter/search, route solver, zone detection, audio playback, offline fallback, language i18n |
+| **Mức độ ưu tiên** | P0 |
 
 **Luồng chính:**
 
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
-| 1 | MainPage.Map | Tạo tile source với persistent cache tại `map_cache/tiles.db` |
-| 2 | App | Kiểm tra `HasUsableTileCache(cacheDb)` và trạng thái mạng |
-| 3 | App | Nếu có mạng hoặc đã có tile cache hợp lệ -> dùng base map bình thường |
-| 4 | App | Nếu offline và không có tile cache -> thêm `CreateOfflineFallbackLayer()` |
-| 5 | App | Hiển thị thông báo người dùng đang dùng bản đồ ngoại tuyến cơ bản |
-| 6 | App | Vẫn add overlay/route/pin để tiếp tục dẫn hướng và tương tác POI |
+| 1 | Tourist / App | Mở từ hero / QR / Near Focus → khởi tạo map (online/cache → TileLayer, offline → fallback layer) |
+| 2 | App | GPS tracking → vẽ user pin; POI pins phân màu theo trạng thái (lưu/ghé/lân cận/chưa xem) |
+| 3 | Tourist | Lọc theo category, tìm kiếm POI, zoom/center bản đồ |
+| 4 | Tourist | Tap pin → hiện Quick Card → "Xem chi tiết" mở POIDetailPage |
+| 5 | Tourist / App | Bật Near Focus (GPS < 800m) → tính route đến POI (OfflineRouter → OSRM → đường thẳng) |
+| 6 | App | Tiến đến ≤ 35m → xóa route, chuyển InZone, tự động phát audio |
 
-**Luồng thay thế — Lỗi tile source runtime:**
+**Luồng thay thế:**
 
-| Bước | Tác nhân | Hành động |
-|------|----------|-----------|
-| 1a | Maps SDK | Ném exception khi tạo/lấy tile |
-| 1b | App | Bắt exception và ép bật fallback layer |
-| 1c | App | Giữ app tiếp tục chạy, không crash trang map |
-
-**Ngoại lệ:**
-- Cache tile file lỗi/nhỏ bất thường -> coi như cache không hợp lệ và chuyển fallback.
-- Trạng thái mạng dao động nhanh -> app ưu tiên an toàn hiển thị fallback trước, tránh trắng bản đồ.
-
-### Use Case Diagram
-```plantuml
-@startuml
+| Tình huống | Hành động |
+|------------|-----------|
+| QR không có poiId hợp lệ | Alert "QR không hợp lệ", không mở ExploreMap |
+| Offline không có tile cache | Dùng fallback layer + đường thẳng ước tính khi route |
+| GPS permission bị từ chối | Không vẽ user pin, route dùng tọa độ mặc định |
+| Rời InZone spot | Audio không ngắt đột ngột, về Near state |
 left to right direction
 skinparam actorStyle stick
 skinparam usecase {
-  BackgroundColor #D9C2F0
-  BorderColor #6B4FA2
+  BackgroundColor #C2E0D9
+  BorderColor #2E7D60
 }
 skinparam rectangle {
-  BackgroundColor #F2EBFA
-  BorderColor #D1B3FF
+  BackgroundColor #EAF6F3
+  BorderColor #A8D5C8
 }
 
-actor Tourist
+actor Tourist as T
 
-rectangle "Map resilience offline" {
-  usecase "Mở bản đồ" as UC1
-  usecase "Dùng tile online/cache" as UC2
-  usecase "Fallback grid khi offline" as UC3
-  usecase "Thông báo chế độ ngoại tuyến" as UC4
+rectangle "ExploreMapPage" {
+  usecase "Mở bản đồ\n(hero / QR / Near Focus)" as UC_OPEN
+  usecase "Khởi tạo map\n(online / cache / fallback)" as UC_INIT
+  usecase "GPS tracking & User Pin" as UC_GPS
+  usecase "POI Pins (màu phân loại)" as UC_PINS
+  usecase "Filter & Tìm kiếm" as UC_FILTER
+  usecase "Tap Pin → Card → Detail" as UC_TAP
+  usecase "Zoom & Center" as UC_ZOOM
+  usecase "Near Focus + Route\n(offline→OSRM→cache→thẳng)" as UC_NEAR
+  usecase "Approaching Toast" as UC_TOAST
+  usecase "Arrival (≤35m) → InZone" as UC_ARRIVE
+  usecase "InZone Spot Audio\n+ Tour Overlay" as UC_INZONE
+  usecase "Offline Banner & Notice" as UC_OFFLINE
+  usecase "Thay đổi ngôn ngữ" as UC_LANG
 }
 
-Tourist -- UC1
-UC1 ..> UC2 : <<include>>
-UC1 ..> UC3 : <<extend>>
-UC3 ..> UC4 : <<include>>
+T -- UC_OPEN
+T -- UC_FILTER
+T -- UC_TAP
+T -- UC_ZOOM
+T -- UC_NEAR
+T -- UC_LANG
+
+UC_OPEN ..> UC_INIT : <<include>>
+UC_INIT ..> UC_OFFLINE : <<extend>>
+UC_OPEN ..> UC_GPS : <<include>>
+UC_GPS ..> UC_PINS : <<include>>
+UC_NEAR ..> UC_TOAST : <<extend>>
+UC_NEAR ..> UC_ARRIVE : <<include>>
+UC_ARRIVE ..> UC_INZONE : <<include>>
 @enduml
 ```
 
@@ -4686,28 +5006,30 @@ UC3 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Tourist as U
-participant "MainPage.Map" as Map
-participant "TileCache" as Cache
-participant Connectivity as Net
-participant "MapView" as View
-participant "Alert UI" as Alert
+participant "ExploreMapPage" as EMP
+participant "GPS / MapView" as GPS
+participant "RoutingService" as ROUTE
+participant "ITTSService" as TTS
 
-U -> Map: Mở MapPage
-Map -> Cache: Kiểm tra map_cache/tiles.db
-Map -> Net: Kiểm tra NetworkAccess
+U -> EMP: Mở ExploreMap (hero / QR / Near Focus)
+EMP -> EMP: Khởi tạo map (online→TileLayer, offline→FallbackLayer)
+EMP -> GPS: StartTrackingAsync()
 
-alt Offline và không có tile cache
-  Map -> View: Add CreateOfflineFallbackLayer()
-  Map -> Alert: Hiển thị thông báo offline cơ bản
-else Có mạng hoặc có cache
-  Map -> View: Add base tile layer bình thường
+GPS -> EMP: Cập nhật vị trí
+EMP -> EMP: Vẽ user pin + POI pins phân màu
+
+opt Near Focus Mode
+  U -> EMP: Bật Near Focus (hoặc GPS < 800m tự bật)
+  EMP -> ROUTE: Tính route (OfflineRouter → OSRM → đường thẳng)
+  ROUTE --> EMP: Vẽ đường dẫn đến POI
 end
 
-opt Lỗi tile runtime
-  Map -> View: Add CreateOfflineFallbackLayer()
-end
+GPS -> EMP: Distance ≤ 35m → Arrival
+EMP -> EMP: Xóa route, chuyển InZone
+EMP -> TTS: Phát audio POI (cache → TTS fallback)
 
-Map -> View: Add dark overlay + route layer + pin layer
+U -> EMP: Tap pin → Quick Card → POIDetailPage
+U -> EMP: Rời trang → cancel tokens + UnhookEvents
 @enduml
 ```
 
@@ -4715,22 +5037,25 @@ Map -> View: Add dark overlay + route layer + pin layer
 ```plantuml
 @startuml
 start
-:Khởi tạo MapPage;
-:Tạo tile source + cache path;
-
-if (Offline và không có cache hợp lệ?) then (Có)
-  :Bật fallback grid layer;
-  :Hiện thông báo dùng bản đồ ngoại tuyến cơ bản;
-else (Không)
-  :Dùng base map online hoặc tile cache;
+:Mở ExploreMapPage;
+if (QR deep-link hợp lệ?) then (Không)
+  :Alert + dừng;
+  stop
 endif
-
-if (Phát sinh lỗi tile runtime?) then (Có)
-  :Catch exception;
-  :Bật fallback grid layer;
-endif
-
-:Thêm overlay + route + POI pins;
+:Khởi tạo map (online/cache hoặc fallback);
+:Bắt đầu GPS tracking, vẽ pins;
+fork
+  :Tourist lọc, tìm kiếm, zoom, tap pin;
+fork again
+  :GPS cập nhật → user pin + POI pins;
+  if (Near Focus bật?) then (Có)
+    :Tính route → vẽ đường dẫn;
+    if (Đến ≤ 35m?) then (Có)
+      :Xóa route → InZone → phát audio;
+    endif
+  endif
+end fork
+:Rời trang → dọn dẹp;
 stop
 @enduml
 ```
@@ -4738,3 +5063,117 @@ stop
 ---
 
 
+
+
+---
+
+## F37 — Admin Theo Dõi Trạng Thái Hoạt Động Thiết Bị (Device Activity)
+
+| Trường | Giá trị |
+|--------|---------|
+| **Use Case ID** | F37 |
+| **Tên** | Admin theo dõi trạng thái hoạt động thiết bị theo thời gian thực |
+| **Tác nhân chính** | Admin |
+| **Tác nhân phụ** | `DeviceActivityController`, `MongoDB.Devices`, `MongoDB.DeviceSubscriptions`, `BackgroundHeartbeatService` |
+| **Kích hoạt** | Admin mở trang "Trạng thái hoạt động" trên admin dashboard |
+| **Tiền điều kiện** | Admin đã đăng nhập; JWT hợp lệ với Role = "Admin"; Collection `devices` tồn tại trong MongoDB |
+| **Hậu điều kiện** | Admin thấy được số lượng thiết bị online/offline theo thời gian thực, danh sách chi tiết từng thiết bị kèm thông tin VIP, có thể tìm kiếm và lọc |
+| **Subsystem bị tác động** | `DeviceActivityController`, `devices` collection, `device_subscriptions` collection |
+| **Mức độ ưu tiên** | P1 |
+
+**Luồng chính:**
+
+| Bước | Tác nhân | Hành động |
+|------|----------|-----------|
+| 1 | Admin | Mở trang Device Activity → `GET /api/device-activity/online-summary` |
+| 2 | API | Trả tổng online phân theo tourist/vendor và web/android/ios (ngưỡng 5 phút) |
+| 3 | Admin | Xem danh sách thiết bị → `GET /api/device-activity/all` với filter tùy chọn |
+| 4 | API | Query, tính `IsOnline` runtime, join VIP từ `device_subscriptions`, trả phân trang |
+| 5 | Mobile / Web App | Gửi tín hiệu hoạt động mỗi 60s; thiết bị mới tự động được tạo; khi thoát báo offline |
+| 6 | Admin | Lọc theo role/trạng thái, tìm theo DeviceId/Model, chuyển trang |
+
+**Luồng thay thế:**
+
+| Tình huống | Hành động |
+|------------|-----------|
+| Token hết hạn / không phải Admin | API trả 401/403; redirect về login |
+| Không gửi tín hiệu > 5 phút | `IsOnline` tự động = false khi query |
+| App crash không báo offline | Vẫn tính đúng vì dùng `LastHeartbeatAt` thay vì flag |
+| Không có kết quả lọc/tìm kiếm | Trả `{ data: [], total: 0 }`, UI hiện "Không tìm thấy" |
+left to right direction
+  skinparam actorStyle stick
+  skinparam usecase {
+    BackgroundColor #C2D9F0
+    BorderColor #2E5D8F
+  }
+  skinparam rectangle {
+    BackgroundColor #EAF2FC
+    BorderColor #A8C5E0
+  }
+
+actor Admin as A
+actor "Tourist / Vendor" as U
+
+rectangle "Device Activity System" {
+  usecase "Xem tổng quan online\n(summary card)" as UC_SUMMARY
+  usecase "Xem danh sách\nthiết bị (all / online)" as UC_LIST
+  usecase "Lọc & tìm kiếm\nthiết bị" as UC_FILTER
+  usecase "Xem chi tiết thiết bị\n(VIP, sessions, audio)" as UC_DETAIL
+  usecase "Gửi Heartbeat\n(mỗi 60 giây)" as UC_HB
+  usecase "Disconnect\n(đóng app)" as UC_DC
+}
+
+A -- UC_SUMMARY
+A -- UC_LIST
+A -- UC_FILTER
+A -- UC_DETAIL
+U -- UC_HB
+U -- UC_DC
+
+UC_LIST ..> UC_FILTER : <<extend>>
+UC_LIST ..> UC_DETAIL : <<include>>
+UC_HB ..> UC_SUMMARY : <<triggers>>
+UC_DC ..> UC_LIST : <<triggers>>
+@enduml
+```
+
+### Sequence Diagram
+```plantuml
+@startuml
+actor Admin as A
+actor "Mobile / Web App" as U
+participant "DeviceActivityController" as CTRL
+database "MongoDB (devices)" as DB
+
+A -> CTRL: GET /api/device-activity/online-summary
+CTRL -> DB: Query online (LastHeartbeatAt ≥ now-5m, role != admin)
+CTRL --> A: { totalOnline, touristOnline, vendorOnline, byClientType }
+
+A -> CTRL: GET /api/device-activity/all?role&status&search
+CTRL -> DB: Query + tính IsOnline runtime + join VIP
+CTRL --> A: Danh sách thiết bị phân trang
+
+U -> CTRL: POST /api/device-activity/heartbeat { deviceId, platform, userRole }
+CTRL -> DB: Upsert — IsOnline=true, LastHeartbeatAt=now (tạo mới nếu chưa có)
+
+U -> CTRL: POST /api/device-activity/disconnect { deviceId }
+CTRL -> DB: IsOnline=false
+@enduml
+```
+
+### Activity Diagram
+```plantuml
+@startuml
+start
+fork
+  :Mobile / Web App gửi tín hiệu hoạt động mỗi 60s;
+  :API upsert thiết bị — tạo mới nếu lần đầu;
+  :Khi thoát → báo offline;
+fork again
+  :Admin mở Device Activity;
+  :Tải summary (online theo role/client);
+  :Tải danh sách thiết bị;
+  :Lọc theo role, trạng thái, tìm kiếm;
+  :Xem kết quả phân trang + badge VIP;
+end fork
+---

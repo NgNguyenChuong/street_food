@@ -55,6 +55,7 @@ public class PoiDto
     public int NumReviews { get; set; }
     public long PlayCount { get; set; }
     public double MeanPlay { get; set; }
+    public long NumLikes { get; set; }
     public int? PriceLevel { get; set; }
     public string? ImageUrl { get; set; }
     public string? FunFact { get; set; }

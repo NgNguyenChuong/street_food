@@ -239,10 +239,27 @@
             <h1 class="page-title" id="pageTitle">Quản lý thanh toán dịch vụ</h1>
             <p class="subtitle" id="pageSubtitle">Theo dõi yêu cầu nâng cấp gói premium 1 năm của vendor.</p>
         </div>
-        <button class="btn btn-outline" onclick="refreshPage()">
-            <i class="fas fa-rotate"></i>
-            Làm mới
-        </button>
+        <div style="display:flex;gap:.5rem;align-items:center;position:relative">
+            <button class="btn btn-outline" onclick="refreshPage()">
+                <i class="fas fa-rotate"></i>
+                Làm mới
+            </button>
+            <button class="btn btn-outline" id="moreBtn" onclick="toggleMoreMenu()">
+                <i class="fas fa-ellipsis-vertical"></i>
+                Xem thêm
+            </button>
+            <div id="moreMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 28px rgba(26,26,46,.14);min-width:240px;z-index:100;overflow:hidden">
+                <button onclick="openLegalModal('terms');closeMoreMenu()" style="width:100%;display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:none;border:none;border-bottom:1px solid #f0f2f5;cursor:pointer;text-align:left;font-family:'DM Sans',sans-serif;font-size:.88rem;color:#1A1A2E;transition:background .15s" onmouseover="this.style.background='#F8F9FA'" onmouseout="this.style.background='none'">
+                    <span style="font-size:1.1rem">📜</span> Điều khoản sử dụng
+                </button>
+                <button onclick="openLegalModal('privacy');closeMoreMenu()" style="width:100%;display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:none;border:none;border-bottom:1px solid #f0f2f5;cursor:pointer;text-align:left;font-family:'DM Sans',sans-serif;font-size:.88rem;color:#1A1A2E;transition:background .15s" onmouseover="this.style.background='#F8F9FA'" onmouseout="this.style.background='none'">
+                    <span style="font-size:1.1rem">🔒</span> Chính sách bảo mật
+                </button>
+                <button onclick="openLegalModal('refund');closeMoreMenu()" style="width:100%;display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:none;border:none;cursor:pointer;text-align:left;font-family:'DM Sans',sans-serif;font-size:.88rem;color:#1A1A2E;transition:background .15s" onmouseover="this.style.background='#F8F9FA'" onmouseout="this.style.background='none'">
+                    <span style="font-size:1.1rem">💳</span> Quy trình xử lý thanh toán
+                </button>
+            </div>
+        </div>
     </header>
 
     <section id="vendorSection" class="hidden">
@@ -277,6 +294,19 @@
             </article>
         </div>
 
+        <div class="toolbar">
+            <select class="select" id="vendorStatusFilter">
+                <option value="">Tất cả trạng thái</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <input class="input" id="vendorSearchInput" placeholder="Tìm theo submission, giao dịch hoặc ghi chú...">
+            <input class="input" id="vendorFromDate" type="date" aria-label="Từ ngày">
+            <input class="input" id="vendorToDate" type="date" aria-label="Đến ngày">
+            <button class="btn btn-outline" onclick="loadVendorData()"><i class="fas fa-filter"></i>Lọc</button>
+        </div>
+
         <div class="table-wrap">
             <table>
                 <thead>
@@ -285,7 +315,6 @@
                     <th>Gói dịch vụ</th>
                     <th>Số tiền</th>
                     <th>Phương thức</th>
-                    <th>Trạng thái</th>
                     <th>Ngày tạo</th>
                     <th>Hết hạn</th>
                     <th>Ghi chú</th>
@@ -330,6 +359,8 @@
                     <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
                 </select>
+                <input class="input" id="adminFromDate" type="date" aria-label="Từ ngày tạo">
+                <input class="input" id="adminToDate" type="date" aria-label="Đến ngày tạo">
                 <input class="input" id="searchInput" placeholder="Tìm theo vendor, submission hoặc transaction...">
                 <button class="btn btn-outline" onclick="loadAdminData()"><i class="fas fa-filter"></i>Lọc</button>
             </div>
@@ -342,7 +373,6 @@
                         <th>Vendor</th>
                         <th>Gói</th>
                         <th>Số tiền</th>
-                        <th>Trạng thái</th>
                         <th>Ngày tạo</th>
                         <th>Ghi chú</th>
                         <th>Hành động</th>
@@ -422,10 +452,115 @@
     </section>
 </main>
 
+<!-- LEGAL MODAL -->
+<div id="legalModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(26,26,46,.55);backdrop-filter:blur(4px);overflow-y:auto;padding:1.5rem 1rem" onclick="if(event.target===this)closeLegalModal()">
+    <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 60px rgba(26,26,46,.18)">
+        <div style="display:flex;align-items:center;gap:12px;padding:1.1rem 1.25rem;border-bottom:1px solid #E8ECF1;position:sticky;top:0;background:#fff;z-index:1">
+            <div id="legalModalIcon" style="font-size:1.4rem;flex-shrink:0"></div>
+            <div id="legalModalTitle" style="flex:1;font-weight:800;font-size:1rem;color:#1A1A2E"></div>
+            <button onclick="closeLegalModal()" style="width:32px;height:32px;border-radius:50%;background:#F8F9FA;border:1px solid #E8ECF1;font-size:1rem;cursor:pointer;color:#607089;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+        </div>
+        <div id="legalModalBody" style="padding:1.25rem 1.5rem 1.75rem;font-size:.85rem;color:#607089;line-height:1.8"></div>
+    </div>
+</div>
+
+<script>
+    const LEGAL_CONTENT = {
+        terms: {
+            icon: '📜',
+            title: 'Điều khoản sử dụng',
+            html: `<p style="color:#9CA3AF;font-size:.75rem;margin-bottom:1rem">Cập nhật: 01/01/2026 — Có hiệu lực toàn quốc.</p>
+<p><b style="color:#1A1A2E">1. Chấp thuận điều khoản</b><br>Bằng việc sử dụng ứng dụng Street Food Narrator ("SFNarrator"), bạn đồng ý rằng mình đã đọc, hiểu và chấp thuận các điều khoản dưới đây.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">2. Mô tả dịch vụ</b><br>SFNarrator là nền tảng hướng dẫn du lịch ẩm thực tại phố Vĩnh Khánh, TP.HCM. Ứng dụng cung cấp thông tin quán ăn, bản đồ, hướng dẫn audio đa ngôn ngữ và lộ trình tour.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">3. Gói VIP &amp; thanh toán</b><br>Gói VIP có giá <b>36.000 VNĐ/tháng</b>, thanh toán qua chuyển khoản ngân hàng. Sau khi thanh toán được xác nhận, tài khoản VIP được kích hoạt trong vòng 24 giờ.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">4. Chính sách hoàn tiền</b><br>Không hoàn tiền sau khi gói VIP đã được kích hoạt. Trường hợp lỗi hệ thống nghiêm trọng, ban quản trị sẽ xét hoàn tiền theo từng trường hợp cụ thể.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">5. Quyền sở hữu nội dung</b><br>Toàn bộ nội dung bao gồm ảnh, âm thanh, bản mô tả và lộ trình tour là tài sản của SFNarrator. Không sao chép, phân phối hoặc sử dụng thương mại khi chưa có sự cho phép bằng văn bản.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">6. Giới hạn trách nhiệm</b><br>SFNarrator cung cấp thông tin tham khảo. Thông tin về giờ mở cửa, giá cả có thể thay đổi mà không báo trước.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">7. Thay đổi điều khoản</b><br>Chúng tôi có quyền cập nhật điều khoản bất cứ lúc nào. Việc tiếp tục sử dụng dịch vụ sau khi thay đổi được xem là đồng ý với điều khoản mới.</p>
+<p style="margin-top:1rem;font-size:.78rem;color:#9CA3AF">Liên hệ: <a href="mailto:streetfoodnarrator@gmail.com" style="color:#FF6B35">streetfoodnarrator@gmail.com</a></p>`
+        },
+        privacy: {
+            icon: '🔒',
+            title: 'Chính sách bảo mật',
+            html: `<p style="color:#9CA3AF;font-size:.75rem;margin-bottom:1rem">Cập nhật: 01/01/2026 — Áp dụng cho ứng dụng Street Food Narrator.</p>
+<p><b style="color:#1A1A2E">1. Thông tin thu thập</b><br>Chúng tôi thu thập: (a) ID thiết bị tạo ngẫu nhiên; (b) thông tin đơn hàng khi mua VIP; (c) dữ liệu sử dụng ẩn danh. Chúng tôi <b>KHÔNG</b> thu thập tên, email, số điện thoại hay số CMND.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">2. Mục đích sử dụng dữ liệu</b><br>Xác nhận và duy trì gói VIP; cải thiện chất lượng dịch vụ; thống kê ẩn danh. Chúng tôi <b>KHÔNG</b> bán hoặc chia sẻ dữ liệu cho bên thứ ba.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">3. Lưu trữ dữ liệu</b><br>Dữ liệu giao dịch được lưu trong 12 tháng. Dữ liệu ẩn danh có thể giữ lâu hơn cho mục đích thống kê.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">4. Bảo mật</b><br>Thông tin được truyền qua HTTPS mã hóa. Áp dụng các biện pháp bảo mật phù hợp để chống truy cập trái phép.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">5. Cookie &amp; lưu trữ cục bộ</b><br>Ứng dụng sử dụng <code style="background:#F3F4F6;padding:1px 4px;border-radius:3px">localStorage</code> để lưu ngôn ngữ, ID thiết bị và danh sách quán đã lưu. Dữ liệu này nằm toàn bộ trên thiết bị của bạn.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">6. Quyền của người dùng</b><br>Bạn có quyền yêu cầu xóa dữ liệu liên quan đến ID thiết bị bằng cách gửi email đính kèm ID thiết bị.</p>
+<p style="margin-top:1rem;font-size:.78rem;color:#9CA3AF">Liên hệ: <a href="mailto:streetfoodnarrator@gmail.com" style="color:#FF6B35">streetfoodnarrator@gmail.com</a></p>`
+        },
+        refund: {
+            icon: '💳',
+            title: 'Quy trình xử lý thanh toán',
+            html: `<p style="color:#9CA3AF;font-size:.75rem;margin-bottom:1rem">Dành cho Admin — Cập nhật: 01/01/2026.</p>
+<p><b style="color:#1A1A2E">1. Xác nhận đơn hàng</b><br>Admin duyệt thanh toán thủ công sau khi đối chiếu chuyển khoản. Thời gian xử lý: trong vòng 24 giờ (ngày làm việc).</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">2. Trạng thái đơn hàng</b><br>
+    <span style="display:inline-block;margin-top:.3rem">🟡 <b>Pending</b> — Chờ admin xác nhận</span><br>
+    <span>🟢 <b>Active</b> — VIP đang hoạt động</span><br>
+    <span>🔴 <b>Rejected</b> — Bị từ chối (sai nội dung/số tiền)</span>
+</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">3. Trường hợp từ chối</b><br>Đơn hàng bị từ chối khi nội dung chuyển khoản không khớp hoặc số tiền không đúng. Khách hàng cần thực hiện lại giao dịch.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">4. Hoàn tiền</b><br>Không hoàn tiền tự động. Trường hợp đặc biệt (lỗi hệ thống), admin liên hệ trực tiếp với khách hàng để xử lý thủ công.</p>
+<hr style="border:none;border-top:1px solid #E8ECF1;margin:.75rem 0">
+<p><b style="color:#1A1A2E">5. Lưu ý quản trị</b><br>Sử dụng nút <b>Làm mới</b> để cập nhật danh sách. Mọi hành động duyệt/từ chối đều được ghi log hệ thống.</p>`
+        }
+    };
+
+    function openLegalModal(type) {
+        const c = LEGAL_CONTENT[type];
+        if (!c) return;
+        document.getElementById('legalModalIcon').textContent = c.icon;
+        document.getElementById('legalModalTitle').textContent = c.title;
+        document.getElementById('legalModalBody').innerHTML = c.html;
+        document.getElementById('legalModal').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+    function closeLegalModal() {
+        document.getElementById('legalModal').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    function toggleMoreMenu() {
+        var m = document.getElementById('moreMenu');
+        m.style.display = m.style.display === 'none' ? 'block' : 'none';
+    }
+    function closeMoreMenu() {
+        document.getElementById('moreMenu').style.display = 'none';
+    }
+    document.addEventListener('click', function(e) {
+        var btn = document.getElementById('moreBtn');
+        var menu = document.getElementById('moreMenu');
+        if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+            menu.style.display = 'none';
+        }
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { closeLegalModal(); closeMoreMenu(); }
+    });
+</script>
+
 <script>
     let isAdmin = false;
     let isVendor = false;
     let adminPaymentMode = 'vendor';
+    let vendorExpiryTimer = null;
+    let lastVendorPremiumActive = null;
+    let lastVendorPremiumExpiresAt = null;
 
     function fmtDate(value) {
         if (!value) return '--';
@@ -451,6 +586,31 @@
         };
         const label = labelMap[s] || s;
         return `<span class="badge ${s}">${label}</span>`;
+    }
+
+    function clearVendorExpiryTimer() {
+        if (vendorExpiryTimer) {
+            window.clearTimeout(vendorExpiryTimer);
+            vendorExpiryTimer = null;
+        }
+    }
+
+    function scheduleVendorExpiryRefresh(expiresAt) {
+        clearVendorExpiryTimer();
+
+        if (!expiresAt) return;
+
+        const expiryTime = new Date(expiresAt).getTime();
+        if (Number.isNaN(expiryTime)) return;
+
+        const delay = expiryTime - Date.now() + 1000;
+        if (delay <= 0) return;
+
+        const maxDelay = 24 * 60 * 60 * 1000;
+        vendorExpiryTimer = window.setTimeout(() => {
+            vendorExpiryTimer = null;
+            loadVendorData();
+        }, Math.min(delay, maxDelay));
     }
 
     function getAdminPaymentModeFromUrl() {
@@ -558,14 +718,34 @@
 
     async function loadVendorData() {
         try {
+            const status = document.getElementById('vendorStatusFilter')?.value || '';
+            const search = document.getElementById('vendorSearchInput')?.value.trim() || '';
+            const fromDate = document.getElementById('vendorFromDate')?.value || '';
+            const toDate = document.getElementById('vendorToDate')?.value || '';
+
             const [statusRes, listRes] = await Promise.all([
                 PaymentApi.myPremiumStatus(),
-                PaymentApi.mySubmissions()
+                PaymentApi.mySubmissions({ status, search, fromDate, toDate })
             ]);
 
             const active = !!statusRes?.isPremiumActive;
-            document.getElementById('vendorPremiumStatus').textContent = active ? 'Premium đang hoạt động' : 'Chưa kích hoạt premium';
-            document.getElementById('vendorPremiumExpire').textContent = fmtDate(statusRes?.expiresAt);
+            const currentExpiresAt = statusRes?.expiresAt || lastVendorPremiumExpiresAt;
+            const previousActive = lastVendorPremiumActive;
+            lastVendorPremiumActive = active;
+            if (statusRes?.expiresAt) {
+                lastVendorPremiumExpiresAt = statusRes.expiresAt;
+            }
+
+            document.getElementById('vendorPremiumStatus').textContent = active
+                ? 'Premium đang hoạt động'
+                : currentExpiresAt ? 'Premium đã hết hạn' : 'Chưa kích hoạt premium';
+            document.getElementById('vendorPremiumExpire').textContent = fmtDate(currentExpiresAt);
+
+            if (previousActive === true && !active && currentExpiresAt) {
+                showToast('Gói premium đã hết hạn.', 'warning');
+            }
+
+            scheduleVendorExpiryRefresh(active ? currentExpiresAt : null);
 
             const rows = Array.isArray(listRes?.data) ? listRes.data : [];
             const body = document.getElementById('vendorTableBody');
@@ -584,7 +764,6 @@
                     <td>${item.planName || 'Premium 1 năm'}</td>
                     <td>${fmtVnd(item.amountVnd)}</td>
                     <td>${item.paymentMethod || '--'}</td>
-                    <td>${statusBadge(item.status)}</td>
                     <td>${fmtDate(item.requestedAt)}</td>
                     <td>${fmtDate(item.expiresAt)}</td>
                     <td>${item.reviewNote || '--'}</td>
@@ -618,11 +797,26 @@
 
     async function loadAdminData() {
         const status = document.getElementById('statusFilter').value;
+        const fromDateText = document.getElementById('adminFromDate')?.value || '';
+        const toDateText = document.getElementById('adminToDate')?.value || '';
         const search = document.getElementById('searchInput').value.trim();
 
         try {
-            const res = await PaymentApi.listSubmissions({ status, search });
-            const rows = Array.isArray(res?.data) ? res.data : [];
+            const res = await PaymentApi.listSubmissions({ status, search, fromDate: fromDateText, toDate: toDateText });
+            let rows = Array.isArray(res?.data) ? res.data : [];
+
+            const fromDate = fromDateText ? new Date(`${fromDateText}T00:00:00`) : null;
+            const toDate = toDateText ? new Date(`${toDateText}T23:59:59.999`) : null;
+
+            if (fromDate || toDate) {
+                rows = rows.filter(item => {
+                    const createdAt = new Date(item.requestedAt || 0);
+                    if (Number.isNaN(createdAt.getTime())) return false;
+                    if (fromDate && createdAt < fromDate) return false;
+                    if (toDate && createdAt > toDate) return false;
+                    return true;
+                });
+            }
 
             const total = rows.length;
             const pending = rows.filter(x => (x.status || '').toLowerCase() === 'pending').length;
@@ -649,7 +843,6 @@
                     <td>${item.businessName || '--'}<div class="muted">Vendor ID: ${item.vendorId}</div></td>
                     <td>${item.planName || 'Premium 1 năm'}</td>
                     <td>${fmtVnd(item.amountVnd)}</td>
-                    <td>${statusBadge(item.status)}</td>
                     <td>${fmtDate(item.requestedAt)}</td>
                     <td>${item.reviewNote || '--'}</td>
                     <td>

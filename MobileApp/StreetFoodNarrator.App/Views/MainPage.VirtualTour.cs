@@ -252,7 +252,7 @@ public partial class MainPage
         await MainThread.InvokeOnMainThreadAsync(async () =>
         {
             await Task.Delay(40);
-            VirtualModeComponent.CenterVirtualMap(
+            VirtualModeComponent?.CenterVirtualMap(
                 startingPOI.Latitude,
                 startingPOI.Longitude,
                 _vm.AllPOIs.Where(p => p.ZoneType == "Spot"),

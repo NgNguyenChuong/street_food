@@ -34,6 +34,14 @@
     <AndroidLinkMode>None</AndroidLinkMode>
     <RunAOTCompilation>false</RunAOTCompilation>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <!-- Work around Release startup crash (UnsatisfiedLinkError on MainApplication.n_onCreate) -->
+    <AndroidEnableMarshalMethods>false</AndroidEnableMarshalMethods>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <!-- Prevent Fast Deployment startup crash when installing APK directly via adb -->
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidFastDeploymentType>None</AndroidFastDeploymentType>
   </PropertyGroup>
 
   <ItemGroup>

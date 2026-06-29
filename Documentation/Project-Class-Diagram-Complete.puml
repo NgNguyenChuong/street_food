@@ -1,5 +1,5 @@
 @startuml
-' StreetFoodNarrator - Layered Class Diagram (Report Friendly)
+' StreetFoodNarrator - Functional Class Diagram (Simplified)
 top to bottom direction
 skinparam packageStyle rectangle
 skinparam classAttributeIconSize 0
@@ -15,78 +15,173 @@ skinparam class {
   BackgroundColor #F2EBFA
   BorderColor #6B4FA2
 }
+skinparam interface {
+  BackgroundColor #EFE6FA
+  BorderColor #6B4FA2
+}
 
 package "(Mobile App MVVM)" as L1 {
-  class MainViewModel
-  class POIDetailViewModel
-  class VirtualTourViewModel
+  class MainViewModel {
+    +LoadNearbyPOIs()
+    +StartLocationTracking()
+    +RefreshNotifications()
+    +OpenPOIDetail(poiId)
+    +StartTour(tourId)
+  }
 
-  interface IGeofenceService
-  interface IReviewService
-  interface ITTSService
+  class POIDetailViewModel {
+    +LoadPOIDetail(poiId)
+    +LoadReviews(poiId)
+    +SubmitReview()
+    +PlayNarration(language)
+    +ToggleFavorite()
+  }
+
+  class VirtualTourViewModel {
+    +LoadTour(tourId)
+    +StartTour()
+    +NextStop()
+    +PreviousStop()
+    +CompleteTour()
+  }
+
+  class VendorDashboardViewModel {
+    +LoadMyVendorProfile()
+    +UpdateVendorProfile()
+    +CreatePOI()
+    +TrackSubmissionStatus()
+  }
+
+  interface IGeofenceService {
+    +StartMonitoring()
+    +StopMonitoring()
+    +HandleZoneTrigger()
+  }
+
+  interface IReviewService {
+    +GetReviews(poiId)
+    +CreateReview(poiId, rating, comment)
+    +DeleteReview(reviewId)
+  }
+
+  interface ITTSService {
+    +GenerateNarration(text, language)
+    +PlayAudio(audioUrl)
+    +StopAudio()
+  }
+
+  interface INotificationService {
+    +GetSidebarNotifications()
+    +MarkAsRead(notificationId)
+    +GetUnreadCount()
+  }
 }
 
 package "(API - Controllers)" as L2 {
-  class AuthController
-  class POIsController
-  class ReviewsController
-  class AnalyticsController
-  class TTSController
-  class NotificationsController
+  class AuthController {
+    +Login()
+    +Register()
+    +RefreshToken()
+    +GetMe()
+  }
+
+  class UsersController {
+    +GetProfile()
+    +UpdateProfile()
+  }
+
+  class VendorsController {
+    +GetMyVendor()
+    +UpdateMyVendor()
+    +SubmitVerification()
+    +GetVendorDashboard()
+  }
+
+  class POIsController {
+    +GetNearby()
+    +GetById(poiId)
+    +CreatePOI()
+    +UpdatePOI(poiId)
+    +ApprovePOI(poiId)
+    +RejectPOI(poiId)
+  }
+
+  class MenuItemsController {
+    +GetByPOI(poiId)
+    +CreateMenuItem()
+    +UpdateMenuItem(menuItemId)
+    +DeleteMenuItem(menuItemId)
+  }
+
+  class ReviewsController {
+    +GetByPOI(poiId)
+    +CreateReview()
+    +UpdateReview(reviewId)
+    +DeleteReview(reviewId)
+  }
+
+  class ToursController {
+    +GetTours()
+    +GetTourDetail(tourId)
+    +CreateTour()
+    +UpdateTour(tourId)
+  }
+
+  class AudioController {
+    +UploadAudio()
+    +GetByPOI(poiId)
+    +DeleteAudio(audioId)
+  }
+
+  class TTSController {
+    +GenerateTTS()
+    +GenerateAndSaveAudio()
+    +GetTTSByPOI(poiId)
+  }
+
+  class NotificationsController {
+    +GetSidebar(limit)
+    +MarkRead(notificationId)
+    +MarkAllRead()
+    +GetUnreadCount()
+  }
+
+  class PaymentsController {
+    +CreateCheckoutSession()
+    +ConfirmPayment()
+    +HandleWebhook()
+  }
+
+  class SubscriptionsController {
+    +GetCurrentSubscription()
+    +UpgradePlan()
+    +CancelPlan()
+  }
+
+  class AnalyticsController {
+    +TrackNarrationEvent()
+    +GetOverview()
+    +GetTopPOIs()
+    +GetUsageByLanguage()
+  }
 }
 
-package "(Domain Models)" as L3 {
-  class ApplicationUser {
-    +Id
-    +FullName
+package "(Application Services)" as L3 {
+  class GeofenceService {
+    +EvaluateZoneEntry()
+    +EvaluateZoneExit()
+    +ApplyCooldownRule()
   }
 
-  class VendorProfile {
-    +VendorId
-    +BusinessName
-    +VerificationStatus
+  class NotificationService {
+    +BuildAudience()
+    +CreateNotification()
+    +GetSidebarPayload()
   }
 
-  class POI {
-    +POI_ID
-    +Name_Vi
-    +Location
-    +ReviewStatus
-  }
-
-  class MenuItem {
-    +MenuItemId
-    +POI_ID
-    +Price
-  }
-
-  class AudioContent {
-    +AudioContent_ID
-    +POI_ID
-    +Language
-    +AudioUrl
-  }
-
-  class Review {
-    +POI_ID
-    +Rating
-  }
-
-  class NarrationLog {
-    +Log_ID
-    +POI_ID
-    +TriggeredAt
-  }
-
-  class Tour {
-    +Tour_ID
-    +TourName
-  }
-
-  class AppNotification {
-    +NotificationId
-    +AudienceRole
-    +Title
+  class TourService {
+    +BuildTourRoute()
+    +ComputeNextStop()
   }
 }
 
@@ -94,36 +189,33 @@ package "(Domain Models)" as L3 {
 L1 -[hidden]down-> L2
 L2 -[hidden]down-> L3
 
-' Domain relations
-ApplicationUser "1" o-- "0..1" VendorProfile
-VendorProfile "1" o-- "0..*" POI
-POI "1" o-- "0..*" MenuItem
-POI "1" o-- "0..*" AudioContent
-POI "1" o-- "0..*" Review
-POI "1" o-- "0..*" NarrationLog
-Tour "1" ..> "0..*" POI : gồm các điểm dừng
-
-' API -> Domain
-AuthController ..> ApplicationUser
-POIsController ..> POI
-POIsController ..> MenuItem
-ReviewsController ..> Review
-ReviewsController ..> POI
-AnalyticsController ..> NarrationLog
-AnalyticsController ..> POI
-AnalyticsController ..> Tour
-TTSController ..> AudioContent
-NotificationsController ..> AppNotification
-
-' Mobile -> API / service
+' Mobile dependencies
 MainViewModel ..> IGeofenceService
+MainViewModel ..> INotificationService
 MainViewModel ..> POIsController : REST
 MainViewModel ..> NotificationsController : REST
+
 POIDetailViewModel ..> POIsController : REST
 POIDetailViewModel ..> ReviewsController : REST
 POIDetailViewModel ..> ITTSService
-VirtualTourViewModel ..> Tour
+
+VirtualTourViewModel ..> ToursController : REST
+VendorDashboardViewModel ..> VendorsController : REST
+VendorDashboardViewModel ..> POIsController : REST
+
+' Service contracts to API
 IReviewService ..> ReviewsController
 ITTSService ..> TTSController
+INotificationService ..> NotificationsController
+
+' API to application services
+POIsController ..> GeofenceService
+NotificationsController ..> NotificationService
+ToursController ..> TourService
+
+note bottom
+  Lược bỏ toàn bộ liên kết tới Domain Models
+  để sơ đồ tập trung vào chức năng chính và dễ đọc.
+end note
 
 @enduml

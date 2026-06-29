@@ -76,4 +76,26 @@ public class DeviceInfo
     /// </summary>
     [MaxLength(10)]
     public string? PreferredLanguage { get; set; }
+
+    /// <summary>
+    /// Whether the device is currently online (heartbeat within threshold)
+    /// </summary>
+    public bool IsOnline { get; set; } = false;
+
+    /// <summary>
+    /// Last heartbeat timestamp from the device
+    /// </summary>
+    public DateTime? LastHeartbeatAt { get; set; }
+
+    /// <summary>
+    /// User role: "tourist" (web/mobile app user) or "vendor" (vendor dashboard user)
+    /// </summary>
+    [MaxLength(20)]
+    public string UserRole { get; set; } = "tourist";
+
+    /// <summary>
+    /// Client type: "web", "android", "ios", "dashboard"
+    /// </summary>
+    [MaxLength(20)]
+    public string ClientType { get; set; } = "web";
 }
