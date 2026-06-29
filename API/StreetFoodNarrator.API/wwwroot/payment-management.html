@@ -315,7 +315,6 @@
                     <th>Gói dịch vụ</th>
                     <th>Số tiền</th>
                     <th>Phương thức</th>
-                    <th>Trạng thái</th>
                     <th>Ngày tạo</th>
                     <th>Hết hạn</th>
                     <th>Ghi chú</th>
@@ -374,7 +373,6 @@
                         <th>Vendor</th>
                         <th>Gói</th>
                         <th>Số tiền</th>
-                        <th>Trạng thái</th>
                         <th>Ngày tạo</th>
                         <th>Ghi chú</th>
                         <th>Hành động</th>
@@ -766,7 +764,6 @@
                     <td>${item.planName || 'Premium 1 năm'}</td>
                     <td>${fmtVnd(item.amountVnd)}</td>
                     <td>${item.paymentMethod || '--'}</td>
-                    <td>${statusBadge(item.status)}</td>
                     <td>${fmtDate(item.requestedAt)}</td>
                     <td>${fmtDate(item.expiresAt)}</td>
                     <td>${item.reviewNote || '--'}</td>
@@ -846,7 +843,6 @@
                     <td>${item.businessName || '--'}<div class="muted">Vendor ID: ${item.vendorId}</div></td>
                     <td>${item.planName || 'Premium 1 năm'}</td>
                     <td>${fmtVnd(item.amountVnd)}</td>
-                    <td>${statusBadge(item.status)}</td>
                     <td>${fmtDate(item.requestedAt)}</td>
                     <td>${item.reviewNote || '--'}</td>
                     <td>
