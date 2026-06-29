@@ -447,22 +447,31 @@ UC1 ..> UC4 : <<include>>
 ```plantuml
 @startuml
 actor Tourist as U
-participant "Mobile App" as App
-participant "MainViewModel" as VM
-database "SQLite" as L
-participant "POIs API" as API
+participant "WelcomePage.xaml.cs" as WP
+participant "ZoneRepository.cs" as ZR
+participant "LocalDatabaseService.cs" as LD
+participant "POIsController" as API
 
-U -> App: Mở app
-App -> VM: Khởi tạo
-VM -> L: Đọc cache
-alt Có mạng
-  VM -> API: GET /api/pois/sync?version=lastVersion
-  API --> VM: Delta data
-  VM -> L: Gộp dữ liệu và lưu
-else Mất mạng
-  VM -> VM: Dùng dữ liệu local
+U -> WP: OnAppearing()
+WP -> WP: RunSimpleFlowAsync()
+WP -> ZR: LoadLocalAsync()
+ZR -> LD: InitializeAsync()
+ZR -> LD: GetAllActivePOIsAsync()
+LD --> ZR: List<POI>
+ZR --> WP: IsSeeded (true/false)
+
+alt [Có mạng]
+  WP -> ZR: SyncFromMongoAsync()
+  ZR -> API: GET /api/POIs/sync?sinceVersion={currentVersion}
+  API --> ZR: PoiSyncResponse (delta)
+  ZR -> LD: SavePOIsAsync(mapped)
+  ZR -> ZR: LoadLocalAsync()
+else [Mất mạng / cache rỗng]
+  ZR -> ZR: SeedFromBundledJsonAsync()
 end
-VM --> App: Render UI
+
+WP -> WP: ShowReadyState() / EnableStartButton()
+WP --> U: Render UI
 @enduml
 ```
 
@@ -507,7 +516,7 @@ stop
 | **Use Case ID** | F2 |
 | **Tên** | Cập nhật GPS và phát hiện geofence |
 | **Tác nhân chính** | Tourist (di chuyển vật lý) |
-| **Tác nhân phụ** | GPS Sensor, LocationService, GeofenceService, `PoiConflictResolver` |
+| **Tác nhân phụ** | GPS Sensor, LocationService, GeofenceService |
 | **Kích hoạt** | Có location update từ GPS sensor |
 | **Tiền điều kiện** | Quyền vị trí đã được cấp; danh sách POI đã load vào bộ nhớ |
 | **Hậu điều kiện** | Active zones và primary zone được cập nhật; event ENTER_ZONE được emit nếu vào zone mới |
@@ -530,8 +539,9 @@ stop
 | Bước | Tác nhân | Hành động |
 |------|----------|-----------|
 | 4a | GeofenceService | Nhiều POI trong bán kính cùng lúc |
-| 4b | `PoiConflictResolver` | `ResolvePrimary(overlappingPois, vendorPremiumMap, distanceMap)` — ưu tiên premium vendor → Priority → distance → TriggerRadius → POI_ID |
-| 4c | GeofenceService | Chỉ emit event cho POI trả về từ `ResolvePrimary` |
+| 4b | GeofenceService | `UpdatePrimaryZoneAsync`: sort inline — IsLikedByUser DESC → NumLikes DESC → distance ASC → TriggerRadius ASC → POI_ID ASC |
+| 4c | GeofenceService | Hysteresis: nếu current zone vẫn trong range và bestZone gần hơn ≤ 8m → giữ nguyên zone cũ để tránh flapping |
+| 4d | GeofenceService | Emit `OnPrimaryZoneChanged` với primary POI đã chọn |
 
 **Luồng thay thế — Thoát khỏi zone:**
 
@@ -585,20 +595,21 @@ participant "GPS Sensor" as GPS
 participant "LocationService" as LS
 participant "MainViewModel" as VM
 participant "GeofenceService" as GS
-participant "PoiConflictResolver" as PCR
-
 U -> GPS: Di chuyển thực tế
 GPS -> LS: Vị trí thay đổi
 LS -> VM: OnLocationUpdated (event)
 VM -> GS: OnLocationChangedAsync(loc)
-GS -> GS: Debounce + kiểm tra khoảng cách
-GS -> GS: Đánh giá vào/ra
-alt Nhiều POI overlap
-  GS -> PCR: ResolvePrimary(overlappingPois, vendorPremiumMap, distanceMap)
-  PCR --> GS: primaryPoi (theo thứ tự: premium → Priority → distance → TriggerRadius → POI_ID)
-end
+GS -> GS: Debounce (ShouldProcess)
+GS -> GS: Tính insideZones + diff (enteredZones, exitedZones)
 GS -> VM: OnActiveZonesChanged (event)
-GS -> VM: OnPrimaryZoneChanged(primaryPoi)
+alt Có zone thoát ra
+  GS -> GS: HandleExitAsync(exitedZone)
+end
+alt Có zone mới vào
+  GS -> GS: LogEntry(enteredZone)
+end
+GS -> GS: UpdatePrimaryZoneAsync(insideZones)
+note right: Sort + hysteresis bên trong;\nemit OnPrimaryZoneChanged khi có thay đổi
 VM -> VM: Cập nhật trạng thái UI
 @enduml
 ```
@@ -615,7 +626,7 @@ if (Có quyền vị trí?) then (Có)
     if (Có POI trong bán kính geofence?) then (Có)
       :Debounce ENTER 3 giây;
       if (Qua cooldown 5 phút?) then (Có)
-        :PoiConflictResolver.ResolvePrimary() chọn primary (premium → Priority → distance → TriggerRadius → POI_ID);
+        :GeofenceService.UpdatePrimaryZoneAsync() sort inline\n(IsLikedByUser DESC → NumLikes DESC → distance ASC → TriggerRadius ASC → POI_ID ASC)\nHysteresis: giữ zone cũ nếu bestZone gần hơn ≤ 8m;
         :Emit OnActiveZonesChanged/OnPrimaryZoneChanged;
       else (Không)
         :Bỏ qua trigger mới;
@@ -799,6 +810,19 @@ stop
 | 2e | AudioService | Tạm dừng hoặc giảm âm lượng phiên phát hiện tại |
 | 3e | AudioService | Khi focus quay lại, resume hoặc phát lại theo trạng thái hàng chờ |
 
+**Luồng thay thế — Điều khiển phát lại (Pause / Resume / Stop / Volume):**
+
+| Method | Trigger | Hành động |
+|--------|---------|-----------|
+| `PlayAsync(zoneId, audioUrl, duration, fallbackText)` | Geofence ENTER_ZONE hoặc bấm nút Nghe | Finalize session POI cũ, khởi tạo player mới, request audio focus (Android), phát qua 4 tầng fallback |
+| `PauseAsync(zoneId)` | Tourist bấm nút Pause | Dừng phát tạm, lưu `_positions[zoneId]`, gọi `CaptureZoneProgress()`, abandon audio focus nếu không còn player nào đang phát |
+| `ResumeFromAsync(zoneId, pos)` | Tourist bấm nút Play lại | Request audio focus (Android), `player.Seek(pos)` + `player.Play()`, tiếp tục từ vị trí đã lưu |
+| `StopAsync(zoneId)` | Thoát trang chi tiết | Dừng và dispose player, reset `_positions[zoneId] = 0` (không finalize listen progress) |
+| `StopAllAsync()` | App chuyển nền / navigate away / POI switch | Dừng và dispose toàn bộ player trong `_players`, abandon audio focus hoàn toàn |
+| `SetVolumeAsync(zoneId, vol)` | User kéo thanh âm lượng | Clamp volume [0.0–1.0], áp dụng ngay cho `player.Volume` đang chạy |
+| `GetCurrentPosition(zoneId)` | UI cập nhật progress bar | Trả `player.CurrentPosition` nếu player còn tồn tại, ngược lại trả `_positions[zoneId]` cached |
+| `IsPlaying(zoneId)` | UI kiểm tra trạng thái nút Play/Pause | Trả `true` nếu player tồn tại và `player.IsPlaying == true` |
+
 **Ngoại lệ:**
 - Tất cả 4 tầng đều thất bại → log lỗi, hiện icon cảnh báo nhỏ, không crash app.
 - File audio corrupt → xóa khỏi cache, thử lại từ Tầng 2.
@@ -828,9 +852,17 @@ rectangle "Phát audio" {
   usecase "Lấy published audio URL" as UC3
   usecase "Generate TTS và cache" as UC4
   usecase "Fallback Native TTS" as UC5
+  usecase "Tạm dừng / Tiếp tục phát" as UC6
+  usecase "Dừng audio (Stop / StopAll)" as UC7
+  usecase "Điều chỉnh âm lượng" as UC8
+  usecase "Truy vấn trạng thái phát" as UC9
 }
 
 Tourist -- UC1
+Tourist -- UC6
+Tourist -- UC7
+Tourist -- UC8
+Tourist -- UC9
 UC1 ..> UC2 : <<include>>
 UC1 ..> UC3 : <<extend>>
 UC1 ..> UC4 : <<extend>>
@@ -842,29 +874,70 @@ UC1 ..> UC5 : <<extend>>
 ```plantuml
 @startuml
 actor Tourist as U
+participant "AudioPlayerUI" as UI
 participant "AudioService" as AS
 participant "AudioCacheService" as Cache
 participant "AudioController" as API
 participant "TTSController" as TTS
 participant "NarrationQueueService" as Q
 
-U -> AS: Bấm phát
-AS -> Cache: GetAudioUrlAsync(poiId, lang)
-alt Có cache local
-  Cache --> AS: local file path
-else Không có cache
-  AS -> API: GET /api/Audio/poi/{poiId}/{language}
-  alt Published có file
-    API --> AS: audioUrl
-  else Published không có
-    AS -> TTS: POST /api/TTS/generate
-    TTS -> Q: GetOrGenerateAudioAsync(poiId, lang, factory)
-    Q --> TTS: audioUrl (cache hit hoặc generate đầu tiên)
-    TTS --> AS: audioUrl đã tạo
+group PlayAsync — Bắt đầu phát
+  U -> AS: PlayAsync(zoneId, audioUrl, duration, fallbackText)
+  AS -> AS: FinalizeSessionsForSwitchAsync(nextZoneId)
+  AS -> Cache: GetOrDownloadCachedStreamAsync(zoneId, lang)
+  alt Có cache local
+    Cache --> AS: Stream (Tầng 1)
+  else Không có cache
+    AS -> API: GET /api/Audio/poi/{poiId}/{language} (Tầng 2)
+    alt Published có file
+      API --> AS: audioUrl
+    else Published không có
+      AS -> TTS: POST /api/TTS/generate (Tầng 3)
+      TTS -> Q: GetOrGenerateAudioAsync(poiId, lang, factory)
+      Q --> TTS: audioUrl
+      TTS --> AS: audioUrl
+    end
   end
+  AS -> AS: CreatePlayer(stream) + player.Play()
+  AS --> U: Đang phát audio
 end
-AS -> AS: PlayAsync(zoneId, audioUrl, duration, fallbackText)
-AS --> U: Phát audio
+
+group PauseAsync — Tạm dừng
+  U -> AS: PauseAsync(zoneId)
+  AS -> AS: player.Pause()
+  AS -> AS: _positions[zoneId] = player.CurrentPosition
+  AS -> AS: CaptureZoneProgress(zoneId, currentPos)
+  note right: AbandonAudioFocusIfIdle() [Android]
+  AS --> UI: (pause hoàn tất)
+end
+
+group ResumeFromAsync — Tiếp tục phát
+  U -> AS: ResumeFromAsync(zoneId, positionSeconds)
+  AS -> AS: TryRequestAudioFocus() [Android]
+  AS -> AS: player.Seek(positionSeconds)
+  AS -> AS: player.Play()
+  AS --> UI: Tiếp tục từ vị trí đã lưu
+end
+
+group StopAsync / StopAllAsync — Dừng
+  U -> AS: StopAsync(zoneId)
+  AS -> AS: player.Stop(); player.Dispose()
+  AS -> AS: _positions[zoneId] = 0
+  note right: StopAllAsync() lặp toàn bộ _players;\nAbandonAudioFocus() sau cùng [Android]
+end
+
+group SetVolumeAsync — Âm lượng
+  U -> AS: SetVolumeAsync(zoneId, volume)
+  AS -> AS: player.Volume = Clamp(volume, 0.0, 1.0)
+  AS --> UI: (volume đã cập nhật)
+end
+
+group GetCurrentPosition / IsPlaying — Truy vấn trạng thái
+  UI -> AS: GetCurrentPosition(zoneId)
+  AS --> UI: player.CurrentPosition hoặc _positions[zoneId]
+  UI -> AS: IsPlaying(zoneId)
+  AS --> UI: player.IsPlaying (true/false)
+end
 @enduml
 ```
 
@@ -879,21 +952,40 @@ if (POI sắp vào vùng và chưa có cache?) then (Có)
 endif
 
 if (Có file local/preload?) then (Có)
-  :Phát ngay từ cache;
+  :PlayAsync() — phát ngay từ cache (Tầng 1);
 else (Không)
   :Gọi API lấy published audio;
   if (Có URL published?) then (Có)
-    :Phát stream online + lưu cache;
+    :PlayAsync() — phát stream online + lưu cache (Tầng 2);
   else (Không)
     :Đẩy request vào NarrationQueueService (key=poiId:lang);
-    :Gọi TTS generate;
+    :Gọi TTS generate (Tầng 3);
     if (TTS thành công?) then (Có)
-      :Phát audio TTS + lưu cache;
+      :PlayAsync() — phát audio TTS + lưu cache;
     else (Không)
-      :Fallback native TextToSpeech;
+      :Fallback native TextToSpeech (Tầng 4);
     endif
   endif
 endif
+
+repeat
+  :Đang phát — UI poll GetCurrentPosition() / IsPlaying();
+  if (Hành động người dùng?) then (Pause)
+    :PauseAsync() — lưu vị trí, release audio focus;
+    :Chờ người dùng bấm Play lại;
+    :ResumeFromAsync(pos) — seek + tiếp tục phát;
+  elseif (Điều chỉnh âm lượng) then
+    :SetVolumeAsync(vol) — clamp [0.0–1.0];
+  elseif (Stop / thoát trang chi tiết) then
+    :StopAsync() — dispose player, reset position;
+    break
+  elseif (POI switch / app chuyển nền) then
+    :StopAllAsync() — dispose toàn bộ player;
+    break
+  else (Tiếp tục phát)
+  endif
+repeat while (Phát chưa kết thúc?) is (Có)
+-> Không;
 
 :Ghi narration log;
 stop

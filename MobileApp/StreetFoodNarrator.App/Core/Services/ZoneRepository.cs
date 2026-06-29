@@ -311,6 +311,7 @@ public class ZoneRepository : IZoneRepository
             PriceLevel = dto.PriceLevel,
             PlayCount = dto.PlayCount,
             MeanPlay = dto.MeanPlay,
+            NumLikes = dto.NumLikes,
             OpeningHoursText = dto.OpeningHoursText,
             SignatureDishesJson = dto.SignatureDishes != null && dto.SignatureDishes.Count > 0
                 ? string.Join(",", dto.SignatureDishes)
