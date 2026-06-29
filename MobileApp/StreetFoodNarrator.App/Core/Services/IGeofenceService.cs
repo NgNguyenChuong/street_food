@@ -163,25 +163,30 @@ public class GeofenceService : IGeofenceService
             return;
         }
 
-        // Stable sort for overlapping zones: highest priority first, then nearest distance, then tighter radius.
-        // Convention: Priority 1-10, HIGHER = more important (Spot > District > Area).
+        // Conflict resolution: khi nhiều POI overlap, ưu tiên theo thứ tự:
+        // 1. User đã tim quán này (IsLikedByUser) → cá nhân hoá trải nghiệm
+        // 2. NumLikes (tổng lượt thích từ tất cả users) → quán phổ biến hơn
+        // 3. Khoảng cách gần hơn
+        // 4. TriggerRadius nhỏ hơn (vùng cụ thể hơn)
+        // 5. POI_ID nhỏ hơn (stable tiebreak)
         var sorted = insideZones
-            .OrderByDescending(z => z.Priority)
+            .OrderByDescending(z => z.IsLikedByUser ? 1 : 0)
+            .ThenByDescending(z => z.NumLikes)
             .ThenBy(z => z.DistanceFromUser)
             .ThenBy(z => z.Radius)
             .ThenBy(z => z.Id)
             .ToList();
         var bestZone = sorted.First();
 
-        // Hysteresis: when priorities are equal and user is on overlap boundary, keep current zone briefly.
+        // Hysteresis: khi user đứng ở biên vùng overlap, giữ zone hiện tại để tránh zone flapping.
+        // Chỉ switch sang bestZone nếu nó gần hơn rõ rệt (> 8m).
         if (_primaryZone != null)
         {
             var current = insideZones.FirstOrDefault(z => z.Id == _primaryZone.Id);
             if (current != null)
             {
-                var samePriority = current.Priority == bestZone.Priority;
                 var distanceDelta = bestZone.DistanceFromUser - current.DistanceFromUser;
-                if (samePriority && distanceDelta <= 8.0)
+                if (distanceDelta <= 8.0)
                     bestZone = current;
             }
         }
@@ -463,6 +468,13 @@ public class GeofenceService : IGeofenceService
         {
             var effectiveLatitude = location?.Latitude ?? poi.Latitude;
             var effectiveLongitude = location?.Longitude ?? poi.Longitude;
+
+            // If GPS location is outside Vinh Khanh (e.g. GPS test mode), fall back to POI coordinates
+            if (!VinhKhanhAreaGuard.IsInside(effectiveLatitude, effectiveLongitude))
+            {
+                effectiveLatitude = poi.Latitude;
+                effectiveLongitude = poi.Longitude;
+            }
 
             if (!VinhKhanhAreaGuard.IsInside(effectiveLatitude, effectiveLongitude))
                 return;

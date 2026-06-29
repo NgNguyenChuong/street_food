@@ -113,6 +113,12 @@ public class POI
     /// </summary>
     public double MeanPlay { get; set; } = 0;
 
+    /// <summary>
+    /// Tổng số lượt người dùng đã tim/lưu yêu thích quán này.
+    /// Tăng khi user like trong app. Dùng để ưu tiên POI khi overlap geofence.
+    /// </summary>
+    public long NumLikes { get; set; } = 0;
+
     public List<string>? Tags { get; set; }
 
     [MaxLength(100)]

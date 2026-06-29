@@ -223,6 +223,12 @@ public class POI
     public int? PriceLevel { get; set; }
 
     /// <summary>
+    /// Tổng số lượt người dùng đã tim/yêu thích quán này (tổng hợp tất cả users từ backend).
+    /// Dùng làm tiêu chí thứ nhất khi giải quyết xung đột geofence.
+    /// </summary>
+    public long NumLikes { get; set; }
+
+    /// <summary>
     /// Tổng số lượt nghe đã chốt từ backend analytics.
     /// </summary>
     public long PlayCount { get; set; }

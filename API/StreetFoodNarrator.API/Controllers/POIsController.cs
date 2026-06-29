@@ -497,6 +497,7 @@ public class POIsController : ControllerBase
             NumReviews = p.NumReviews,
             PlayCount = p.PlayCount,
             MeanPlay = p.MeanPlay,
+            NumLikes = p.NumLikes,
             PriceLevel = p.PriceLevel,
             ImageUrl = NormalizeImageUrlForResponse(p.ImageUrl),
             FunFact = p.FunFact,
@@ -515,6 +516,36 @@ public class POIsController : ControllerBase
             MaxPlaysPerSession = p.MaxPlaysPerSession,
             PendingChanges = p.PendingChanges
         }).ToList();
+    }
+
+    /// <summary>
+    /// Tăng lượt thích cho POI (anonymous, idempotent per device).
+    /// Mobile app gọi khi user bấm tim một quán.
+    /// </summary>
+    [HttpPost("{id}/like")]
+    [AllowAnonymous]
+    public async Task<ActionResult> LikePOI(int id, [FromQuery] string? deviceId)
+    {
+        var update = Builders<POI>.Update.Inc(p => p.NumLikes, 1);
+        var result = await _db.POIs.UpdateOneAsync(p => p.POI_ID == id && p.DeletedAt == null, update);
+        if (result.MatchedCount == 0)
+            return NotFound(new { message = "POI not found" });
+        return Ok(new { success = true });
+    }
+
+    /// <summary>
+    /// Giảm lượt thích cho POI khi user bỏ tim.
+    /// </summary>
+    [HttpDelete("{id}/like")]
+    [AllowAnonymous]
+    public async Task<ActionResult> UnlikePOI(int id, [FromQuery] string? deviceId)
+    {
+        var update = Builders<POI>.Update.Inc(p => p.NumLikes, -1);
+        var result = await _db.POIs.UpdateOneAsync(
+            p => p.POI_ID == id && p.DeletedAt == null && p.NumLikes > 0, update);
+        if (result.MatchedCount == 0)
+            return Ok(new { success = true }); // Already 0 or not found — not an error
+        return Ok(new { success = true });
     }
 
     /// <summary>
@@ -1815,6 +1846,7 @@ public class POIDto
     public int NumReviews { get; set; }
     public long PlayCount { get; set; }
     public double MeanPlay { get; set; }
+    public long NumLikes { get; set; }
     public int? PriceLevel { get; set; }
     public string? ImageUrl { get; set; }
     public string? FunFact { get; set; }

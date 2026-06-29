@@ -1612,11 +1612,11 @@
       const played = Number(overview.totalAudioPlayed || 0);
       const narr = Number(overview.totalNarrations || 0);
       const compRate = narr > 0 ? Math.round(played / narr * 100) : 0;
-      const androidDevices = (devices || []).filter(d => normalizePlatformName(d.platform ?? d.Platform) === 'Android');
-      const hasLastSeen = androidDevices.some(d => !!(d.lastSeen ?? d.LastSeen));
+      const allDevicesFiltered = (devices || []);
+      const hasLastSeen = allDevicesFiltered.some(d => !!(d.lastSeen ?? d.LastSeen));
       const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-      const activeAndroidDevices = hasLastSeen
-        ? androidDevices.filter(d => {
+      const activeDevicesCount = hasLastSeen
+        ? allDevicesFiltered.filter(d => {
           const ts = new Date(d.lastSeen ?? d.LastSeen).getTime();
           return Number.isFinite(ts) && ts >= sevenDaysAgo;
         }).length
@@ -1625,8 +1625,8 @@
       const cards = [
         {
           icon: 'fas fa-mobile-screen-button', color: '#4A9EFF', bg: 'rgba(74,158,255,.1)',
-          val: num(androidDevices.length), label: 'Tổng thiết bị',
-          sub: `${num(activeAndroidDevices)} hoạt động 7 ngày qua`
+          val: num(allDevicesFiltered.length), label: 'Tổng thiết bị',
+          sub: `${num(activeDevicesCount)} hoạt động 7 ngày qua`
         },
         {
           icon: 'fas fa-headphones', color: '#FF6B35', bg: 'rgba(255,107,53,.1)',
@@ -2837,8 +2837,7 @@
       }
 
       return rows
-        .map(d => ({ ...d, platform: normalizePlatformName(d.platform ?? d.Platform) }))
-        .filter(d => d.platform === 'Android');
+        .map(d => ({ ...d, platform: normalizePlatformName(d.platform ?? d.Platform) }));
     }
 
     async function fetchAllAudiosForDashboard() {
@@ -2873,7 +2872,7 @@
     /* ── MAIN REFRESH ─────────────────────────────────────────────── */
     let dashboardRefreshInFlight = false;
     let dashboardAutoRefreshTimer = null;
-    const DASHBOARD_AUTO_REFRESH_MS = 10000;
+    const DASHBOARD_AUTO_REFRESH_MS = 300000; // 5 minutes
 
     async function refreshDashboard(options = {}) {
       const silent = !!options.silent;

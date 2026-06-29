@@ -119,6 +119,7 @@ body{font-family:-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction
 .rtour-stop-name{font-size:.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rtour-stop-cat{font-size:.72rem;color:var(--muted)}
 .rtour-play-btn{margin-left:4px;background:var(--dark3);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:6px 10px;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0}
+.rtour-detail-btn{margin-left:4px;background:var(--dark3);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:6px 8px;font-size:.68rem;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap}
 
 /* ===== LIST SUB-TABS ===== */
 .list-sub-tabs{display:flex;gap:0;padding:0;border-bottom:1px solid var(--border);background:var(--dark2);flex-shrink:0}
@@ -170,6 +171,7 @@ body{font-family:-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction
 .vip-gate-title{font-size:.95rem;font-weight:800;color:var(--gold)}
 .vip-gate-desc{font-size:.8rem;color:var(--muted);line-height:1.6}
 .vip-gate-btn{margin-top:4px;background:var(--green2);color:#fff;border:none;border-radius:12px;padding:10px 24px;font-size:.9rem;font-weight:800;cursor:pointer}
+.map-vip-gate{position:absolute;inset:0;z-index:450;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px) brightness(.5);-webkit-backdrop-filter:blur(8px) brightness(.5);background:rgba(10,22,18,.45)}
 .poi-dist{font-size:.7rem;color:var(--muted)}
 .poi-play-btn{width:34px;height:34px;border-radius:50%;background:var(--green2);border:none;color:#fff;font-size:.9rem;
               display:flex;align-items:center;justify-content:center;cursor:pointer}
@@ -380,6 +382,14 @@ body{font-family:-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction
     <div id="leafletMap"></div>
     <div class="gps-pill"><div class="gps-dot" id="gpsDot"></div><span id="gpsText" data-i18n="gpsSearching">Đang tìm vị trí...</span></div>
     <button class="map-locate-btn" id="locateBtn">📍</button>
+    <div class="map-vip-gate" id="mapVipGate" style="display:none">
+      <div class="vip-gate-panel" style="background:var(--card);border-radius:var(--radius);max-width:280px;padding:32px 24px;box-shadow:0 8px 32px rgba(0,0,0,.6)">
+        <div class="vip-gate-icon">🗺️</div>
+        <div class="vip-gate-title">Bản đồ quán ăn</div>
+        <div class="vip-gate-desc">Kích hoạt VIP để khám phá bản đồ và tất cả quán ăn trong khu vực Vĩnh Khánh.</div>
+        <button class="vip-gate-btn" onclick="openPaywall('Đăng ký VIP để xem bản đồ và khám phá tất cả quán!')">🔓 Đăng ký VIP</button>
+      </div>
+    </div>
   </div>
 
   <!-- LIST -->
@@ -788,7 +798,7 @@ document.getElementById("wlPickVip").addEventListener("click",function(){
 });
 document.getElementById("wlPickFree").addEventListener("click",function(){
   sessionChoice="free"; sessionStorage.setItem("sfn_session_choice","free");
-  closeWelcome(); renderAll();
+  closeWelcome(); updateMapGate(); renderAll();
 });
 
 // ── VIP CHECK ────────────────────────────────────────────────────────────
@@ -854,6 +864,11 @@ window._sfn=function(id){
   if(!isVipMode()&&sessionChoice==="free"&&pois.length>0&&id!==pid(pois[0])){
     openPaywall("\u0110\u0103ng k\xFD VIP \u0111\u1EC3 xem chi ti\u1EBFt t\u1EA5t c\u1EA3 qu\xE1n!"); return;
   }
+  for(var i=0;i<pois.length;i++){if(pid(pois[i])===id){openDetail(pois[i]);return;}}
+};
+
+window._sfnFreePoi=function(id){
+  document.getElementById("mapBS").classList.remove("open");
   for(var i=0;i<pois.length;i++){if(pid(pois[i])===id){openDetail(pois[i]);return;}}
 };
 
@@ -1077,7 +1092,14 @@ function toggleSave(id){
 window._sfnSave=function(id,e){if(e)e.stopPropagation();toggleSave(id);};
 
 // ── RENDER ALL ───────────────────────────────────────────────────────────
+function updateMapGate(){
+  var gate=document.getElementById("mapVipGate");
+  if(!gate)return;
+  gate.style.display=isVipMode()?"none":"flex";
+}
+
 function renderAll(){
+  updateMapGate();
   renderVenues();
   renderTours();
   renderSaved();
@@ -1105,18 +1127,19 @@ function poiCardHtml(poi, opts){
 
 // ── RENDER VENUES ────────────────────────────────────────────────────────
 function renderVenues(){
-  var vip_mode=isVipMode();
-  var freeId=(!vip_mode&&pois.length>0)?pid(pois[0]):null;
+  var el=document.getElementById("poiGrid");
+  if(!el)return;
+  if(!isVipMode()){
+    el.innerHTML="<div style=\"grid-column:1/-1\" class=\"vip-gate-panel\"><div class=\"vip-gate-icon\">🏪</div><div class=\"vip-gate-title\">Danh sách quán ăn</div><div class=\"vip-gate-desc\">Kích hoạt VIP để xem toàn bộ danh sách quán và nghe thuyết minh không giới hạn.</div><button class=\"vip-gate-btn\" onclick=\"openPaywall()\">🔓 Đăng ký VIP</button></div>";
+    return;
+  }
   var s=pois.slice();
   if(activeSortMode==="distance"&&userLL)s.sort(function(a,b){return hkm(userLL[0],userLL[1],plat(a)||0,plon(a)||0)-hkm(userLL[0],userLL[1],plat(b)||0,plon(b)||0);});
   else if(activeSortMode==="audio")s=s.filter(function(x){return audioFor(x,LANG.current)||audioFor(x,"vi");});
   else if(activeSortMode==="rating")s.sort(function(a,b){return((b.rating||b.Rating||0)-(a.rating||a.Rating||0));});
-  var el=document.getElementById("poiGrid");
-  if(!el)return;
   if(!s.length){el.innerHTML="<div style=\"grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)\">Không có quán nào</div>";return;}
   el.innerHTML=s.map(function(poi){
-    var id=pid(poi),isFree=!vip_mode&&id===freeId,locked=!vip_mode&&!isFree;
-    return poiCardHtml(poi,{locked:locked,free:isFree});
+    return poiCardHtml(poi,{locked:false,free:true});
   }).join("");
 }
 
@@ -1333,6 +1356,8 @@ window.exitLiveTour=function(done){
 function openRemoteTour(tour){
   var name=pp(tour,"tourName_"+LANG.current)||pp(tour,"tourName")||"Tour";
   var stops=tour.pois||tour.Pois||[];
+  var isTourFree=!!(tour.isFreeTour||tour.IsFreeTour);
+  var detailFn=isTourFree?"window._sfnFreePoi":"window._sfn";
   var distKm=userLL?hkm(userLL[0],userLL[1],CENTER[0],CENTER[1]):99;
   document.getElementById("rtourTitle").textContent=name;
   document.getElementById("rtourStops").innerHTML=
@@ -1357,6 +1382,7 @@ function openRemoteTour(tour){
           +factSnippet(fact,"rt_"+i)
         +"</div>"
         +"<button class='rtour-play-btn' data-stopidx='"+i+"' data-name='"+esc(sn)+"' onclick='window._sfnPlayRemote(this)'>\uD83D\uDD0A</button>"
+        +(mP?"<button class='rtour-detail-btn' onclick='"+detailFn+"("+pid(mP)+")'>\uD83D\uDD0D Chi ti\u1EBFt</button>":"")
         +"</div>";
     }).join("");
   document.getElementById("rtourOverlay").classList.add("open");
