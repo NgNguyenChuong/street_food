@@ -19,9 +19,10 @@ public class GeofenceService : IGeofenceService
     private const double MAX_ACCEPTABLE_ACCURACY_INSIDE_METERS = 28.0;
     private const double MAX_ACCEPTABLE_ACCURACY_NEAR_METERS = 50.0;
     private const double EARTH_RADIUS_M = 6_371_000.0;
-    private const int MOVEMENT_UPLOAD_INTERVAL_SECONDS = 8;
-    private const double MOVEMENT_UPLOAD_DISTANCE_METERS = 10.0;
-    private const int SPOT_MAX_COOLDOWN_MINUTES = 5;
+    private const int MOVEMENT_UPLOAD_INTERVAL_SECONDS = 3;
+    private const double MOVEMENT_UPLOAD_DISTANCE_METERS = 5.0;
+    private const int SPOT_MAX_COOLDOWN_MINUTES = 4;
+    private const int LIVE_STATUS_INTERVAL_SECONDS = 2;
 
     // ── Dependencies ──────────────────────────────────────────────
     private readonly IZoneRepository _repository;
@@ -39,6 +40,7 @@ public class GeofenceService : IGeofenceService
     private readonly Dictionary<int, DateTime> _zoneEnteredAtUtc = new();
     private DateTime _lastMovementUploadAtUtc = DateTime.MinValue;
     private Microsoft.Maui.Devices.Sensors.Location? _lastUploadedMovementLocation;
+    private DateTime _lastLiveStatusAtUtc = DateTime.MinValue;
 
     // ── Events ────────────────────────────────────────────────────
     public event Action<List<POI>>? OnActiveZonesChanged;
@@ -71,6 +73,14 @@ public class GeofenceService : IGeofenceService
             // Avoid duplicate SQLite load on first GPS callback.
             if (!_repository.IsSeeded)
                 await _repository.LoadLocalAsync();
+
+            // Self-heal: if local cache is stale/corrupt (e.g. only one POI), force one sync pass.
+            if (AppConfig.UseBackendApi && _repository.GetAllActiveZones().Count <= 1)
+            {
+                await _repository.SyncFromMongoAsync();
+                await _repository.LoadLocalAsync();
+            }
+
             _localLoaded = true;
         }
 
@@ -92,9 +102,7 @@ public class GeofenceService : IGeofenceService
         var insideZones = candidates
             .Where(z =>
             {
-                var effectiveRadius = string.Equals(z.ZoneType, "Spot", StringComparison.OrdinalIgnoreCase)
-                    ? AppConfig.NormalizeSpotRadiusMeters(z.Radius)
-                    : (z.Radius > 0 ? z.Radius : 50);
+                var effectiveRadius = GetEffectiveDetectionRadiusMeters(z, newLocation);
                 return z.DistanceFromUser <= effectiveRadius;
             })
             .ToList();
@@ -109,6 +117,7 @@ public class GeofenceService : IGeofenceService
 
         _currentZones = insideZones;
         OnActiveZonesChanged?.Invoke(_currentZones);
+        EmitLiveTrackingStatus(candidates, insideZones);
 
         await UploadMovementPingAsync(newLocation, insideZones);
 
@@ -323,6 +332,39 @@ public class GeofenceService : IGeofenceService
         return rawCooldown;
     }
 
+    private void EmitLiveTrackingStatus(List<POI> candidates, List<POI> insideZones)
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lastLiveStatusAtUtc).TotalSeconds < LIVE_STATUS_INTERVAL_SECONDS)
+            return;
+
+        _lastLiveStatusAtUtc = now;
+
+        if (insideZones.Count > 0)
+        {
+            var nearestInside = insideZones
+                .OrderBy(z => z.DistanceFromUser)
+                .FirstOrDefault();
+
+            if (nearestInside != null)
+            {
+                OnStatusMessage?.Invoke(
+                    $"Đang trong vùng {nearestInside.Name_Vi} ({nearestInside.DistanceFromUser:F0}m)");
+                return;
+            }
+        }
+
+        var nearest = candidates
+            .OrderBy(z => z.DistanceFromUser)
+            .FirstOrDefault();
+
+        if (nearest != null)
+        {
+            OnStatusMessage?.Invoke(
+                $"Đang theo dõi gần {nearest.Name_Vi} ({nearest.DistanceFromUser:F0}m)");
+        }
+    }
+
     private async Task ClearMonitoringStateAsync(string? statusMessage = null)
     {
         if (_primaryZone != null)
@@ -348,18 +390,50 @@ public class GeofenceService : IGeofenceService
     {
         _zoneEnteredAtUtc[zone.Id] = DateTime.UtcNow;
         OnStatusMessage?.Invoke($"✅ Vào vùng: {zone.Name_Vi} ({zone.DistanceFromUser:F0}m)");
+
+        // Record zone entry even when narration may be blocked by cooldown.
+        _ = UploadMobileLogAsync(zone, _lastLocation, "GeofenceEnter", "GeofenceEnter", false, null);
     }
 
     private async Task UploadMovementPingAsync(Microsoft.Maui.Devices.Sensors.Location location, List<POI> insideZones)
     {
-        if (!insideZones.Any())
-            return;
-
         if (!VinhKhanhAreaGuard.IsInside(location.Latitude, location.Longitude))
             return;
 
         var now = DateTime.UtcNow;
-        var nearestPoi = insideZones.OrderBy(z => z.DistanceFromUser).First();
+
+        POI? nearestPoi;
+        if (insideZones.Any())
+        {
+            nearestPoi = insideZones.OrderBy(z => z.DistanceFromUser).FirstOrDefault();
+        }
+        else
+        {
+            // If GPS jitter misses strict in-zone match, still record near-spot movement.
+            var activeSpots = _repository.GetAllActiveZones()
+                .Where(z => string.Equals(z.ZoneType, "Spot", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var z in activeSpots)
+            {
+                z.DistanceFromUser = HaversineDistance(
+                    location.Latitude,
+                    location.Longitude,
+                    z.Latitude,
+                    z.Longitude);
+            }
+
+            nearestPoi = activeSpots
+                .OrderBy(z => z.DistanceFromUser)
+                .FirstOrDefault();
+
+            // Skip noisy pings when user is too far from all POIs.
+            if (nearestPoi == null || nearestPoi.DistanceFromUser > AppConfig.TrackingNearMeters)
+                return;
+        }
+
+        if (nearestPoi == null)
+            return;
 
         var secondsSinceLast = (now - _lastMovementUploadAtUtc).TotalSeconds;
         var movedEnough = _lastUploadedMovementLocation == null ||
@@ -418,7 +492,13 @@ public class GeofenceService : IGeofenceService
             };
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
-            await _httpClient.PostAsJsonAsync($"{baseUrl}/api/Analytics/narration-logs/mobile", payload, cts.Token);
+            var response = await _httpClient.PostAsJsonAsync($"{baseUrl}/api/Analytics/narration-logs/mobile", payload, cts.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                var responseBody = await response.Content.ReadAsStringAsync();
+                System.Diagnostics.Debug.WriteLine(
+                    $"[Geofence] Upload analytics log rejected: {(int)response.StatusCode} {response.ReasonPhrase}; body={responseBody}");
+            }
         }
         catch (Exception ex)
         {
@@ -426,17 +506,22 @@ public class GeofenceService : IGeofenceService
         }
     }
 
-    private static string GetOrCreateAnonymousDeviceId()
+    private static double GetEffectiveDetectionRadiusMeters(POI zone, Microsoft.Maui.Devices.Sensors.Location location)
     {
-        const string key = "analytics_anonymous_device_id";
-        var current = Microsoft.Maui.Storage.Preferences.Get(key, string.Empty);
-        if (!string.IsNullOrWhiteSpace(current))
-            return current;
+        var baseRadius = string.Equals(zone.ZoneType, "Spot", StringComparison.OrdinalIgnoreCase)
+            ? AppConfig.NormalizeSpotRadiusMeters(zone.Radius)
+            : (zone.Radius > 0 ? zone.Radius : 50);
 
-        var created = $"m-{Guid.NewGuid():N}";
-        Microsoft.Maui.Storage.Preferences.Set(key, created);
-        return created;
+        var accuracy = Math.Max(0, location.Accuracy ?? 0);
+        var dynamicAccuracyBuffer = Math.Min(12, accuracy * 0.35);
+        var spotBuffer = string.Equals(zone.ZoneType, "Spot", StringComparison.OrdinalIgnoreCase)
+            ? AppConfig.SpotZoneGpsErrorBufferMeters
+            : 0;
+
+        return baseRadius + spotBuffer + dynamicAccuracyBuffer;
     }
+
+    private static string GetOrCreateAnonymousDeviceId() => AppConfig.GetOrCreateDeviceId();
 
     private static string ResolveCurrentLanguageCode()
     {

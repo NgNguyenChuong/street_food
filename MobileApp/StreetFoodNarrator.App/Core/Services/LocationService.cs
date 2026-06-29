@@ -20,7 +20,7 @@ public class LocationService : ILocationService
     private const double SignificantMovementMeters = 2.5;
     private const int StationaryDelayInsideMs = 3_000;
     private const int StationaryDelayNearMs = 7_000;
-    private const int StationaryDelayFarMs = 25_000;
+    private const int StationaryDelayFarMs = 30_000;
 
     public bool IsRunning => _isRunning;
     public event Action<Microsoft.Maui.Devices.Sensors.Location>? OnLocationUpdated;

@@ -63,7 +63,7 @@ public partial class POIDetailViewModel : ObservableObject
 
     // Rating display
     [ObservableProperty]
-    private string _ratingText = "4.5";
+    private string _ratingText = "";
 
     [ObservableProperty]
     private string _reviewCountText = "";
@@ -421,17 +421,7 @@ public partial class POIDetailViewModel : ObservableObject
         }
     }
 
-    private static string GetOrCreateAnonymousDeviceId()
-    {
-        const string key = "analytics_anonymous_device_id";
-        var current = Microsoft.Maui.Storage.Preferences.Get(key, string.Empty);
-        if (!string.IsNullOrWhiteSpace(current))
-            return current;
-
-        var created = $"m-{Guid.NewGuid():N}";
-        Microsoft.Maui.Storage.Preferences.Set(key, created);
-        return created;
-    }
+    private static string GetOrCreateAnonymousDeviceId() => AppConfig.GetOrCreateDeviceId();
 
     private void StartProgressTimer()
     {

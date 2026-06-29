@@ -1894,6 +1894,15 @@
                 document.getElementById('poiName').value = poi.name_Vi || '';
                 document.getElementById('poiDescription').value = poi.description_Vi || '';
                 document.getElementById('poiAddress').value = poi.address || '';
+                const mapUrlInput = document.getElementById('mapUrlInput');
+                if (mapUrlInput) {
+                    mapUrlInput.value = poi.mapUrl || '';
+                }
+                const gpsModeSelect = document.getElementById('gpsMode');
+                if (gpsModeSelect) {
+                    gpsModeSelect.value = (poi.mapUrl && String(poi.mapUrl).trim()) ? 'maplink' : 'manual';
+                    applyGpsMode();
+                }
 
                 const latEl = document.getElementById('latitude');
                 const lngEl = document.getElementById('longitude');
@@ -1920,17 +1929,19 @@
 
                 const categoryEl = document.getElementById('poiCategory');
                 const categoryOtherEl = document.getElementById('poiCategoryOther');
-                const categoryValue = poi.category || '';
+                const categoryValue = (poi.category || '').trim();
                 if (categoryEl) {
-                    const hasOption = Array.from(categoryEl.options).some(o => o.value === categoryValue);
+                    const matchedOption = Array.from(categoryEl.options)
+                        .find(o => String(o.value || '').trim().toLowerCase() === categoryValue.toLowerCase());
+                    const hasOption = !!matchedOption;
                     if (categoryValue && !hasOption) {
                         categoryEl.value = 'other';
                         if (categoryOtherEl) {
                             categoryOtherEl.style.display = 'block';
-                            categoryOtherEl.value = '';
+                            categoryOtherEl.value = categoryValue;
                         }
                     } else {
-                        categoryEl.value = categoryValue;
+                        categoryEl.value = matchedOption ? matchedOption.value : '';
                         if (categoryOtherEl) {
                             categoryOtherEl.style.display = categoryEl.value === 'other' ? 'block' : 'none';
                             if (categoryEl.value !== 'other') categoryOtherEl.value = '';
@@ -1943,10 +1954,8 @@
                     if (!catEl || !otherEl) return;
                     if (catEl.value === 'other') {
                         otherEl.style.display = 'block';
-                        otherEl.value = '';
                     } else {
                         otherEl.style.display = 'none';
-                        otherEl.value = '';
                     }
                 };
                 const categoryEl2 = document.getElementById('poiCategory');
@@ -2100,11 +2109,13 @@
                         const catEl = document.getElementById('poiCategory');
                         const otherEl = document.getElementById('poiCategoryOther');
                         if (!catEl) return null;
-                        if (catEl.value === 'other') {
-                            const v = otherEl?.value?.trim();
-                            return v || null;
+                        const selected = (catEl.value || '').trim();
+                        const custom = (otherEl?.value || '').trim();
+                        if (selected === 'other') {
+                            return custom || null;
                         }
-                        return catEl.value || null;
+                        if (selected) return selected;
+                        return custom || null;
                     })(),
                     address: document.getElementById('poiAddress').value || null,
                     openingHoursText: hoursPayload.openingHoursText || null,
@@ -2116,6 +2127,21 @@
                     specialties: specialties.length ? specialties : null,
                     tags: tags.length ? tags : null
                 };
+
+                const gpsModeValue = document.getElementById('gpsMode')?.value || 'manual';
+                const mapUrlValue = document.getElementById('mapUrlInput')?.value?.trim();
+                if (gpsModeValue === 'maplink') {
+                    if (!mapUrlValue) {
+                        data.mapUrl = '';
+                    } else {
+                        const looksLikeHttp = /^https?:\/\//i.test(mapUrlValue);
+                        if (!looksLikeHttp) {
+                            showToast('Link Google Maps phải bắt đầu bằng http:// hoặc https://', 'warning');
+                            return;
+                        }
+                        data.mapUrl = mapUrlValue;
+                    }
+                }
 
                 data.imageUrl = currentImageUrl || null;
 

@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Street Food Narrator – Vĩnh Khánh</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ===== RESET & TOKENS ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--dark:#0a1612;--dark2:#0f1d18;--dark3:#162820;--dark4:#1a2e24;
+--green:#22c55e;--green2:#16a34a;--green3:#4be277;--green4:#86efac;
+--muted:#7a9e8c;--border:#1c3024;--card:#111e18;--white:#f0faf4;
+--gold:#fcd34d;--red:#ef4444;--blue:#60a5fa;
+--shadow:0 4px 24px rgba(0,0,0,.45);--radius:14px;--tab-h:60px;--top-h:56px;
+}
+html,body{height:100%;overflow:hidden;background:var(--dark);color:var(--white)}
+body{font-family:-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;
+     padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
+/* ===== TOPBAR ===== */
+.topbar{height:var(--top-h);background:var(--dark2);border-bottom:1px solid var(--border);
+        display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;z-index:500}
+.topbar-logo{font-size:1.4rem}
+.topbar-name{font-size:.82rem;font-weight:800;letter-spacing:.06em;color:var(--green3);line-height:1.1}
+.topbar-place{font-size:.68rem;color:var(--muted)}
+.topbar-spacer{flex:1}
+.vip-badge{background:rgba(34,197,94,.18);border:1px solid rgba(34,197,94,.4);color:var(--green3);
+            border-radius:10px;padding:2px 8px;font-size:.68rem;font-weight:800;letter-spacing:.04em;display:none}
+.lang-selector{background:var(--dark3);border:1px solid var(--border);color:var(--white);
+               border-radius:8px;padding:4px 8px;font-size:.75rem;cursor:pointer}
+
+/* ===== CONTENT ===== */
+.content-area{flex:1;overflow:hidden;position:relative}
+.tab-panel{position:absolute;inset:0;overflow-y:auto;display:none}
+.tab-panel.active{display:block}
+#tabList.active{display:flex;flex-direction:column;overflow-y:hidden}
+#tabMap{overflow:hidden}
+
+/* ===== TABBAR ===== */
+.tabbar{height:var(--tab-h);background:var(--dark2);border-top:1px solid var(--border);
+        display:flex;align-items:center;flex-shrink:0;z-index:500}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+         gap:2px;background:none;border:none;color:var(--muted);cursor:pointer;
+         font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;transition:color .2s}
+.tab-btn .ti{font-size:1.25rem}
+.tab-btn.active{color:var(--green3)}
+
+/* ===== MAP ===== */
+#leafletMap{width:100%;height:100%}
+.map-locate-btn{position:absolute;bottom:80px;right:16px;z-index:400;width:44px;height:44px;
+                border-radius:50%;background:var(--dark2);border:1px solid var(--border);
+                color:var(--green3);font-size:1.2rem;display:flex;align-items:center;justify-content:center;
+                cursor:pointer;box-shadow:var(--shadow)}
+.leaflet-popup-content-wrapper{background:var(--dark2);color:var(--white);border:1px solid var(--border);
+                                border-radius:var(--radius);box-shadow:var(--shadow)}
+.leaflet-popup-tip{background:var(--dark2)}
+.leaflet-popup-content{margin:12px 14px}
+.map-popup-name{font-weight:700;font-size:.9rem;margin-bottom:3px}
+.map-popup-cat{font-size:.72rem;color:var(--muted);margin-bottom:8px}
+.map-popup-btn{background:var(--green2);color:#fff;border-radius:8px;padding:5px 12px;
+               font-size:.8rem;font-weight:700;cursor:pointer;border:none}
+/* Map dot marker */
+.sfn-mk{background:none!important;border:none!important;overflow:visible;display:flex;flex-direction:column;align-items:center}
+.sfn-dot{width:18px;height:18px;border-radius:50%;background:var(--green);border:2.5px solid rgba(255,255,255,.75);
+         box-shadow:0 0 8px rgba(34,197,94,.6);cursor:pointer;transition:background .2s,box-shadow .2s;flex-shrink:0}
+.sfn-mk.nearby .sfn-dot{background:#ef4444;border-color:#fca5a5;animation:pulse 1.5s infinite}
+.sfn-label{font-size:.55rem;color:#fff;text-align:center;white-space:nowrap;margin-top:3px;text-shadow:0 1px 3px rgba(0,0,0,.9);max-width:70px;overflow:hidden;text-overflow:ellipsis;line-height:1.2;pointer-events:none}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.6)}50%{box-shadow:0 0 0 10px rgba(220,38,38,0)}}
+
+/* Dish cards */
+.dish-cards{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none}
+.dish-cards::-webkit-scrollbar{display:none}
+.dish-card{flex-shrink:0;width:82px;background:var(--dark3);border:1px solid var(--border);border-radius:10px;overflow:hidden;text-align:center}
+.dish-card-img{width:82px;height:62px;object-fit:cover;display:block}
+.dish-card-ph{width:82px;height:62px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;background:var(--dark4)}
+.dish-card-name{font-size:.65rem;font-weight:700;color:var(--white);padding:4px 4px 2px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dish-card-price{font-size:.62rem;color:var(--gold);padding:0 4px 5px;font-weight:700}
+
+/* Map bottom sheet */
+.map-bs{position:fixed;bottom:calc(var(--tab-h) + env(safe-area-inset-bottom));left:0;right:0;z-index:450;
+        background:var(--dark2);border:1px solid var(--border);border-top-left-radius:20px;border-top-right-radius:20px;
+        padding:0 16px 16px;transform:translateY(110%);transition:transform .28s cubic-bezier(.32,.72,.55,1);
+        box-shadow:0 -4px 32px rgba(0,0,0,.7);max-width:640px;margin:0 auto}
+.map-bs.open{transform:translateY(0)}
+.map-bs-drag{width:40px;height:4px;background:var(--border);border-radius:4px;margin:12px auto 14px}
+.gps-pill{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:400;
+          background:var(--dark2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;
+          font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.gps-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.gps-dot.on{background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Tour HUD */
+.tour-hud{position:fixed;top:calc(var(--top-h) + env(safe-area-inset-top));left:0;right:0;z-index:450;
+          background:var(--dark2);border-bottom:2px solid var(--green);padding:10px 16px;
+          display:none;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.tour-hud.active{display:flex}
+.tour-hud-info{flex:1;min-width:0}
+.tour-hud-title{font-size:.7rem;color:var(--muted);font-weight:700;margin-bottom:2px}
+.tour-hud-stop{font-size:.88rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tour-hud-exit{background:var(--dark3);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:6px 10px;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0}
+/* Remote tour overlay */
+.rtour-overlay{position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.85);display:none;align-items:flex-end}
+.rtour-overlay.open{display:flex}
+.rtour-sheet{background:var(--dark2);border-top-left-radius:20px;border-top-right-radius:20px;
+             width:100%;max-height:85dvh;overflow-y:auto;padding:20px 16px calc(env(safe-area-inset-bottom) + 20px)}
+.rtour-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.rtour-title{font-weight:800;font-size:1rem}
+.rtour-exit-btn{background:var(--dark3);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:.8rem}
+.rtour-stop{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.rtour-stop-num{width:26px;height:26px;border-radius:50%;background:var(--green2);color:#fff;font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rtour-stop-img{width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:1.4rem}
+.rtour-stop-body{flex:1;min-width:0}
+.rtour-stop-name{font-size:.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rtour-stop-cat{font-size:.72rem;color:var(--muted)}
+.rtour-play-btn{margin-left:4px;background:var(--dark3);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:6px 10px;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0}
+
+/* ===== LIST SUB-TABS ===== */
+.list-sub-tabs{display:flex;gap:0;padding:0;border-bottom:1px solid var(--border);background:var(--dark2);flex-shrink:0}
+.list-sub-tab{flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-size:.78rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:all .2s}
+.list-sub-tab.active{color:var(--green3);border-bottom-color:var(--green3)}
+.list-sub-panel{display:none;flex:1;overflow-y:auto}
+.list-sub-panel.active{display:flex;flex-direction:column}
+.list-sort-bar{padding:8px 12px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.list-sort-bar::-webkit-scrollbar{display:none}
+
+/* list cards */
+.poi-grid{padding:10px 10px 80px;display:flex;flex-direction:column;gap:8px}
+.poi-card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+          overflow:hidden;cursor:pointer;transition:border-color .2s;position:relative;display:flex;flex-direction:row;min-height:88px}
+.poi-card:hover,.poi-card:active{border-color:var(--green)}
+.poi-card.locked-card{opacity:.55}
+.poi-card-thumb{width:88px;min-width:88px;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:2rem;overflow:hidden;flex-shrink:0}
+.poi-card-thumb img{width:100%;height:100%;object-fit:cover}
+.poi-card-body{padding:10px 44px 10px 10px;flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.poi-card-name{font-weight:700;font-size:.88rem;margin-bottom:3px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.poi-card-meta{font-size:.72rem;color:var(--muted);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.poi-card-tags{display:flex;gap:3px;flex-wrap:wrap}
+.poi-tag{background:rgba(34,197,94,.12);color:var(--green);border-radius:8px;padding:1px 6px;font-size:.63rem;font-weight:600}
+.audio-badge{background:rgba(75,226,119,.15);color:var(--green3);border-radius:8px;padding:1px 6px;font-size:.63rem;font-weight:700}
+.vip-lock-badge{background:rgba(252,211,77,.15);color:var(--gold);border-radius:8px;padding:1px 6px;font-size:.63rem;font-weight:700}
+.free-tag-badge{background:rgba(34,197,94,.18);color:var(--green3);border-radius:8px;padding:1px 6px;font-size:.63rem;font-weight:700}
+.card-save-btn{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(10,22,18,.75);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:.78rem;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;transition:background .15s}
+.card-save-btn.saved{background:rgba(239,68,68,.8);border-color:rgba(239,68,68,.5)}
+.card-lock-icon{position:absolute;bottom:8px;right:8px;font-size:.78rem;opacity:.8}
+
+/* tour stops list */
+.tour-stops-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.tour-stop{display:flex;align-items:center;gap:10px;background:var(--dark3);border-radius:10px;padding:8px 10px}
+.tour-stop-num{width:24px;height:24px;border-radius:50%;background:var(--green2);color:#fff;font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tour-stop-img{width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.tour-stop-ph{background:var(--dark4);display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.tour-stop-body{flex:1;min-width:0}
+.tour-stop-name{font-size:.85rem;font-weight:700;line-height:1.3}
+.tour-stop-cat{font-size:.72rem;color:var(--muted);margin-top:2px}
+
+/* sort chip (reused in grid) */
+.sort-chip{flex-shrink:0;padding:4px 12px;border-radius:20px;border:1px solid var(--border);
+           background:transparent;color:var(--muted);font-size:.72rem;cursor:pointer;white-space:nowrap}
+.sort-chip.active{background:var(--green2);border-color:var(--green2);color:#fff}
+
+/* vip gate panel */
+.vip-gate-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:12px;text-align:center;flex:1}
+.vip-gate-icon{font-size:3rem}
+.vip-gate-title{font-size:.95rem;font-weight:800;color:var(--gold)}
+.vip-gate-desc{font-size:.8rem;color:var(--muted);line-height:1.6}
+.vip-gate-btn{margin-top:4px;background:var(--green2);color:#fff;border:none;border-radius:12px;padding:10px 24px;font-size:.9rem;font-weight:800;cursor:pointer}
+.poi-dist{font-size:.7rem;color:var(--muted)}
+.poi-play-btn{width:34px;height:34px;border-radius:50%;background:var(--green2);border:none;color:#fff;font-size:.9rem;
+              display:flex;align-items:center;justify-content:center;cursor:pointer}
+.poi-play-btn.locked{background:#78350f;border:1px solid var(--gold)}
+
+/* ===== LOADING / ERROR ===== */
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60%;gap:12px}
+.spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:.82rem;color:var(--muted)}
+.error-box{margin:20px 16px;background:var(--card);border:1px solid #4d1c1c;border-radius:var(--radius);padding:20px;text-align:center}
+.retry-btn{margin-top:10px;background:var(--green2);color:#fff;border:none;border-radius:10px;padding:7px 18px;font-size:.82rem;font-weight:700;cursor:pointer}
+
+/* ===== DETAIL POPUP (center modal) ===== */
+.overlay{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:12px}
+.overlay.open{display:flex}
+.sheet{background:var(--dark2);width:100%;max-width:480px;max-height:90dvh;border-radius:20px;overflow-y:auto;
+       padding-bottom:16px;animation:popIn .25s ease;position:relative;box-shadow:0 8px 48px rgba(0,0,0,.7)}
+@keyframes popIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-drag{display:none}
+.sheet-close{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.1);
+             color:#fff;width:32px;height:32px;border-radius:50%;font-size:.9rem;
+             display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;backdrop-filter:blur(4px)}
+.sheet-save-btn{position:absolute;top:10px;right:50px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.1);
+                color:#fff;width:32px;height:32px;border-radius:50%;font-size:.85rem;
+                display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;backdrop-filter:blur(4px)}
+.sheet-save-btn.saved{color:#ef4444;border-color:rgba(239,68,68,.5)}
+.sheet-body{padding:12px 16px 20px}
+.sheet-hero{width:100%;aspect-ratio:16/7;border-radius:12px;overflow:hidden;background:var(--dark3);
+            margin-bottom:12px;display:flex;align-items:center;justify-content:center;font-size:3rem}
+.sheet-hero img{width:100%;height:100%;object-fit:cover}
+.sheet-cat{font-size:.68rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.sheet-name{font-size:1.25rem;font-weight:800;margin-bottom:4px}
+.sheet-addr{font-size:.8rem;color:var(--muted);margin-bottom:10px;display:flex;align-items:flex-start;gap:4px}
+.sheet-addr a{color:var(--green);text-decoration:none}
+.meta-chips{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:.8rem;color:var(--muted);margin-bottom:12px}
+.meta-chip a{color:var(--green);text-decoration:none}
+.sheet-desc{font-size:.85rem;line-height:1.6;color:#c8e5d4;margin-bottom:12px}
+.sh-title{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.dishes-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.dish-tag{background:rgba(255,200,0,.1);color:var(--gold);border:1px solid rgba(255,200,0,.2);border-radius:20px;padding:4px 10px;font-size:.77rem;font-weight:600}
+.story-box{background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px}
+.story-box p{font-size:.83rem;line-height:1.6;color:#a3c4b0}
+
+/* audio player */
+.abox{background:linear-gradient(135deg,#0f3d22,#0a2a18);border:1px solid #1c4d2c;border-radius:12px;padding:14px;margin-bottom:14px}
+.abox-label{font-size:.68rem;font-weight:700;color:var(--green3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.abox-title{font-size:.9rem;font-weight:700;margin-bottom:8px}
+.abox-langs{display:flex;gap:5px;margin-top:7px}
+.alang{padding:4px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);
+       color:#fff;font-size:.72rem;font-weight:700;cursor:pointer}
+.alang.active{background:rgba(34,197,94,.25);border-color:var(--green)}
+
+/* ===== NOW PLAYING (kept minimal, tab removed) ===== */
+
+/* ===== REVIEWS ===== */
+.reviews-section{margin-top:6px}
+.review-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.review-card{background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:10px}
+.review-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.review-user{font-size:.78rem;font-weight:700}
+.review-stars{font-size:.78rem;color:var(--gold)}
+.review-date{font-size:.65rem;color:var(--muted)}
+.review-text{font-size:.8rem;color:#c8e5d4;line-height:1.5}
+.review-form{background:var(--dark4);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:4px}
+.review-form label{font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px}
+.review-form input,.review-form textarea{width:100%;background:var(--dark);border:1px solid var(--border);border-radius:8px;
+    color:var(--white);padding:8px 10px;font-size:.83rem;outline:none;margin-bottom:8px}
+.review-form input::placeholder,.review-form textarea::placeholder{color:var(--muted)}
+.star-picker{display:flex;gap:4px;margin-bottom:10px}
+.star-picker span{font-size:1.4rem;cursor:pointer;opacity:.4;transition:opacity .15s}
+.star-picker span.on{opacity:1}
+.review-submit{width:100%;background:var(--green2);color:#fff;border:none;border-radius:8px;padding:8px;font-size:.85rem;font-weight:700;cursor:pointer}
+.review-sub-done{text-align:center;padding:8px;color:var(--green3);font-size:.85rem;font-weight:700}
+
+/* ===== SETTINGS TAB ===== */
+.settings-wrap{padding:0 16px 80px}
+.settings-section{margin-top:16px}
+.settings-section-title{font-size:.68rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding:0 4px}
+.settings-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.settings-row{display:flex;align-items:center;padding:13px 14px;gap:12px;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-row-icon{font-size:1.1rem;flex-shrink:0}
+.settings-row-body{flex:1;min-width:0}
+.settings-row-label{font-size:.88rem;font-weight:700}
+.settings-row-sub{font-size:.72rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.settings-row-right{flex-shrink:0;font-size:.78rem;color:var(--muted)}
+
+/* VIP status in settings */
+.vip-card{background:linear-gradient(135deg,#0f3d22,#072818);border:1px solid #1c4d2c;border-radius:var(--radius);padding:16px;margin-top:16px}
+.vip-card.no-vip{background:var(--card);border-color:var(--border)}
+.vip-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.vip-title{font-size:1rem;font-weight:800;color:var(--green3)}
+.vip-status-dot{width:9px;height:9px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+.vip-status-dot.off{background:var(--muted);animation:none}
+.vip-desc{font-size:.8rem;color:#a3c4b0;margin-bottom:12px}
+.vip-meta{font-size:.75rem;color:var(--muted);margin-bottom:12px}
+.vip-recovery-wrap{background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.vip-recovery-label{font-size:.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.vip-recovery-code{font-size:1rem;font-weight:800;color:var(--green3);letter-spacing:.08em;word-break:break-all}
+.btn-vip{width:100%;border:none;border-radius:10px;padding:10px;font-size:.88rem;font-weight:800;cursor:pointer;margin-top:4px}
+.btn-sub{background:var(--green2);color:#fff}
+.btn-restore{background:var(--dark3);border:1px solid var(--border);color:var(--green4);margin-top:4px}
+.restore-form{margin-top:8px;display:none}
+.restore-form input{width:100%;background:var(--dark);border:1px solid var(--border);border-radius:8px;
+    color:var(--white);padding:8px 10px;font-size:.85rem;outline:none;margin-bottom:6px;letter-spacing:.08em}
+.restore-form input::placeholder{color:var(--muted)}
+.restore-msg{font-size:.78rem;padding:4px 0;min-height:20px}
+
+/* ===== PAYWALL MODAL ===== */
+.pw-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,10,5,.8);backdrop-filter:blur(4px);display:none;align-items:flex-end}
+.pw-overlay.open{display:flex}
+.pw-sheet{background:#0e1e17;border:1px solid #1c3024;border-radius:24px 24px 0 0;width:100%;
+          max-height:94dvh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom);animation:up .28s ease}
+.pw-drag{width:40px;height:4px;background:var(--border);border-radius:4px;margin:12px auto 0}
+.pw-close{position:absolute;top:14px;right:14px;background:#10251c;border:1px solid #234233;color:#a7f3d0;
+          width:30px;height:30px;border-radius:50%;font-size:.85rem;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2}
+.pw-body{padding:20px 20px 28px;position:relative}
+
+/* step 1 intro */
+.pw-step{display:none}
+.pw-step.active{display:block}
+.pw-icon{width:56px;height:56px;border-radius:20px;background:#123325;border:1px solid #1e4a37;
+         display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 14px}
+.pw-title{font-size:1.25rem;font-weight:800;text-align:center;color:#fff;margin-bottom:6px}
+.pw-price{font-size:.85rem;font-weight:700;text-align:center;color:var(--green4);margin-bottom:10px}
+.pw-desc{font-size:.85rem;line-height:1.55;color:#d1d5db;text-align:center;margin-bottom:10px}
+.pw-benefits{font-size:.82rem;color:#a7f3d0;line-height:1.9;margin-bottom:16px}
+.pw-btn{width:100%;border:none;border-radius:24px;padding:13px;font-size:.95rem;font-weight:800;cursor:pointer;margin-top:6px}
+.pw-btn-pri{background:#22c55e;color:#052e16}
+.pw-btn-sec{background:#10251c;border:1px solid #2a4a3a;color:#86efac}
+.pw-btn-ghost{background:transparent;color:#86efac;font-size:.82rem;font-weight:600;margin-top:2px}
+
+/* step 2 payment */
+.pw-bank-card{background:#10251c;border:1px solid #234233;border-radius:14px;padding:14px;margin-bottom:12px}
+.pw-bank-label{font-size:.68rem;color:#6b7280;margin-bottom:2px}
+.pw-bank-value{font-size:.92rem;font-weight:700;color:#f0fdf4;margin-bottom:8px}
+.pw-bank-acc{font-size:1.3rem;font-weight:800;color:#dcfce7;letter-spacing:.05em}
+.pw-qr-wrap{background:#123325;border:1px solid #1e4a37;border-radius:14px;padding:14px;text-align:center;margin-bottom:12px}
+.pw-qr-label{font-size:.75rem;color:#d1fae5;margin-bottom:8px}
+.pw-qr-img{width:180px;height:180px;border-radius:12px;background:#ecfdf5;object-fit:contain}
+.pw-content-wrap{background:#0b1712;border:1px solid #1f372c;border-radius:12px;padding:10px;margin-bottom:12px}
+.pw-content-label{font-size:.65rem;color:#6b7280;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.pw-content-input{width:100%;background:#132119;border:1px solid #1c3024;border-radius:8px;color:#fde68a;
+    font-size:.85rem;font-weight:700;padding:7px 10px;outline:none}
+.pw-note{font-size:.72rem;color:#6b7280;text-align:center;margin-top:8px;line-height:1.5}
+
+/* step 3 success */
+.pw-success-icon{font-size:3rem;text-align:center;margin:8px 0 12px}
+.pw-success-title{font-size:1.15rem;font-weight:800;text-align:center;color:#4ade80;margin-bottom:14px}
+.pw-recovery-wrap{background:#192821;border:1px solid #2c4138;border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.pw-recovery-label{font-size:.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.pw-recovery-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pw-recovery-code{font-size:1.2rem;font-weight:800;color:#4ade80;letter-spacing:.1em;word-break:break-all}
+.pw-copy-btn{background:#214034;border:none;border-radius:10px;color:#b9f7d1;font-size:.75rem;font-weight:700;padding:5px 10px;cursor:pointer;flex-shrink:0}
+.pw-inv{font-size:.75rem;color:var(--muted);text-align:center;margin-bottom:12px}
+
+/* ===== WELCOME MODAL ===== */
+.wl-overlay{position:fixed;inset:0;z-index:1100;background:rgba(0,8,4,.92);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px}
+.wl-card{background:linear-gradient(160deg,#0a2218,#061610);border:1px solid #1c4030;border-radius:24px;width:100%;max-width:400px;padding:28px 22px 22px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.7)}
+.wl-logo{font-size:3rem;margin-bottom:10px}
+.wl-title{font-size:1.3rem;font-weight:900;color:#f0fdf4;margin-bottom:4px}
+.wl-place{font-size:.8rem;color:var(--muted);margin-bottom:18px}
+.wl-divider{width:40px;height:3px;background:var(--green2);border-radius:3px;margin:0 auto 18px}
+.wl-plans{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.wl-plan{border-radius:16px;padding:14px 16px;text-align:left;cursor:pointer;border:2px solid transparent;transition:border-color .2s}
+.wl-plan-vip{background:linear-gradient(135deg,#0d3a22,#082b19);border-color:#22c55e}
+.wl-plan-free{background:#0e1c16;border-color:#1c3024}
+.wl-plan-vip:hover{border-color:#4ade80}
+.wl-plan-free:hover{border-color:#2d5040}
+.wl-plan-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.wl-plan-name{font-weight:800;font-size:.95rem;color:#f0fdf4}
+.wl-plan-price{font-size:.75rem;font-weight:700;color:var(--green4);background:rgba(34,197,94,.15);padding:2px 8px;border-radius:20px}
+.wl-plan-price.free-tag{color:var(--muted);background:rgba(255,255,255,.07)}
+.wl-plan-perks{font-size:.78rem;color:#a3c4b0;line-height:1.7}
+.wl-plan-perks .lock{color:#6b7280;text-decoration:line-through}
+.wl-footnote{font-size:.7rem;color:#4a7060;margin-top:4px}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">🍜</div>
+  <div>
+    <div class="topbar-name">STREET FOOD NARRATOR</div>
+    <div class="topbar-place" data-i18n="topbarPlace">Phố ẩm thực Vĩnh Khánh</div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <span class="vip-badge" id="vipBadge">VIP</span>
+  <select class="lang-selector" id="langSelect">
+    <option value="vi">Tiếng Việt</option>
+    <option value="en">English</option>
+    <option value="zh">中文</option>
+  </select>
+</div>
+
+<!-- CONTENT -->
+<div class="content-area">
+  <!-- MAP -->
+  <div class="tab-panel active" id="tabMap">
+    <div id="leafletMap"></div>
+    <div class="gps-pill"><div class="gps-dot" id="gpsDot"></div><span id="gpsText" data-i18n="gpsSearching">Đang tìm vị trí...</span></div>
+    <button class="map-locate-btn" id="locateBtn">📍</button>
+  </div>
+
+  <!-- LIST -->
+  <div class="tab-panel" id="tabList">
+    <!-- sub-tabs -->
+    <div class="list-sub-tabs">
+      <button class="list-sub-tab active" data-sub="subVenues" data-i18n="tabVenues">🏪 Quán</button>
+      <button class="list-sub-tab" data-sub="subTours" data-i18n="tabTours">🗺 Tour</button>
+      <button class="list-sub-tab" data-sub="subSaved" data-i18n="tabSaved">❤️ Đã lưu</button>
+    </div>
+    <!-- sub: venues -->
+    <div class="list-sub-panel active" id="subVenues">
+      <div class="list-sort-bar">
+        <button class="sort-chip active" data-sort="default" data-i18n="sortAll">Tất cả</button>
+        <button class="sort-chip" data-sort="distance" data-i18n="sortNear">Gần tôi</button>
+        <button class="sort-chip" data-sort="audio" data-i18n="sortAudio">Có thuyết minh</button>
+        <button class="sort-chip" data-sort="rating" data-i18n="sortRating">Đánh giá cao</button>
+      </div>
+      <div class="poi-grid" id="poiGrid">
+        <div style="grid-column:1/-1" class="loading-wrap"><div class="spinner"></div><div class="loading-text" data-i18n="loading">Đang tải...</div></div>
+      </div>
+    </div>
+    <!-- sub: tours -->
+    <div class="list-sub-panel" id="subTours">
+      <div class="poi-grid" id="tourGrid">
+        <div class="loading-wrap" style="height:120px"><div class="spinner"></div><div class="loading-text" data-i18n="loadingTours">Đang tải tour...</div></div>
+      </div>
+    </div>
+    <!-- sub: saved -->
+    <div class="list-sub-panel" id="subSaved">
+      <div class="poi-grid" id="savedGrid"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="tab-panel" id="tabSettings">
+    <div class="settings-wrap" id="settingsContent"></div>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tabbar">
+  <button class="tab-btn active" data-tab="tabMap"><span class="ti">🗺️</span><span data-i18n="navMap">Bản đồ</span></button>
+  <button class="tab-btn" data-tab="tabList"><span class="ti">📋</span><span data-i18n="navList">Danh sách</span></button>
+  <button class="tab-btn" data-tab="tabSettings"><span class="ti">⚙️</span><span data-i18n="navSettings">Cài đặt</span></button>
+</div>
+
+<!-- MAP BOTTOM SHEET -->
+<div class="map-bs" id="mapBS">
+  <div class="map-bs-drag" id="mapBSDrag"></div>
+  <div id="mapBSBody"></div>
+</div>
+
+<!-- TOUR HUD -->
+<div class="tour-hud" id="tourHud">
+  <div class="tour-hud-info">
+    <div class="tour-hud-title" id="tourHudTitle" data-i18n="tourRunning">Tour đang chạy</div>
+    <div class="tour-hud-stop" id="tourHudStop"></div>
+  </div>
+  <button class="tour-hud-exit" onclick="window.exitLiveTour()" data-i18n="tourEnd">✕ Kết thúc</button>
+</div>
+
+<!-- REMOTE TOUR -->
+<div class="rtour-overlay" id="rtourOverlay">
+  <div class="rtour-sheet">
+    <div class="rtour-header">
+      <div class="rtour-title" id="rtourTitle">Nghe tour từ xa</div>
+      <button class="rtour-exit-btn" onclick="window.exitRemoteTour()" data-i18n="tourExit">✕ Thoát</button>
+    </div>
+    <div id="rtourStops"></div>
+  </div>
+</div>
+
+<!-- POI DETAIL POPUP -->
+<div class="overlay" id="detailOverlay">
+  <div class="sheet">
+    <button class="sheet-save-btn" id="sheetSaveBtn">🤍</button>
+    <button class="sheet-close" id="sheetClose">✕</button>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+</div>
+
+<!-- WELCOME MODAL -->
+<div class="wl-overlay" id="wlOverlay" style="display:none">
+  <div class="wl-card">
+    <div class="wl-logo">🍜</div>
+    <div class="wl-title">Street Food Narrator</div>
+    <div class="wl-place" data-i18n="wlPlace">Phố ẩm thực Vĩnh Khánh · TP.HCM</div>
+    <div class="wl-divider"></div>
+    <div class="wl-plans">
+      <!-- VIP plan -->
+      <div class="wl-plan wl-plan-vip" id="wlPickVip">
+        <div class="wl-plan-header">
+          <span class="wl-plan-name">👑 Gói VIP Tour Explore</span>
+          <span class="wl-plan-price">36.000 VND/tháng</span>
+        </div>
+        <div class="wl-plan-perks">
+          ✅ Nghe thuyết minh không giới hạn<br>
+          ✅ Xem chi tiết tất cả quán<br>
+          ✅ Đánh giá &amp; đặt lịch<br>
+          ✅ Hỗ trợ nhiều ngôn ngữ
+        </div>
+      </div>
+      <!-- Free plan -->
+      <div class="wl-plan wl-plan-free" id="wlPickFree">
+        <div class="wl-plan-header">
+          <span class="wl-plan-name">🔓 Dùng miễn phí</span>
+          <span class="wl-plan-price free-tag">Giới hạn</span>
+        </div>
+        <div class="wl-plan-perks">
+          ✅ Xem bản đồ &amp; 1 quán miễn phí<br>
+          <span class="lock">🔒 Nghe thuyết minh (cần VIP)</span><br>
+          <span class="lock">🔒 Xem chi tiết quán khác</span>
+        </div>
+        <div class="wl-footnote">Bạn có thể nâng cấp bất lúc nào trong phiên này.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAYWALL MODAL -->
+<div class="pw-overlay" id="pwOverlay">
+  <div class="pw-sheet" id="pwSheet">
+    <div class="pw-drag"></div>
+    <button class="pw-close" id="pwClose">✕</button>
+    <div class="pw-body" id="pwBody">
+      <!-- Step 1: Intro -->
+      <div class="pw-step active" id="pwStep1">
+        <div class="pw-icon">🔒</div>
+        <div class="pw-title" data-i18n="pwTitle">Mở khóa Tour Explore</div>
+        <div class="pw-price" data-i18n="pwPrice">chỉ với 36.000 VND / tháng</div>
+        <div class="pw-desc" id="pwDesc">Bạn đã dùng hết lượt nghe miễn phí. Hãy đăng ký VIP để tiếp tục khám phá.</div>
+        <div class="pw-benefits">• Nghe thuyết minh không giới hạn<br>• Tương tác với nhiều quán khác<br>• Xem tour đặc sắc khắp Vĩnh Khánh</div>
+        <button class="pw-btn pw-btn-pri" id="pwToPayment" data-i18n="pwRegister">Đăng ký ngay</button>
+        <button class="pw-btn pw-btn-sec" id="pwMaybeLater" data-i18n="pwLater">Để sau</button>
+        <button class="pw-btn pw-btn-ghost" id="pwToRestore" data-i18n="pwRestore">Khôi phục VIP đã mua</button>
+      </div>
+      <!-- Step 2: Payment -->
+      <div class="pw-step" id="pwStep2">
+        <div class="pw-title" style="text-align:left;margin-bottom:4px">Thanh toán gói VIP</div>
+        <div class="pw-price" style="text-align:left;margin-bottom:12px">36.000 VND / tháng</div>
+        <div class="pw-qr-wrap">
+          <div class="pw-qr-label">Quét mã để thanh toán nhanh</div>
+          <img class="pw-qr-img" id="pwQrImg" src="" alt="QR" loading="lazy">
+        </div>
+        <div class="pw-bank-card">
+          <div class="pw-bank-label">Đơn vị thụ hưởng</div>
+          <div class="pw-bank-value">STREET FOOD NARRATOR LTD</div>
+          <div class="pw-bank-label">Ngân hàng</div>
+          <div class="pw-bank-value">Global Tech Bank</div>
+          <div class="pw-bank-label">Số tài khoản</div>
+          <div class="pw-bank-acc">123-456-7890</div>
+        </div>
+        <div class="pw-content-wrap">
+          <div class="pw-content-label">Nội dung chuyển khoản</div>
+          <input class="pw-content-input" id="pwContent" type="text" maxlength="120">
+        </div>
+        <button class="pw-btn pw-btn-pri" id="pwConfirmBtn">Xác nhận đã chuyển khoản</button>
+        <div class="pw-note">Gói dịch vụ sẽ được kích hoạt sau khi hệ thống xác nhận giao dịch.</div>
+        <button class="pw-btn pw-btn-sec" id="pwBackToIntro" style="margin-top:8px">Quay lại</button>
+      </div>
+      <!-- Step 3: Success -->
+      <div class="pw-step" id="pwStep3">
+        <div class="pw-success-icon">🎉</div>
+        <div class="pw-success-title">Kích hoạt VIP thành công!</div>
+        <div class="pw-recovery-wrap">
+          <div class="pw-recovery-label">Mã khôi phục của bạn — lưu lại ngay!</div>
+          <div class="pw-recovery-row">
+            <div class="pw-recovery-code" id="pwRecoveryCode">—</div>
+            <button class="pw-copy-btn" id="pwCopyCode">Sao chép</button>
+          </div>
+        </div>
+        <div class="pw-inv" id="pwInvoice"></div>
+        <button class="pw-btn pw-btn-pri" id="pwStartExplore">Bắt đầu khám phá ngay ▶</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LEGAL OVERLAY -->
+<div id="legalOverlay" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,10,5,.85);backdrop-filter:blur(4px);overflow-y:auto">
+  <div style="max-width:480px;margin:0 auto;background:var(--dark2);min-height:100dvh;padding:0 0 40px">
+    <div style="display:flex;align-items:center;gap:12px;padding:16px 16px 0">
+      <button onclick="closeLegal()" style="width:36px;height:36px;border-radius:50%;background:var(--dark3);border:1px solid var(--border);color:var(--white);font-size:1rem;cursor:pointer;flex-shrink:0">←</button>
+      <div id="legalTitle" style="font-weight:800;font-size:1rem;color:var(--white)"></div>
+    </div>
+    <div id="legalBody" style="padding:16px;font-size:.82rem;color:var(--muted);line-height:1.75"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+// ── CONFIG ──────────────────────────────────────────────────────────────
+var params = new URLSearchParams(window.location.search);
+var API    = resolveApi(params.get("api") || params.get("apiUrl") || "");
+var LANG   = { current: localStorage.getItem("sfn_lang") || "vi" };
+var CENTER = [10.7508, 106.6901];
+var ZOOM   = 16;
+
+var BANK = { ben:"STREET FOOD NARRATOR LTD", bank:"Global Tech Bank", acc:"123-456-7890", amount:36000 };
+
+// ── STATE ────────────────────────────────────────────────────────────────
+var pois=[], tours=[], userLL=null, map=null, markers={}, currentPoi=null, sortMode="default";
+var vip={ isVip:false, expiresAt:null, invoiceNumber:null, recoveryCode:null };
+// sessionChoice: null = not decided yet, "free" = chose free this session, "vip" = VIP active
+var sessionChoice = sessionStorage.getItem("sfn_session_choice") || null;
+var deviceId     = getOrCreateDeviceId();
+var savedIds     = JSON.parse(localStorage.getItem("sfn_saved")||"[]"); // array of poi IDs
+var audioMap     = {}; // audioMap[poiId][lang] = absoluteUrl — loaded from /api/audio
+var bsCurrPoiId  = null; // POI ID currently playing in bottom sheet
+var activeSubTab = "subVenues";
+var activeSortMode = "default";
+var savedTourIds = JSON.parse(localStorage.getItem("sfn_saved_tours")||"[]");
+var activeTour = null;
+var activeTourWatchId = null;
+
+// ── HELPERS ──────────────────────────────────────────────────────────────
+function apiFetch(url, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({"Accept":"application/json","ngrok-skip-browser-warning":"true"}, opts.headers||{});
+  return fetch(url, opts);
+}
+function resolveApi(o){
+  if(!o) return window.location.origin+"/api";
+  var n=o.trim().replace(/\/+$/,""); return /\/api$/i.test(n)?n:n+"/api";
+}
+function getOrCreateDeviceId(){
+  var k="sfn_device_id", v=localStorage.getItem(k);
+  if(v) return v;
+  var id="w-"+([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,function(c){
+    return(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16);
+  });
+  localStorage.setItem(k,id); return id;
+}
+function pid(poi){
+  if(poi.poI_ID!==undefined)return poi.poI_ID;  // actual camelCase from API
+  if(poi.pOI_ID!==undefined)return poi.pOI_ID;  // legacy camelCase check
+  if(poi.POI_ID!==undefined)return poi.POI_ID;  // PascalCase fallback
+  return null;
+}
+function plat(poi){
+  var l=poi.location||poi.Location;
+  if(l&&l.coordinates)return l.coordinates[1];
+  return poi.latitude||poi.Latitude||null;
+}
+function plon(poi){
+  var l=poi.location||poi.Location;
+  if(l&&l.coordinates)return l.coordinates[0];
+  return poi.longitude||poi.Longitude||null;
+}
+function pp(o,k){
+  var k2=k.charAt(0).toUpperCase()+k.slice(1);
+  var v=o[k]!==undefined?o[k]:o[k2];
+  return(v!==null&&v!==undefined&&v!=="")? v:null;
+}
+
+// ── I18N ─────────────────────────────────────────────────────────────────
+var T={
+  vi:{
+    topbarPlace:"Ph\u1ed1 \u1ea9m th\u1ef1c V\u0129nh Kh\u00e1nh",
+    gpsSearching:"\u0110ang t\u00ecm v\u1ecb tr\u00ed...",gpsFound:"\u0110\u00e3 x\u00e1c \u0111\u1ecbnh v\u1ecb tr\u00ed",gpsUnavailable:"GPS kh\u00f4ng kh\u1ea3 d\u1ee5ng",gpsNoPermission:"Ch\u01b0a c\u1ea5p quy\u1ec1n GPS",
+    tabVenues:"\ud83c\udfea Qu\u00e1n",tabTours:"\ud83d\uddfa Tour",tabSaved:"\u2764\ufe0f \u0110\u00e3 l\u01b0u",
+    sortAll:"T\u1ea5t c\u1ea3",sortNear:"G\u1ea7n t\u00f4i",sortAudio:"C\u00f3 thuy\u1ebft minh",sortRating:"\u0110\u00e1nh gi\u00e1 cao",
+    loading:"\u0110ang t\u1ea3i...",loadingTours:"\u0110ang t\u1ea3i tour...",
+    navMap:"B\u1ea3n \u0111\u1ed3",navList:"Danh s\u00e1ch",navSettings:"C\u00e0i \u0111\u1eb7t",
+    tourRunning:"Tour \u0111ang ch\u1ea1y",tourEnd:"\u2715 K\u1ebft th\u00fac",tourExit:"\u2715 Tho\u00e1t",
+    wlPlace:"Ph\u1ed1 \u1ea9m th\u1ef1c V\u0129nh Kh\u00e1nh \u00b7 TP.HCM",
+    pwTitle:"M\u1edf kh\u00f3a Tour Explore",pwPrice:"ch\u1ec9 v\u1edbi 36.000 VND / th\u00e1ng",
+    pwRegister:"\u0110\u0103ng k\u00fd ngay",pwLater:"\u0110\u1ec3 sau",pwRestore:"Kh\u00f4i ph\u1ee5c VIP \u0111\u00e3 mua"
+  },
+  en:{
+    topbarPlace:"Vinh Khanh Food Street",
+    gpsSearching:"Finding location...",gpsFound:"Location confirmed",gpsUnavailable:"GPS unavailable",gpsNoPermission:"GPS permission denied",
+    tabVenues:"\ud83c\udfea Venues",tabTours:"\ud83d\uddfa Tours",tabSaved:"\u2764\ufe0f Saved",
+    sortAll:"All",sortNear:"Near me",sortAudio:"Has audio",sortRating:"Top rated",
+    loading:"Loading...",loadingTours:"Loading tours...",
+    navMap:"Map",navList:"List",navSettings:"Settings",
+    tourRunning:"Tour in progress",tourEnd:"\u2715 End tour",tourExit:"\u2715 Exit",
+    wlPlace:"Vinh Khanh Food Street \u00b7 HCMC",
+    pwTitle:"Unlock Tour Explore",pwPrice:"only 36,000 VND / month",
+    pwRegister:"Subscribe now",pwLater:"Maybe later",pwRestore:"Restore purchased VIP"
+  },
+  zh:{
+    topbarPlace:"\u6c38\u5e78\u7f8e\u98df\u8857",
+    gpsSearching:"\u5b9a\u4f4d\u4e2d...",gpsFound:"\u5df2\u786e\u5b9a\u4f4d\u7f6e",gpsUnavailable:"GPS\u4e0d\u53ef\u7528",gpsNoPermission:"\u672a\u6388\u6743GPS",
+    tabVenues:"\ud83c\udfea \u9910\u5385",tabTours:"\ud83d\uddfa \u6e38\u8986",tabSaved:"\u2764\ufe0f \u6536\u85cf",
+    sortAll:"\u5168\u90e8",sortNear:"\u9644\u8fd1",sortAudio:"\u6709\u8bb2\u89e3",sortRating:"\u9ad8\u5206",
+    loading:"\u52a0\u8f7d\u4e2d...",loadingTours:"\u52a0\u8f7d\u6e38\u8986...",
+    navMap:"\u5730\u56fe",navList:"\u5217\u8868",navSettings:"\u8bbe\u7f6e",
+    tourRunning:"\u6e38\u8986\u8fdb\u884c\u4e2d",tourEnd:"\u2715 \u7ed3\u675f",tourExit:"\u2715 \u9000\u51fa",
+    wlPlace:"\u6c38\u5e78\u7f8e\u98df\u8857 \u00b7 \u80e1\u5fd7\u660e\u5e02",
+    pwTitle:"\u89e3\u9501 Tour Explore",pwPrice:"\u4ec5\u9700 36,000 VND / \u6708",
+    pwRegister:"\u7acb\u5373\u8ba2\u9605",pwLater:"\u7a0d\u540e\u518d\u8bf4",pwRestore:"\u6062\u590d\u5df2\u8d2d VIP"
+  }
+};
+function t(k){return(T[LANG.current]&&T[LANG.current][k])||(T.vi[k])||k;}
+function applyI18n(){
+  document.querySelectorAll("[data-i18n]").forEach(function(el){
+    var k=el.getAttribute("data-i18n"),v=t(k);
+    if(v!==undefined)el.textContent=v;
+  });
+  // also update html lang attr for accessibility
+  document.documentElement.lang=LANG.current==="zh"?"zh-TW":LANG.current==="en"?"en":"vi";
+}
+
+function nm(poi){return pp(poi,"name_"+LANG.current)||pp(poi,"name_Vi")||("Qu\u00e1n #"+pid(poi));}
+function audioFor(poi,lang){
+  var id=pid(poi);
+  if(id&&audioMap[id]&&audioMap[id][lang])return audioMap[id][lang];
+  var arr=poi.audioContents||poi.AudioContents||[];
+  for(var i=0;i<arr.length;i++){var a=arr[i],l=(a.language||a.Language||"").toLowerCase().replace(/-.*$/,""),u=a.audioUrl||a.AudioUrl;if(l===lang&&u)return u;}
+  var cap=lang.charAt(0).toUpperCase()+lang.slice(1);
+  return pp(poi,"audioUrl_"+cap)||pp(poi,"audioUrl_"+lang);
+}
+function esc(s){
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function hkm(a,b,c,d){
+  var R=6371,dL=(c-a)*Math.PI/180,dO=(d-b)*Math.PI/180;
+  var x=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dO/2)*Math.sin(dO/2);
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function dlbl(km){return km<1?Math.round(km*1000)+" m":km.toFixed(1)+" km";}
+function emj(cat){
+  if(!cat)return"\uD83C\uDF5C";
+  if(/(uống|drink)/i.test(cat))return"\uD83E\uDDB6";
+  if(/(tráng|dessert)/i.test(cat))return"\uD83C\uDF6E";
+  return"\uD83C\uDF5C";
+}
+function fmtDate(d){if(!d)return"";try{return new Date(d).toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric"});}catch(e){return d;}}
+function buildTransferContent(){
+  var t=deviceId.replace(/[^a-zA-Z0-9]/g,"").slice(0,12);
+  return"SUB_Tour_Explore_"+(t||"User");
+}
+function buildQrUrl(content){
+  var payload=["PAYMENT_DEMO","BENEFICIARY: "+BANK.ben,"BANK: "+BANK.bank,"ACCOUNT_NO: "+BANK.acc,"AMOUNT: "+BANK.amount+" VND","CONTENT: "+content].join("\n");
+  return"https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=0&ecc=M&data="+encodeURIComponent(payload);
+}
+function copyText(t){
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(function(){});}
+  else{var el=document.createElement("textarea");el.value=t;document.body.appendChild(el);el.select();try{document.execCommand("copy");}catch(e){}document.body.removeChild(el);}
+}
+
+// ── LANG INIT ────────────────────────────────────────────────────────────
+document.getElementById("langSelect").value=LANG.current;
+document.getElementById("langSelect").addEventListener("change",function(e){
+  window.sfnChangeLang(e.target.value);
+});
+
+// ── TAB SWITCHING ────────────────────────────────────────────────────────
+function switchTab(tabId){
+  // stop any playing audio when changing tabs
+  var _ba=document.getElementById("bsAudio");if(_ba&&!_ba.paused)_ba.pause();
+  var _da=document.getElementById("dAudio");if(_da&&!_da.paused)_da.pause();
+  var _ra=document.getElementById("rtAudio");if(_ra&&!_ra.paused)_ra.pause();
+  speechSynthesis.cancel();
+  // hide map bottom sheet when leaving map tab
+  if(tabId!=="tabMap"){document.getElementById("mapBS").classList.remove("open");}
+  document.querySelectorAll(".tab-btn").forEach(function(x){x.classList.remove("active");});
+  document.querySelectorAll(".tab-panel").forEach(function(x){x.style.display="none";x.classList.remove("active");});
+  var btn=document.querySelector('[data-tab="'+tabId+'"]');if(btn)btn.classList.add("active");
+  var panel=document.getElementById(tabId);
+  if(panel){
+    panel.style.display=(tabId==="tabList"||tabId==="tabMap")?"flex":"block";
+    panel.classList.add("active");
+  }
+  if(tabId==="tabMap"&&map)setTimeout(function(){map.invalidateSize();},50);
+  if(tabId==="tabSettings")renderSettings();
+}
+document.querySelectorAll(".tab-btn").forEach(function(b){
+  b.addEventListener("click",function(){ switchTab(b.dataset.tab); });
+});
+
+// ── SUB-TAB SWITCHING ─────────────────────────────────────────────────────
+document.querySelectorAll(".list-sub-tab").forEach(function(b){
+  b.addEventListener("click",function(){
+    document.querySelectorAll(".list-sub-tab").forEach(function(x){x.classList.remove("active");});
+    document.querySelectorAll(".list-sub-panel").forEach(function(x){x.classList.remove("active");});
+    b.classList.add("active");
+    activeSubTab=b.dataset.sub;
+    var panel=document.getElementById(activeSubTab);
+    if(panel){panel.classList.add("active");}
+    if(activeSubTab==="subVenues")renderVenues();
+    else if(activeSubTab==="subTours")renderTours();
+    else if(activeSubTab==="subSaved")renderSaved();
+  });
+});
+document.querySelectorAll("#subVenues .sort-chip").forEach(function(c){
+  c.addEventListener("click",function(){
+    document.querySelectorAll("#subVenues .sort-chip").forEach(function(x){x.classList.remove("active");});
+    c.classList.add("active"); activeSortMode=c.dataset.sort; renderVenues();
+  });
+});
+
+// ── WELCOME POPUP ─────────────────────────────────────────────────────────
+function showWelcomeIfNeeded(){
+  // Already chose this session or already VIP → skip
+  if(sessionChoice||vip.isVip)return;
+  document.getElementById("wlOverlay").style.display="flex";
+}
+function closeWelcome(){
+  document.getElementById("wlOverlay").style.display="none";
+}
+document.getElementById("wlPickVip").addEventListener("click",function(){
+  closeWelcome(); openPaywall("Đăng ký để nghe thuyết minh không giới hạn tất cả quán!");
+});
+document.getElementById("wlPickFree").addEventListener("click",function(){
+  sessionChoice="free"; sessionStorage.setItem("sfn_session_choice","free");
+  closeWelcome(); renderAll();
+});
+
+// ── VIP CHECK ────────────────────────────────────────────────────────────
+function checkVip(){
+  return apiFetch(API+"/subscriptions/status?deviceId="+encodeURIComponent(deviceId))
+  .then(function(r){if(!r.ok)return null;return r.json();})
+  .then(function(d){
+    if(!d)return;
+    vip.isVip=d.isVip||d.IsVip||false;
+    vip.expiresAt=d.expiresAtUtc||d.ExpiresAtUtc||null;
+    vip.invoiceNumber=d.invoiceNumber||d.InvoiceNumber||null;
+    vip.recoveryCode=d.recoveryCode||d.RecoveryCode||null;
+    if(vip.isVip){
+      sessionChoice="vip"; sessionStorage.setItem("sfn_session_choice","vip");
+    }
+    updateVipBadge();
+    renderAll();
+    renderSettings();
+  }).catch(function(){});
+}
+function updateVipBadge(){
+  var b=document.getElementById("vipBadge");
+  if(vip.isVip){b.style.display="inline-block";}else{b.style.display="none";}
+}
+function canPlayFree(){
+  // VIP always can play
+  if(vip.isVip||sessionChoice==="vip")return true;
+  // Free mode: only the first POI in list is free
+  return false;
+}
+function freePoi(){
+  // First POI in the full list is the designated free one
+  return pois.length>0?pois[0]:null;
+}
+function isFreePoi(id){
+  var fp=freePoi(); return fp&&pid(fp)===id;
+}
+
+// ── MAP INIT ─────────────────────────────────────────────────────────────
+function initMap(){
+  map=L.map("leafletMap",{zoomControl:false}).setView(CENTER,ZOOM);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"\xa9OpenStreetMap \xa9CARTO",maxZoom:19}).addTo(map);
+  L.control.zoom({position:"bottomright"}).addTo(map);
+}
+function addMarkers(){
+  // clear old markers
+  Object.keys(markers).forEach(function(k){if(markers[k])markers[k].remove();});
+  markers={};
+  pois.forEach(function(poi){
+    var lat=plat(poi),lon=plon(poi); if(!lat||!lon)return;
+    var id=pid(poi);
+    var nme=nm(poi);
+    var icon=L.divIcon({className:"sfn-mk",html:"<div class=\"sfn-dot\"></div><div class=\"sfn-label\">" +esc(nme)+"</div>",iconSize:[70,32],iconAnchor:[35,9]});
+    var m=L.marker([lat,lon],{icon:icon}).addTo(map);
+    (function(poiId){m.on("click",function(e){L.DomEvent.stopPropagation(e);showMapSheet(poiId);});})(id);
+    markers[id]=m;
+  });
+  // close bottom sheet when clicking map background
+  map.on("click",function(){var bsA=document.getElementById("bsAudio");if(bsA)bsA.pause();speechSynthesis.cancel();document.getElementById("mapBS").classList.remove("open");});
+}
+window._sfn=function(id){
+  document.getElementById("mapBS").classList.remove("open");
+  if(!isVipMode()&&sessionChoice==="free"&&pois.length>0&&id!==pid(pois[0])){
+    openPaywall("\u0110\u0103ng k\xFD VIP \u0111\u1EC3 xem chi ti\u1EBFt t\u1EA5t c\u1EA3 qu\xE1n!"); return;
+  }
+  for(var i=0;i<pois.length;i++){if(pid(pois[i])===id){openDetail(pois[i]);return;}}
+};
+
+window._sfnFocus=function(id){
+  document.getElementById("mapBS").classList.remove("open");
+  for(var i=0;i<pois.length;i++){
+    if(pid(pois[i])===id){var la=plat(pois[i]),lo=plon(pois[i]);if(la&&lo)map.setView([la,lo],18);return;}
+  }
+};
+
+window._sfnClosePlayer=function(id){
+  var ba=document.getElementById("bsAudio");if(ba)ba.pause();
+  speechSynthesis.cancel();
+  bsCurrPoiId=null;
+  var r=document.getElementById("bsBtnRow");if(!r)return;
+  r.innerHTML="<div style='display:flex;gap:8px'>"
+    +"<button onclick=\"window._sfn("+id+")\" style='flex:1;background:var(--green2);color:#fff;border:none;border-radius:12px;padding:11px 6px;font-weight:800;font-size:.83rem;cursor:pointer'>Xem chi ti\u1EBFt \u2192</button>"
+    +"<button id='bsPlayBtnEl' onclick=\"window._sfnPlaySheet("+id+")\" style='flex:1;background:var(--dark3);border:1px solid var(--border);color:var(--green3);border-radius:12px;padding:11px 6px;font-weight:800;font-size:.83rem;cursor:pointer'>\uD83D\uDD0A Nghe thuy\u1EBFt minh</button>"
+    +"</div>";
+};
+
+window._sfnPlaySheet=function(id){
+  var poi=null;
+  for(var i=0;i<pois.length;i++){if(pid(pois[i])===id){poi=pois[i];break;}}
+  if(!poi)return;
+  var ha=!!(audioFor(poi,LANG.current)||audioFor(poi,"vi"));
+  if(!canPlayAudio(ha,id)){openPaywall("Nghe thuy\u1EBFt minh kh\xF4ng gi\u1EDBi h\u1EA1n v\u1EDBi VIP");return;}
+  var ba=document.getElementById("bsAudio");
+  if(ba){if(!ba.paused)ba.pause();else ba.play().catch(function(){});return;}
+  var ll={"vi":"Vi\u1EC7t","en":"EN","zh":"\u4E2D\u6587"};
+  var am={};
+  ["vi","en","zh"].forEach(function(l){var u=audioFor(poi,l);if(u)am[l]=u;});
+  var als=Object.keys(am),al=am[LANG.current]?LANG.current:(als[0]||null);
+  var nme=nm(poi);
+  var btnRow=document.getElementById("bsBtnRow");if(!btnRow)return;
+  function fmtT(s){s=Math.floor(s||0);return Math.floor(s/60)+":"+(s%60<10?"0":"")+s%60;}
+  var la=plat(poi),lo=plon(poi);if(la&&lo)map.setView([la,lo],18);
+  var xBtn="<button onclick='window._sfnClosePlayer("+id+")' style='width:36px;height:40px;border-radius:12px;background:var(--dark3);border:1px solid var(--border);color:var(--muted);font-size:.9rem;cursor:pointer;flex-shrink:0'>&#x2715;</button>";
+  bsCurrPoiId=id;
+  if(al){
+    btnRow.innerHTML=
+      "<div style='display:flex;gap:8px;margin-bottom:8px'>"
+        +"<button onclick=\"window._sfn("+id+")\" style='flex:1;background:var(--green2);color:#fff;border:none;border-radius:12px;padding:11px 6px;font-weight:800;font-size:.83rem;cursor:pointer'>Xem chi ti\u1EBFt \u2192</button>"
+        +xBtn
+      +"</div>"
+      +"<audio id='bsAudio' preload='auto' style='display:none;pointer-events:none'><source src='"+esc(am[al])+"' type='audio/mpeg'></audio>"
+      +"<div style='background:linear-gradient(135deg,#0f3d22,#0a2a18);border:1px solid #1c4d2c;border-radius:12px;padding:10px 12px'>"
+        +"<div style='font-size:.66rem;font-weight:700;color:var(--green3);letter-spacing:.05em;margin-bottom:8px'>\uD83C\uDF99 "+esc(nme)+"</div>"
+        +"<div style='display:flex;align-items:center;gap:10px'>"
+          +"<button id='bsPP' style='width:36px;height:36px;border-radius:50%;background:var(--green2);border:none;color:#fff;font-size:1.1rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center'>\u23F8</button>"
+          +"<div style='flex:1'>"
+            +"<div id='bsPW' style='height:5px;background:rgba(255,255,255,.15);border-radius:3px;cursor:pointer;margin-bottom:5px'>"
+              +"<div id='bsPB' style='width:0%;height:100%;background:var(--green);border-radius:3px'></div>"
+            +"</div>"
+            +"<div style='display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted)'>"
+              +"<span id='bsCT'>0:00</span><span id='bsDT'>--:--</span>"
+            +"</div>"
+          +"</div>"
+        +"</div>"
+      +"</div>";
+    var ba2=document.getElementById("bsAudio"),ppBtn=document.getElementById("bsPP"),pb=document.getElementById("bsPB"),ctEl=document.getElementById("bsCT"),dtEl=document.getElementById("bsDT"),pw=document.getElementById("bsPW");
+    if(ba2){
+      ba2.play().catch(function(){if(ppBtn)ppBtn.innerHTML="\u25B6";});
+      ba2.addEventListener("loadedmetadata",function(){if(dtEl)dtEl.textContent=fmtT(ba2.duration);});
+      ba2.addEventListener("timeupdate",function(){if(!ba2.duration)return;if(pb)pb.style.width=(ba2.currentTime/ba2.duration*100)+"%";if(ctEl)ctEl.textContent=fmtT(ba2.currentTime);if(dtEl)dtEl.textContent=fmtT(ba2.duration);});
+      ba2.addEventListener("ended",function(){if(ppBtn)ppBtn.innerHTML="\u25B6";if(pb)pb.style.width="100%";});
+      ba2.addEventListener("play",function(){if(ppBtn)ppBtn.innerHTML="\u23F8";});
+      ba2.addEventListener("pause",function(){if(ppBtn)ppBtn.innerHTML="\u25B6";});
+    }
+    if(ppBtn&&ba2){ppBtn.addEventListener("click",function(){if(ba2.paused)ba2.play().catch(function(){});else ba2.pause();});}
+    if(pw&&ba2){pw.addEventListener("click",function(e){var bnd=pw.getBoundingClientRect();if(ba2.duration)ba2.currentTime=(e.clientX-bnd.left)/bnd.width*ba2.duration;});}
+  }else{
+    var ttsText=pp(poi,"description_"+LANG.current)||pp(poi,"description_Vi")||nme;
+    var langLbl={"vi":"ti\u1EBFng Vi\u1EC7t","en":"English","zh":"\u4E2D\u6587"}[LANG.current]||"";
+    btnRow.innerHTML=
+      "<div style='display:flex;gap:8px;margin-bottom:8px'>"
+        +"<button onclick=\"window._sfn("+id+")\" style='flex:1;background:var(--green2);color:#fff;border:none;border-radius:12px;padding:11px 6px;font-weight:800;font-size:.83rem;cursor:pointer'>Xem chi ti\u1EBFt \u2192</button>"
+        +xBtn
+      +"</div>"
+      +"<div style='background:linear-gradient(135deg,#0f3d22,#0a2a18);border:1px solid #1c4d2c;border-radius:12px;padding:10px 12px'>"
+        +"<div style='font-size:.66rem;font-weight:700;color:var(--green3);letter-spacing:.05em;margin-bottom:8px'>\uD83D\uDD0A "+esc(nme)+"</div>"
+        +"<div style='display:flex;align-items:center;gap:10px'>"
+          +"<button id='bsTTSBtn' style='width:36px;height:36px;border-radius:50%;background:var(--green2);border:none;color:#fff;font-size:1.1rem;cursor:pointer;flex-shrink:0'>\u25B6</button>"
+          +"<div style='flex:1;font-size:.78rem;color:var(--muted);line-height:1.5'>Thuy\u1EBFt minh "+langLbl+"<br><span style='font-size:.68rem;opacity:.6'>\u0110\u1ECDc t\u1EEB m\xF4 t\u1EA3</span></div>"
+        +"</div>"
+      +"</div>";
+    var tb=document.getElementById("bsTTSBtn");
+    if(tb){tb.addEventListener("click",function(){if(speechSynthesis.speaking){speechSynthesis.cancel();tb.innerHTML="\u25B6";return;}var u=new SpeechSynthesisUtterance(ttsText);u.lang=LANG.current==="vi"?"vi-VN":LANG.current==="zh"?"zh-CN":"en-US";u.rate=0.9;u.onend=function(){tb.innerHTML="\u25B6";};tb.innerHTML="\u23F8";speechSynthesis.speak(u);});}
+  }
+};
+
+function showMapSheet(id){
+  var bsAOld=document.getElementById("bsAudio");if(bsAOld)bsAOld.pause();speechSynthesis.cancel();
+  var poi=null;
+  for(var i=0;i<pois.length;i++){if(pid(pois[i])===id){poi=pois[i];break;}}
+  if(!poi)return;
+  var nme=nm(poi),cat=pp(poi,"category")||"",img=pp(poi,"imageUrl")||"";
+  var rating=poi.rating||poi.Rating,sv=isSaved(id);
+  var dist="";
+  if(userLL){var km=hkm(userLL[0],userLL[1],plat(poi)||0,plon(poi)||0);dist=dlbl(km);}
+  var ratingHtml=rating?"<span style='margin-right:6px'>\u2B50 "+Number(rating).toFixed(1)+"</span>":"";
+  var distHtml=dist?"<span>\uD83D\uDCCD "+esc(dist)+"</span>":"";
+  document.getElementById("mapBSBody").innerHTML=
+    "<div style='display:flex;align-items:center;gap:12px;margin-bottom:12px'>"
+     +(img?"<img src='"+esc(img)+"' style='width:60px;height:60px;border-radius:10px;object-fit:cover;flex-shrink:0' onerror=\"this.style.display='none'\">"
+          :"<div style='width:60px;height:60px;border-radius:10px;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:1.8rem'>"+emj(cat)+"</div>")
+     +"<div style='flex:1;min-width:0'>"
+       +"<div style='font-weight:800;font-size:.95rem;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(nme)+"</div>"
+       +(cat?"<div style='font-size:.72rem;color:var(--muted);margin-bottom:3px'>"+esc(cat)+"</div>":"")
+       +((ratingHtml||distHtml)?"<div style='font-size:.75rem;color:var(--muted)'>"+ratingHtml+distHtml+"</div>":"")
+     +"</div>"
+     +"<button onclick=\"window._sfnSave("+id+",event)\" style='width:34px;height:34px;border-radius:50%;background:rgba(10,22,18,.85);border:1px solid var(--border);font-size:.9rem;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0'>"
+       +(sv?"\u2764\uFE0F":"\uD83E\uDD0D")+"</button>"
+    +"</div>"
+    +"<div id='bsBtnRow'><div style='display:flex;gap:8px'>"
+      +"<button onclick=\"window._sfn("+id+")\" style='flex:1;background:var(--green2);color:#fff;border:none;border-radius:12px;padding:11px 6px;font-weight:800;font-size:.83rem;cursor:pointer'>Xem chi ti\u1EBFt \u2192</button>"
+      +"<button id='bsPlayBtnEl' onclick=\"window._sfnPlaySheet("+id+")\" style='flex:1;background:var(--dark3);border:1px solid var(--border);color:var(--green3);border-radius:12px;padding:11px 6px;font-weight:800;font-size:.83rem;cursor:pointer'>\uD83D\uDD0A Nghe thuy\u1EBFt minh</button>"
+    +"</div></div>";
+  document.getElementById("mapBS").classList.add("open");
+}
+
+function loadMenuItems(poiId,fallbackDishes){
+  var el=document.getElementById("menuSection"); if(!el)return;
+  apiFetch(API+"/menuitems?poiId="+poiId+"&pageSize=10")
+  .then(function(r){return r.ok?r.json():null;})
+  .then(function(d){
+    var el2=document.getElementById("menuSection"); if(!el2)return;
+    var items=(d&&(d.data||d.Data))||[];
+    if(!items.length){
+      if(fallbackDishes&&fallbackDishes.length)
+        el2.innerHTML="<div class=\"sh-title\">M\xF3n \u0111\u1EB7c tr\u01B0ng</div><div class=\"dishes-wrap\">"
+          +fallbackDishes.map(function(d){return"<span class=\"dish-tag\">\uD83C\uDF7D "+esc(d)+"</span>";}).join("")+"</div>";
+      return;
+    }
+    el2.innerHTML="<div class=\"sh-title\">M\xF3n \u0111\u1EB7c tr\u01B0ng</div><div class=\"dish-cards\">"
+      +items.map(function(m){
+        var n=m.name_Vi||m.Name_Vi||"",img=m.imageUrl||m.ImageUrl||"",price=m.price||m.Price;
+        return "<div class=\"dish-card\">"
+          +(img?"<img class=\"dish-card-img\" src='"+esc(img)+"' alt='' onerror=\"this.style.display='none';this.nextElementSibling.style.display='flex'\">"
+                +"<div class=\"dish-card-ph\" style='display:none'>\uD83C\uDF7D</div>"
+              :"<div class=\"dish-card-ph\">\uD83C\uDF7D</div>")
+          +"<div class=\"dish-card-name\">"+esc(n)+"</div>"
+          +(price?"<div class=\"dish-card-price\">"+Number(price).toLocaleString("vi-VN")+"\u20AB</div>":"")
+          +"</div>";
+      }).join("")+"</div>";
+  }).catch(function(){
+    var el2=document.getElementById("menuSection"); if(!el2)return;
+    if(fallbackDishes&&fallbackDishes.length)
+      el2.innerHTML="<div class=\"sh-title\">M\xF3n \u0111\u1EB7c tr\u01B0ng</div><div class=\"dishes-wrap\">"
+        +fallbackDishes.map(function(d){return"<span class=\"dish-tag\">\uD83C\uDF7D "+esc(d)+"</span>";}).join("")+"</div>";
+  });
+}
+
+// ── GPS ──────────────────────────────────────────────────────────────────
+var uMark=null;
+function startGps(){
+  if(!navigator.geolocation){document.getElementById("gpsText").textContent=t("gpsUnavailable");return;}
+  navigator.geolocation.watchPosition(function(pos){
+    userLL=[pos.coords.latitude,pos.coords.longitude];
+    document.getElementById("gpsDot").classList.add("on");
+    document.getElementById("gpsText").textContent=t("gpsFound");
+    if(!uMark){
+      var icon=L.divIcon({className:"",html:"<div style=\"width:14px;height:14px;border-radius:50%;background:#60a5fa;border:3px solid #fff;box-shadow:0 0 0 4px rgba(96,165,250,.3)\"></div>",iconSize:[14,14],iconAnchor:[7,7]});
+      uMark=L.marker(userLL,{icon:icon,zIndexOffset:1000}).addTo(map);
+      uMark.bindTooltip("B\u1EA1n \u0111ang \u1EDF \u0111\xE2y",{permanent:false,direction:"top"});
+    }else{uMark.setLatLng(userLL);}
+    pois.forEach(function(poi){
+      var la=plat(poi),lo=plon(poi);if(!la||!lo)return;
+      var km=hkm(userLL[0],userLL[1],la,lo),m=markers[pid(poi)];
+      if(m){var el=m.getElement();if(el)el.classList.toggle("nearby",km<0.05);}
+    });
+    if(activeSortMode==="distance")renderVenues();
+  },function(){document.getElementById("gpsText").textContent=t("gpsNoPermission");},{enableHighAccuracy:true,maximumAge:5000});
+}
+document.getElementById("locateBtn").addEventListener("click",function(){if(userLL)map.setView(userLL,18);else startGps();});
+
+// ── LOAD POIS ────────────────────────────────────────────────────────────
+function loadPois(){
+  return apiFetch(API+"/pois?pageSize=200&isActive=true")
+  .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+  .then(function(d){pois=d.data||d.Data||d.items||d.Items||(Array.isArray(d)?d:[]);renderList();addMarkers();return pois;})
+  .catch(function(err){
+    document.getElementById("poiGrid").innerHTML="<div style=\"grid-column:1/-1\" class=\"error-box\"><div style=\"font-size:2rem;margin-bottom:8px\">📡</div><div style=\"font-weight:700;margin-bottom:4px\">Không tải được</div><div style=\"font-size:.8rem;color:var(--muted)\">"+esc(String(err))+"</div><button class=\"retry-btn\" onclick=\"window._sfnLoad()\">Thử lại</button></div>";
+    return[];
+  });
+}
+window._sfnLoad=function(){loadPois();loadAudio();};
+
+function loadAudio(){
+  return apiFetch(API+"/audio?pageSize=200&isActive=true")
+  .then(function(r){return r.ok?r.json():null;})
+  .then(function(d){
+    if(!d)return;
+    var base=API.replace(/\/api\/?$/,"");
+    var items=d.data||d.Data||[];
+    items.forEach(function(a){
+      var poiId=a.poI_ID||a.poi_ID||a.poiId||a.PoiId;
+      if(!poiId)return;
+      var lang=(a.language||a.Language||"").toLowerCase().replace(/-.*$/,""); // "zh-cn"→"zh"
+      var url=a.audioUrl||a.AudioUrl||"";
+      if(!url||!lang)return;
+      if(url.charAt(0)==="/")url=base+url;
+      if(!audioMap[poiId])audioMap[poiId]={};
+      if(!audioMap[poiId][lang])audioMap[poiId][lang]=url; // first listed = most recent
+    });
+    renderAll();
+  })
+  .catch(function(){});
+}
+
+// ── SAVED HELPERS ────────────────────────────────────────────────────────
+function isSaved(id){return savedIds.indexOf(id)>=0;}
+function toggleSave(id){
+  var idx=savedIds.indexOf(id);
+  if(idx>=0)savedIds.splice(idx,1); else savedIds.push(id);
+  localStorage.setItem("sfn_saved",JSON.stringify(savedIds));
+  var btn=document.getElementById("sheetSaveBtn");
+  if(btn&&currentPoi&&pid(currentPoi)===id){btn.textContent=isSaved(id)?"❤️":"🤍";btn.classList.toggle("saved",isSaved(id));}
+  renderAll();
+}
+window._sfnSave=function(id,e){if(e)e.stopPropagation();toggleSave(id);};
+
+// ── RENDER ALL ───────────────────────────────────────────────────────────
+function renderAll(){
+  renderVenues();
+  renderTours();
+  renderSaved();
+}
+function renderList(){renderAll();} // backwards compat
+
+// ── CARD HTML BUILDER ────────────────────────────────────────────────────
+function poiCardHtml(poi, opts){
+  var id=pid(poi), nme=nm(poi), cat=pp(poi,"category")||"";
+  var imgs=(poi.imageUrls||poi.ImageUrls||[]), img=pp(poi,"imageUrl")||(imgs[0]||"");
+  var ha=!!(audioFor(poi,LANG.current)||audioFor(poi,"vi"));
+  var locked=opts&&opts.locked, free=opts&&opts.free, sv=isSaved(id);
+  return "<div class=\"poi-card"+(locked?" locked-card":"")+"\" onclick=\"window._sfn("+id+")\">"
+    +"<div class=\"poi-card-thumb\">"+(img?"<img src=\""+esc(img)+"\" alt=\"\" onerror=\"this.style.display='none'\">":emj(cat))+"</div>"
+    +"<button class=\"card-save-btn"+(sv?" saved":"")+"\" onclick=\"window._sfnSave("+id+",event)\">"+(sv?"❤️":"🤍")+"</button>"
+    +(locked?"<div class=\"card-lock-icon\">🔒</div>":"")
+    +"<div class=\"poi-card-body\"><div class=\"poi-card-name\">"+esc(nme)+"</div>"
+    +"<div class=\"poi-card-meta\">"+esc(cat)+"</div>"
+    +"<div class=\"poi-card-tags\">"
+    +(ha?"<span class=\"audio-badge\">&#x1F399;</span>":"")
+    +(free?"<span class=\"free-tag-badge\">✨ Miễn phí</span>":"")
+    +(locked?"<span class=\"vip-lock-badge\">🔒 VIP</span>":"")
+    +"</div></div></div>";
+}
+
+// ── RENDER VENUES ────────────────────────────────────────────────────────
+function renderVenues(){
+  var vip_mode=isVipMode();
+  var freeId=(!vip_mode&&pois.length>0)?pid(pois[0]):null;
+  var s=pois.slice();
+  if(activeSortMode==="distance"&&userLL)s.sort(function(a,b){return hkm(userLL[0],userLL[1],plat(a)||0,plon(a)||0)-hkm(userLL[0],userLL[1],plat(b)||0,plon(b)||0);});
+  else if(activeSortMode==="audio")s=s.filter(function(x){return audioFor(x,LANG.current)||audioFor(x,"vi");});
+  else if(activeSortMode==="rating")s.sort(function(a,b){return((b.rating||b.Rating||0)-(a.rating||a.Rating||0));});
+  var el=document.getElementById("poiGrid");
+  if(!el)return;
+  if(!s.length){el.innerHTML="<div style=\"grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)\">Không có quán nào</div>";return;}
+  el.innerHTML=s.map(function(poi){
+    var id=pid(poi),isFree=!vip_mode&&id===freeId,locked=!vip_mode&&!isFree;
+    return poiCardHtml(poi,{locked:locked,free:isFree});
+  }).join("");
+}
+
+// ── RENDER TOURS ─────────────────────────────────────────────────────────
+function renderTours(){
+  var el=document.getElementById("tourGrid");
+  if(!el) return;
+  if(!tours.length) return; // spinner already shown; loadTours will call renderTours when ready
+  el.innerHTML=tours.map(function(t){ return tourCardHtml(t); }).join("");
+}
+
+// ── TOUR SAVE HELPERS ─────────────────────────────────────────────────────
+function isTourSaved(id){return savedTourIds.indexOf(String(id))>=0;}
+function toggleSaveTour(id){
+  var sid=String(id),idx=savedTourIds.indexOf(sid);
+  if(idx>=0)savedTourIds.splice(idx,1);else savedTourIds.push(sid);
+  localStorage.setItem("sfn_saved_tours",JSON.stringify(savedTourIds));
+  renderTours();
+}
+window._sfnSaveTour=function(id,e){if(e)e.stopPropagation();toggleSaveTour(id);};
+
+// ── TOUR CARD ─────────────────────────────────────────────────────────────
+function tourCardHtml(tour){
+  var id=tour.id||tour.Id||tour.tour_ID||tour.Tour_ID||"";
+  var name=pp(tour,"tourName_"+LANG.current)||pp(tour,"tourName")||"Tour";
+  var img=pp(tour,"imageUrl")||"";
+  var dur=tour.estimatedDurationMinutes||tour.EstimatedDurationMinutes;
+  var isFree=!!(tour.isFreeTour||tour.IsFreeTour);
+  var themes=tour.themes||tour.Themes||[];
+  var stops=(tour.pois||tour.Pois||[]).length;
+  var locked=!isVipMode()&&!isFree;
+  var sv=isTourSaved(id);
+  return "<div class=\"poi-card"+(locked?" locked-card":"")+"\" onclick=\"window._sfnTour('"+esc(String(id))+"')\">"
+    +"<div class=\"poi-card-thumb\">"+(img?"<img src=\""+esc(img)+"\" alt=\"\" onerror=\"this.style.display='none'\">":"🗺️")+"</div>"
+    +"<button class=\"card-save-btn"+(sv?" saved":"")+"\" onclick=\"window._sfnSaveTour('"+esc(String(id))+"',event)\">"+(sv?"❤️":"🤍")+"</button>"
+    +"<div class=\"poi-card-body\">"
+      +"<div class=\"poi-card-name\">"+esc(name)+"</div>"
+      +"<div class=\"poi-card-meta\">"+(dur?"⏱ "+dur+" phút · ":"")+stops+" điểm dừng</div>"
+      +"<div class=\"poi-card-tags\">"
+        +(isFree?"<span class=\"free-tag-badge\">✨ Miễn phí</span>":"")
+        +(locked?"<span class=\"vip-lock-badge\">🔒 VIP</span>":"")
+        +themes.slice(0,2).map(function(t){return"<span class=\"poi-tag\">"+esc(t)+"</span>";}).join("")
+      +"</div>"
+    +"</div></div>";
+}
+
+// ── LOAD TOURS ────────────────────────────────────────────────────────────
+function loadTours(){
+  return apiFetch(API+"/tours?pageSize=50&isActive=true")
+  .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+  .then(function(d){tours=d.data||d.Data||d.items||d.Items||(Array.isArray(d)?d:[]);renderTours();return tours;})
+  .catch(function(err){
+    var el=document.getElementById("tourGrid");
+    if(el)el.innerHTML="<div class=\"error-box\"><div style=\"font-size:2rem;margin-bottom:8px\">📡</div><div style=\"font-weight:700;margin-bottom:4px\">Không tải được tour</div><div style=\"font-size:.8rem;color:var(--muted)\">"+esc(String(err))+"</div><button class=\"retry-btn\" onclick=\"loadTours()\">Thử lại</button></div>";
+    return[];
+  });
+}
+window.loadTours=loadTours;
+
+// ── TOUR VIP GATE + OPEN ──────────────────────────────────────────────────
+window._sfnTour=function(id){
+  if(!id)return;
+  var tour=null;
+  for(var i=0;i<tours.length;i++){var t=tours[i];var tid=t.id||t.Id||t.tour_ID||t.Tour_ID||"";if(String(tid)===String(id)){tour=t;break;}}
+  if(!tour)return;
+  var isFree=!!(tour.isFreeTour||tour.IsFreeTour);
+  if(!isVipMode()&&!isFree){openPaywall("Đăng ký VIP để tham gia tour này!");return;}
+  openTourDetail(tour);
+};
+
+var _FACT_MAX=90;
+function factSnippet(fact,uid){
+  if(!fact)return"";
+  if(fact.length<=_FACT_MAX)return"<div style='font-size:.7rem;color:var(--gold);font-style:italic;margin-top:3px;line-height:1.4'>\u2728 "+esc(fact)+"</div>";
+  var sh=fact.substring(0,_FACT_MAX);
+  return"<div style='font-size:.7rem;color:var(--gold);font-style:italic;margin-top:3px;line-height:1.4'>"
+    +"\u2728 <span id='fs_"+uid+"'>"+esc(sh)+"...</span>"
+    +"<span id='fl_"+uid+"' style='display:none'>"+esc(fact.substring(_FACT_MAX))+"</span>"
+    +"<button onclick='window._sfnToggleFact(\"ft_"+uid+"\")' id='fb_"+uid+"' style='margin-left:4px;background:none;border:none;color:var(--green4);font-size:.67rem;cursor:pointer;text-decoration:underline;padding:0;font-style:normal'>Xem th\xEAm⇓</button>"
+    +"</div>";
+}
+window._sfnToggleFact=function(uid){
+  var sh=document.getElementById("fs_"+uid),fl=document.getElementById("fl_"+uid),btn=document.getElementById("fb_"+uid);
+  if(!sh)return;
+  var open=fl&&fl.style.display!=="none";
+  if(fl)fl.style.display=open?"none":"inline";
+  sh.style.display=open?"inline":"none";
+  if(btn)btn.textContent=open?"Xem th\xEAm\u21D3":"Thu g\u1ECDn\u21C6";
+};
+
+function openTourDetail(tour){
+  var tourId=tour.id||tour.Id||tour.tour_ID||tour.Tour_ID||"";
+  var name=pp(tour,"tourName_"+LANG.current)||pp(tour,"tourName")||"Tour";
+  var desc=pp(tour,"description_"+LANG.current)||pp(tour,"description_Vi")||pp(tour,"description")||"";
+  var img=pp(tour,"imageUrl")||"";
+  var dur=tour.estimatedDurationMinutes||tour.EstimatedDurationMinutes;
+  var isFree=!!(tour.isFreeTour||tour.IsFreeTour);
+  var themes=tour.themes||tour.Themes||[];
+  var timeSlots=tour.timeSlots||tour.TimeSlots||[];
+  var stops=tour.pois||tour.Pois||[];
+  currentPoi=null;
+  var saveBtn=document.getElementById("sheetSaveBtn");
+  if(saveBtn)saveBtn.style.display="none";
+  var stopsHtml=stops.map(function(s,i){
+    var sn=s.name||s.Name||("Đi\u1EC3m "+(i+1));
+    var sc=s.category||s.Category||"";
+    var si=s.imageUrl||s.ImageUrl||"";
+    var sid=String(s.id||s.Id||s.poiId||"");
+    var mP=null;
+    if(sid){for(var j=0;j<pois.length;j++){if(String(pid(pois[j]))===sid){mP=pois[j];break;}}}
+    if(!mP){for(var j=0;j<pois.length;j++){if(nm(pois[j])===sn){mP=pois[j];break;}}}
+    var fact=mP&&(mP.funFact||mP.FunFact||pp(mP,"funFact"))||"";
+    return "<div class=\"tour-stop\">"
+      +"<div class=\"tour-stop-num\">"+(i+1)+"</div>"
+      +(si?"<img class=\"tour-stop-img\" src=\""+esc(si)+"\" alt=\"\" onerror=\"this.style.display='none'\">"
+           :"<div class=\"tour-stop-img tour-stop-ph\">"+emj(sc)+"</div>")
+      +"<div class=\"tour-stop-body\">"
+        +"<div class=\"tour-stop-name\">"+esc(sn)+"</div>"
+        +(sc?"<div class=\"tour-stop-cat\">"+esc(sc)+"</div>":"")
+        +factSnippet(fact,"td_"+i)
+      +"</div></div>";
+  }).join("");
+  document.getElementById("sheetBody").innerHTML=
+    "<div class=\"sheet-hero\">"+(img?"<img src=\""+esc(img)+"\" alt=\""+esc(name)+"\" onerror=\"this.style.display='none'\">":"🗺️")+"</div>"
+    +(themes.length?"<div class=\"sheet-cat\">"+esc(themes[0])+"</div>":"")
+    +"<div class=\"sheet-name\">"+esc(name)+"</div>"
+    +(desc?"<div class=\"sheet-desc\">"+esc(desc)+"</div>":"")
+    +"<div class=\"meta-chips\">"
+      +(dur?"<div class=\"meta-chip\">⏱ "+dur+" phút</div>":"")
+      +(timeSlots.length?"<div class=\"meta-chip\">🕒 "+esc(timeSlots[0]||"Linh hoạt")+"</div>":"")
+      +"<div class=\"meta-chip\">📍 "+stops.length+" điểm dừng</div>"
+      +(isFree?"<div class=\"meta-chip\" style=\"color:var(--green3)\">✨ Miễn phí</div>":"<div class=\"meta-chip\" style=\"color:var(--gold)\">👑 VIP</div>")
+    +"</div>"
+    +(stops.length?"<div class=\"sh-title\">Lịch trình tour</div><div class=\"tour-stops-list\">"+stopsHtml+"</div>":"")
+    +"<button onclick=\"window.startTour('"+esc(String(tourId))+"')\" style=\"width:100%;background:var(--green2);color:#fff;border:none;border-radius:12px;padding:12px;font-size:.92rem;font-weight:800;cursor:pointer;margin-top:8px\">▶ Bắt đầu tour ngay</button>";
+  document.getElementById("detailOverlay").classList.add("open");
+}
+
+// ── TOUR PLAYBACK ─────────────────────────────────────────────────────────
+window.startTour=function(id){
+  var tour=null;
+  for(var i=0;i<tours.length;i++){var t=tours[i];var tid=t.id||t.Id||t.tour_ID||t.Tour_ID||"";if(String(tid)===String(id)){tour=t;break;}}
+  if(!tour)return;
+  var stops=tour.pois||tour.Pois||[];
+  if(!stops.length){alert("Tour n\xE0y ch\u01B0a c\xF3 \u0111i\u1EC3m d\u1EEBng.");return;}
+  document.getElementById("detailOverlay").classList.remove("open");
+  var distKm=userLL?hkm(userLL[0],userLL[1],CENTER[0],CENTER[1]):99;
+  if(distKm>1){openRemoteTour(tour);return;}
+  startLiveTour(tour);
+};
+
+function startLiveTour(tour){
+  activeTour=tour;
+  var stops=tour.pois||tour.Pois||[];
+  Object.keys(markers).forEach(function(k){if(markers[k])markers[k].remove();});
+  markers={};
+  stops.forEach(function(s,i){
+    var lat=s.latitude||s.Latitude,lon=s.longitude||s.Longitude;if(!lat||!lon)return;
+    var num=i+1;
+    var sn=esc(s.name||s.Name||("Di\u1EC3m "+num));
+    var icon=L.divIcon({className:"sfn-mk",html:"<div class=\"sfn-dot\" style=\"background:var(--gold);border-color:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#000\">"+num+"</div><div class=\"sfn-label\">"+sn+"</div>",iconSize:[70,32],iconAnchor:[35,9]});
+    var m=L.marker([lat,lon],{icon:icon}).addTo(map);
+    markers["ts_"+i]=m;
+  });
+  switchTab("tabMap");
+  updateTourHud(tour,0);
+  document.getElementById("tourHud").classList.add("active");
+  if(activeTourWatchId!==null){navigator.geolocation.clearWatch(activeTourWatchId);activeTourWatchId=null;}
+  var curStop=0;
+  activeTourWatchId=navigator.geolocation.watchPosition(function(pos){
+    userLL=[pos.coords.latitude,pos.coords.longitude];
+    if(!activeTour||curStop>=stops.length)return;
+    var s=stops[curStop];
+    var slat=s.latitude||s.Latitude,slon=s.longitude||s.Longitude;if(!slat||!slon)return;
+    if(hkm(pos.coords.latitude,pos.coords.longitude,slat,slon)<0.05){
+      playTourStopAudio(s,curStop);curStop++;updateTourHud(tour,curStop);
+      if(curStop>=stops.length){setTimeout(function(){if(activeTour)window.exitLiveTour(true);},3000);}
+    }
+  },function(){},{enableHighAccuracy:true,maximumAge:3000});
+}
+
+function updateTourHud(tour,stopIdx){
+  var name=pp(tour,"tourName_"+LANG.current)||pp(tour,"tourName")||"Tour";
+  var stops=tour.pois||tour.Pois||[];
+  document.getElementById("tourHudTitle").textContent=name+" ("+stopIdx+"/"+stops.length+")";
+  if(stopIdx<stops.length){
+    document.getElementById("tourHudStop").textContent="\u27A1 "+(stops[stopIdx].name||stops[stopIdx].Name||("Di\u1EC3m "+(stopIdx+1)));
+    var nlat=stops[stopIdx].latitude||stops[stopIdx].Latitude,nlon=stops[stopIdx].longitude||stops[stopIdx].Longitude;
+    if(nlat&&nlon)map.setView([nlat,nlon],18);
+  }else{document.getElementById("tourHudStop").textContent="\u2705 Ho\xE0n th\xE0nh tour!";}
+}
+
+function playTourStopAudio(stop,idx){
+  var matchPoi=null,sid=stop.id||stop.Id||stop.poiId||stop.POI_ID||stop.pOI_ID;
+  if(sid){for(var i=0;i<pois.length;i++){if(String(pid(pois[i]))===String(sid)){matchPoi=pois[i];break;}}}
+  if(!matchPoi){for(var i=0;i<pois.length;i++){if(nm(pois[i])===(stop.name||stop.Name)){matchPoi=pois[i];break;}}}
+  var audioUrl=matchPoi?audioFor(matchPoi,LANG.current)||audioFor(matchPoi,"vi"):null;
+  if(!audioUrl){
+    var txt=(LANG.current==="vi")?"B\u1EA1n \u0111\xE3 \u0111\u1EBFn "+(stop.name||stop.Name||("di\u1EC3m "+(idx+1)))+". Ch\xE0o m\u1EEBng!":"Welcome to "+(stop.name||stop.Name||("stop "+(idx+1)));
+    var u=new SpeechSynthesisUtterance(txt);u.lang=LANG.current==="zh"?"zh-TW":LANG.current==="en"?"en-US":"vi-VN";
+    window.speechSynthesis.cancel();window.speechSynthesis.speak(u);return;
+  }
+  var a=new Audio(audioUrl);a.play().catch(function(){});
+}
+
+window.exitLiveTour=function(done){
+  if(activeTourWatchId!==null){navigator.geolocation.clearWatch(activeTourWatchId);activeTourWatchId=null;}
+  activeTour=null;
+  document.getElementById("tourHud").classList.remove("active");
+  addMarkers();
+  if(done){alert("\uD83C\uDF89 B\u1EA1n \u0111\xE3 ho\xE0n th\xE0nh tour! C\u1EA3m \u01A1n \u0111\xE3 kh\xE1m ph\xE1 V\u0129nh Kh\xE1nh.");}
+};
+
+function openRemoteTour(tour){
+  var name=pp(tour,"tourName_"+LANG.current)||pp(tour,"tourName")||"Tour";
+  var stops=tour.pois||tour.Pois||[];
+  var distKm=userLL?hkm(userLL[0],userLL[1],CENTER[0],CENTER[1]):99;
+  document.getElementById("rtourTitle").textContent=name;
+  document.getElementById("rtourStops").innerHTML=
+    "<div style='text-align:center;padding:10px 0 14px;font-size:.8rem;color:var(--muted)'>"
+    +(distKm<90?"B\u1EA1n \u0111ang c\xE1ch khu v\u1EF1c "+dlbl(distKm)+". Nghe thuy\u1EBFt minh t\u1EEB xa:":"Nghe thuy\u1EBFt minh t\u1EEB xa:")
+    +"</div>"
+    +stops.map(function(s,i){
+      var sn=s.name||s.Name||("Di\u1EC3m "+(i+1));
+      var sc=s.category||s.Category||"";
+      var si=s.imageUrl||s.ImageUrl||"";
+      var sid=String(s.id||s.Id||s.poiId||"");
+      var mP=null;
+      if(sid){for(var j=0;j<pois.length;j++){if(String(pid(pois[j]))===sid){mP=pois[j];break;}}}
+      if(!mP){for(var j=0;j<pois.length;j++){if(nm(pois[j])===sn){mP=pois[j];break;}}}
+      var fact=mP&&(mP.funFact||mP.FunFact||pp(mP,"funFact"))||"";
+      return "<div class='rtour-stop' id='rtourStop_"+i+"'>"
+        +"<div class='rtour-stop-num'>"+(i+1)+"</div>"
+        +(si?"<img class='rtour-stop-img' src='"+esc(si)+"' alt='' onerror=\"this.style.display='none'\">":"<div class='rtour-stop-img'>"+emj(sc)+"</div>")
+        +"<div class='rtour-stop-body'>"
+          +"<div class='rtour-stop-name'>"+esc(sn)+"</div>"
+          +(sc?"<div class='rtour-stop-cat'>"+esc(sc)+"</div>":"")
+          +factSnippet(fact,"rt_"+i)
+        +"</div>"
+        +"<button class='rtour-play-btn' data-stopidx='"+i+"' data-name='"+esc(sn)+"' onclick='window._sfnPlayRemote(this)'>\uD83D\uDD0A</button>"
+        +"</div>";
+    }).join("");
+  document.getElementById("rtourOverlay").classList.add("open");
+}
+
+window.exitRemoteTour=function(){
+  document.querySelectorAll("#rtourStops audio").forEach(function(a){a.pause();});
+  speechSynthesis.cancel();
+  document.getElementById("rtourOverlay").classList.remove("open");
+};
+
+window._sfnPlayRemote=function(btn){
+  var idx=parseInt(btn.dataset.stopidx)||0,stopName=btn.dataset.name||"";
+  var playerId="rtourPlayer_"+idx;
+  // close other open players
+  document.querySelectorAll("#rtourStops [id^='rtourPlayer_']").forEach(function(el){
+    if(el.id!==playerId){var a=el.querySelector("audio");if(a)a.pause();el.remove();}
+  });
+  var existing=document.getElementById(playerId);
+  if(existing){var ea=existing.querySelector("audio");if(ea)ea.pause();speechSynthesis.cancel();existing.remove();btn.textContent="\uD83D\uDD0A";return;}
+  var matchPoi=null;
+  // find poi by stop name (stored in data-name)
+  for(var i=0;i<pois.length;i++){if(nm(pois[i])===stopName){matchPoi=pois[i];break;}}
+  var ll={"vi":"Vi\u1EC7t","en":"EN","zh":"\u4E2D\u6587"};
+  var am={};
+  if(matchPoi){["vi","en","zh"].forEach(function(l){var u=audioFor(matchPoi,l);if(u)am[l]=u;});}
+  var als=Object.keys(am),al=am[LANG.current]?LANG.current:(als[0]||null);
+  var playerDiv=document.createElement("div");
+  playerDiv.id=playerId;
+  playerDiv.setAttribute("style","margin:4px 0 6px;background:linear-gradient(135deg,#0f3d22,#0a2a18);border:1px solid #1c4d2c;border-radius:10px;padding:10px");
+  if(al){
+    var lRow="";
+    if(als.length>1){
+      als.forEach(function(l){lRow+="<button class=\"alang"+(l===al?" active":"")+"\" data-lang=\""+l+"\" data-url=\""+esc(am[l])+"\">"+(ll[l]||l)+"</button>";});
+      lRow="<div id=\"rtL_"+idx+"\" style=\"display:flex;gap:5px;margin-top:6px\">"+lRow+"</div>";
+    }
+    playerDiv.innerHTML="<audio id=\"rtA_"+idx+"\" controls preload=\"auto\" style=\"width:100%;height:38px\"><source src=\""+esc(am[al])+"\" type=\"audio/mpeg\"></audio>"+lRow;
+  }else{
+    var ttsText=matchPoi?(pp(matchPoi,"description_"+LANG.current)||pp(matchPoi,"description_Vi")||pp(matchPoi,"description")||stopName):stopName;
+    playerDiv.innerHTML="<button id=\"rtTTS_"+idx+"\" style=\"width:100%;background:var(--green2);color:#fff;border:none;border-radius:8px;padding:8px;font-size:.82rem;font-weight:700;cursor:pointer\">\u25B6 Nghe thuy\u1EBFt minh</button>";
+  }
+  var stopRow=document.getElementById("rtourStop_"+idx);
+  if(stopRow&&stopRow.nextSibling){stopRow.parentNode.insertBefore(playerDiv,stopRow.nextSibling);}
+  else{var c=document.getElementById("rtourStops");if(c)c.appendChild(playerDiv);}
+  if(al){
+    var ra=document.getElementById("rtA_"+idx),rl=document.getElementById("rtL_"+idx);
+    if(ra){ra.play().catch(function(){});}
+    if(rl&&ra){rl.addEventListener("click",function(e){var b=e.target.closest(".alang");if(!b)return;rl.querySelectorAll(".alang").forEach(function(x){x.classList.remove("active");});b.classList.add("active");var wp=!ra.paused;ra.src=b.dataset.url;ra.load();if(wp){ra.currentTime=0;ra.play().catch(function(){});}});}
+  }else{
+    var tb2=document.getElementById("rtTTS_"+idx);
+    if(tb2){
+      var ttsT=ttsText;
+      tb2.addEventListener("click",function(){if(speechSynthesis.speaking){speechSynthesis.cancel();tb2.textContent="\u25B6 Nghe thuy\u1EBFt minh";return;}var u=new SpeechSynthesisUtterance(ttsT);u.lang=LANG.current==="zh"?"zh-TW":LANG.current==="en"?"en-US":"vi-VN";tb2.textContent="\u23F9 D\u1EEB ng";u.onend=function(){tb2.textContent="\u25B6 Nghe thuy\u1EBFt minh";};speechSynthesis.speak(u);});
+    }
+  }
+  btn.textContent="\u23F9";
+};
+
+// ── RENDER SAVED ─────────────────────────────────────────────────────────
+function renderSaved(){
+  if(!isVipMode()){
+    var el=document.getElementById("savedGrid");
+    if(el)el.innerHTML="<div style=\"grid-column:1/-1\" class=\"vip-gate-panel\"><div class=\"vip-gate-icon\">❤️</div><div class=\"vip-gate-title\">Danh sách đã lưu</div><div class=\"vip-gate-desc\">Kích hoạt VIP để lưu và xem lại các quán yêu thích.</div><button class=\"vip-gate-btn\" onclick=\"openPaywall()\">🔓 Đăng ký VIP</button></div>";
+    return;
+  }
+  var saved=pois.filter(function(p){return isSaved(pid(p));});
+  var el=document.getElementById("savedGrid");
+  if(!el)return;
+  if(!saved.length){el.innerHTML="<div style=\"grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)\">Chưa lưu quán nào.<br><span style=\"font-size:.75rem\">Bấm ❤️ trên một quán để lưu.</span></div>";return;}
+  el.innerHTML=saved.map(function(poi){return poiCardHtml(poi,{});}).join("");
+}
+
+// ── AUDIO GATE ────────────────────────────────────────────────────────────
+function isVipMode(){return vip.isVip||sessionChoice==="vip";}
+function canPlayAudio(haAudio, poiId){
+  if(!haAudio)return true;
+  if(isVipMode())return true;
+  if(sessionChoice==="free"&&pois.length>0&&pid(pois[0])===poiId)return true;
+  return false;
+}
+window._sfnPlay=function(id){
+  for(var i=0;i<pois.length;i++){
+    if(pid(pois[i])===id){
+      var poi=pois[i];
+      var ha=!!(audioFor(poi,LANG.current)||audioFor(poi,"vi"));
+      if(!canPlayAudio(ha,id)){
+        openPaywall("Nghe thuyết minh không giới hạn với VIP"); return;
+      }
+      openDetail(poi); return;
+    }
+  }
+};
+
+
+
+// ── DETAIL SHEET ──────────────────────────────────────────────────────────
+function openDetail(poi){
+  // stop any existing detail audio before rebuilding sheet
+  var _existingDA=document.getElementById("dAudio");if(_existingDA){_existingDA.pause();_existingDA.src="";}
+  // sync with map sheet audio: if same POI is playing, capture its position
+  var _bsA=document.getElementById("bsAudio");
+  var _bsSamePoi=(_bsA&&bsCurrPoiId===pid(poi));
+  var _bsSavedTime=(_bsSamePoi&&_bsA&&!_bsA.paused)?_bsA.currentTime:0;
+  if(_bsA&&!_bsA.paused){_bsA.pause();}
+  speechSynthesis.cancel();
+  currentPoi=poi;
+  var saveBtn=document.getElementById("sheetSaveBtn");if(saveBtn)saveBtn.style.display="";
+  var lang=LANG.current,id=pid(poi),nme=nm(poi);
+  var desc=pp(poi,"description_"+lang)||pp(poi,"description_Vi")||"";
+  var addr=pp(poi,"address")||"", mapU=pp(poi,"mapUrl")||(addr?"https://maps.google.com/?q="+encodeURIComponent(addr):"");
+  var imgs=(poi.imageUrls||poi.ImageUrls||[]), img=pp(poi,"imageUrl")||(imgs[0]||"");
+  var cat=pp(poi,"category")||"", dishes=(poi.signatureDishes||poi.SignatureDishes||[]);
+  var story=pp(poi,"story")||pp(poi,"funFact")||pp(poi,"history")||"";
+  var rating=poi.rating||poi.Rating, price=poi.averagePrice||poi.AveragePrice;
+  var phone=pp(poi,"phoneNumber")||"", hours=pp(poi,"openingHoursText")||"";
+  var ll={"vi":"Vi\u1ec7t","en":"EN","zh":"\u4e2d\u6587"};
+  var am={};
+  ["vi","en","zh"].forEach(function(l){var u=audioFor(poi,l);if(u)am[l]=u;});
+  var als=Object.keys(am), al=am[lang]?lang:(als[0]||null);
+  var ha=als.length>0;
+
+  var canPlay=canPlayAudio(ha,id);
+  // If non-VIP and not the free POI, show locked notice instead of full sheet
+  var poiLocked=!isVipMode()&&sessionChoice==="free"&&pois.length>0&&pid(pois[0])!==id;
+  var aHtml="";
+  if(al&&canPlay){
+    aHtml="<div class=\"abox\"><div class=\"abox-label\">&#x1F399; Thuyết minh</div>"
+      +"<div class=\"abox-title\">"+esc(nme)+"</div>"
+      +"<audio id=\"dAudio\" controls preload=\"auto\" style=\"width:100%;height:40px\"><source src=\""+esc(am[al])+"\" type=\"audio/mpeg\"></audio>"
+      +(als.length>1?"<div class=\"abox-langs\" id=\"dLangs\">"+als.map(function(l){return"<button class=\"alang"+(l===al?" active":"")+"\" data-lang=\""+l+"\" data-url=\""+esc(am[l])+"\">"+(ll[l]||l)+"</button>";}).join("")+"</div>":"")
+      +"</div>";
+  }else if(ha&&!canPlay){
+    aHtml="<div class=\"abox\" style=\"background:rgba(252,211,77,.08);border-color:rgba(252,211,77,.25);\">"
+      +"<div style=\"text-align:center;padding:8px;\"><span style=\"font-size:1.5rem\">🔒</span>"
+      +"<div style=\"font-size:.88rem;font-weight:700;color:var(--gold);margin:6px 0;\">Quán này có thuyết minh</div>"
+      +"<div style=\"font-size:.78rem;color:var(--muted);margin-bottom:10px\">Đăng ký VIP để nghe không giới hạn</div>"
+      +"<button onclick=\"openPaywall();\" style=\"background:var(--green2);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-size:.85rem;font-weight:700;cursor:pointer\">Đăng ký VIP ngay</button></div></div>";
+  }else if(!ha&&canPlay){
+    // No audio file: show TTS button
+    var ttsText=(desc||nme)+". "+addr;
+    aHtml="<div class=\"abox\"><div class=\"abox-label\">\uD83D\uDD0A Thuy\u1EBFt minh</div>"
+      +"<div class=\"abox-title\">"+esc(nme)+"</div>"
+      +"<button id=\"ttsBtn\" style=\"width:100%;background:var(--green2);color:#fff;border:none;border-radius:10px;padding:9px;font-size:.85rem;font-weight:700;cursor:pointer;margin-top:4px\">\u25B6 Nghe thuy\u1EBFt minh</button>"
+      +"</div>";
+  }
+
+  var mHtml="";
+  if(rating)mHtml+="<div class=\"meta-chip\">\u2B50 "+Number(rating).toFixed(1)+"</div>";
+  if(price)mHtml+="<div class=\"meta-chip\">\uD83D\uDCB0 ~"+Number(price).toLocaleString("vi-VN")+"\u20AB</div>";
+  if(hours)mHtml+="<div class=\"meta-chip\">\uD83D\uDD50 "+esc(hours)+"</div>";
+  if(phone)mHtml+="<div class=\"meta-chip\"><a href=\"tel:"+esc(phone)+"\">\uD83D\uDCDE "+esc(phone)+"</a></div>";
+  var heroH=img?"<img src=\""+esc(img)+"\" alt=\""+esc(nme)+"\" onerror=\"this.style.display='none'\">":emj(cat);
+
+  document.getElementById("sheetBody").innerHTML=
+    "<div class=\"sheet-hero\">"+heroH+"</div>"
+    +(cat?"<div class=\"sheet-cat\">"+esc(cat)+"</div>":"")
+    +"<div class=\"sheet-name\">"+esc(nme)+"</div>"
+    +(addr?"<div class=\"sheet-addr\">\uD83D\uDCCD "+(mapU?"<a href=\""+esc(mapU)+"\" target=\"_blank\" rel=\"noopener\">"+esc(addr)+"</a>":esc(addr))+"</div>":"")
+    +(mHtml?"<div class=\"meta-chips\">"+mHtml+"</div>":"")
+    +(poiLocked
+      ?"<div class=\"abox\" style=\"background:rgba(252,211,77,.08);border-color:rgba(252,211,77,.3);text-align:center;padding:18px\">"
+        +"<div style=\"font-size:2rem;margin-bottom:8px\">\uD83D\uDD12</div>"
+        +"<div style=\"font-weight:800;font-size:.95rem;color:var(--gold);margin-bottom:6px\">N\u1ED9i dung n\xe0y ch\u1EC9 d\xe0nh cho VIP</div>"
+        +"<div style=\"font-size:.8rem;color:var(--muted);margin-bottom:14px\">\u0110\u0103ng k\xFD \u0111\u1EC3 nghe thuy\u1EBFt minh v\xe0 xem chi ti\u1EBFt t\u1EA5t c\u1EA3 qu\xe1n.</div>"
+        +"<button onclick=\"closeDetailAndOpenPaywall()\" style=\"background:var(--green2);color:#fff;border:none;border-radius:12px;padding:10px 22px;font-size:.9rem;font-weight:800;cursor:pointer\">\u0111\u0103ng k\xFD VIP \u2014 36.000\u20AB/th\xE1ng</button>"
+        +"</div>"
+      :aHtml+(desc?"<div class=\"sheet-desc\">"+esc(desc)+"</div>":"")
+        +"<div id=\"menuSection\"></div>"
+        +(story?"<div class=\"sh-title\">C\xE2u chuy\u1EC7n</div><div class=\"story-box\"><p>"+esc(story)+"</p></div>":"")
+    );
+  if(!poiLocked)loadMenuItems(id,dishes);
+
+  // Wire audio lang buttons
+  var dL=document.getElementById("dLangs"),dA=document.getElementById("dAudio");
+  if(dL&&dA){dL.addEventListener("click",function(e){var b=e.target.closest(".alang");if(!b)return;dL.querySelectorAll(".alang").forEach(function(x){x.classList.remove("active");});b.classList.add("active");var wp=!dA.paused;dA.src=b.dataset.url;dA.load();if(wp){dA.currentTime=0;dA.play().catch(function(){});}});}
+  
+  // Wire TTS button
+  var ttsBtn=document.getElementById("ttsBtn");
+  if(ttsBtn){
+    var _ttsText=(desc?pp(poi,"description_"+lang)||pp(poi,"description_Vi")||"":"")||nme;
+    ttsBtn.addEventListener("click",function(){
+      if(speechSynthesis.speaking){speechSynthesis.cancel();ttsBtn.textContent="\u25B6 Nghe thuy\u1EBFt minh";return;}
+      var u=new SpeechSynthesisUtterance(_ttsText);
+      u.lang=lang==="vi"?"vi-VN":lang==="zh"?"zh-CN":"en-US";
+      u.rate=0.9;
+      u.onend=function(){ttsBtn.textContent="\u25B6 Nghe thuy\u1EBFt minh";};
+      ttsBtn.textContent="\u23F9 D\u1EEB ng";
+      speechSynthesis.speak(u);
+    });
+  }
+
+  // update save button in sheet
+  var saveBtn=document.getElementById("sheetSaveBtn");
+  if(saveBtn){saveBtn.textContent=isSaved(id)?"❤️":"🤍";saveBtn.classList.toggle("saved",isSaved(id));}
+  document.getElementById("detailOverlay").classList.add("open");
+  // Auto-play audio; restore position if continuing from map sheet (same POI)
+  if(dA&&canPlay){setTimeout(function(){if(_bsSavedTime>0){dA.currentTime=_bsSavedTime;}dA.play().catch(function(){});},300);}
+}
+
+window.closeDetailAndOpenPaywall=function(){
+  document.getElementById("detailOverlay").classList.remove("open");
+  setTimeout(function(){openPaywall();},200);
+};
+document.getElementById("sheetSaveBtn").addEventListener("click",function(){if(currentPoi)toggleSave(pid(currentPoi));});
+document.getElementById("sheetClose").addEventListener("click",function(){speechSynthesis.cancel();document.getElementById("detailOverlay").classList.remove("open");});
+document.getElementById("detailOverlay").addEventListener("click",function(e){if(e.target===this){speechSynthesis.cancel();this.classList.remove("open");}});
+
+// ── REVIEWS ──────────────────────────────────────────────────────────────
+function loadReviews(poiId){
+  apiFetch(API+"/reviews/poi/"+poiId)
+  .then(function(r){if(!r.ok)throw new Error();return r.json();})
+  .then(function(d){
+    var reviews=Array.isArray(d)?d:(d.data||[]);
+    var rvEl=document.getElementById("rvList");
+    if(!rvEl)return;
+    if(!reviews.length){rvEl.innerHTML="<div style=\"font-size:.8rem;color:var(--muted);padding:8px 0\">Ch\u01B0a c\xF3 \u0111\xE1nh gi\xE1 n\xe0o.</div>";
+    }else{
+      rvEl.innerHTML="<div class=\"review-list\">"+reviews.slice(0,8).map(function(r){
+        var stars="";for(var i=1;i<=5;i++)stars+=(i<=(r.rating||r.Rating||0)?"\u2B50":"\u2606");
+        return"<div class=\"review-card\"><div class=\"review-top\"><span class=\"review-user\">"+esc(r.userName||r.UserName||"Kh\xE1ch")+"</span><span class=\"review-stars\">"+stars+"</span></div>"
+          +"<div class=\"review-date\">"+fmtDate(r.createdAt||r.CreatedAt)+"</div>"
+          +(r.comment||r.Comment?"<div class=\"review-text\">"+esc(r.comment||r.Comment)+"</div>":"")+"</div>";
+      }).join("")+"</div>";
+    }
+    renderReviewForm(poiId);
+  }).catch(function(){
+    var rvEl=document.getElementById("rvList");if(rvEl)rvEl.innerHTML="";
+    renderReviewForm(poiId);
+  });
+}
+function renderReviewForm(poiId){
+  var fEl=document.getElementById("rvForm"); if(!fEl)return;
+  var selRating=0;
+  fEl.innerHTML="<div class=\"review-form\">"
+    +"<label>\u0110\xE1nh gi\xE1 c\u1EE7a b\u1EA1n</label>"
+    +"<div class=\"star-picker\" id=\"rvStars\">"
+    +"<span data-v=\"1\">\u2B50</span><span data-v=\"2\">\u2B50</span><span data-v=\"3\">\u2B50</span><span data-v=\"4\">\u2B50</span><span data-v=\"5\">\u2B50</span>"
+    +"</div>"
+    +"<input id=\"rvName\" type=\"text\" placeholder=\"T\xEAn c\u1EE7a b\u1EA1n\" maxlength=\"60\">"
+    +"<textarea id=\"rvComment\" rows=\"2\" placeholder=\"Nh\u1EADn x\xE9t (t\xF9y ch\u1ECDn)...\"></textarea>"
+    +"<button class=\"review-submit\" id=\"rvSubmit\">G\u1EEDi \u0111\xE1nh gi\xE1</button>"
+    +"<div class=\"review-sub-done\" id=\"rvDone\" style=\"display:none\">\u2705 C\u1EA3m \u01A1n b\u1EA1n \u0111\xE3 \u0111\xE1nh gi\xE1!</div>"
+    +"</div>";
+  var stars=document.getElementById("rvStars");
+  if(stars){
+    stars.querySelectorAll("span").forEach(function(s){
+      s.addEventListener("click",function(){
+        selRating=parseInt(s.dataset.v);
+        stars.querySelectorAll("span").forEach(function(x){x.classList.toggle("on",parseInt(x.dataset.v)<=selRating);});
+      });
+    });
+  }
+  var btn=document.getElementById("rvSubmit");
+  if(btn){
+    btn.addEventListener("click",function(){
+      var name=(document.getElementById("rvName")||{}).value||"";
+      var comment=(document.getElementById("rvComment")||{}).value||"";
+      if(!selRating){alert("H\u00E3y ch\u1ECDn s\u1ED1 sao \u0111\u1EC3 \u0111\u00E1nh gi\xE1!");return;}
+      if(!name.trim()){alert("Vui l\xF2ng nh\u1EADp t\xEAn c\u1EE7a b\u1EA1n!");return;}
+      btn.disabled=true; btn.textContent="\u0110ang g\u1EEDi...";
+      apiFetch(API+"/reviews",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({POI_ID:poiId,userName:name.trim(),rating:selRating,comment:comment.trim()})})
+      .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+      .then(function(){
+        var done=document.getElementById("rvDone");if(done){done.style.display="block";}
+        btn.style.display="none"; loadReviews(poiId);
+      }).catch(function(){btn.disabled=false;btn.textContent="G\u1EEDi \u0111\xE1nh gi\xE1";alert("G\u1EEDi th\u1EA5t b\u1EA1i, th\u1EED l\u1EA1i sau.");});
+    });
+  }
+}
+
+// ── NOW PLAYING ───────────────────────────────────────────────────────────
+function updateNP(poi,al,am){
+  var nme=nm(poi),addr=pp(poi,"address")||"";
+  var imgs=(poi.imageUrls||poi.ImageUrls||[]),img=pp(poi,"imageUrl")||(imgs[0]||"");
+  var cat=pp(poi,"category")||"",als=Object.keys(am),ll={"vi":"Vi\u1EC7t","en":"EN","zh":"\u4E2D\u6587"};
+  if(!als.length){
+    document.getElementById("npContent").innerHTML="<div class=\"np-empty\"><div class=\"np-empty-icon\">\uD83D\uDD07</div><div class=\"np-empty-text\">Qu\xE1n <b>"+esc(nme)+"</b> ch\u01B0a c\xF3 file thuy\u1EBFt minh.</div></div>";
+    return;
+  }
+  var a=am[al]?al:als[0];
+  var heroH=img?"<img src=\""+esc(img)+"\" alt=\"\" onerror=\"this.style.display='none'\">":emj(cat);
+  document.getElementById("npContent").innerHTML=
+    "<div class=\"np-card\"><div class=\"np-hero\">"+heroH+"</div><div class=\"np-body\">"
+    +"<div class=\"np-name\">"+esc(nme)+"</div>"
+    +(addr?"<div class=\"np-addr\">\uD83D\uDCCD "+esc(addr)+"</div>":"")
+    +"<div class=\"np-abox\">"
+    +(als.length>1?"<div class=\"np-langs\" id=\"npL\">"+als.map(function(l){return"<button class=\"np-lang"+(l===a?" active":"")+"\" data-lang=\""+l+"\" data-url=\""+esc(am[l])+"\">"+(ll[l]||l)+"</button>";}).join("")+"</div>":"")
+    +"<audio id=\"npA\" controls preload=\"none\" style=\"width:100%;height:40px\"><source src=\""+esc(am[a])+"\" type=\"audio/mpeg\"></audio>"
+    +"</div></div></div>";
+  var nL=document.getElementById("npL"),nA=document.getElementById("npA");
+  if(nL&&nA){nL.addEventListener("click",function(e){var b=e.target.closest(".np-lang");if(!b)return;nL.querySelectorAll(".np-lang").forEach(function(x){x.classList.remove("active");});b.classList.add("active");var wp=!nA.paused;nA.src=b.dataset.url;nA.load();if(wp){nA.currentTime=0;nA.play().catch(function(){});};});}
+}
+
+// ── SETTINGS RENDERING ────────────────────────────────────────────────────
+function renderSettings(){
+  var lang=LANG.current;
+  var langLabels={"vi":"Ti\u1EBFng Vi\u1EC7t","en":"English","zh":"\u4E2D\u6587"};
+  var vipHtml;
+  if(vip.isVip){
+    vipHtml="<div class=\"vip-card\">"
+      +"<div style=\"display:flex;align-items:center;gap:12px;margin-bottom:12px\">"
+        +"<div style=\"width:46px;height:46px;border-radius:14px;background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0\">\uD83D\uDC51</div>"
+        +"<div style=\"flex:1\">"
+          +"<div style=\"font-size:1rem;font-weight:800;color:var(--green3)\">VIP \u0110ang ho\u1EA1t \u0111\u1ED9ng</div>"
+          +(vip.expiresAt?"<div style=\"font-size:.72rem;color:var(--muted);margin-top:2px\">H\u1EBFt h\u1EA1n: "+esc(fmtDate(vip.expiresAt))+"</div>":"")
+        +"</div>"
+        +"<div class=\"vip-status-dot\"></div>"
+      +"</div>"
+      +(vip.invoiceNumber?"<div style=\"font-size:.72rem;color:var(--muted);margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)\">H\xF3a \u0111\u1EE1n: <b>"+esc(vip.invoiceNumber)+"</b></div>":"")
+      +(vip.recoveryCode
+        ?"<div style=\"background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:10px 12px\">"
+          +"<div style=\"font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px\">M\xE3 kh\xF4i ph\u1EE5c</div>"
+          +"<div style=\"display:flex;align-items:center;gap:8px\">"
+            +"<div style=\"font-size:.82rem;font-weight:800;color:var(--green3);letter-spacing:.05em;flex:1;word-break:break-all\">"+esc(vip.recoveryCode)+"</div>"
+            +"<button onclick=\"copyText('"+esc(vip.recoveryCode)+"');this.textContent='\\u2705 \\u0110\\xE3 sao ch\\xe9p'\" style=\"flex-shrink:0;background:var(--dark4);border:1px solid var(--border);color:var(--green4);border-radius:8px;padding:5px 10px;font-size:.72rem;font-weight:700;cursor:pointer\">Sao ch\xe9p</button>"
+          +"</div>"
+        +"</div>"
+        :"")
+      +"</div>";
+  }else{
+    var isFree=sessionChoice==="free";
+    var freePoiName=pois.length>0?nm(pois[0]):"";
+    vipHtml="<div class=\"vip-card no-vip\">"
+      +"<div style=\"display:flex;align-items:center;gap:12px;margin-bottom:12px\">"
+        +"<div style=\"width:46px;height:46px;border-radius:14px;background:rgba(252,211,77,.1);border:1px solid rgba(252,211,77,.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0\">\uD83D\uDD13</div>"
+        +"<div style=\"flex:1\">"
+          +"<div style=\"font-size:1rem;font-weight:800;color:var(--muted)\">Ch\u01B0a k\xEDch ho\u1EA1t VIP</div>"
+          +"<div style=\"font-size:.72rem;color:var(--muted);margin-top:2px\">"+(isFree&&freePoiName?"Ch\u1EBF \u0111\u1ED9 mi\u1EC5n ph\xED \u2014 1 qu\xE1n: "+esc(freePoiName):"Xem b\u1EA3n \u0111\u1ED3 mi\u1EC5n ph\xED")+"</div>"
+        +"</div>"
+        +"<div class=\"vip-status-dot off\"></div>"
+      +"</div>"
+      +"<button class=\"btn-vip btn-sub\" onclick=\"openPaywall()\">\uD83D\uDD13 \u0110\u0103ng k\xFD VIP \u2014 36.000\u20AB/th\xE1ng</button>"
+      +"<button class=\"btn-vip btn-restore\" id=\"restoreBtn\" onclick=\"toggleRestoreForm()\" style=\"margin-top:6px\">Kh\xF4i ph\u1EE5c VIP \u0111\xE3 mua</button>"
+      +"<div class=\"restore-form\" id=\"restoreForm\">"
+        +"<input id=\"rcInput\" type=\"text\" placeholder=\"Nh\u1EADp m\xe3 kh\xF4i ph\u1EE5c (VIP-XXXXX-XXXXX)\" autocapitalize=\"none\">"
+        +"<button class=\"btn-vip btn-sub\" id=\"rcSubmit\" onclick=\"doRestore()\" style=\"margin-top:4px\">X\xE1c nh\u1EADn kh\xF4i ph\u1EE5c</button>"
+        +"<div class=\"restore-msg\" id=\"rcMsg\"></div>"
+      +"</div>"
+      +"</div>";
+  }
+  // Language buttons
+  var langBtnsHtml="";
+  ["vi","en","zh"].forEach(function(l){
+    var active=l===lang;
+    langBtnsHtml+="<button onclick=\"window.sfnChangeLang('"+l+"')\" style=\"padding:7px 16px;border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;"
+      +"border:1px solid "+(active?"var(--green2)":"var(--border)")+";background:"+(active?"rgba(34,197,94,.2)":"transparent")+";color:"+(active?"var(--green3)":"var(--muted)")+"\">"+esc(langLabels[l])+"</button>";
+  });
+  document.getElementById("settingsContent").innerHTML=
+    "<div style=\"padding:14px 16px 80px\">"
+    +"<div class=\"settings-section-title\">G\xF3i d\u1ECBch v\u1EE5</div>"
+    +vipHtml
+    +"<div class=\"settings-section-title\" style=\"margin-top:20px\">Ng\xF4n ng\u1EEF</div>"
+    +"<div style=\"background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px\">"
+      +"<div style=\"font-size:.78rem;color:var(--muted);margin-bottom:10px\">Ch\u1ECDn ng\xF4n ng\u1EEF thuy\u1EBFt minh:</div>"
+      +"<div style=\"display:flex;gap:8px;flex-wrap:wrap\">"+langBtnsHtml+"</div>"
+    +"</div>"
+    +"<div class=\"settings-section-title\" style=\"margin-top:20px\">Thi\u1EBFt b\u1ECB</div>"
+    +"<div class=\"settings-card\">"
+      +"<div class=\"settings-row\">"
+        +"<div class=\"settings-row-icon\">\uD83D\uDCF1</div>"
+        +"<div class=\"settings-row-body\"><div class=\"settings-row-label\">ID thi\u1EBFt b\u1ECB</div><div class=\"settings-row-sub\">"+esc(deviceId)+"</div></div>"
+        +"<button onclick=\"copyText('"+esc(deviceId)+"');this.textContent='\\u2705'\" style=\"background:none;border:none;color:var(--muted);font-size:.72rem;cursor:pointer;padding:4px 8px;flex-shrink:0\">Sao ch\xe9p</button>"
+      +"</div>"
+    +"</div>"
+    +"<div class=\"settings-section-title\" style=\"margin-top:20px\">Ph\xE1p l\xFD</div>"
+    +"<div class=\"settings-card\">"
+      +"<div class=\"settings-row\" style=\"cursor:pointer\" onclick=\"openLegal('terms')\"><div class=\"settings-row-icon\">\uD83D\uDCDC</div><div class=\"settings-row-body\"><div class=\"settings-row-label\">\u0110i\u1EC1u kho\u1EA3n s\u1EED d\u1EE5ng</div></div><div class=\"settings-row-right\">\u25B6</div></div>"
+      +"<div class=\"settings-row\" style=\"cursor:pointer\" onclick=\"openLegal('privacy')\"><div class=\"settings-row-icon\">\uD83D\uDD12</div><div class=\"settings-row-body\"><div class=\"settings-row-label\">Ch\xEDnh s\xE1ch b\u1EA3o m\u1EADt</div></div><div class=\"settings-row-right\">\u25B6</div></div>"
+    +"</div>"
+    +"<div style=\"text-align:center;padding:20px 0 0;font-size:.72rem;color:var(--muted);line-height:2\">Street Food Narrator \xA9 2026<br>v1.0.0 \xB7 Ph\u1ED1 \u1EA9m th\u1EF1c V\u0129nh Kh\xE1nh</div>"
+    +"</div>";
+}
+window.sfnChangeLang=function(l){
+  LANG.current=l;localStorage.setItem("sfn_lang",l);
+  var s=document.getElementById("langSelect");if(s)s.value=l;
+  applyI18n();
+  // switch bottom sheet audio to new language without pills
+  var _bsA=document.getElementById("bsAudio");
+  if(_bsA&&bsCurrPoiId){
+    var _bsP=null;for(var _i=0;_i<pois.length;_i++){if(pid(pois[_i])===bsCurrPoiId){_bsP=pois[_i];break;}}
+    if(_bsP){var _nu=audioFor(_bsP,l)||audioFor(_bsP,"vi");if(_nu){var _wp=!_bsA.paused;_bsA.src=_nu;_bsA.load();if(_wp){_bsA.currentTime=0;_bsA.play().catch(function(){});}}}
+  }
+  // switch detail/route audio player to new language
+  document.querySelectorAll(".alang[data-lang='"+l+"']").forEach(function(btn){
+    var con=btn.closest("[id^='dLangs'],[id^='rtL_']");if(con){btn.click();}
+  });
+  renderAll();if(currentPoi)openDetail(currentPoi);renderSettings();
+};
+window.openLegal=function(type){
+  var isTerms=type==="terms";
+  var title=isTerms?"\u0110i\u1EC1u kho\u1EA3n s\u1EED d\u1EE5ng":"Ch\xEDnh s\xE1ch b\u1EA3o m\u1EADt";
+  var termsHtml="<h3 style='color:var(--green3);margin-bottom:8px'>\u0110i\u1EC1u kho\u1EA3n s\u1EED d\u1EE5ng</h3>"
+    +"<p>C\u1EADp nh\u1EADt: 01/01/2026 &mdash; C\xF3 hi\u1EC7u l\u1EF1c to\xE0n qu\u1ED1c.</p>"
+    +"<hr style='border-color:var(--border);margin:10px 0'>"
+    +"<p><b>1. Ch\u1EA5p thu\u1EADn \u0111i\u1EC1u kho\u1EA3n</b><br>B\u1EB1ng vi\u1EC7c s\u1EED d\u1EE5ng \u1EE9ng d\u1EE5ng Street Food Narrator (\u201CSFNarrator\u201D), b\u1EA1n \u0111\u1ED3ng \xFD r\u1EB1ng m\xECnh \u0111\u00E3 \u0111\u1ECDc, hi\u1EC3u v\xE0 ch\u1EA5p thu\u1EADn c\xE1c \u0111i\u1EC1u kho\u1EA3n d\u01B0\u1EDBi \u0111\xE2y.</p>"
+    +"<p><b>2. M\xF4 t\u1EA3 d\u1ECBch v\u1EE5</b><br>SFNarrator l\xE0 n\u1EC1n t\u1EA3ng h\u01B0\u1EDBng d\u1EABn du l\u1ECBch \u1EA9m th\u1EF1c t\u1EA1i ph\u1ED1 V\u0129nh Kh\xE1nh, TP.HCM. \u1EE8ng d\u1EE5ng cung c\u1EA5p th\xF4ng tin qu\xE1n \u0103n, b\u1EA3n \u0111\u1ED3, h\u01B0\u1EDBng d\u1EABn audio \u0111a ng\xF4n ng\u1EEF v\xE0 l\u1ED9 tr\xECnh tour cho kh\xE1ch du l\u1ECBch.</p>"
+    +"<p><b>3. Gói VIP v\xE0 thanh to\xE1n</b><br>Gói VIP c\xF3 gi\xE1 36.000 VN\u0110/th\xE1ng, \u0111\u01B0\u1EE3c thanh to\xE1n qua chuy\u1EC3n kho\u1EA3n ng\xE2n h\xE0ng. Sau khi thanh to\xE1n \u0111\u01B0\u1EE3c x\xE1c nh\u1EADn, t\u00E0i kho\u1EA3n VIP \u0111\u01B0\u1EE3c k\xEDch ho\u1EA1t trong v\xF2ng 24 gi\u1EDD. M\xE3 kh\xF4i ph\u1EE5c do h\u1EC7 th\u1ED1ng c\u1EA5p c\u1EA7n \u0111\u01B0\u1EE3c l\u01B0u l\u1EA1i \u0111\u1EC3 s\u1EED d\u1EE5ng l\u1EA1i tr\xEAn thi\u1EBFt b\u1ECB m\u1EDBi.</p>"
+    +"<p><b>4. Ch\xEDnh s\xE1ch ho\xE0n ti\u1EC1n</b><br>Kh\xF4ng ho\xE0n ti\u1EC1n sau khi gói VIP \u0111\u01B0\u1EE3c k\xEDch ho\u1EA1t. Trong tr\u01B0\u1EDBng h\u1EE3p h\u1EC7 th\u1ED1ng g\u1EB7p s\u1EF1 c\u1ED1 v\xE0 kh\xF4ng th\u1EC3 cung c\u1EA5p d\u1ECBch v\u1EE5, ch\xFAng t\xF4i s\u1EBD x\xE9t ho\xE0n ti\u1EC1n theo t\u1EEBng tr\u01B0\u1EDBng h\u1EE3p c\u1EE5 th\u1EC3.</p>"
+    +"<p><b>5. Quy\u1EC1n s\u1EDF h\u1EEFu n\u1ED9i dung</b><br>To\xE0n b\u1ED9 n\u1ED9i dung bao g\u1ED3m \u1EA3nh, \u00E2m thanh, b\u1EA3n m\xF4 t\u1EA3 v\xE0 l\u1ED9 tr\xECnh tour l\xE0 t\xE0i s\u1EA3n c\u1EE7a SFNarrator. Kh\xF4ng sao ch\xe9p, ph\xE2n ph\u1ED1i ho\u1EB7c s\u1EED d\u1EE5ng th\u01B0\u01A1ng m\u1EA1i khi ch\u01B0a c\xF3 s\u1EF1 cho ph\xe9p b\u1EB1ng v\u0103n b\u1EA3n.</p>"
+    +"<p><b>6. Gi\u1EDBi h\u1EA1n tr\xE1ch nhi\u1EC7m</b><br>SFNarrator cung c\u1EA5p th\xF4ng tin tham kh\u1EA3o. Th\xF4ng tin v\u1EC1 gi\u1EDD m\u1EDF c\u1EEDa, gi\xE1 c\u1EA3 c\xF3 th\u1EC3 thay \u0111\u1ED5i m\xE0 kh\xF4ng b\xE1o tr\u01B0\u1EDBc. Kh\xF4ng ch\u1ECBu tr\xE1ch nhi\u1EC7m v\u1EC1 s\u1EF1 sai l\u1EC7ch gi\u1EEFa th\xF4ng tin hi\u1EC3n th\u1ECB v\xE0 th\u1EF1c t\u1EBF.</p>"
+    +"<p><b>7. Thay \u0111\u1ED5i \u0111i\u1EC1u kho\u1EA3n</b><br>Ch\xFAng t\xF4i c\xF3 quy\u1EC1n c\u1EADp nh\u1EADt \u0111i\u1EC1u kho\u1EA3n b\u1EA5t c\u1EE9 l\xFAc n\xE0o. Vi\u1EC7c ti\u1EBFp t\u1EE5c s\u1EED d\u1EE5ng d\u1ECBch v\u1EE5 sau khi thay \u0111\u1ED5i \u0111\u01B0\u1EE3c xem l\xE0 \u0111\u1ED3ng \xFD v\u1EDBi \u0111i\u1EC1u kho\u1EA3n m\u1EDBi.</p>"
+    +"<p style='color:var(--muted);font-size:.75rem;margin-top:16px'>\u0110\u1ECBa ch\u1EC9 li\xEAn h\u1EC7: streetfoodnarrator@gmail.com</p>";
+  var privacyHtml="<h3 style='color:var(--green3);margin-bottom:8px'>Ch\xEDnh s\xE1ch b\u1EA3o m\u1EADt</h3>"
+    +"<p>C\u1EADp nh\u1EADt: 01/01/2026 &mdash; \u00C1p d\u1EE5ng cho \u1EE9ng d\u1EE5ng Street Food Narrator.</p>"
+    +"<hr style='border-color:var(--border);margin:10px 0'>"
+    +"<p><b>1. Th\xF4ng tin thu th\u1EADp</b><br>Ch\xFAng t\xF4i thu th\u1EADp: (a) ID thi\u1EBFt b\u1ECB \u0111\u01B0\u1EE3c t\u1EA1o ng\u1EABu nhi\xEAn t\u1EEB ph\xEDa m\xE1y kh\xE1ch; (b) th\xF4ng tin \u0111\u01A1n h\xE0ng v\xE0 m\xE3 h\xF3a \u0111\u01A1n khi mu\u1EA1 VIP; (c) d\u1EEF li\u1EC7u s\u1EED d\u1EE5ng \u1EA9n danh (c\u1EBF \u0111\u1ED9, ng\xF4n ng\u1EEF, qu\xE1n xem). Ch\xFAng t\xF4i KH\xD4NG thu th\u1EADp t\xEAn, email, s\u1ED1 \u0111i\u1EC7n tho\u1EA1i hay s\u1ED1 CMND.</p>"
+    +"<p><b>2. M\u1EE5c \u0111\xEDch s\u1EED d\u1EE5ng d\u1EEF li\u1EC7u</b><br>D\u1EEF li\u1EC7u \u0111\u01B0\u1EE3c d\xF9ng \u0111\u1EC3: x\xE1c nh\u1EADn v\xE0 duy tr\xEC gói VIP; c\u1EA3i thi\u1EC7n ch\u1EA5t l\u01B0\u1EE3ng d\u1ECBch v\u1EE5; th\u1ED1ng k\xEA \u1EA9n danh. Ch\xFAng t\xF4i KH\xD4NG b\xE1n ho\u1EB7c chia s\u1EBB d\u1EEF li\u1EC7u c\xE1 nh\xE2n cho b\xEAn th\u1EE9 ba.</p>"
+    +"<p><b>3. L\u01B0u tr\u1EEF d\u1EEF li\u1EC7u</b><br>D\u1EEF li\u1EC7u giao d\u1ECBch \u0111\u01B0\u1EE3c l\u01B0u trong 12 th\xE1ng. D\u1EEF li\u1EC7u s\u1EED d\u1EE5ng \u1EA9n danh c\xF3 th\u1EC3 gi\u1EEF l\xE2u h\u01A1n cho m\u1EE5c \u0111\xEDch th\u1ED1ng k\xEA.</p>"
+    +"<p><b>4. B\u1EA3o m\u1EADt</b><br>Th\xF4ng tin \u0111\u01B0\u1EE3c truy\u1EC1n qua HTTPS m\xE3 h\xF3a. Ch\xFAng t\xF4i \xE1p d\u1EE5ng c\xE1c bi\u1EC7n ph\xE1p b\u1EA3o m\u1EADt ph\xF9 h\u1EE3p \u0111\u1EC3 ch\u1ED1ng truy c\u1EADp tr\xE1i ph\xe9p.</p>"
+    +"<p><b>5. Cookie v\xE0 l\u01B0u tr\u1EEF c\u1EE5c b\u1ED9</b><br>\u1EE8ng d\u1EE5ng s\u1EED d\u1EE5ng <code>localStorage</code> \u0111\u1EC3 l\u01B0u ng\xF4n ng\u1EEF, ID thi\u1EBFt b\u1ECB v\xE0 danh s\xE1ch qu\xE1n \u0111\u00E3 l\u01B0u. D\u1EEF li\u1EC7u n\xE0y n\u1EB1m to\xE0n b\u1ED9 tr\xEAn thi\u1EBFt b\u1ECB c\u1EE7a b\u1EA1n.</p>"
+    +"<p><b>6. Quy\u1EC1n c\u1EE7a ng\u01B0\u1EDDi d\xF9ng</b><br>B\u1EA1n c\xF3 quy\u1EC1n y\xEAu c\u1EA7u x\xF3a d\u1EEF li\u1EC7u li\xEAn quan \u0111\u1EBFn ID thi\u1EBFt b\u1ECB c\u1EE7a m\xECnh b\u1EB1ng c\xE1ch g\u1EEDi email \u0111\xEDnh k\xE8m ID thi\u1EBFt b\u1ECB.</p>"
+    +"<p style='color:var(--muted);font-size:.75rem;margin-top:16px'>Li\xEAn h\u1EC7: streetfoodnarrator@gmail.com</p>";
+  var ov=document.getElementById("legalOverlay");
+  var tEl=document.getElementById("legalTitle");
+  var bEl=document.getElementById("legalBody");
+  if(!ov||!tEl||!bEl)return;
+  tEl.textContent=title;
+  bEl.innerHTML=isTerms?termsHtml:privacyHtml;
+  ov.style.display="block";
+};
+window.closeLegal=function(){
+  var ov=document.getElementById("legalOverlay");if(ov)ov.style.display="none";
+};
+window.toggleRestoreForm=function(){
+  var f=document.getElementById("restoreForm");if(f){f.style.display=f.style.display==="block"?"none":"block";}
+};
+window.doRestore=function(){
+  var code=(document.getElementById("rcInput")||{}).value||"";
+  var msg=document.getElementById("rcMsg");
+  if(!code.trim()){if(msg)msg.textContent="Vui l\xF2ng nh\u1EADp m\xe3";return;}
+  if(msg){msg.style.color=msg.style.color="var(--muted)";msg.textContent="\u0110ang ki\u1EC3m tra...";}
+  apiFetch(API+"/subscriptions/restore-device-vip",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({deviceId:deviceId,recoveryCode:code.trim(),platform:"web",appVersion:"1.0"})})
+  .then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d};});})
+  .then(function(res){
+    if(res.ok&&(res.data.isVip||res.data.IsVip)){
+      vip.isVip=true; vip.expiresAt=res.data.expiresAtUtc||res.data.ExpiresAtUtc;
+      vip.invoiceNumber=res.data.invoiceNumber||res.data.InvoiceNumber;
+      vip.recoveryCode=res.data.recoveryCode||res.data.RecoveryCode;
+      sessionChoice="vip"; sessionStorage.setItem("sfn_session_choice","vip");
+      updateVipBadge(); renderList(); renderSettings();
+    }else{
+      if(msg){msg.style.color="var(--red)";msg.textContent="M\xe3 kh\xF4ng h\u1EE3p l\u1EC7 ho\u1EB7c \u0111\xE3 h\u1EBFt h\u1EA1n.";}
+    }
+  }).catch(function(){if(msg){msg.style.color="var(--red)";msg.textContent="L\u1ED7i k\u1EBFt n\u1ED1i, th\u1EED l\u1EA1i sau.";}});
+};
+window.copyText=function(t){copyText(t);};
+
+// ── PAYWALL ───────────────────────────────────────────────────────────────
+var pwContentDefault=buildTransferContent();
+function openPaywall(msg){
+  if(msg){document.getElementById("pwDesc").textContent=msg;}
+  showPwStep(1);
+  document.getElementById("pwOverlay").classList.add("open");
+  var inp=document.getElementById("pwContent");if(inp)inp.value=pwContentDefault;
+  var qi=document.getElementById("pwQrImg");if(qi)qi.src=buildQrUrl(pwContentDefault);
+}
+window.openPaywall=openPaywall;
+function showPwStep(n){
+  [1,2,3].forEach(function(i){var el=document.getElementById("pwStep"+i);if(el)el.classList.toggle("active",i===n);});
+}
+function closePw(){document.getElementById("pwOverlay").classList.remove("open");}
+document.getElementById("pwClose").addEventListener("click",closePw);
+document.getElementById("pwOverlay").addEventListener("click",function(e){if(e.target===this)closePw();});
+document.getElementById("pwMaybeLater").addEventListener("click",closePw);
+document.getElementById("pwToPayment").addEventListener("click",function(){showPwStep(2);});
+document.getElementById("pwBackToIntro").addEventListener("click",function(){showPwStep(1);});
+document.getElementById("pwToRestore").addEventListener("click",function(){
+  closePw(); switchTab("tabSettings"); renderSettings();
+  setTimeout(function(){var f=document.getElementById("restoreForm");if(f)f.style.display="block";},300);
+});
+document.getElementById("pwContent").addEventListener("input",function(){
+  pwContentDefault=this.value;
+  var qi=document.getElementById("pwQrImg");if(qi)qi.src=buildQrUrl(pwContentDefault);
+});
+document.getElementById("pwConfirmBtn").addEventListener("click",function(){
+  var btn=this; btn.disabled=true; btn.textContent="\u0110ang x\xE1c nh\u1EADn...";
+  var content=(document.getElementById("pwContent")||{}).value||buildTransferContent();
+  apiFetch(API+"/subscriptions/confirm-device-payment",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({deviceId:deviceId,transferContent:content.trim(),platform:"web",model:navigator.userAgent.slice(0,60),appVersion:"1.0"})})
+  .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+  .then(function(d){
+    vip.isVip=d.isVip||d.IsVip||true;
+    vip.expiresAt=d.expiresAtUtc||d.ExpiresAtUtc;
+    vip.invoiceNumber=d.invoiceNumber||d.InvoiceNumber;
+    vip.recoveryCode=d.recoveryCode||d.RecoveryCode;
+    sessionChoice="vip"; sessionStorage.setItem("sfn_session_choice","vip");
+    var rcEl=document.getElementById("pwRecoveryCode");
+    if(rcEl)rcEl.textContent=vip.recoveryCode||"N/A";
+    var invEl=document.getElementById("pwInvoice");
+    if(invEl)invEl.textContent="H\xF3a \u0111\u1EE1n: "+(vip.invoiceNumber||"");
+    updateVipBadge(); renderList(); renderSettings();
+    showPwStep(3);
+  }).catch(function(err){
+    btn.disabled=false; btn.textContent="X\xE1c nh\u1EADn \u0111\xE3 chuy\u1EC3n kho\u1EA3n";
+    alert("Kh\xF4ng x\xE1c nh\u1EADn \u0111\u01B0\u1EE3c: "+err.message);
+  });
+});
+document.getElementById("pwCopyCode").addEventListener("click",function(){
+  var code=(document.getElementById("pwRecoveryCode")||{}).textContent||"";
+  copyText(code); this.textContent="\u2705 \u0110\xE3 sao ch\xe9p!";
+});
+document.getElementById("pwStartExplore").addEventListener("click",function(){closePw();switchTab("tabMap");});
+
+// ── DEVICE ACTIVITY HEARTBEAT ────────────────────────────────────────────
+(function(){
+  var HB_INTERVAL=60000; // 60 seconds
+  var hbTimer=null;
+  function sendHeartbeat(){
+    apiFetch(API+"/device-activity/heartbeat",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({deviceId:deviceId,platform:"web",userRole:"tourist",clientType:"web"})
+    }).catch(function(){});
+  }
+  function sendDisconnect(){
+    var url=API+"/device-activity/disconnect";
+    var body=JSON.stringify({deviceId:deviceId});
+    if(navigator.sendBeacon){
+      navigator.sendBeacon(url,new Blob([body],{type:"application/json"}));
+    }else{
+      var x=new XMLHttpRequest();x.open("POST",url,false);
+      x.setRequestHeader("Content-Type","application/json");
+      try{x.send(body);}catch(e){}
+    }
+  }
+  function startHeartbeat(){
+    sendHeartbeat();
+    hbTimer=setInterval(sendHeartbeat,HB_INTERVAL);
+  }
+  function stopHeartbeat(){if(hbTimer){clearInterval(hbTimer);hbTimer=null;}}
+  document.addEventListener("visibilitychange",function(){
+    if(document.hidden){stopHeartbeat();sendDisconnect();}
+    else{startHeartbeat();}
+  });
+  window.addEventListener("beforeunload",function(){sendDisconnect();});
+  startHeartbeat();
+})();
+
+// ── BOOT ─────────────────────────────────────────────────────────────────
+var dpId=parseInt(params.get("poiId")||params.get("poi")||"0",10)||null;
+initMap(); startGps(); applyI18n();
+checkVip().then(function(){
+  loadTours(); // load tours in parallel, no blocking
+  loadAudio(); // load audio URLs in parallel, no blocking
+  loadPois().then(function(loaded){
+    if(dpId){
+      var poi=null;for(var i=0;i<loaded.length;i++){if(pid(loaded[i])===dpId){poi=loaded[i];break;}}
+      if(poi){openDetail(poi);var la=plat(poi),lo=plon(poi);if(la&&lo)map.setView([la,lo],18);}
+    }else{map.setView(CENTER,ZOOM);}
+    // Show welcome popup AFTER data loads so free-POI is known
+    setTimeout(showWelcomeIfNeeded, 600);
+  });
+});
+}());
+</script>
+</body>
+</html>

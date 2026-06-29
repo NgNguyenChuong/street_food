@@ -254,17 +254,7 @@ public class TextToSpeechService : ITTSService
         }
     }
 
-    private static string GetOrCreateAnonymousDeviceId()
-    {
-        const string key = "analytics_anonymous_device_id";
-        var current = Preferences.Get(key, string.Empty);
-        if (!string.IsNullOrWhiteSpace(current))
-            return current;
-
-        var created = $"m-{Guid.NewGuid():N}";
-        Preferences.Set(key, created);
-        return created;
-    }
+    private static string GetOrCreateAnonymousDeviceId() => AppConfig.GetOrCreateDeviceId();
 
     public async Task<bool> SpeakNativeFallbackAsync(
         string text,

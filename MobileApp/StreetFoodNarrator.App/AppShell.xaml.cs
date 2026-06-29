@@ -15,6 +15,7 @@ public partial class AppShell : Shell
     private SettingsPage? _cachedSettingsTabPage;
     private readonly MainViewModel _mainViewModel;
     private readonly LanguageService _languageService;
+    private readonly DeviceActivityService? _deviceActivityService;
     private IDispatcherTimer? _vipStatusMonitorTimer;
     private bool _isVipStatusRefreshInFlight;
     private bool _isVipExpiryAlertVisible;
@@ -27,6 +28,8 @@ public partial class AppShell : Shell
         InitializeComponent();
         _mainViewModel = ResolveActiveServices().GetRequiredService<MainViewModel>();
         _languageService = ResolveActiveServices().GetRequiredService<LanguageService>();
+        try { _deviceActivityService = ResolveActiveServices().GetRequiredService<DeviceActivityService>(); }
+        catch { _deviceActivityService = null; }
         _mainViewModel.VipSubscriptionExpired += OnVipSubscriptionExpired;
         LanguageService.LanguageChanged += OnLanguageChanged;
 
@@ -99,11 +102,13 @@ public partial class AppShell : Shell
     {
         StartVipStatusMonitorTimer();
         _ = RefreshVipStatusSafelyAsync("OnShellLoaded");
+        _deviceActivityService?.Start();
     }
 
     private void OnShellUnloaded(object? sender, EventArgs e)
     {
         StopVipStatusMonitorTimer();
+        _deviceActivityService?.Stop();
     }
 
     private void StartVipStatusMonitorTimer()
@@ -166,6 +171,10 @@ public partial class AppShell : Shell
             return;
 
         _isVipExpiryAlertVisible = true;
+
+        // Force tour list to re-lock VIP-gated tours immediately on expiry.
+        try { await _mainViewModel.LoadToursAsync(forceSyncNow: false); } catch { }
+
         try
         {
             var expiresText = _mainViewModel.VipExpiresAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")

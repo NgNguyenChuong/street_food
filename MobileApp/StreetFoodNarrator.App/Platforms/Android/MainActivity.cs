@@ -195,6 +195,20 @@ namespace StreetFoodNarrator.App
             TryCaptureQrDeepLink(intent);
         }
 
+        protected override void OnDestroy()
+        {
+            try
+            {
+                base.OnDestroy();
+            }
+            catch (ObjectDisposedException ex)
+            {
+                // Defensive guard for intermittent MAUI Shell teardown race on some Android builds.
+                StartupDiagnostics.Append(ex, "MainActivity.OnDestroy.ObjectDisposed");
+                System.Diagnostics.Debug.WriteLine($"[MainActivity] OnDestroy suppressed ObjectDisposedException: {ex.Message}");
+            }
+        }
+
         private static void TryCaptureQrDeepLink(Intent? intent)
         {
             try

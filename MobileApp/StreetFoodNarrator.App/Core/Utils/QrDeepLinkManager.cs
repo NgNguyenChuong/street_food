@@ -9,6 +9,7 @@ public sealed class QrDeepLinkPayload
     public int? PoiId { get; init; }
     public string TourId { get; init; } = string.Empty;
     public bool OpenMainPageOnly { get; init; }
+    public string ApiBaseUrl { get; init; } = string.Empty;
     public DateTimeOffset? ExpiresAtUtc { get; init; }
 
     public bool IsExpired(DateTimeOffset nowUtc)
@@ -81,6 +82,7 @@ public static class QrDeepLinkManager
         var poiId = TryParsePoiId(query);
         var tourId = TryParseTourId(query);
         var openMainPageOnly = TryParseMainPageFlag(query);
+        var apiBaseUrl = TryParseApiBaseUrl(query);
         var expiresAt = TryParseExpiry(query);
 
         if (!poiId.HasValue && string.IsNullOrWhiteSpace(tourId) && !openMainPageOnly)
@@ -103,6 +105,7 @@ public static class QrDeepLinkManager
             PoiId = poiId,
             TourId = tourId ?? string.Empty,
             OpenMainPageOnly = openMainPageOnly,
+            ApiBaseUrl = apiBaseUrl ?? string.Empty,
             ExpiresAtUtc = expiresAt
         };
 
@@ -143,6 +146,27 @@ public static class QrDeepLinkManager
 
         var normalized = value.Trim().ToLowerInvariant();
         return normalized is "main" or "mainpage" or "home" or "explore";
+    }
+
+    private static string? TryParseApiBaseUrl(IReadOnlyDictionary<string, string> query)
+    {
+        var value = GetQueryValue(query, "api")
+            ?? GetQueryValue(query, "apiUrl")
+            ?? GetQueryValue(query, "apiBase")
+            ?? GetQueryValue(query, "baseUrl");
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
+            return null;
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return $"{uri.Scheme}://{uri.Authority}/";
     }
 
     private static void TryParsePathPayload(Uri uri, out int? poiId, out string? tourId, out bool openMainPageOnly)
@@ -329,6 +353,12 @@ public static class QrDeepLinkManager
             string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(host, "10.0.2.2", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (host.EndsWith(".ngrok-free.app", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".ngrok-free.dev", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }

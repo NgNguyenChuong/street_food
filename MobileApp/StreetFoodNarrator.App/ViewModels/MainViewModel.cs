@@ -19,8 +19,7 @@ namespace StreetFoodNarrator.App.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
-    public sealed class TourListItem
-    {
+    public sealed class TourListItem    {
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
@@ -756,7 +755,7 @@ public partial class MainViewModel : ObservableObject
     private const int PoiSyncIntervalSeconds = 60;
     private const int TourSyncIntervalSeconds = 180;
     private static readonly TimeSpan SavedPoisReloadInterval = TimeSpan.FromSeconds(8);
-    private static readonly TimeSpan VipStatusSyncInterval = TimeSpan.FromSeconds(45);
+    private static readonly TimeSpan VipStatusSyncInterval = TimeSpan.FromSeconds(25);
     private static readonly JsonSerializerOptions TourJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -3674,17 +3673,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    private static string GetOrCreateAnonymousDeviceId()
-    {
-        const string key = "analytics_anonymous_device_id";
-        var current = Preferences.Get(key, string.Empty);
-        if (!string.IsNullOrWhiteSpace(current))
-            return current;
-
-        var created = $"m-{Guid.NewGuid():N}";
-        Preferences.Set(key, created);
-        return created;
-    }
+    private static string GetOrCreateAnonymousDeviceId() => AppConfig.GetOrCreateDeviceId();
 
     public bool MarkActiveTourCompleted()
         => MarkTourCompletedById(ActiveTourId);
